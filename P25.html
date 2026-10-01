@@ -1,0 +1,487 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P25 Security operations: incident response, forensics and governance</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P25">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P25</p><h1>Security operations: incident response, forensics and governance</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P10.html">P10</a> <a href="S12.html">S12</a></div><div><b>Covers:</b> CS2023 SEC, CS2023 SEP</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>the incident-response lifecycle (preparation, detection and analysis, containment, eradication and recovery, post-incident review)</li><li>security logging and monitoring that can actually detect an attack</li><li>evidence preservation and chain of custody</li><li>mobile-device forensics basics</li><li>risk assessment (likelihood x impact, risk registers)</li><li>security policies and least privilege</li><li>the data lifecycle (collection, retention, deletion)</li><li>breach-notification duties in India (CERT-In directions, DPDP Act 2023) and elsewhere</li><li>protecting embedded and cyber-physical systems (secure boot, signed firmware updates)</li><li>tabletop exercises and blameless postmortems</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In December 2020, security researchers discovered the SolarWinds Orion supply-chain breach, one of the most sophisticated cyber-espionage operations in human history. Threat actors infiltrated the software build pipeline months earlier, inserting an evasive backdoor named Sunburst into digitally signed software updates distributed to eighteen thousand government agencies and Fortune 500 enterprises worldwide. The intrusion succeeded not through zero-day software exploits on production servers, but by exploiting weaknesses in software supply chain governance, inadequate logging, and the lack of cryptographic build verification. The incident demonstrated that perimeter defenses are obsolete: modern security operations must operate under the assumption of breach, deploying rigorous incident response lifecycles, continuous security monitoring, and verifiable chains of custody.</p>
+<p>At the other end of the cyber spectrum, in May 2021, the Colonial Pipeline ransomware attack halted nearly half of the United States East Coast's refined fuel supply for six days. The initial vector was a single compromised password to a legacy Virtual Private Network account that lacked multi-factor authentication. When operations halted, panic ensued because the organization lacked tested incident containment boundaries and had never performed realistic cross-functional tabletop exercises. In India, cyber attacks targeting critical healthcare infrastructure—such as the massive November 2022 ransomware attack on the All India Institute of Medical Sciences (AIIMS) in New Delhi—crippled outpatient and inpatient digital systems for weeks, exposing patient health records and triggering the strict implementation of the CERT-In 2022 Cybersecurity Directions. These historical disasters established modern security operations: a disciplined engineering practice combining rapid incident response, forensic evidence preservation, strict least-privilege governance, and blameless postmortems.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Security operations is the continuous practice of detecting, containing, investigating, and recovering from cyber attacks while maintaining legal and regulatory governance. Rather than hoping defenses never fail, security engineers prepare for inevitable incidents by building automated detection pipelines from system logs, isolating compromised machines before damage spreads, and collecting cryptographic forensic evidence that can withstand legal scrutiny in court. Organizations enforce the principle of least privilege so that stolen credentials cannot compromise the entire infrastructure; manage data through a strict lifecycle of collection, retention, and secure deletion; comply with statutory breach notification mandates such as reporting incidents to CERT-In within 6 hours; and conduct blameless postmortems and simulated tabletop exercises to turn every security failure into systemic organizational resilience.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal standards, cryptographic primitives, and operational frameworks of security operations and governance are structured across several foundational domains:</p>
+<ol>
+<li>
+<p><strong>The Incident Response Lifecycle (NIST SP 800-61 / ISO/IEC 27035)</strong>:
+Security incident handling is formalized as a cyclic state machine:
+$$\text{Preparation} \longrightarrow \text{Detection \&amp; Analysis} \longrightarrow \text{Containment} \longrightarrow \text{Eradication} \longrightarrow \text{Recovery} \longrightarrow \text{Post-Incident Review}$$
+- <strong>Preparation</strong>: Hardening assets, deploying SIEM agents, creating runbooks, and configuring communication channels.
+- <strong>Detection &amp; Analysis</strong>: Evaluating Indicators of Compromise (IoCs), triaging alerts, and determining severity levels.
+- <strong>Containment</strong>: Short-term containment (network segmentation, IP null-routing, host isolation) followed by long-term containment.
+- <strong>Eradication &amp; Recovery</strong>: Removing rootkits, revoking compromised authentication tokens, restoring systems from verified clean backups, and monitoring for persistence.
+- <strong>Post-Incident Review</strong>: Blameless postmortem analyzing root causes, timeline reconstruction, and updating defensive controls.</p>
+</li>
+<li>
+<p><strong>Security Logging, SIEM, and Anomaly Detection</strong>:
+A robust security logging architecture requires immutable audit trails recording timestamps (UTC), source/destination IP addresses, authenticated identity, action performed, and outcome:
+$$\text{Alert Trigger} \iff \sum_{t = T - \Delta t}^{T} \mathbb{I}(\text{Event}_t = \text{FailedAuth} \land \text{IP}_t = x) \ge \theta_{\text{threshold}}$$
+Centralized log pipelines (Syslog, Fluentd, Kafka) forward events to Security Information and Event Management (SIEM) systems with write-once-read-many (WORM) storage to prevent attackers from tampering with logs.</p>
+</li>
+<li>
+<p><strong>Forensic Evidence Preservation and Chain of Custody</strong>:
+Under ISO/IEC 27037 and the Indian Evidence Act, digital evidence must maintain an unbroken chain of custody:
+- <strong>Bit-Stream Disk Image</strong>: Created using hardware write-blockers ($E = \text{Image}(D)$).
+- <strong>Cryptographic Hash Verification</strong>: The acquired image $E$ must satisfy:
+$$H(E) = \text{SHA-256}(E) = H_{\text{initial}}$$
+Any discrepancy in hash values invalidates evidence admissibility in judicial proceedings.
+- <strong>Mobile Device Forensics</strong>: Extraction types range from logical (backup extraction via ADB/iTunes protocols) to physical (chip-off, JTAG, full raw flash extraction), followed by extraction of application sandbox SQLite databases.</p>
+</li>
+<li>
+<p><strong>Risk Assessment and Quantitative Risk Registers</strong>:
+Quantitative risk exposure is calculated as the product of likelihood and impact:
+$$\text{Risk Exposure} = \text{Annualized Rate of Occurrence (ARO)} \times \text{Single Loss Expectancy (SLE)}$$
+$$\text{SLE} = \text{Asset Value (AV)} \times \text{Exposure Factor (EF)}$$
+$$\text{Annualized Loss Expectancy (ALE)} = \text{ARO} \times \text{SLE}$$
+Risks are prioritized in a Risk Register categorized by Risk Score ($R = L \times I$).</p>
+</li>
+<li>
+<p><strong>Statutory Breach Notification Duties</strong>:
+- <strong>India CERT-In Directions (April 2022)</strong>: Mandates that all cybersecurity incidents (ransomware, unauthorized system access, data leaks) must be reported to the Indian Computer Emergency Response Team within <strong>6 hours</strong> of noticing or being brought to notice.
+- <strong>India DPDP Act 2023</strong>: Mandates notification of personal data breaches to the Data Protection Board of India and affected data principals without delay.
+- <strong>EU GDPR (Article 33)</strong>: Requires supervisory authority notification within <strong>72 hours</strong>.</p>
+</li>
+<li>
+<p><strong>Embedded Systems and Hardware Root of Trust</strong>:
+Secure boot ensures untampered firmware execution through an immutable hardware Root of Trust (RoT):
+$$\text{Verify}(\text{PK}_{\text{fused}}, \text{FW}_{\text{hash}}, \sigma_{\text{signature}}) == \text{True}$$
+Hardware eFuses enforce monotonic security version counters (Anti-Rollback Protection), preventing attackers from flashing older signed firmware containing known unpatched vulnerabilities.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Modern software engineering has moved irrevocably beyond the fantasy of the invincible fortress. In the modern cloud and mobile ecosystem, modern distributed architectures incorporate thousands of third-party open-source dependencies, microservices, cloud APIs, and distributed developer endpoints. Zero-day vulnerabilities, credential phishing, and sophisticated nation-state supply-chain attacks are mathematical inevitabilities. When an engineering organization fails to operate mature security operations, a single compromised employee laptop or leaked API key metastasizes into an existential disaster: total intellectual property theft, millions of dollars in ransomware extortion, regulatory penalties that exceed annual profits, and catastrophic loss of customer trust.</p>
+<p>Security operations is the discipline that bridges technical code vulnerabilities and business survival. By implementing systematic incident response, engineers reduce the Mean Time to Detect (MTTD) and Mean Time to Contain (MTTC) from months to minutes. Cryptographically rigorous forensic evidence preservation ensures that intrusions can be definitively attributed and prosecuted, while strict adherence to least privilege prevents lateral movement across internal networks.</p>
+<p>Furthermore, compliance is no longer a bureaucratic checklist; it is an active legal mandate backed by criminal liability and crippling fines. Under India's CERT-In directives and DPDP Act 2023, failing to maintain system logs for the required 180 days or failing to report a ransomware incident within 6 hours exposes engineering executives and company directors to severe legal sanctions. Practicing tabletop simulations and blameless postmortems replaces finger-pointing with systemic resilience, transforming software organizations into antifragile systems that grow stronger with every attack.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates the NIST SP 800-61 / CERT-In incident response lifecycle state machine. The oracle models an active security breach progressing through six standardized phases: Preparation, Detection, Containment, Eradication, Recovery, and Post-Incident Review. It verifies that automated containment mechanisms immediately isolate compromised assets, revoke compromised credentials during eradication, and ensure that post-incident recovery cannot proceed until forensic verification is complete.</p>
+<div class="lab demo" data-demo="p25-oracle-incident-response-lifecycle">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Incident Response Lifecycle State Machine Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">from enum import Enum
+from typing import Dict, List, Optional
+
+class IncidentPhase(Enum):
+    PREPARATION = &quot;Preparation&quot;
+    DETECTION = &quot;Detection &amp; Analysis&quot;
+    CONTAINMENT = &quot;Containment&quot;
+    ERADICATION = &quot;Eradication&quot;
+    RECOVERY = &quot;Recovery&quot;
+    POST_INCIDENT_REVIEW = &quot;Post-Incident Review&quot;
+
+class IncidentResponseEngine:
+    PHASE_ORDER = [
+        IncidentPhase.PREPARATION,
+        IncidentPhase.DETECTION,
+        IncidentPhase.CONTAINMENT,
+        IncidentPhase.ERADICATION,
+        IncidentPhase.RECOVERY,
+        IncidentPhase.POST_INCIDENT_REVIEW
+    ]
+
+    def __init__(self, incident_id: str, severity: str):
+        self.incident_id = incident_id
+        self.severity = severity
+        self.current_phase = IncidentPhase.PREPARATION
+        self.quarantined_hosts: List[str] = []
+        self.revoked_tokens: List[str] = []
+        self.audit_log: List[str] = []
+
+    def advance_to(self, target_phase: IncidentPhase):
+        current_idx = self.PHASE_ORDER.index(self.current_phase)
+        target_idx = self.PHASE_ORDER.index(target_phase)
+        
+        # Enforce strict sequential lifecycle progression
+        if target_idx != current_idx + 1:
+            raise ValueError(f&quot;Illegal phase transition from {self.current_phase.value} to {target_phase.value}&quot;)
+            
+        self.current_phase = target_phase
+        self.audit_log.append(f&quot;Transitioned to {target_phase.value}&quot;)
+
+    def contain_host(self, host_ip: str):
+        if self.current_phase != IncidentPhase.CONTAINMENT:
+            raise RuntimeError(&quot;Host quarantine only permitted during Containment phase&quot;)
+        self.quarantined_hosts.append(host_ip)
+        self.audit_log.append(f&quot;Host {host_ip} isolated from network&quot;)
+
+    def eradicate_credential(self, token_id: str):
+        if self.current_phase != IncidentPhase.ERADICATION:
+            raise RuntimeError(&quot;Credential revocation required during Eradication phase&quot;)
+        self.revoked_tokens.append(token_id)
+        self.audit_log.append(f&quot;Compromised credential {token_id} revoked&quot;)
+
+# Run simulated ransomware incident response
+ir = IncidentResponseEngine(&quot;INC-2026-904&quot;, severity=&quot;CRITICAL&quot;)
+assert ir.current_phase == IncidentPhase.PREPARATION
+
+# Advance to Detection &amp; Analysis
+ir.advance_to(IncidentPhase.DETECTION)
+assert ir.current_phase == IncidentPhase.DETECTION
+
+# Advance to Containment and isolate patient-zero host
+ir.advance_to(IncidentPhase.CONTAINMENT)
+ir.contain_host(&quot;10.0.15.42&quot;)
+assert &quot;10.0.15.42&quot; in ir.quarantined_hosts
+
+# Advance to Eradication and revoke leaked admin token
+ir.advance_to(IncidentPhase.ERADICATION)
+ir.eradicate_credential(&quot;tok_admin_compromised_77&quot;)
+assert &quot;tok_admin_compromised_77&quot; in ir.revoked_tokens
+
+# Advance to Recovery and Post-Incident Review
+ir.advance_to(IncidentPhase.RECOVERY)
+ir.advance_to(IncidentPhase.POST_INCIDENT_REVIEW)
+assert ir.current_phase == IncidentPhase.POST_INCIDENT_REVIEW
+assert len(ir.audit_log) == 7
+print(&quot;Incident Response Lifecycle completed successfully:&quot;, ir.audit_log)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment evaluates an automated security logging and anomaly detection engine designed to identify brute-force credential stuffing and lateral movement attacks. The experiment ingests a temporal stream of authentication logs, evaluates sliding time-window metrics, triggers high-severity SIEM alerts when failed attempt thresholds are breached within a sixty-second sliding window, and executes automatic source IP rate-limiting.</p>
+<div class="lab demo" data-demo="p25-experiment-security-log-anomaly-detector">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Sliding-Window Security Log Intrusion Detection Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">from typing import Dict, List, Tuple
+
+def detect_brute_force_attacks(
+    logs: List[Dict[str, any]],
+    threshold_failures: int = 4,
+    window_seconds: int = 60
+) -&gt; List[Dict[str, any]]:
+    alerts = []
+    # IP -&gt; list of timestamps of failed logins
+    failed_attempts_by_ip: Dict[str, List[int]] = {}
+
+    for entry in logs:
+        timestamp = entry[&quot;timestamp&quot;]
+        ip = entry[&quot;source_ip&quot;]
+        success = entry[&quot;success&quot;]
+
+        if not success:
+            if ip not in failed_attempts_by_ip:
+                failed_attempts_by_ip[ip] = []
+            failed_attempts_by_ip[ip].append(timestamp)
+
+            # Filter attempts within sliding window [timestamp - window_seconds, timestamp]
+            recent = [t for t in failed_attempts_by_ip[ip] if timestamp - t &lt;= window_seconds]
+            failed_attempts_by_ip[ip] = recent
+
+            if len(recent) &gt;= threshold_failures:
+                # Check if already alerted for this IP in this window
+                alert_exists = any(a[&quot;source_ip&quot;] == ip and timestamp - a[&quot;timestamp&quot;] &lt;= window_seconds for a in alerts)
+                if not alert_exists:
+                    alerts.append({
+                        &quot;alert_type&quot;: &quot;BRUTE_FORCE_DETECTED&quot;,
+                        &quot;source_ip&quot;: ip,
+                        &quot;timestamp&quot;: timestamp,
+                        &quot;failure_count&quot;: len(recent),
+                        &quot;mitigation_action&quot;: &quot;BLOCK_IP&quot;
+                    })
+
+    return alerts
+
+# Synthetic authentication log stream:
+# Attacker IP 198.51.100.77 attempts 5 rapid logins within 20 seconds
+auth_logs = [
+    {&quot;timestamp&quot;: 10, &quot;source_ip&quot;: &quot;192.168.1.10&quot;, &quot;user&quot;: &quot;alice&quot;, &quot;success&quot;: True},
+    {&quot;timestamp&quot;: 15, &quot;source_ip&quot;: &quot;198.51.100.77&quot;, &quot;user&quot;: &quot;root&quot;, &quot;success&quot;: False},
+    {&quot;timestamp&quot;: 18, &quot;source_ip&quot;: &quot;198.51.100.77&quot;, &quot;user&quot;: &quot;admin&quot;, &quot;success&quot;: False},
+    {&quot;timestamp&quot;: 22, &quot;source_ip&quot;: &quot;198.51.100.77&quot;, &quot;user&quot;: &quot;ankit&quot;, &quot;success&quot;: False},
+    {&quot;timestamp&quot;: 26, &quot;source_ip&quot;: &quot;198.51.100.77&quot;, &quot;user&quot;: &quot;operator&quot;, &quot;success&quot;: False}, # 4th failure -&gt; Alert!
+    {&quot;timestamp&quot;: 30, &quot;source_ip&quot;: &quot;198.51.100.77&quot;, &quot;user&quot;: &quot;manager&quot;, &quot;success&quot;: False},
+    {&quot;timestamp&quot;: 35, &quot;source_ip&quot;: &quot;192.168.1.20&quot;, &quot;user&quot;: &quot;bob&quot;, &quot;success&quot;: True}
+]
+
+detected_alerts = detect_brute_force_attacks(auth_logs, threshold_failures=4, window_seconds=60)
+print(&quot;Detected SIEM Alerts:&quot;, detected_alerts)
+assert len(detected_alerts) == 1
+assert detected_alerts[0][&quot;source_ip&quot;] == &quot;198.51.100.77&quot;
+assert detected_alerts[0][&quot;alert_type&quot;] == &quot;BRUTE_FORCE_DETECTED&quot;
+assert detected_alerts[0][&quot;mitigation_action&quot;] == &quot;BLOCK_IP&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-cert-in-breach-notification-and-severity" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>CERT-In Incident Severity Classifier and Notification Window Calculator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement evaluate_breach_duty to classify security incident severity and calculate mandatory statutory reporting deadlines under CERT-In Directions and the Digital Personal Data Protection Act.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict
+
+def evaluate_breach_duty(incident: Dict[str, Any]) -&gt; Dict[str, Any]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_critical_ransomware_incident():
+    inc = {
+        &quot;type&quot;: &quot;ransomware_encryption&quot;,
+        &quot;records_affected&quot;: 5000,
+        &quot;is_critical_infrastructure&quot;: False,
+        &quot;is_ransomware&quot;: True
+    }
+    eval_res = evaluate_breach_duty(inc)
+    assert eval_res[&quot;severity&quot;] == &quot;CRITICAL&quot;
+    assert eval_res[&quot;mandatory_cert_in_reporting&quot;]
+    assert eval_res[&quot;cert_in_deadline_hours&quot;] == 6
+    assert eval_res[&quot;dpdp_board_notice_required&quot;]
+
+def test_high_severity_data_breach():
+    inc = {
+        &quot;type&quot;: &quot;unauthorized_access_api&quot;,
+        &quot;records_affected&quot;: 25000,
+        &quot;is_critical_infrastructure&quot;: False,
+        &quot;is_ransomware&quot;: False
+    }
+    eval_res = evaluate_breach_duty(inc)
+    assert eval_res[&quot;severity&quot;] == &quot;HIGH&quot;
+    assert eval_res[&quot;cert_in_deadline_hours&quot;] == 6
+    assert eval_res[&quot;dpdp_board_notice_required&quot;]
+
+def test_low_severity_internal_policy_event():
+    inc = {
+        &quot;type&quot;: &quot;failed_login_warning&quot;,
+        &quot;records_affected&quot;: 0,
+        &quot;is_critical_infrastructure&quot;: False,
+        &quot;is_ransomware&quot;: False
+    }
+    eval_res = evaluate_breach_duty(inc)
+    assert eval_res[&quot;severity&quot;] == &quot;LOW&quot;
+    assert not eval_res[&quot;mandatory_cert_in_reporting&quot;]
+    assert eval_res[&quot;cert_in_deadline_hours&quot;] == 72
+    assert not eval_res[&quot;dpdp_board_notice_required&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-forensic-chain-of-custody-hasher" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Cryptographic Evidence Preservation and Chain of Custody Ledger</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement ForensicEvidenceTracker to log digital evidence acquisitions from mobile and system dumps, calculate SHA-256 integrity hashes, record custody transfer events between investigators, and verify chain of custody integrity.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict, List, Optional
+
+class ForensicEvidenceTracker:
+    def __init__(self, item_id: str, description: str, raw_data_bytes: bytes):
+        pass
+
+    def record_transfer(self, from_officer: str, to_officer: str, timestamp: str, reason: str):
+        pass
+
+    def verify_integrity(self, current_data_bytes: bytes) -&gt; Dict[str, Any]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_evidence_integrity_verified():
+    raw_data = b&quot;ANDROID_EXTRACTED_SQLITE_DB_DUMP_HEADER_DATA_12345&quot;
+    tracker = ForensicEvidenceTracker(&quot;EVID-001&quot;, &quot;Mobile Sandbox DB&quot;, raw_data)
+    
+    tracker.record_transfer(&quot;Officer_Sharma&quot;, &quot;Lab_Analyst_Khan&quot;, &quot;2026-09-29T10:00:00Z&quot;, &quot;Forensic extraction&quot;)
+    tracker.record_transfer(&quot;Lab_Analyst_Khan&quot;, &quot;Evidence_Vault&quot;, &quot;2026-09-29T16:00:00Z&quot;, &quot;Secure storage&quot;)
+    
+    status = tracker.verify_integrity(raw_data)
+    assert not status[&quot;is_tampered&quot;]
+    assert status[&quot;transfers_count&quot;] == 2
+    assert status[&quot;current_custodian&quot;] == &quot;Evidence_Vault&quot;
+
+def test_evidence_tamper_detected():
+    original_data = b&quot;CONFIDENTIAL_DISK_IMAGE_RAW_BINARY&quot;
+    tracker = ForensicEvidenceTracker(&quot;EVID-002&quot;, &quot;Disk Image&quot;, original_data)
+    
+    tracker.record_transfer(&quot;Agent_Smith&quot;, &quot;Analyst_Doe&quot;, &quot;2026-09-29T11:00:00Z&quot;, &quot;Inspection&quot;)
+    
+    # Alter one byte of evidence
+    tampered_data = b&quot;CONFIDENTIAL_DISK_IMAGE_RAW_BINARZ&quot;
+    status = tracker.verify_integrity(tampered_data)
+    assert status[&quot;is_tampered&quot;]
+    assert status[&quot;initial_sha256&quot;] != status[&quot;current_sha256&quot;]
+
+def test_broken_chain_of_custody_transfer():
+    data = b&quot;FLASH_MEMORY_LOGICAL_BACKUP&quot;
+    tracker = ForensicEvidenceTracker(&quot;EVID-003&quot;, &quot;Flash Memory&quot;, data)
+    tracker.record_transfer(&quot;Officer_A&quot;, &quot;Officer_B&quot;, &quot;2026-09-29T09:00:00Z&quot;, &quot;Intake&quot;)
+    
+    try:
+        # Officer C attempts to transfer without having custody from Officer B!
+        tracker.record_transfer(&quot;Officer_C&quot;, &quot;Officer_D&quot;, &quot;2026-09-29T12:00:00Z&quot;, &quot;Handoff&quot;)
+        assert False, &quot;Should raise ValueError for invalid custody chain&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-rbac-least-privilege-enforcer" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Role-Based Access Control (RBAC) and Least Privilege Policy Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement AccessPolicyEngine to evaluate least-privilege role permissions across the full data lifecycle, enforce separation of duties during sensitive phases like deletion, and calculate residual risk exposure scores.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict, List, Set
+
+class AccessPolicyEngine:
+    def __init__(self):
+        pass
+
+    def add_role_permissions(self, role: str, permissions: Set[str]):
+        pass
+
+    def assign_user_role(self, user_id: str, role: str):
+        pass
+
+    def check_access(self, user_id: str, required_permission: str, data_lifecycle_stage: str) -&gt; Dict[str, Any]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_authorized_least_privilege_access():
+    engine = AccessPolicyEngine()
+    engine.add_role_permissions(&quot;ANALYST&quot;, {&quot;READ_AGGREGATE&quot;, &quot;QUERY_METRICS&quot;})
+    engine.assign_user_role(&quot;user_101&quot;, &quot;ANALYST&quot;)
+    
+    decision = engine.check_access(&quot;user_101&quot;, &quot;READ_AGGREGATE&quot;, &quot;PROCESSING&quot;)
+    assert decision[&quot;allowed&quot;]
+    assert decision[&quot;risk_score&quot;] == 3
+
+def test_unauthorized_permission_denied():
+    engine = AccessPolicyEngine()
+    engine.add_role_permissions(&quot;VIEWER&quot;, {&quot;READ_DASHBOARD&quot;})
+    engine.assign_user_role(&quot;user_102&quot;, &quot;VIEWER&quot;)
+    
+    decision = engine.check_access(&quot;user_102&quot;, &quot;EXPORT_UNMASKED_PII&quot;, &quot;PROCESSING&quot;)
+    assert not decision[&quot;allowed&quot;]
+
+def test_deletion_stage_enforcement():
+    engine = AccessPolicyEngine()
+    engine.add_role_permissions(&quot;DEVELOPER&quot;, {&quot;READ_RECORDS&quot;, &quot;WRITE_RECORDS&quot;})
+    engine.assign_user_role(&quot;dev_42&quot;, &quot;DEVELOPER&quot;)
+    
+    # Ordinary developer cannot modify data during DELETION phase
+    decision = engine.check_access(&quot;dev_42&quot;, &quot;WRITE_RECORDS&quot;, &quot;DELETION&quot;)
+    assert not decision[&quot;allowed&quot;]
+
+def test_high_risk_privilege_elevation_score():
+    engine = AccessPolicyEngine()
+    engine.add_role_permissions(&quot;ADMIN&quot;, {&quot;PURGE_ALL_DATA&quot;})
+    engine.assign_user_role(&quot;admin_01&quot;, &quot;ADMIN&quot;)
+    
+    decision = engine.check_access(&quot;admin_01&quot;, &quot;PURGE_ALL_DATA&quot;, &quot;DELETION&quot;)
+    assert decision[&quot;allowed&quot;]
+    assert decision[&quot;risk_score&quot;] == 9
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-secure-boot-firmware-verifier" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Embedded Secure Boot and Signed Firmware Update Verifier</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement SecureBootController to verify cryptographic firmware signatures using HMAC-SHA256, enforce monotonic anti-rollback version counters preventing version downgrade attacks, and maintain structured audit logs for blameless postmortem analysis.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict, List, Optional
+
+class SecureBootController:
+    def __init__(self, root_key: bytes, initial_version: int):
+        pass
+
+    def compute_firmware_signature(self, firmware_bytes: bytes, version: int) -&gt; str:
+        pass
+
+    def verify_and_boot(self, firmware_bytes: bytes, version: int, signature: str) -&gt; Dict[str, Any]:
+        pass
+
+    def get_audit_trail(self) -&gt; List[Dict[str, Any]]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_valid_firmware_boot_and_efuse_upgrade():
+    root_key = b&quot;SECURE_HARDWARE_ROOT_KEY_99&quot;
+    controller = SecureBootController(root_key, initial_version=1)
+    
+    fw_v2 = b&quot;FIRMWARE_BINARY_V2_WITH_SECURITY_PATCHES&quot;
+    sig_v2 = controller.compute_firmware_signature(fw_v2, version=2)
+    
+    boot_res = controller.verify_and_boot(fw_v2, version=2, signature=sig_v2)
+    assert boot_res[&quot;boot_success&quot;]
+    assert boot_res[&quot;current_min_version&quot;] == 2
+    assert len(controller.get_audit_trail()) == 1
+
+def test_anti_rollback_attack_blocked():
+    root_key = b&quot;SECURE_HARDWARE_ROOT_KEY_99&quot;
+    controller = SecureBootController(root_key, initial_version=3)
+    
+    # Attacker attempts to flash older version 1 (which had known unpatched exploit)
+    fw_v1 = b&quot;OLD_FIRMWARE_V1_EXPLOITABLE&quot;
+    sig_v1 = controller.compute_firmware_signature(fw_v1, version=1)
+    
+    boot_res = controller.verify_and_boot(fw_v1, version=1, signature=sig_v1)
+    assert not boot_res[&quot;boot_success&quot;]
+    assert boot_res[&quot;reason&quot;] == &quot;ANTI_ROLLBACK_VIOLATION&quot;
+    assert boot_res[&quot;current_min_version&quot;] == 3
+
+def test_invalid_signature_blocked():
+    root_key = b&quot;SECURE_HARDWARE_ROOT_KEY_99&quot;
+    controller = SecureBootController(root_key, initial_version=1)
+    
+    fw = b&quot;TAMPERED_FIRMWARE_WITH_BACKDOOR&quot;
+    forged_sig = &quot;a&quot; * 64
+    
+    boot_res = controller.verify_and_boot(fw, version=1, signature=forged_sig)
+    assert not boot_res[&quot;boot_success&quot;]
+    assert boot_res[&quot;reason&quot;] == &quot;SIGNATURE_VERIFICATION_FAILED&quot;
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"If all server access logs are saved in plaintext files, they can be used directly as legal evidence in court."</strong> Plaintext logs on writable filesystems can be easily tampered with or fabricated by attackers with root access. To be admissible in legal proceedings, evidence requires cryptographic hashing, write-once immutable storage (WORM), and a verified chain of custody documenting every custody transfer.</li>
+<li><strong>"Blameless postmortems mean that engineers are never held accountable for security negligence."</strong> Blameless postmortems focus on systemic architecture, latent design flaws, and missing safeguards rather than scapegoating individual human error. Holding individuals accountable for genuine malicious intent is separate; blaming human slips discourages transparent reporting and hides root vulnerabilities.</li>
+<li><strong>"Under India's CERT-In directions, organizations have 72 hours to notify the government of a security incident."</strong> While the EU GDPR grants a 72-hour window, India's CERT-In Directions 2022 strictly mandate that specified cybersecurity incidents (such as ransomware, unauthorized system compromise, and large data breaches) must be reported within <strong>6 hours</strong> of noticing.</li>
+<li><strong>"Secure boot only protects against operating system viruses and does not matter for mobile apps or firmware."</strong> Secure boot forms the cryptographic foundation (Root of Trust) for the entire device. Without secure boot, an attacker with physical or low-level access can flash compromised baseband firmware, kernel rootkits, or bypass mobile app sandboxing and hardware keystores completely.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Security operations mechanisms face severe operational and technical degradation under specific edge conditions:
+1. <strong>Alert Fatigue in SIEM Ingestion Spikes</strong>: When a distributed denial of service or network port scan triggers tens of thousands of alerts per second, security operation analysts suffer from cognitive exhaustion, frequently leading to real high-severity alerts being missed amidst the noise.
+2. <strong>Volatile Memory Degradation in Mobile Forensics</strong>: Live physical extraction of mobile device RAM over USB relies on keeping the device powered. If a mobile device battery exhausts or triggers hardware reboot, all volatile evidence (decryption keys, decrypted chat messages in memory, active socket states) evaporates instantly.
+3. <strong>Anti-Rollback Brick Hazards in Cyber-Physical Embedded Updates</strong>: If an embedded automotive or IoT controller updates its monotonic security eFuse counter before verifying that the newly flashed firmware can successfully boot, an unexpected crash permanently bricks the device, requiring physical board replacement.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Security operations and compliance engineering are actively practiced across the technology industry:
+- <strong>CERT-In 6-Hour Incident Compliance</strong>: Indian financial and critical infrastructure organizations (stock exchanges, NPCI UPI payment gateways, large private banks) maintain automated SOC alert playbooks configured to draft and dispatch mandatory CERT-In Incident Reporting Forms within the strict 6-hour legal limit.
+- <strong>Mobile Forensics in Incident Investigation</strong>: Cybersecurity teams analyze extracted Android ADB backups and iOS sysdiagnose archives using forensic tools (Autopsy, Magnet AXIOM) to detect unauthorized spyware (e.g. Pegasus) and extract malicious APK packages from app sandboxes.
+- <strong>Continuous Least-Privilege Auditing</strong>: Cloud engineering teams use automated AWS IAM and GCP policy analyzers to detect over-permissioned service accounts and enforce just-in-time (JIT) short-lived privilege escalation for database maintenance.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What are the six phases of the incident response lifecycle in NIST SP 800-61?</p></div><div class="a" hidden><p>Preparation, Detection and Analysis, Containment, Eradication, Recovery, and Post-Incident Review.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the mandatory cybersecurity incident reporting deadline under CERT-In Directions 2022?</p></div><div class="a" hidden><p>All covered cyber incidents (such as ransomware, system compromise, or data breaches) must be reported within 6 hours of noticing.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is required to maintain legal chain of custody for digital forensic evidence?</p></div><div class="a" hidden><p>An immutable audit log documenting every custodian transfer, timestamps, reasons, and cryptographic hash verification (SHA-256) matching the original image.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does hardware anti-rollback protection prevent downgrade attacks?</p></div><div class="a" hidden><p>Monotonic eFuses record the minimum permitted security version; attempts to boot older signed firmware with known vulnerabilities are rejected by hardware.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the purpose of a blameless postmortem in security engineering?</p></div><div class="a" hidden><p>To analyze systemic architectural weaknesses, latent design defects, and process failures without individual scapegoating, strengthening long-term defense.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the Single Loss Expectancy (SLE) in quantitative risk assessment?</p></div><div class="a" hidden><p>The financial loss incurred from a single incident occurrence, calculated as Asset Value multiplied by Exposure Factor (AV x EF).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can execute the complete incident response lifecycle, implement sliding-window SIEM brute-force detection, preserve digital forensic evidence with cryptographic chain of custody, enforce least-privilege RBAC policies, and verify secure boot firmware with anti-rollback protection.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NIST SP 800-61 Rev. 2 (2012). Computer Security Incident Handling Guide. National Institute of Standards and Technology.</li>
+<li>CERT-In Directions (April 2022). Directions under sub-section (6) of section 70B of the Information Technology Act, 2000.</li>
+<li>ISO/IEC 27037:2012. Information technology — Security techniques — Guidelines for identification, collection, acquisition and preservation of digital evidence.</li>
+<li>Saltzer, Jerome H., and Schroeder, Michael D. (1975). The Protection of Information in Computer Systems. Proceedings of the IEEE, 63(9), 1278-1308.</li>
+</ul></section>
+<footer class="pager"><a href="S17.html">&larr; S17 Android UI: Views and Jetpack Compose</a>
+<a href="M36.html">M36 Optimisation &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P25", "packages": ["numpy"], "exercises": {"ex1-cert-in-breach-notification-and-severity": {"starter": "from typing import Any, Dict\n\ndef evaluate_breach_duty(incident: Dict[str, Any]) -> Dict[str, Any]:\n    pass\n", "solution": "from typing import Any, Dict\n\ndef evaluate_breach_duty(incident: Dict[str, Any]) -> Dict[str, Any]:\n    incident_type = incident.get(\"type\", \"\").lower()\n    affected_records = incident.get(\"records_affected\", 0)\n    critical_infra = incident.get(\"is_critical_infrastructure\", False)\n    ransomware = incident.get(\"is_ransomware\", False)\n    \n    # Severity classification: CRITICAL, HIGH, MEDIUM, LOW\n    if critical_infra or ransomware or affected_records >= 100000:\n        severity = \"CRITICAL\"\n    elif affected_records >= 10000 or \"unauthorized_access\" in incident_type:\n        severity = \"HIGH\"\n    elif affected_records >= 1000 or \"malware\" in incident_type:\n        severity = \"MEDIUM\"\n    else:\n        severity = \"LOW\"\n        \n    # Statutory notification windows in hours:\n    # Under CERT-In 2022 Directions, cybersecurity incidents (ransomware, data breaches)\n    # require reporting within 6 hours.\n    # Non-critical minor policy violations require standard 72h or internal logging.\n    if severity in (\"CRITICAL\", \"HIGH\") or ransomware:\n        cert_in_deadline_hours = 6\n        mandatory_cert_in_reporting = True\n    elif severity == \"MEDIUM\":\n        cert_in_deadline_hours = 24\n        mandatory_cert_in_reporting = True\n    else:\n        cert_in_deadline_hours = 72\n        mandatory_cert_in_reporting = False\n        \n    dpdp_board_notice_required = (affected_records > 0 and severity in (\"CRITICAL\", \"HIGH\", \"MEDIUM\"))\n\n    return {\n        \"severity\": severity,\n        \"mandatory_cert_in_reporting\": mandatory_cert_in_reporting,\n        \"cert_in_deadline_hours\": cert_in_deadline_hours,\n        \"dpdp_board_notice_required\": dpdp_board_notice_required\n    }\n", "tests": "def test_critical_ransomware_incident():\n    inc = {\n        \"type\": \"ransomware_encryption\",\n        \"records_affected\": 5000,\n        \"is_critical_infrastructure\": False,\n        \"is_ransomware\": True\n    }\n    eval_res = evaluate_breach_duty(inc)\n    assert eval_res[\"severity\"] == \"CRITICAL\"\n    assert eval_res[\"mandatory_cert_in_reporting\"]\n    assert eval_res[\"cert_in_deadline_hours\"] == 6\n    assert eval_res[\"dpdp_board_notice_required\"]\n\ndef test_high_severity_data_breach():\n    inc = {\n        \"type\": \"unauthorized_access_api\",\n        \"records_affected\": 25000,\n        \"is_critical_infrastructure\": False,\n        \"is_ransomware\": False\n    }\n    eval_res = evaluate_breach_duty(inc)\n    assert eval_res[\"severity\"] == \"HIGH\"\n    assert eval_res[\"cert_in_deadline_hours\"] == 6\n    assert eval_res[\"dpdp_board_notice_required\"]\n\ndef test_low_severity_internal_policy_event():\n    inc = {\n        \"type\": \"failed_login_warning\",\n        \"records_affected\": 0,\n        \"is_critical_infrastructure\": False,\n        \"is_ransomware\": False\n    }\n    eval_res = evaluate_breach_duty(inc)\n    assert eval_res[\"severity\"] == \"LOW\"\n    assert not eval_res[\"mandatory_cert_in_reporting\"]\n    assert eval_res[\"cert_in_deadline_hours\"] == 72\n    assert not eval_res[\"dpdp_board_notice_required\"]\n", "mutants": ["def evaluate_breach_duty(incident: dict) -> dict:\n    assert False, 'mutant injected'\n", "def evaluate_breach_duty(incident: dict) -> dict:\n    # Mutant grants 72 hours for all incidents, violating India's 6-hour CERT-In mandate!\n    return {\n        \"severity\": \"LOW\",\n        \"mandatory_cert_in_reporting\": False,\n        \"cert_in_deadline_hours\": 72,\n        \"dpdp_board_notice_required\": False\n    }\n"], "hints": ["Flag ransomware or critical infrastructure incidents as CRITICAL.", "Apply the 6-hour reporting deadline for CRITICAL and HIGH severity incidents under CERT-In Directions.", "Require DPDP board notice when personal records are impacted in non-low incidents."], "level": "warmup", "title": "CERT-In Incident Severity Classifier and Notification Window Calculator"}, "ex2-forensic-chain-of-custody-hasher": {"starter": "from typing import Any, Dict, List, Optional\n\nclass ForensicEvidenceTracker:\n    def __init__(self, item_id: str, description: str, raw_data_bytes: bytes):\n        pass\n\n    def record_transfer(self, from_officer: str, to_officer: str, timestamp: str, reason: str):\n        pass\n\n    def verify_integrity(self, current_data_bytes: bytes) -> Dict[str, Any]:\n        pass\n", "solution": "import hashlib\nfrom typing import Any, Dict, List, Optional\n\nclass ForensicEvidenceTracker:\n    def __init__(self, item_id: str, description: str, raw_data_bytes: bytes):\n        self.item_id = item_id\n        self.description = description\n        # Compute baseline acquisition SHA-256 hash\n        self.initial_sha256 = hashlib.sha256(raw_data_bytes).hexdigest()\n        self.custody_log: List[Dict[str, str]] = []\n        self._current_holder: Optional[str] = None\n\n    def record_transfer(self, from_officer: str, to_officer: str, timestamp: str, reason: str):\n        if not self.custody_log:\n            # First transfer: initial custodian\n            self._current_holder = from_officer\n\n        if self._current_holder != from_officer:\n            raise ValueError(f\"Custody error: item currently held by {self._current_holder}, not {from_officer}\")\n\n        transfer_record = {\n            \"from_officer\": from_officer,\n            \"to_officer\": to_officer,\n            \"timestamp\": timestamp,\n            \"reason\": reason\n        }\n        self.custody_log.append(transfer_record)\n        self._current_holder = to_officer\n\n    def verify_integrity(self, current_data_bytes: bytes) -> Dict[str, Any]:\n        current_sha256 = hashlib.sha256(current_data_bytes).hexdigest()\n        is_intact = (current_sha256 == self.initial_sha256)\n        return {\n            \"item_id\": self.item_id,\n            \"initial_sha256\": self.initial_sha256,\n            \"current_sha256\": current_sha256,\n            \"is_tampered\": not is_intact,\n            \"transfers_count\": len(self.custody_log),\n            \"current_custodian\": self._current_holder\n        }\n", "tests": "def test_evidence_integrity_verified():\n    raw_data = b\"ANDROID_EXTRACTED_SQLITE_DB_DUMP_HEADER_DATA_12345\"\n    tracker = ForensicEvidenceTracker(\"EVID-001\", \"Mobile Sandbox DB\", raw_data)\n    \n    tracker.record_transfer(\"Officer_Sharma\", \"Lab_Analyst_Khan\", \"2026-09-29T10:00:00Z\", \"Forensic extraction\")\n    tracker.record_transfer(\"Lab_Analyst_Khan\", \"Evidence_Vault\", \"2026-09-29T16:00:00Z\", \"Secure storage\")\n    \n    status = tracker.verify_integrity(raw_data)\n    assert not status[\"is_tampered\"]\n    assert status[\"transfers_count\"] == 2\n    assert status[\"current_custodian\"] == \"Evidence_Vault\"\n\ndef test_evidence_tamper_detected():\n    original_data = b\"CONFIDENTIAL_DISK_IMAGE_RAW_BINARY\"\n    tracker = ForensicEvidenceTracker(\"EVID-002\", \"Disk Image\", original_data)\n    \n    tracker.record_transfer(\"Agent_Smith\", \"Analyst_Doe\", \"2026-09-29T11:00:00Z\", \"Inspection\")\n    \n    # Alter one byte of evidence\n    tampered_data = b\"CONFIDENTIAL_DISK_IMAGE_RAW_BINARZ\"\n    status = tracker.verify_integrity(tampered_data)\n    assert status[\"is_tampered\"]\n    assert status[\"initial_sha256\"] != status[\"current_sha256\"]\n\ndef test_broken_chain_of_custody_transfer():\n    data = b\"FLASH_MEMORY_LOGICAL_BACKUP\"\n    tracker = ForensicEvidenceTracker(\"EVID-003\", \"Flash Memory\", data)\n    tracker.record_transfer(\"Officer_A\", \"Officer_B\", \"2026-09-29T09:00:00Z\", \"Intake\")\n    \n    try:\n        # Officer C attempts to transfer without having custody from Officer B!\n        tracker.record_transfer(\"Officer_C\", \"Officer_D\", \"2026-09-29T12:00:00Z\", \"Handoff\")\n        assert False, \"Should raise ValueError for invalid custody chain\"\n    except ValueError:\n        pass\n", "mutants": ["class ForensicEvidenceTracker:\n    def __init__(self, item_id: str, description: str, raw_data_bytes: bytes): pass\n    def record_transfer(self, from_officer: str, to_officer: str, timestamp: str, reason: str): pass\n    def verify_integrity(self, current_data_bytes: bytes): assert False, 'mutant injected'\n", "import hashlib\nclass ForensicEvidenceTracker:\n    def __init__(self, item_id: str, description: str, raw_data_bytes: bytes):\n        self.item_id = item_id\n        self.initial_sha256 = hashlib.sha256(raw_data_bytes).hexdigest()\n        self.custody_log = []\n        self._current_holder = None\n    def record_transfer(self, from_officer: str, to_officer: str, timestamp: str, reason: str):\n        self.custody_log.append({\"from\": from_officer, \"to\": to_officer})\n        self._current_holder = to_officer\n    def verify_integrity(self, current_data_bytes: bytes):\n        # Mutant always claims data is not tampered, even if hashes completely differ!\n        curr_hash = hashlib.sha256(current_data_bytes).hexdigest()\n        return {\n            \"item_id\": self.item_id,\n            \"initial_sha256\": self.initial_sha256,\n            \"current_sha256\": curr_hash,\n            \"is_tampered\": False,\n            \"transfers_count\": len(self.custody_log),\n            \"current_custodian\": self._current_holder\n        }\n"], "hints": ["Compute SHA-256 hash using hashlib.sha256(raw_bytes).hexdigest().", "Track current custodian to prevent invalid chain-of-custody handoffs.", "Set is_tampered to True when current hash differs from initial hash."], "level": "core", "title": "Cryptographic Evidence Preservation and Chain of Custody Ledger"}, "ex3-rbac-least-privilege-enforcer": {"starter": "from typing import Any, Dict, List, Set\n\nclass AccessPolicyEngine:\n    def __init__(self):\n        pass\n\n    def add_role_permissions(self, role: str, permissions: Set[str]):\n        pass\n\n    def assign_user_role(self, user_id: str, role: str):\n        pass\n\n    def check_access(self, user_id: str, required_permission: str, data_lifecycle_stage: str) -> Dict[str, Any]:\n        pass\n", "solution": "from typing import Any, Dict, List, Set\n\nclass AccessPolicyEngine:\n    # Critical data lifecycle stages\n    VALID_LIFECYCLE_STAGES = {\"COLLECTION\", \"RETENTION\", \"PROCESSING\", \"DELETION\"}\n\n    # Permissions requiring privileged authorization\n    HIGH_RISK_PERMISSIONS = {\"PURGE_ALL_DATA\", \"EXPORT_UNMASKED_PII\", \"MODIFY_ACCESS_POLICIES\"}\n\n    def __init__(self):\n        self._role_permissions: Dict[str, Set[str]] = {}\n        self._user_roles: Dict[str, Set[str]] = {}\n\n    def add_role_permissions(self, role: str, permissions: Set[str]):\n        if role not in self._role_permissions:\n            self._role_permissions[role] = set()\n        self._role_permissions[role].update(permissions)\n\n    def assign_user_role(self, user_id: str, role: str):\n        if user_id not in self._user_roles:\n            self._user_roles[user_id] = set()\n        self._user_roles[user_id].add(role)\n\n    def check_access(self, user_id: str, required_permission: str, data_lifecycle_stage: str) -> Dict[str, Any]:\n        stage_upper = data_lifecycle_stage.upper()\n        if stage_upper not in self.VALID_LIFECYCLE_STAGES:\n            raise ValueError(f\"Invalid lifecycle stage: {data_lifecycle_stage}\")\n\n        user_roles = self._user_roles.get(user_id, set())\n        effective_permissions = set()\n        for r in user_roles:\n            effective_permissions.update(self._role_permissions.get(r, set()))\n\n        has_permission = required_permission in effective_permissions\n\n        # Least privilege guard: DELETION stage requires explicit DELETION role or high-risk privilege\n        if stage_upper == \"DELETION\" and \"DATA_OFFICER\" not in user_roles and required_permission != \"PURGE_ALL_DATA\":\n            # Ordinary read/processing roles cannot execute operations during Deletion phase\n            allowed = False\n        else:\n            allowed = has_permission\n\n        # Calculate privilege risk score (1 to 10)\n        risk_score = 1\n        if allowed:\n            if required_permission in self.HIGH_RISK_PERMISSIONS:\n                risk_score = 9\n            elif len(user_roles) > 2:\n                risk_score = 6\n            else:\n                risk_score = 3\n\n        return {\n            \"allowed\": allowed,\n            \"user_id\": user_id,\n            \"required_permission\": required_permission,\n            \"lifecycle_stage\": stage_upper,\n            \"risk_score\": risk_score\n        }\n", "tests": "def test_authorized_least_privilege_access():\n    engine = AccessPolicyEngine()\n    engine.add_role_permissions(\"ANALYST\", {\"READ_AGGREGATE\", \"QUERY_METRICS\"})\n    engine.assign_user_role(\"user_101\", \"ANALYST\")\n    \n    decision = engine.check_access(\"user_101\", \"READ_AGGREGATE\", \"PROCESSING\")\n    assert decision[\"allowed\"]\n    assert decision[\"risk_score\"] == 3\n\ndef test_unauthorized_permission_denied():\n    engine = AccessPolicyEngine()\n    engine.add_role_permissions(\"VIEWER\", {\"READ_DASHBOARD\"})\n    engine.assign_user_role(\"user_102\", \"VIEWER\")\n    \n    decision = engine.check_access(\"user_102\", \"EXPORT_UNMASKED_PII\", \"PROCESSING\")\n    assert not decision[\"allowed\"]\n\ndef test_deletion_stage_enforcement():\n    engine = AccessPolicyEngine()\n    engine.add_role_permissions(\"DEVELOPER\", {\"READ_RECORDS\", \"WRITE_RECORDS\"})\n    engine.assign_user_role(\"dev_42\", \"DEVELOPER\")\n    \n    # Ordinary developer cannot modify data during DELETION phase\n    decision = engine.check_access(\"dev_42\", \"WRITE_RECORDS\", \"DELETION\")\n    assert not decision[\"allowed\"]\n\ndef test_high_risk_privilege_elevation_score():\n    engine = AccessPolicyEngine()\n    engine.add_role_permissions(\"ADMIN\", {\"PURGE_ALL_DATA\"})\n    engine.assign_user_role(\"admin_01\", \"ADMIN\")\n    \n    decision = engine.check_access(\"admin_01\", \"PURGE_ALL_DATA\", \"DELETION\")\n    assert decision[\"allowed\"]\n    assert decision[\"risk_score\"] == 9\n", "mutants": ["class AccessPolicyEngine:\n    def __init__(self): pass\n    def add_role_permissions(self, role: str, permissions: set): pass\n    def assign_user_role(self, user_id: str, role: str): pass\n    def check_access(self, user_id: str, required_permission: str, data_lifecycle_stage: str):\n        assert False, 'mutant injected'\n", "class AccessPolicyEngine:\n    def __init__(self):\n        self._role_permissions = {}\n        self._user_roles = {}\n    def add_role_permissions(self, role: str, permissions: set):\n        self._role_permissions.setdefault(role, set()).update(permissions)\n    def assign_user_role(self, user_id: str, role: str):\n        self._user_roles.setdefault(user_id, set()).add(role)\n    def check_access(self, user_id: str, required_permission: str, data_lifecycle_stage: str):\n        # Mutant always allows access and assigns risk_score = 0!\n        return {\n            \"allowed\": True,\n            \"user_id\": user_id,\n            \"required_permission\": required_permission,\n            \"lifecycle_stage\": data_lifecycle_stage.upper(),\n            \"risk_score\": 0\n        }\n"], "hints": ["Aggregate all permissions across roles assigned to a user.", "Block operations in DELETION phase unless granted proper privileged permissions.", "Assign high risk_score for high-risk permissions like PURGE_ALL_DATA."], "level": "core", "title": "Role-Based Access Control (RBAC) and Least Privilege Policy Engine"}, "ex4-secure-boot-firmware-verifier": {"starter": "from typing import Any, Dict, List, Optional\n\nclass SecureBootController:\n    def __init__(self, root_key: bytes, initial_version: int):\n        pass\n\n    def compute_firmware_signature(self, firmware_bytes: bytes, version: int) -> str:\n        pass\n\n    def verify_and_boot(self, firmware_bytes: bytes, version: int, signature: str) -> Dict[str, Any]:\n        pass\n\n    def get_audit_trail(self) -> List[Dict[str, Any]]:\n        pass\n", "solution": "import hashlib\nimport hmac\nfrom typing import Any, Dict, List, Optional\n\nclass SecureBootController:\n    def __init__(self, root_key: bytes, initial_version: int):\n        if initial_version < 1:\n            raise ValueError(\"initial_version must be >= 1\")\n        self._root_key = root_key\n        # Monotonic hardware eFuse security counter\n        self._current_security_version = initial_version\n        self._audit_trail: List[Dict[str, Any]] = []\n\n    def compute_firmware_signature(self, firmware_bytes: bytes, version: int) -> str:\n        # Message to sign: version formatted as 4-byte big-endian + firmware bytes\n        msg = version.to_bytes(4, byteorder=\"big\") + firmware_bytes\n        return hmac.new(self._root_key, msg, hashlib.sha256).hexdigest()\n\n    def verify_and_boot(self, firmware_bytes: bytes, version: int, signature: str) -> Dict[str, Any]:\n        fw_hash = hashlib.sha256(firmware_bytes).hexdigest()\n        \n        # 1. Anti-Rollback Protection check\n        if version < self._current_security_version:\n            event = {\n                \"boot_success\": False,\n                \"reason\": \"ANTI_ROLLBACK_VIOLATION\",\n                \"firmware_version\": version,\n                \"current_min_version\": self._current_security_version,\n                \"firmware_hash\": fw_hash\n            }\n            self._audit_trail.append(event)\n            return event\n\n        # 2. Cryptographic signature check\n        expected_sig = self.compute_firmware_signature(firmware_bytes, version)\n        if not hmac.compare_digest(expected_sig, signature):\n            event = {\n                \"boot_success\": False,\n                \"reason\": \"SIGNATURE_VERIFICATION_FAILED\",\n                \"firmware_version\": version,\n                \"current_min_version\": self._current_security_version,\n                \"firmware_hash\": fw_hash\n            }\n            self._audit_trail.append(event)\n            return event\n\n        # Update monotonic eFuse version if newer\n        if version > self._current_security_version:\n            self._current_security_version = version\n\n        event = {\n            \"boot_success\": True,\n            \"reason\": \"BOOT_SUCCESSFUL\",\n            \"firmware_version\": version,\n            \"current_min_version\": self._current_security_version,\n            \"firmware_hash\": fw_hash\n        }\n        self._audit_trail.append(event)\n        return event\n\n    def get_audit_trail(self) -> List[Dict[str, Any]]:\n        return list(self._audit_trail)\n", "tests": "def test_valid_firmware_boot_and_efuse_upgrade():\n    root_key = b\"SECURE_HARDWARE_ROOT_KEY_99\"\n    controller = SecureBootController(root_key, initial_version=1)\n    \n    fw_v2 = b\"FIRMWARE_BINARY_V2_WITH_SECURITY_PATCHES\"\n    sig_v2 = controller.compute_firmware_signature(fw_v2, version=2)\n    \n    boot_res = controller.verify_and_boot(fw_v2, version=2, signature=sig_v2)\n    assert boot_res[\"boot_success\"]\n    assert boot_res[\"current_min_version\"] == 2\n    assert len(controller.get_audit_trail()) == 1\n\ndef test_anti_rollback_attack_blocked():\n    root_key = b\"SECURE_HARDWARE_ROOT_KEY_99\"\n    controller = SecureBootController(root_key, initial_version=3)\n    \n    # Attacker attempts to flash older version 1 (which had known unpatched exploit)\n    fw_v1 = b\"OLD_FIRMWARE_V1_EXPLOITABLE\"\n    sig_v1 = controller.compute_firmware_signature(fw_v1, version=1)\n    \n    boot_res = controller.verify_and_boot(fw_v1, version=1, signature=sig_v1)\n    assert not boot_res[\"boot_success\"]\n    assert boot_res[\"reason\"] == \"ANTI_ROLLBACK_VIOLATION\"\n    assert boot_res[\"current_min_version\"] == 3\n\ndef test_invalid_signature_blocked():\n    root_key = b\"SECURE_HARDWARE_ROOT_KEY_99\"\n    controller = SecureBootController(root_key, initial_version=1)\n    \n    fw = b\"TAMPERED_FIRMWARE_WITH_BACKDOOR\"\n    forged_sig = \"a\" * 64\n    \n    boot_res = controller.verify_and_boot(fw, version=1, signature=forged_sig)\n    assert not boot_res[\"boot_success\"]\n    assert boot_res[\"reason\"] == \"SIGNATURE_VERIFICATION_FAILED\"\n", "mutants": ["class SecureBootController:\n    def __init__(self, root_key: bytes, initial_version: int): pass\n    def compute_firmware_signature(self, firmware_bytes: bytes, version: int): return \"dummy\"\n    def verify_and_boot(self, firmware_bytes: bytes, version: int, signature: str):\n        assert False, 'mutant injected'\n    def get_audit_trail(self): return []\n", "class SecureBootController:\n    def __init__(self, root_key: bytes, initial_version: int):\n        self._current_security_version = initial_version\n        self._audit_trail = []\n    def compute_firmware_signature(self, firmware_bytes: bytes, version: int): return \"dummy\"\n    def verify_and_boot(self, firmware_bytes: bytes, version: int, signature: str):\n        # Mutant ignores anti-rollback and signature verification, booting any payload!\n        event = {\"boot_success\": True, \"reason\": \"BOOT_SUCCESSFUL\", \"firmware_version\": version, \"current_min_version\": self._current_security_version}\n        self._audit_trail.append(event)\n        return event\n    def get_audit_trail(self): return self._audit_trail\n"], "hints": ["Construct HMAC message by concatenating 4-byte big-endian version and firmware bytes.", "Reject boot if version is less than current monotonic eFuse version.", "Use hmac.compare_digest for constant-time cryptographic signature comparison."], "level": "boss", "title": "Embedded Secure Boot and Signed Firmware Update Verifier"}}, "demos": {"p25-oracle-incident-response-lifecycle": {"code": "from enum import Enum\nfrom typing import Dict, List, Optional\n\nclass IncidentPhase(Enum):\n    PREPARATION = \"Preparation\"\n    DETECTION = \"Detection & Analysis\"\n    CONTAINMENT = \"Containment\"\n    ERADICATION = \"Eradication\"\n    RECOVERY = \"Recovery\"\n    POST_INCIDENT_REVIEW = \"Post-Incident Review\"\n\nclass IncidentResponseEngine:\n    PHASE_ORDER = [\n        IncidentPhase.PREPARATION,\n        IncidentPhase.DETECTION,\n        IncidentPhase.CONTAINMENT,\n        IncidentPhase.ERADICATION,\n        IncidentPhase.RECOVERY,\n        IncidentPhase.POST_INCIDENT_REVIEW\n    ]\n\n    def __init__(self, incident_id: str, severity: str):\n        self.incident_id = incident_id\n        self.severity = severity\n        self.current_phase = IncidentPhase.PREPARATION\n        self.quarantined_hosts: List[str] = []\n        self.revoked_tokens: List[str] = []\n        self.audit_log: List[str] = []\n\n    def advance_to(self, target_phase: IncidentPhase):\n        current_idx = self.PHASE_ORDER.index(self.current_phase)\n        target_idx = self.PHASE_ORDER.index(target_phase)\n        \n        # Enforce strict sequential lifecycle progression\n        if target_idx != current_idx + 1:\n            raise ValueError(f\"Illegal phase transition from {self.current_phase.value} to {target_phase.value}\")\n            \n        self.current_phase = target_phase\n        self.audit_log.append(f\"Transitioned to {target_phase.value}\")\n\n    def contain_host(self, host_ip: str):\n        if self.current_phase != IncidentPhase.CONTAINMENT:\n            raise RuntimeError(\"Host quarantine only permitted during Containment phase\")\n        self.quarantined_hosts.append(host_ip)\n        self.audit_log.append(f\"Host {host_ip} isolated from network\")\n\n    def eradicate_credential(self, token_id: str):\n        if self.current_phase != IncidentPhase.ERADICATION:\n            raise RuntimeError(\"Credential revocation required during Eradication phase\")\n        self.revoked_tokens.append(token_id)\n        self.audit_log.append(f\"Compromised credential {token_id} revoked\")\n\n# Run simulated ransomware incident response\nir = IncidentResponseEngine(\"INC-2026-904\", severity=\"CRITICAL\")\nassert ir.current_phase == IncidentPhase.PREPARATION\n\n# Advance to Detection & Analysis\nir.advance_to(IncidentPhase.DETECTION)\nassert ir.current_phase == IncidentPhase.DETECTION\n\n# Advance to Containment and isolate patient-zero host\nir.advance_to(IncidentPhase.CONTAINMENT)\nir.contain_host(\"10.0.15.42\")\nassert \"10.0.15.42\" in ir.quarantined_hosts\n\n# Advance to Eradication and revoke leaked admin token\nir.advance_to(IncidentPhase.ERADICATION)\nir.eradicate_credential(\"tok_admin_compromised_77\")\nassert \"tok_admin_compromised_77\" in ir.revoked_tokens\n\n# Advance to Recovery and Post-Incident Review\nir.advance_to(IncidentPhase.RECOVERY)\nir.advance_to(IncidentPhase.POST_INCIDENT_REVIEW)\nassert ir.current_phase == IncidentPhase.POST_INCIDENT_REVIEW\nassert len(ir.audit_log) == 7\nprint(\"Incident Response Lifecycle completed successfully:\", ir.audit_log)\n", "mutants": ["from enum import Enum\n\nclass IncidentPhase(Enum):\n    PREPARATION = \"Preparation\"; DETECTION = \"Detection & Analysis\"; CONTAINMENT = \"Containment\"\n    ERADICATION = \"Eradication\"; RECOVERY = \"Recovery\"; POST_INCIDENT_REVIEW = \"Post-Incident Review\"\n\nclass IncidentResponseEngine:\n    def __init__(self, incident_id: str, severity: str):\n        self.current_phase = IncidentPhase.PREPARATION\n        self.quarantined_hosts = []\n        self.revoked_tokens = []\n        self.audit_log = []\n    def advance_to(self, target_phase):\n        # Mutant allows skipping containment directly from Detection to Recovery!\n        self.current_phase = target_phase\n    def contain_host(self, host_ip): pass\n    def eradicate_credential(self, token_id): pass\n\n# Test must catch that illegal skipping doesn't raise ValueError\nir_test = IncidentResponseEngine(\"INC-TEST\", \"HIGH\")\nir_test.advance_to(IncidentPhase.DETECTION)\ntry:\n    ir_test.advance_to(IncidentPhase.RECOVERY) # Should fail!\n    assert False, \"Skipping containment and eradication must raise ValueError\"\nexcept ValueError:\n    pass\n"]}, "p25-experiment-security-log-anomaly-detector": {"code": "from typing import Dict, List, Tuple\n\ndef detect_brute_force_attacks(\n    logs: List[Dict[str, any]],\n    threshold_failures: int = 4,\n    window_seconds: int = 60\n) -> List[Dict[str, any]]:\n    alerts = []\n    # IP -> list of timestamps of failed logins\n    failed_attempts_by_ip: Dict[str, List[int]] = {}\n\n    for entry in logs:\n        timestamp = entry[\"timestamp\"]\n        ip = entry[\"source_ip\"]\n        success = entry[\"success\"]\n\n        if not success:\n            if ip not in failed_attempts_by_ip:\n                failed_attempts_by_ip[ip] = []\n            failed_attempts_by_ip[ip].append(timestamp)\n\n            # Filter attempts within sliding window [timestamp - window_seconds, timestamp]\n            recent = [t for t in failed_attempts_by_ip[ip] if timestamp - t <= window_seconds]\n            failed_attempts_by_ip[ip] = recent\n\n            if len(recent) >= threshold_failures:\n                # Check if already alerted for this IP in this window\n                alert_exists = any(a[\"source_ip\"] == ip and timestamp - a[\"timestamp\"] <= window_seconds for a in alerts)\n                if not alert_exists:\n                    alerts.append({\n                        \"alert_type\": \"BRUTE_FORCE_DETECTED\",\n                        \"source_ip\": ip,\n                        \"timestamp\": timestamp,\n                        \"failure_count\": len(recent),\n                        \"mitigation_action\": \"BLOCK_IP\"\n                    })\n\n    return alerts\n\n# Synthetic authentication log stream:\n# Attacker IP 198.51.100.77 attempts 5 rapid logins within 20 seconds\nauth_logs = [\n    {\"timestamp\": 10, \"source_ip\": \"192.168.1.10\", \"user\": \"alice\", \"success\": True},\n    {\"timestamp\": 15, \"source_ip\": \"198.51.100.77\", \"user\": \"root\", \"success\": False},\n    {\"timestamp\": 18, \"source_ip\": \"198.51.100.77\", \"user\": \"admin\", \"success\": False},\n    {\"timestamp\": 22, \"source_ip\": \"198.51.100.77\", \"user\": \"ankit\", \"success\": False},\n    {\"timestamp\": 26, \"source_ip\": \"198.51.100.77\", \"user\": \"operator\", \"success\": False}, # 4th failure -> Alert!\n    {\"timestamp\": 30, \"source_ip\": \"198.51.100.77\", \"user\": \"manager\", \"success\": False},\n    {\"timestamp\": 35, \"source_ip\": \"192.168.1.20\", \"user\": \"bob\", \"success\": True}\n]\n\ndetected_alerts = detect_brute_force_attacks(auth_logs, threshold_failures=4, window_seconds=60)\nprint(\"Detected SIEM Alerts:\", detected_alerts)\nassert len(detected_alerts) == 1\nassert detected_alerts[0][\"source_ip\"] == \"198.51.100.77\"\nassert detected_alerts[0][\"alert_type\"] == \"BRUTE_FORCE_DETECTED\"\nassert detected_alerts[0][\"mitigation_action\"] == \"BLOCK_IP\"\n", "mutants": ["def detect_brute_force_attacks(logs, threshold_failures=4, window_seconds=60):\n    # Mutant completely ignores failed logins and generates zero security alerts!\n    return []\n\ntest_logs = [\n    {\"timestamp\": 1, \"source_ip\": \"10.0.0.1\", \"user\": \"u\", \"success\": False},\n    {\"timestamp\": 2, \"source_ip\": \"10.0.0.1\", \"user\": \"u\", \"success\": False},\n    {\"timestamp\": 3, \"source_ip\": \"10.0.0.1\", \"user\": \"u\", \"success\": False},\n    {\"timestamp\": 4, \"source_ip\": \"10.0.0.1\", \"user\": \"u\", \"success\": False}\n]\nres = detect_brute_force_attacks(test_logs, threshold_failures=4, window_seconds=60)\nassert len(res) == 1, \"Brute force attack must be detected and alerted\"\n"]}}, "cards": [{"q": "What are the six phases of the incident response lifecycle in NIST SP 800-61?", "a": "Preparation, Detection and Analysis, Containment, Eradication, Recovery, and Post-Incident Review."}, {"q": "What is the mandatory cybersecurity incident reporting deadline under CERT-In Directions 2022?", "a": "All covered cyber incidents (such as ransomware, system compromise, or data breaches) must be reported within 6 hours of noticing."}, {"q": "What is required to maintain legal chain of custody for digital forensic evidence?", "a": "An immutable audit log documenting every custodian transfer, timestamps, reasons, and cryptographic hash verification (SHA-256) matching the original image."}, {"q": "How does hardware anti-rollback protection prevent downgrade attacks?", "a": "Monotonic eFuses record the minimum permitted security version; attempts to boot older signed firmware with known vulnerabilities are rejected by hardware."}, {"q": "What is the purpose of a blameless postmortem in security engineering?", "a": "To analyze systemic architectural weaknesses, latent design defects, and process failures without individual scapegoating, strengthening long-term defense."}, {"q": "What is the Single Loss Expectancy (SLE) in quantitative risk assessment?", "a": "The financial loss incurred from a single incident occurrence, calculated as Asset Value multiplied by Exposure Factor (AV x EF)."}], "title": "Security operations: incident response, forensics and governance"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

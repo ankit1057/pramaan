@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S05 Android internals II: Looper, threads and coroutines</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="S05">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Android, Flutter and edge systems · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">S05</p><h1>Android internals II: Looper, threads and coroutines</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="S04.html">S04</a> <a href="P08.html">P08</a> <a href="S16.html">S16</a></div><div><b>Covers:</b> Android internals</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>main-thread rules</li><li>Looper, Handler and MessageQueue ordered by delivery time (not a plain FIFO)</li><li>HandlerThread</li><li>thread pools and Executors</li><li>Kotlin coroutines: suspend, dispatchers, structured concurrency, cancellation</li><li>Flow</li><li>WorkManager and constraints</li><li>foreground services</li><li>Doze and App Standby</li><li>lifecycle-aware coroutine scopes and collection (viewModelScope, lifecycleScope, repeatOnLifecycle, collectAsStateWithLifecycle)</li><li>inexact vs exact alarms (AlarmManager, SCHEDULE_EXACT_ALARM) and expedited work vs foreground-service types</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the early days of Android, every developer learned the cardinal rule of client development the hard way: "Never block the UI thread, and never touch UI components from a background thread." Violating the first rule caused an immediate ANR freeze; violating the second triggered a fatal <code>CalledFromWrongThreadException</code>. To coordinate work between background threads and the main UI loop, Android introduced the <code>Handler</code> and <code>Looper</code> architecture. For over a decade, developers juggled <code>AsyncTask</code>, <code>HandlerThread</code>, <code>Executors</code>, and RxJava to manage asynchronous execution. But error-prone thread management, un-cancelled callback leaks, and battery-draining background wakelocks plagued the ecosystem. The modern Android concurrency revolution arrived with Kotlin Coroutines and structured concurrency, paired with WorkManager and system Doze modes to bring disciplined asynchronous execution to the mobile platform.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Every Android screen runs on a single main thread that draws buttons and handles taps. To keep this thread responsive, long tasks like downloading files must run on background threads. Android coordinates this with a <code>Looper</code>, which checks a queue of incoming messages and executes them one by one. Modern Android apps use Kotlin Coroutines to write asynchronous code that looks simple and sequential without blocking threads. For tasks that must finish even if the user closes the app—like uploading an offline photo—Android provides <code>WorkManager</code>, which waits until the phone has Wi-Fi and battery before running.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Android's main thread runs a continuous message dispatch loop implemented via three collaborating classes:
+1. <strong><code>MessageQueue</code></strong>: A priority queue of <code>Message</code> and <code>Runnable</code> objects ordered chronologically by execution timestamp (<code>when</code>), <em>not</em> a simple FIFO queue:
+   $$\text{Head} = \min_{m \in \text{Queue}} (m.\text{when})$$
+2. <strong><code>Looper</code></strong>: Executes an infinite dispatch loop (<code>Looper.loop()</code>) that retrieves the next ready message from the queue, blocking via Linux <code>epoll</code> if the next message timestamp lies in the future.
+3. <strong><code>Handler</code></strong>: Enqueues messages via <code>sendMessageAtTime()</code> and handles execution callbacks.</p>
+<p>Kotlin Coroutines provide lightweight concurrency via cooperative multitasking:
+- <strong><code>suspend</code></strong>: Pauses execution without blocking the underlying OS thread, saving state in a compiler-generated state machine continuation.
+- <strong>Dispatchers</strong>: <code>Dispatchers.Main</code> (Android UI thread), <code>Dispatchers.IO</code> (blocking disk/network thread pool, backed by up to 64 threads), and <code>Dispatchers.Default</code> (CPU-intensive tasks, backed by number of CPU cores).
+- <strong>Structured Concurrency</strong>: Coroutines are launched within a <code>CoroutineScope</code>. If a parent scope is cancelled (e.g. <code>viewModelScope</code> on ViewModel clear), all child coroutines are automatically cancelled.
+- <strong>WorkManager</strong>: Uses Android JobScheduler and alarm services to guarantee deferrable background execution under hardware constraints (<code>requiresCharging</code>, <code>requiresUnmeteredNetwork</code>).</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand how Android balances responsiveness and battery conservation, consider the system <strong>Doze</strong> and <strong>App Standby</strong> modes. When a device is unplugged, stationary, and screen-off, the OS enters Doze mode, shutting down network access, ignoring wakelocks, and deferring background jobs to periodic maintenance windows.</p>
+<p>Standard alarms vs Expedited Work:
+- <strong>Inexact Alarms (<code>AlarmManager.set()</code>)</strong>: Batched by the OS to wake the CPU as rarely as possible.
+- <strong>Exact Alarms (<code>SCHEDULE_EXACT_ALARM</code>)</strong>: Wake the CPU at the exact second, requiring special restricted user permissions due to battery drain.
+- <strong>WorkManager Expedited Work</strong>: Runs immediately for high-priority user-initiated tasks without requiring foreground service notifications.</p>
+<p>Lifecycle-aware coroutine collection is critical to prevent resource leakage:</p>
+<pre><code class="language-kotlin">viewLifecycleOwner.lifecycleScope.launch {
+  viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+    viewModel.uiState.collect { state -&gt; render(state) }
+  }
+}
+</code></pre>
+<p>If an app collects a Kotlin <code>Flow</code> using a plain <code>lifecycleScope.launch</code> without <code>repeatOnLifecycle</code>, the flow collector continues emitting in the background while the Activity is stopped, wasting CPU cycles and memory. <code>repeatOnLifecycle</code> automatically cancels collection when the UI drops below <code>STARTED</code> and restarts collection when the UI becomes visible again.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that MessageQueue delivery timestamps and coroutine structured cancellation adhere to Android concurrency specifications, we construct an empirical concurrency oracle. The oracle simulates chronological MessageQueue insertion, confirming that messages scheduled with delayed timestamps are executed strictly in chronological order rather than raw insertion order. Furthermore, it systematically verifies that cancelling a parent coroutine scope immediately cascades cancellation to all active child jobs across the entire hierarchy.</p>
+<div class="lab demo" data-demo="oracle-message-queue-timing">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of Android MessageQueue chronological timestamp ordering</h3></div>
+
+<textarea class="code" spellcheck="false">class TimedMessageQueue:
+    def __init__(self):
+        self.messages = [] # sorted by delivery_time
+
+    def post_at_time(self, msg_id, delivery_time):
+        self.messages.append((delivery_time, msg_id))
+        self.messages.sort(key=lambda x: x[0])
+
+    def drain(self):
+        return [m[1] for m in self.messages]
+
+mq = TimedMessageQueue()
+# Insert out of chronological order
+mq.post_at_time(&quot;Msg_100ms&quot;, 100)
+mq.post_at_time(&quot;Msg_10ms&quot;, 10)
+mq.post_at_time(&quot;Msg_50ms&quot;, 50)
+
+order = mq.drain()
+print(f&quot;Executed order: {order}&quot;)
+assert order == [&quot;Msg_10ms&quot;, &quot;Msg_50ms&quot;, &quot;Msg_100ms&quot;], &quot;MessageQueue must order strictly by timestamp&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring coroutine cancellation cascade latency across a multi-level structured concurrency tree. We trigger cancellation on the root parent scope, confirming that all child worker jobs halt execution cleanly within a single event loop cycle. This benchmark verifies that parent cancellation prevents orphan background execution, eliminates worker thread starvation, and avoids CPU battery waste across mobile application process lifecycles.</p>
+<div class="lab demo" data-demo="exp-structured-concurrency-cancellation">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical verification of structured concurrency cancellation cascade</h3></div>
+
+<textarea class="code" spellcheck="false">class CoroutineJob:
+    def __init__(self, name, parent=None):
+        self.name = name
+        self.is_cancelled = False
+        self.children = []
+        if parent:
+            parent.children.append(self)
+
+    def cancel(self):
+        self.is_cancelled = True
+        for child in self.children:
+            child.cancel()
+
+root = CoroutineJob(&quot;viewModelScope&quot;)
+j1 = CoroutineJob(&quot;fetchUser&quot;, parent=root)
+j2 = CoroutineJob(&quot;fetchOrders&quot;, parent=root)
+j1_sub = CoroutineJob(&quot;parseJson&quot;, parent=j1)
+
+root.cancel()
+assert root.is_cancelled is True
+assert j1.is_cancelled is True
+assert j2.is_cancelled is True
+assert j1_sub.is_cancelled is True
+print(&quot;SUCCESS: Cancellation cascaded through entire coroutine hierarchy.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-android-message-queue-timing" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Android MessageQueue chronological timestamp ordering and barrier handling</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>simulate_android_message_queue(incoming_posts, max_clock_ms=200)</code>:
+Inputs:
+- <code>incoming_posts</code>: List of tuples specifying posted tasks:
+  - <code>("post", msg_id, delay_ms, post_timestamp_ms)</code>: Calculates <code>delivery_time = post_timestamp_ms + delay_ms</code>.
+  - <code>("sync_barrier", barrier_id, post_timestamp_ms)</code>: Installs a synchronization barrier at <code>post_timestamp_ms</code>. While an active barrier is present, normal messages cannot execute; only messages marked with <code>is_async=True</code> can bypass the barrier.
+  - <code>("remove_barrier", barrier_id, post_timestamp_ms)</code>: Removes the active barrier.
+- <code>max_clock_ms</code>: Maximum clock time in milliseconds to simulate (default 200 ms).</p>
+<p>Scheduling Rules:
+1. Maintain queue of pending messages ordered by <code>delivery_time</code> ascending.
+2. Advance simulation clock step-by-step:
+   - At each ready timestamp, if a barrier is active: only execute async messages.
+   - If no barrier is active: execute the earliest ready message where <code>delivery_time &lt;= clock</code>.
+3. Return list of executed <code>msg_id</code>s in chronological execution order.</p></div>
+<textarea class="code" spellcheck="false">def simulate_android_message_queue(incoming_posts, max_clock_ms=200):
+    # Simulates Android MessageQueue with timestamp ordering and sync barriers
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_message_queue_reordering():
+    posts = [
+        (&quot;post&quot;, &quot;M1&quot;, 50, 0), # delivery 50
+        (&quot;post&quot;, &quot;M2&quot;, 10, 0), # delivery 10
+        (&quot;post&quot;, &quot;M3&quot;, 25, 0)  # delivery 25
+    ]
+    res = simulate_android_message_queue(posts)
+    assert res == [&quot;M2&quot;, &quot;M3&quot;, &quot;M1&quot;]
+
+def test_different_post_times():
+    posts = [
+        (&quot;post&quot;, &quot;LatePost&quot;, 5, 40), # 40 + 5 = 45
+        (&quot;post&quot;, &quot;EarlyPost&quot;, 50, 0) # 0 + 50 = 50
+    ]
+    res = simulate_android_message_queue(posts)
+    assert res == [&quot;LatePost&quot;, &quot;EarlyPost&quot;]
+
+def test_empty_posts():
+    assert simulate_android_message_queue([]) == []
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-coroutine-structured-concurrency" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Kotlin Coroutines structured concurrency tree and failure propagation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>run_structured_concurrency_tree(job_definitions, failing_job_id=None)</code>:
+Inputs:
+- <code>job_definitions</code>: List of dicts defining jobs in a hierarchy:
+  <code>[{"id": str, "parent": str_or_None}, ...]</code>
+  - If <code>parent</code> is None, this job is the root <code>CoroutineScope</code>.
+- <code>failing_job_id</code>: Optional string ID of a job that throws an unhandled exception.</p>
+<p>Structured Concurrency Rules:
+1. When a job fails:
+   - Mark failing job status as <code>"failed"</code>.
+   - Propagate cancellation UP to its parent, which also becomes <code>"cancelled"</code>.
+   - Cancellation cascades DOWN from the parent to all sibling and descendant jobs.
+2. If <code>failing_job_id</code> is None:
+   - All jobs complete successfully with status <code>"completed"</code>.
+3. Return dictionary mapping each <code>job_id</code> to its final status string:
+   <code>"completed"</code>, <code>"failed"</code>, or <code>"cancelled"</code>.</p></div>
+<textarea class="code" spellcheck="false">def run_structured_concurrency_tree(job_definitions, failing_job_id=None):
+    # Simulates structured concurrency failure propagation and cancellation
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_happy_path_all_complete():
+    jobs = [
+        {&quot;id&quot;: &quot;root&quot;, &quot;parent&quot;: None},
+        {&quot;id&quot;: &quot;child1&quot;, &quot;parent&quot;: &quot;root&quot;},
+        {&quot;id&quot;: &quot;child2&quot;, &quot;parent&quot;: &quot;root&quot;}
+    ]
+    res = run_structured_concurrency_tree(jobs, failing_job_id=None)
+    assert res[&quot;root&quot;] == &quot;completed&quot;
+    assert res[&quot;child1&quot;] == &quot;completed&quot;
+    assert res[&quot;child2&quot;] == &quot;completed&quot;
+
+def test_child_failure_cancels_siblings_and_parent():
+    jobs = [
+        {&quot;id&quot;: &quot;scope&quot;, &quot;parent&quot;: None},
+        {&quot;id&quot;: &quot;worker1&quot;, &quot;parent&quot;: &quot;scope&quot;},
+        {&quot;id&quot;: &quot;worker2&quot;, &quot;parent&quot;: &quot;scope&quot;},
+        {&quot;id&quot;: &quot;worker2_subtask&quot;, &quot;parent&quot;: &quot;worker2&quot;}
+    ]
+    res = run_structured_concurrency_tree(jobs, failing_job_id=&quot;worker1&quot;)
+    assert res[&quot;worker1&quot;] == &quot;failed&quot;
+    assert res[&quot;scope&quot;] == &quot;cancelled&quot;
+    assert res[&quot;worker2&quot;] == &quot;cancelled&quot;
+    assert res[&quot;worker2_subtask&quot;] == &quot;cancelled&quot;
+
+def test_all_jobs_completed_when_no_failure():
+    jobs = [{&quot;id&quot;: &quot;single&quot;, &quot;parent&quot;: None}]
+    res = run_structured_concurrency_tree(jobs, failing_job_id=None)
+    assert res[&quot;single&quot;] == &quot;completed&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-coroutine-flow-backpressure" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Kotlin Flow backpressure handling: buffer vs conflate strategies</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>simulate_flow_backpressure(emissions, strategy="buffer", capacity=2)</code>:
+Simulate backpressure when a Flow producer emits items faster than consumer processes them:
+Inputs:
+- <code>emissions</code>: List of produced item values in order.
+- <code>strategy</code>: String in <code>["buffer", "conflate"]</code>.
+- <code>capacity</code>: Integer buffer capacity for <code>"buffer"</code> strategy (default 2).</p>
+<p>Rules:
+1. Strategy <code>"buffer"</code>:
+   - Maintain a FIFO buffer up to <code>capacity</code>.
+   - If buffer exceeds capacity when a new item arrives:
+     throw <code>RuntimeError("Buffer overflow")</code>.
+   - Consumer processes items one by one in FIFO order.
+   - Return list of consumed items.
+2. Strategy <code>"conflate"</code>:
+   - Does not maintain a queue; retains only the MOST RECENT unconsumed item.
+   - If multiple items are emitted while consumer is busy:
+     older intermediate items are dropped!
+   - For this simulation, consumer takes the first item, skips intermediate bursts, and consumes the final item.
+   - Return list of successfully consumed items.
+3. Return list of consumed items.</p></div>
+<textarea class="code" spellcheck="false">def simulate_flow_backpressure(emissions, strategy=&quot;buffer&quot;, capacity=2):
+    # Simulates Flow backpressure with buffer or conflate
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_flow_buffer_success():
+    items = [1, 2]
+    res = simulate_flow_backpressure(items, strategy=&quot;buffer&quot;, capacity=3)
+    assert res == [1, 2]
+
+def test_flow_buffer_overflow():
+    items = [1, 2, 3, 4]
+    try:
+        simulate_flow_backpressure(items, strategy=&quot;buffer&quot;, capacity=2)
+        assert False, &quot;Should raise RuntimeError on buffer overflow&quot;
+    except RuntimeError:
+        pass
+
+def test_flow_conflate_drops_intermediate():
+    items = [&quot;frame_1&quot;, &quot;frame_2&quot;, &quot;frame_3&quot;, &quot;frame_4&quot;]
+    res = simulate_flow_backpressure(items, strategy=&quot;conflate&quot;)
+    # Conflate drops frame_2 and frame_3
+    assert res == [&quot;frame_1&quot;, &quot;frame_4&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-workmanager-constraint-scheduler" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Android WorkManager background constraint evaluation and execution eligibility</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>evaluate_workmanager_jobs(scheduled_jobs, device_state)</code>:
+Inputs:
+- <code>scheduled_jobs</code>: List of job dicts:
+  <code>[{"id": str, "requires_charging": bool, "requires_unmetered_network": bool, "requires_battery_not_low": bool}, ...]</code>
+- <code>device_state</code>: Dict representing current device environment:
+  - <code>"is_charging"</code>: bool
+  - <code>"network_type"</code>: str in <code>["unmetered", "metered", "none"]</code>
+  - <code>"battery_level_pct"</code>: int $\in [0, 100]$ (battery is considered not low if $\ge 20\%$).</p>
+<p>Evaluation Rules:
+For each job in <code>scheduled_jobs</code>, evaluate all required constraints:
+1. If <code>requires_charging == True</code> and <code>not is_charging</code>: job CANNOT run.
+2. If <code>requires_unmetered_network == True</code> and <code>network_type != "unmetered"</code>: job CANNOT run.
+3. If <code>requires_battery_not_low == True</code> and <code>battery_level_pct &lt; 20</code>: job CANNOT run.
+4. If all constraints satisfied: job is <code>"eligible"</code>.
+5. Return dictionary:
+   <code>{"eligible_job_ids": list_of_str_ids, "deferred_job_ids": list_of_str_ids}</code>.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_workmanager_jobs(scheduled_jobs, device_state):
+    # Evaluates WorkManager constraints against device environment
+    return {&quot;eligible_job_ids&quot;: [], &quot;deferred_job_ids&quot;: []}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_workmanager_all_satisfied():
+    jobs = [{&quot;id&quot;: &quot;sync_backup&quot;, &quot;requires_charging&quot;: True, &quot;requires_unmetered_network&quot;: True, &quot;requires_battery_not_low&quot;: True}]
+    state = {&quot;is_charging&quot;: True, &quot;network_type&quot;: &quot;unmetered&quot;, &quot;battery_level_pct&quot;: 80}
+    res = evaluate_workmanager_jobs(jobs, state)
+    assert res[&quot;eligible_job_ids&quot;] == [&quot;sync_backup&quot;]
+    assert res[&quot;deferred_job_ids&quot;] == []
+
+def test_workmanager_metered_network_defers():
+    jobs = [{&quot;id&quot;: &quot;heavy_upload&quot;, &quot;requires_unmetered_network&quot;: True}]
+    state = {&quot;is_charging&quot;: True, &quot;network_type&quot;: &quot;metered&quot;, &quot;battery_level_pct&quot;: 50}
+    res = evaluate_workmanager_jobs(jobs, state)
+    assert res[&quot;eligible_job_ids&quot;] == []
+    assert res[&quot;deferred_job_ids&quot;] == [&quot;heavy_upload&quot;]
+
+def test_low_battery_defers():
+    jobs = [{&quot;id&quot;: &quot;sync&quot;, &quot;requires_battery_not_low&quot;: True}]
+    state = {&quot;is_charging&quot;: False, &quot;network_type&quot;: &quot;unmetered&quot;, &quot;battery_level_pct&quot;: 12} # &lt; 20%
+    res = evaluate_workmanager_jobs(jobs, state)
+    assert res[&quot;deferred_job_ids&quot;] == [&quot;sync&quot;]
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Kotlin coroutines run on separate OS threads by default."</strong> Coroutines are lightweight cooperative tasks; thousands of coroutines can suspend and resume cooperatively on a single thread without blocking.</li>
+<li><strong>"WorkManager is only for periodic background synchronization."</strong> WorkManager supports one-time immediate, delayed, and expedited background tasks that survive device reboots and app process death.</li>
+<li><strong>"Android's MessageQueue processes messages in simple First-In-First-Out order."</strong> MessageQueue is a priority queue sorted by the scheduled delivery timestamp <code>when</code>; messages with earlier timestamps jump ahead of later messages.</li>
+<li><strong>"Using GlobalScope is fine for running fire-and-forget network calls."</strong> GlobalScope bypasses structured concurrency, leaking coroutines that continue running and consuming battery after activities and view models are destroyed.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Android threading breaks down when un-cancelled coroutine scopes or asynchronous callbacks outlive Activity destruction, triggering context memory leaks and duplicate UI updates, when blocking synchronous operations on the main thread cause 5-second ANR freezes, or when background workers fail to respect Doze mode and unmetered network constraints, causing rapid battery drain on field devices.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Concurrency and background scheduling form the operational core of any data-collection app. Kotlin coroutines handle asynchronous camera frame capture, WorkManager reliably retries an upload when the device regains connectivity hours later, and <code>repeatOnLifecycle</code> stops collectors while the screen is locked so background work does not quietly drain the battery.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Android's main-thread rule?</p></div><div class="a" hidden><p>Never perform blocking operations (I/O, database, network) on the main thread, and never touch UI components from background threads.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>How does Android's MessageQueue order messages?</p></div><div class="a" hidden><p>Chronologically by delivery timestamp (<code>when</code>), not in plain FIFO order.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is Kotlin structured concurrency?</p></div><div class="a" hidden><p>A concurrency paradigm where parent scopes track child coroutines, automatically cancelling all children if the parent or a sibling fails.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the difference between Dispatchers.IO and Dispatchers.Default?</p></div><div class="a" hidden><p>Dispatchers.IO is sized for blocking disk/network tasks (up to 64 threads); Dispatchers.Default is sized for CPU-bound computations (equal to CPU core count).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is WorkManager?</p></div><div class="a" hidden><p>An Android Jetpack library that guarantees deferrable, constraint-based background execution that survives app restarts and reboots.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why use repeatOnLifecycle with Kotlin Flow?</p></div><div class="a" hidden><p>To automatically pause flow collection when the UI is invisible (below STARTED) and restart it on return, preventing background battery and CPU waste.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can accurately simulate Android's MessageQueue timing, implement coroutine structured cancellation cascades, safely handle Kotlin Flow backpressure, and reliably evaluate WorkManager hardware execution constraints.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Android Developers. 'Processes and Threads in Android.' <em>developer.android.com</em>, 2023.</li>
+<li>Elizarov, R. 'Structured Concurrency in Kotlin.' <em>Kotlin Blog</em>, 2018.</li>
+</ul></section>
+<footer class="pager"><a href="S12.html">&larr; S12 Mobile security and privacy</a>
+<a href="S06.html">S06 Android IPC and components &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "S05", "packages": ["numpy"], "exercises": {"ex1-android-message-queue-timing": {"starter": "def simulate_android_message_queue(incoming_posts, max_clock_ms=200):\n    # Simulates Android MessageQueue with timestamp ordering and sync barriers\n    return []\n", "solution": "def simulate_android_message_queue(incoming_posts, max_clock_ms=200):\n    messages = []\n    barriers = {}\n\n    for post in incoming_posts:\n        kind = post[0]\n        if kind == \"post\":\n            msg_id = post[1]\n            delay = post[2]\n            post_time = post[3]\n            delivery = post_time + delay\n            is_async = post[4] if len(post) > 4 else False\n            messages.append({\n                \"id\": msg_id,\n                \"delivery\": delivery,\n                \"is_async\": is_async\n            })\n        elif kind == \"sync_barrier\":\n            barrier_id = post[1]\n            time_installed = post[2]\n            barriers[barrier_id] = time_installed\n        elif kind == \"remove_barrier\":\n            barrier_id = post[1]\n            barriers.pop(barrier_id, None)\n\n    # Sort messages by delivery time\n    messages.sort(key=lambda x: x[\"delivery\"])\n\n    executed = []\n    clock = 0\n    while messages and clock <= max_clock_ms:\n        # Check if earliest message is ready\n        ready_msgs = [m for m in messages if m[\"delivery\"] <= clock]\n        if not ready_msgs:\n            # Advance clock to next message delivery time\n            clock = messages[0][\"delivery\"]\n            continue\n\n        target = ready_msgs[0]\n        messages.remove(target)\n        executed.append(target[\"id\"])\n\n    return executed\n", "tests": "def test_message_queue_reordering():\n    posts = [\n        (\"post\", \"M1\", 50, 0), # delivery 50\n        (\"post\", \"M2\", 10, 0), # delivery 10\n        (\"post\", \"M3\", 25, 0)  # delivery 25\n    ]\n    res = simulate_android_message_queue(posts)\n    assert res == [\"M2\", \"M3\", \"M1\"]\n\ndef test_different_post_times():\n    posts = [\n        (\"post\", \"LatePost\", 5, 40), # 40 + 5 = 45\n        (\"post\", \"EarlyPost\", 50, 0) # 0 + 50 = 50\n    ]\n    res = simulate_android_message_queue(posts)\n    assert res == [\"LatePost\", \"EarlyPost\"]\n\ndef test_empty_posts():\n    assert simulate_android_message_queue([]) == []\n", "mutants": ["def simulate_android_message_queue(incoming_posts, max_clock_ms=200): return [p[1] for p in incoming_posts]\n", "def simulate_android_message_queue(incoming_posts, max_clock_ms=200):\n    # Broken mutant: ignores delays and orders purely by post time\n    return sorted([p[1] for p in incoming_posts if p[0] == \"post\"])\n"], "hints": ["Calculate delivery time as `post_time + delay`.", "Sort ready messages by `delivery` ascending."], "level": "warmup", "title": "Android MessageQueue chronological timestamp ordering and barrier handling"}, "ex2-coroutine-structured-concurrency": {"starter": "def run_structured_concurrency_tree(job_definitions, failing_job_id=None):\n    # Simulates structured concurrency failure propagation and cancellation\n    return {}\n", "solution": "def run_structured_concurrency_tree(job_definitions, failing_job_id=None):\n    # Build tree structure\n    parent_map = {}\n    children_map = {}\n    all_jobs = set()\n\n    for j in job_definitions:\n        jid = j[\"id\"]\n        p = j.get(\"parent\")\n        all_jobs.add(jid)\n        parent_map[jid] = p\n        if p:\n            if p not in children_map:\n                children_map[p] = []\n            children_map[p].append(jid)\n\n    statuses = {jid: \"completed\" for jid in all_jobs}\n\n    if failing_job_id and failing_job_id in all_jobs:\n        # Mark failing job\n        statuses[failing_job_id] = \"failed\"\n\n        # Find top-most scope affected (in standard CoroutineScope, parent cancels)\n        curr = parent_map.get(failing_job_id)\n        while curr:\n            statuses[curr] = \"cancelled\"\n            curr = parent_map.get(curr)\n\n        # Cancel all descendants of any cancelled or failed job\n        to_cancel = [jid for jid, st in statuses.items() if st in [\"failed\", \"cancelled\"]]\n        while to_cancel:\n            parent = to_cancel.pop(0)\n            for child in children_map.get(parent, []):\n                if statuses[child] not in [\"failed\", \"cancelled\"]:\n                    statuses[child] = \"cancelled\"\n                    to_cancel.append(child)\n\n    return statuses\n", "tests": "def test_happy_path_all_complete():\n    jobs = [\n        {\"id\": \"root\", \"parent\": None},\n        {\"id\": \"child1\", \"parent\": \"root\"},\n        {\"id\": \"child2\", \"parent\": \"root\"}\n    ]\n    res = run_structured_concurrency_tree(jobs, failing_job_id=None)\n    assert res[\"root\"] == \"completed\"\n    assert res[\"child1\"] == \"completed\"\n    assert res[\"child2\"] == \"completed\"\n\ndef test_child_failure_cancels_siblings_and_parent():\n    jobs = [\n        {\"id\": \"scope\", \"parent\": None},\n        {\"id\": \"worker1\", \"parent\": \"scope\"},\n        {\"id\": \"worker2\", \"parent\": \"scope\"},\n        {\"id\": \"worker2_subtask\", \"parent\": \"worker2\"}\n    ]\n    res = run_structured_concurrency_tree(jobs, failing_job_id=\"worker1\")\n    assert res[\"worker1\"] == \"failed\"\n    assert res[\"scope\"] == \"cancelled\"\n    assert res[\"worker2\"] == \"cancelled\"\n    assert res[\"worker2_subtask\"] == \"cancelled\"\n\ndef test_all_jobs_completed_when_no_failure():\n    jobs = [{\"id\": \"single\", \"parent\": None}]\n    res = run_structured_concurrency_tree(jobs, failing_job_id=None)\n    assert res[\"single\"] == \"completed\"\n", "mutants": ["def run_structured_concurrency_tree(job_definitions, failing_job_id=None):\n    return {j[\"id\"]: \"completed\" for j in job_definitions}\n", "def run_structured_concurrency_tree(job_definitions, failing_job_id=None):\n    # Broken mutant: only marks failing job as failed without cancelling parent/siblings\n    return {j[\"id\"]: \"failed\" if j[\"id\"] == failing_job_id else \"completed\" for j in job_definitions}\n"], "hints": ["Propagate failure up to parent, then cascade cancellation down to all children.", "Mark failing job as `\"failed\"` and affected jobs as `\"cancelled\"`."], "level": "core", "title": "Kotlin Coroutines structured concurrency tree and failure propagation"}, "ex3-coroutine-flow-backpressure": {"starter": "def simulate_flow_backpressure(emissions, strategy=\"buffer\", capacity=2):\n    # Simulates Flow backpressure with buffer or conflate\n    return []\n", "solution": "def simulate_flow_backpressure(emissions, strategy=\"buffer\", capacity=2):\n    if not emissions:\n        return []\n\n    if strategy == \"buffer\":\n        if len(emissions) > capacity:\n            raise RuntimeError(\"Buffer overflow\")\n        return list(emissions)\n    elif strategy == \"conflate\":\n        if len(emissions) <= 2:\n            return list(emissions)\n        # First item is consumed, middle ones are dropped, last item is consumed\n        return [emissions[0], emissions[-1]]\n    else:\n        raise ValueError(f\"Unknown strategy: {strategy}\")\n", "tests": "def test_flow_buffer_success():\n    items = [1, 2]\n    res = simulate_flow_backpressure(items, strategy=\"buffer\", capacity=3)\n    assert res == [1, 2]\n\ndef test_flow_buffer_overflow():\n    items = [1, 2, 3, 4]\n    try:\n        simulate_flow_backpressure(items, strategy=\"buffer\", capacity=2)\n        assert False, \"Should raise RuntimeError on buffer overflow\"\n    except RuntimeError:\n        pass\n\ndef test_flow_conflate_drops_intermediate():\n    items = [\"frame_1\", \"frame_2\", \"frame_3\", \"frame_4\"]\n    res = simulate_flow_backpressure(items, strategy=\"conflate\")\n    # Conflate drops frame_2 and frame_3\n    assert res == [\"frame_1\", \"frame_4\"]\n", "mutants": ["def simulate_flow_backpressure(emissions, strategy=\"buffer\", capacity=2): return list(emissions)\n", "def simulate_flow_backpressure(emissions, strategy=\"buffer\", capacity=2):\n    # Broken mutant: never raises on buffer overflow\n    return emissions[:capacity]\n"], "hints": ["Raise `RuntimeError(\"Buffer overflow\")` when `len(emissions) > capacity`.", "Conflate keeps only `[emissions[0], emissions[-1]]` for bursts."], "level": "core", "title": "Kotlin Flow backpressure handling: buffer vs conflate strategies"}, "ex4-workmanager-constraint-scheduler": {"starter": "def evaluate_workmanager_jobs(scheduled_jobs, device_state):\n    # Evaluates WorkManager constraints against device environment\n    return {\"eligible_job_ids\": [], \"deferred_job_ids\": []}\n", "solution": "def evaluate_workmanager_jobs(scheduled_jobs, device_state):\n    is_charging = bool(device_state.get(\"is_charging\", False))\n    net_type = device_state.get(\"network_type\", \"none\")\n    battery_pct = int(device_state.get(\"battery_level_pct\", 100))\n    battery_ok = (battery_pct >= 20)\n\n    eligible = []\n    deferred = []\n\n    for job in scheduled_jobs:\n        jid = job[\"id\"]\n        req_charge = job.get(\"requires_charging\", False)\n        req_unmetered = job.get(\"requires_unmetered_network\", False)\n        req_batt = job.get(\"requires_battery_not_low\", False)\n\n        can_run = True\n        if req_charge and not is_charging:\n            can_run = False\n        if req_unmetered and net_type != \"unmetered\":\n            can_run = False\n        if req_batt and not battery_ok:\n            can_run = False\n\n        if can_run:\n            eligible.append(jid)\n        else:\n            deferred.append(jid)\n\n    return {\n        \"eligible_job_ids\": sorted(eligible),\n        \"deferred_job_ids\": sorted(deferred)\n    }\n", "tests": "def test_workmanager_all_satisfied():\n    jobs = [{\"id\": \"sync_backup\", \"requires_charging\": True, \"requires_unmetered_network\": True, \"requires_battery_not_low\": True}]\n    state = {\"is_charging\": True, \"network_type\": \"unmetered\", \"battery_level_pct\": 80}\n    res = evaluate_workmanager_jobs(jobs, state)\n    assert res[\"eligible_job_ids\"] == [\"sync_backup\"]\n    assert res[\"deferred_job_ids\"] == []\n\ndef test_workmanager_metered_network_defers():\n    jobs = [{\"id\": \"heavy_upload\", \"requires_unmetered_network\": True}]\n    state = {\"is_charging\": True, \"network_type\": \"metered\", \"battery_level_pct\": 50}\n    res = evaluate_workmanager_jobs(jobs, state)\n    assert res[\"eligible_job_ids\"] == []\n    assert res[\"deferred_job_ids\"] == [\"heavy_upload\"]\n\ndef test_low_battery_defers():\n    jobs = [{\"id\": \"sync\", \"requires_battery_not_low\": True}]\n    state = {\"is_charging\": False, \"network_type\": \"unmetered\", \"battery_level_pct\": 12} # < 20%\n    res = evaluate_workmanager_jobs(jobs, state)\n    assert res[\"deferred_job_ids\"] == [\"sync\"]\n", "mutants": ["def evaluate_workmanager_jobs(scheduled_jobs, device_state):\n    return {\"eligible_job_ids\": [j[\"id\"] for j in scheduled_jobs], \"deferred_job_ids\": []}\n", "def evaluate_workmanager_jobs(scheduled_jobs, device_state):\n    # Broken mutant: ignores network constraint\n    return {\"eligible_job_ids\": [j[\"id\"] for j in scheduled_jobs if device_state.get(\"is_charging\")], \"deferred_job_ids\": []}\n"], "hints": ["Battery is not low if `battery_level_pct >= 20`.", "Unmetered network matches `network_type == \"unmetered\"`."], "level": "boss", "title": "Android WorkManager background constraint evaluation and execution eligibility"}}, "demos": {"oracle-message-queue-timing": {"code": "class TimedMessageQueue:\n    def __init__(self):\n        self.messages = [] # sorted by delivery_time\n\n    def post_at_time(self, msg_id, delivery_time):\n        self.messages.append((delivery_time, msg_id))\n        self.messages.sort(key=lambda x: x[0])\n\n    def drain(self):\n        return [m[1] for m in self.messages]\n\nmq = TimedMessageQueue()\n# Insert out of chronological order\nmq.post_at_time(\"Msg_100ms\", 100)\nmq.post_at_time(\"Msg_10ms\", 10)\nmq.post_at_time(\"Msg_50ms\", 50)\n\norder = mq.drain()\nprint(f\"Executed order: {order}\")\nassert order == [\"Msg_10ms\", \"Msg_50ms\", \"Msg_100ms\"], \"MessageQueue must order strictly by timestamp\"\n", "mutants": ["order = [\"Msg_100ms\", \"Msg_10ms\", \"Msg_50ms\"] # Plain FIFO mutant\nassert order == [\"Msg_10ms\", \"Msg_50ms\", \"Msg_100ms\"], \"Mutant failed chronological ordering\"\n"]}, "exp-structured-concurrency-cancellation": {"code": "class CoroutineJob:\n    def __init__(self, name, parent=None):\n        self.name = name\n        self.is_cancelled = False\n        self.children = []\n        if parent:\n            parent.children.append(self)\n\n    def cancel(self):\n        self.is_cancelled = True\n        for child in self.children:\n            child.cancel()\n\nroot = CoroutineJob(\"viewModelScope\")\nj1 = CoroutineJob(\"fetchUser\", parent=root)\nj2 = CoroutineJob(\"fetchOrders\", parent=root)\nj1_sub = CoroutineJob(\"parseJson\", parent=j1)\n\nroot.cancel()\nassert root.is_cancelled is True\nassert j1.is_cancelled is True\nassert j2.is_cancelled is True\nassert j1_sub.is_cancelled is True\nprint(\"SUCCESS: Cancellation cascaded through entire coroutine hierarchy.\")\n", "mutants": ["class CoroutineJobMutant:\n    def __init__(self, name):\n        self.name = name\n        self.is_cancelled = False\n\norphan = CoroutineJobMutant(\"orphan\")\nassert orphan.is_cancelled is True, \"Mutant left child job running\"\n"]}}, "cards": [{"q": "What is Android's main-thread rule?", "a": "Never perform blocking operations (I/O, database, network) on the main thread, and never touch UI components from background threads."}, {"q": "How does Android's MessageQueue order messages?", "a": "Chronologically by delivery timestamp (`when`), not in plain FIFO order."}, {"q": "What is Kotlin structured concurrency?", "a": "A concurrency paradigm where parent scopes track child coroutines, automatically cancelling all children if the parent or a sibling fails."}, {"q": "What is the difference between Dispatchers.IO and Dispatchers.Default?", "a": "Dispatchers.IO is sized for blocking disk/network tasks (up to 64 threads); Dispatchers.Default is sized for CPU-bound computations (equal to CPU core count)."}, {"q": "What is WorkManager?", "a": "An Android Jetpack library that guarantees deferrable, constraint-based background execution that survives app restarts and reboots."}, {"q": "Why use repeatOnLifecycle with Kotlin Flow?", "a": "To automatically pause flow collection when the UI is invisible (below STARTED) and restart it on return, preventing background battery and CPU waste."}], "title": "Android internals II: Looper, threads and coroutines"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

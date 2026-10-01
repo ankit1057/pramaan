@@ -1,0 +1,1228 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M39 Fourier analysis and signals</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M39">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-3 · ~5h20</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M39</p><h1>Fourier analysis and signals</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M19.html">M19</a> <a href="M24.html">M24</a></div><div><b>Covers:</b> university signals, CS2023 GIT</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>periodic signals</li><li>Fourier series</li><li>the discrete Fourier transform</li><li>the FFT (Cooley-Tukey divide and conquer)</li><li>convolution and the convolution theorem</li><li>sampling and Nyquist-Shannon</li><li>aliasing</li><li>windowing and spectral leakage</li><li>simple filters</li><li>polynomial multiplication by FFT</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Kiran monitors an industrial motor. A vibration sensor samples 100 times a second, and the dashboard plots the result.</p>
+<p>One morning a slow oscillation appears — a clean 2 Hz wobble, growing over a week. Slow wobbles in rotating machinery mean something is coming loose. The team schedules a shutdown.</p>
+<p>They strip the motor. Nothing is loose. Nothing is worn. There is no 2 Hz vibration anywhere in the machine, and a hand-held meter confirms it.</p>
+<p>What the machine actually has is a 98 Hz vibration — a bearing defect, real and worth fixing, but at a frequency nothing on Kiran's dashboard was ever going to show. Sampling at 100 Hz, a 98 Hz sine and a 2 Hz sine produce <strong>literally identical</strong> sample values. Not similar. Identical, every sample, forever.</p>
+<p>That is the part worth sitting with. This is not a measurement error that a better sensor or a cleverer algorithm would fix. Once those samples exist, the 98 Hz and the 2 Hz interpretations are indistinguishable <em>in principle</em>, because the data contains no fact that separates them. The information was destroyed at the moment of sampling, and no amount of post-processing brings it back. The only fix is an analogue filter <strong>before</strong> the converter.</p>
+<p>Underneath that is a theorem — Nyquist-Shannon — which says exactly when sampling is safe and exactly what is lost when it is not. And underneath <em>that</em> is the single idea this module is about: any signal can be written as a sum of sinusoids, that representation is unique, and switching into it turns hard problems (convolution, filtering, multiplying big polynomials) into easy ones.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p><strong>Fourier's claim</strong> is that any reasonable periodic signal is a sum of sinusoids, and the coefficients are unique. Switching between the signal and its coefficients loses nothing.</p>
+<p>The <strong>DFT</strong> does this for a finite list of samples. Computed directly it costs $O(N^2)$; the <strong>FFT</strong> does it in $O(N\log N)$ by splitting even and odd indices, which is the algorithmic result that made digital signal processing practical.</p>
+<p>The payoff is the <strong>convolution theorem</strong>: convolution in time is <em>multiplication</em> in frequency. Filtering, correlation and polynomial multiplication all become pointwise products.</p>
+<p><strong>Sampling</strong> has a hard limit. Below two samples per period, frequencies <strong>alias</strong> — they masquerade as lower ones, irreversibly. And because a finite recording is a windowed one, energy <strong>leaks</strong> between frequency bins, which is why window functions exist.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Periodic signals and Fourier series</h2>
+<p>A signal is <strong>periodic</strong> with period $T$ when $x(t+T)=x(t)$; its <strong>fundamental frequency</strong> is $f_0=\frac1T$. Fourier's theorem: a periodic $x$ satisfying the Dirichlet conditions can be written</p>
+<p>$$x(t)=\frac{a_0}{2}+\sum_{n=1}^{\infty}\left(a_n\cos2\pi nf_0t+b_n\sin2\pi nf_0t\right) = \sum_{n=-\infty}^{\infty}c_ne^{2\pi inf_0t}$$</p>
+<p>with $c_n=\frac1T\int_0^Tx(t)e^{-2\pi inf_0t}\,dt$. The complex form is the one to internalise: $e^{i\theta}=\cos\theta+i\sin\theta$ (M24), so a complex exponential is a rotation, and the integral above asks "how much does $x$ rotate in step with frequency $n$?"</p>
+<p>Convergence is governed by smoothness: a $C^\infty$ signal's coefficients decay faster than any polynomial, while a <strong>jump discontinuity</strong> gives $c_n\sim\frac1n$ and produces <strong>Gibbs' phenomenon</strong> — a roughly 9% overshoot at the jump that does <strong>not</strong> shrink as more terms are added; it only narrows.</p>
+<h2>The DFT</h2>
+<p>For samples $x_0,\dots,x_{N-1}$:</p>
+<p>$$X_k=\sum_{n=0}^{N-1}x_ne^{-2\pi ikn/N}, \qquad x_n=\frac1N\sum_{k=0}^{N-1}X_ke^{2\pi ikn/N}$$</p>
+<p>Writing $\omega_N=e^{-2\pi i/N}$ (a primitive $N$-th root of unity), the DFT is multiplication by the matrix $F_{kn}=\omega_N^{kn}$, and $\frac{1}{N}F^\*$ inverts it.</p>
+<table>
+<thead>
+<tr>
+<th>Property</th>
+<th>Statement</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Linearity</td>
+<td>$\mathrm{DFT}(ax+by)=a\mathrm{DFT}(x)+b\mathrm{DFT}(y)$</td>
+</tr>
+<tr>
+<td>Shift</td>
+<td>$x_{n-m}\;\leftrightarrow\;X_ke^{-2\pi ikm/N}$</td>
+</tr>
+<tr>
+<td>Parseval</td>
+<td>$\sum_n|x_n|^2=\frac1N\sum_k|X_k|^2$</td>
+</tr>
+<tr>
+<td>Conjugate symmetry</td>
+<td>real $x\;\Rightarrow\;X_{N-k}=\overline{X_k}$</td>
+</tr>
+<tr>
+<td>Bin frequency</td>
+<td>bin $k$ is $\frac{kf_s}{N}$ Hz</td>
+</tr>
+</tbody>
+</table>
+<p>Conjugate symmetry is why a real signal's spectrum is plotted only up to $\frac{N}{2}$: the upper half is a mirror and carries no new information.</p>
+<h2>The FFT</h2>
+<p>Split by index parity. With $N$ even, $E$ the DFT of the even-indexed samples and $O$ that of the odd:</p>
+<p>$$X_k = E_k+\omega_N^kO_k, \qquad X_{k+N/2}=E_k-\omega_N^kO_k \quad\text{for }k&lt;\tfrac N2$$</p>
+<p>because $\omega_N^{k+N/2}=-\omega_N^k$. One DFT of size $N$ becomes two of size $\frac N2$ plus $O(N)$ work, so $T(N)=2T(N/2)+O(N)=O(N\log N)$ by the Master theorem (M19). The <strong>twiddle factors</strong> $\omega_N^k$ are the only thing combining the halves.</p>
+<h2>Convolution</h2>
+<p>$$(x\ast y)_n=\sum_m x_my_{n-m}$$</p>
+<p><strong>Circular</strong> convolution wraps the index mod $N$. The <strong>convolution theorem</strong>:</p>
+<p>$$\mathrm{DFT}(x\circledast y)=\mathrm{DFT}(x)\cdot\mathrm{DFT}(y) \quad\text{(pointwise)}$$</p>
+<p>To get <em>linear</em> convolution from the circular one, <strong>zero-pad both inputs to at least $\mathrm{len}(x)+\mathrm{len}(y)-1$</strong>. Forgetting this is the standard bug: the tail wraps around and corrupts the start.</p>
+<p>This gives $O(N\log N)$ convolution instead of $O(N^2)$, and — since multiplying polynomials <em>is</em> convolving their coefficient lists — $O(N\log N)$ polynomial multiplication, which is Schönhage-Strassen's starting point for fast integer multiplication.</p>
+<h2>Sampling, Nyquist and aliasing</h2>
+<p><strong>Nyquist-Shannon.</strong> A signal with no energy above $f_{\max}$ is <em>perfectly</em> reconstructible from samples taken at $f_s&gt;2f_{\max}$, by sinc interpolation. The threshold $\frac{f_s}{2}$ is the <strong>Nyquist frequency</strong>.</p>
+<p>Above it, frequencies <strong>fold</strong>. Sampling $f$ at rate $f_s$ produces the apparent frequency</p>
+<p>$$f_{\text{alias}} = \left|f - f_s\cdot\mathrm{round}\!\left(\frac{f}{f_s}\right)\right|$$</p>
+<p>For Kiran: $|98-100\cdot1|=2$ Hz. The two signals give identical samples, so <strong>no post-processing can separate them</strong> — the fix is an analogue anti-aliasing filter before the converter. The same folding is why wagon wheels turn backwards on film and why moiré patterns appear in downscaled images.</p>
+<h2>Windowing and leakage</h2>
+<p>A finite recording is the true signal multiplied by a rectangular window. By the convolution theorem, multiplying in time <strong>convolves</strong> in frequency, so each true spectral line is smeared by the window's transform.</p>
+<p>If a sinusoid sits exactly on a bin centre ($f=\frac{kf_s}{N}$) the smearing cancels and one bin holds everything. Otherwise energy <strong>leaks</strong> across all bins, with the rectangular window's first sidelobe only $-13$ dB down.</p>
+<table>
+<thead>
+<tr>
+<th>Window</th>
+<th>Main lobe</th>
+<th>First sidelobe</th>
+<th>Use</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Rectangular</td>
+<td>narrowest</td>
+<td>$-13$ dB</td>
+<td>exactly periodic signals</td>
+</tr>
+<tr>
+<td>Hann</td>
+<td>2× wider</td>
+<td>$-31$ dB</td>
+<td>general purpose</td>
+</tr>
+<tr>
+<td>Hamming</td>
+<td>2× wider</td>
+<td>$-43$ dB</td>
+<td>nearby equal-strength tones</td>
+</tr>
+<tr>
+<td>Blackman</td>
+<td>3× wider</td>
+<td>$-58$ dB</td>
+<td>wide dynamic range</td>
+</tr>
+</tbody>
+</table>
+<p>The trade is always the same: <strong>resolution against leakage</strong>. There is no window that wins both.</p>
+<h2>Simple filters</h2>
+<p>A <strong>moving average</strong> of length $L$ is a low-pass FIR filter with frequency response</p>
+<p>$$H(f)=\frac{1}{L}\cdot\frac{\sin(\pi fL/f_s)}{\sin(\pi f/f_s)}e^{-i\pi f(L-1)/f_s}$$</p>
+<p>whose nulls sit at multiples of $\frac{f_s}{L}$. A <strong>first difference</strong> $y_n=x_n-x_{n-1}$ is high-pass, with $|H|=2|\sin(\pi f/f_s)|$ — zero at DC, maximum at Nyquist. An <strong>exponential moving average</strong> $y_n=\alpha x_n+(1-\alpha)y_{n-1}$ is the simplest IIR low-pass, and is what every "smoothed" metrics dashboard is running.</p>
+<h2>A pinch of history</h2>
+<p>Joseph Fourier introduced his series in 1807 while studying heat conduction; Lagrange objected that it could not represent discontinuities, and the resulting fight took a century and the work of Dirichlet, Riemann and Lebesgue to settle — along the way forcing a rigorous definition of "function" and of the integral.</p>
+<p>Gauss described the FFT algorithm in 1805 in a notebook on asteroid orbits, in Latin, unpublished until his collected works — predating Fourier's own paper. It was rediscovered by Cooley and Tukey in 1965, motivated by the detection of Soviet nuclear tests from seismic data, and is routinely called one of the most important algorithms of the twentieth century. Harry Nyquist stated the sampling limit in 1928 and Claude Shannon proved it in 1949.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: orthogonality, which is why the coefficients are unique.</strong> For integers $j,k$ with $0\le j,k&lt;N$:</p>
+<p>$$\sum_{n=0}^{N-1}e^{2\pi i(j-k)n/N} = \begin{cases}N &amp; j=k\\ 0 &amp; j\ne k\end{cases}$$</p>
+<p>If $j=k$ every term is 1. Otherwise it is a geometric series with ratio $r=e^{2\pi i(j-k)/N}\ne1$, summing to $\frac{r^N-1}{r-1}$, and $r^N=e^{2\pi i(j-k)}=1$, so the numerator vanishes. <strong>Everything else follows from this one line</strong> — it is why the inverse DFT inverts, why Parseval holds, and why no two different coefficient sets give the same signal.</p>
+<p><strong>Result 2: the inverse DFT really inverts.</strong> Substitute and exchange the sums:</p>
+<p>$$\frac1N\sum_{k}X_ke^{2\pi ikn/N}=\frac1N\sum_k\sum_m x_me^{-2\pi ikm/N}e^{2\pi ikn/N}=\frac1N\sum_m x_m\sum_k e^{2\pi ik(n-m)/N}$$</p>
+<p>The inner sum is $N$ when $m=n$ and 0 otherwise, leaving $x_n$. The $\frac1N$ is exactly the normalisation orthogonality demands.</p>
+<p><strong>Result 3: the Cooley-Tukey split.</strong> Separate even and odd indices:</p>
+<p>$$X_k=\sum_{n\text{ even}}x_n\omega_N^{kn}+\sum_{n\text{ odd}}x_n\omega_N^{kn} = \sum_{m=0}^{N/2-1}x_{2m}\omega_N^{2km}+\omega_N^k\sum_{m=0}^{N/2-1}x_{2m+1}\omega_N^{2km}$$</p>
+<p>Now $\omega_N^2=e^{-4\pi i/N}=\omega_{N/2}$, so both sums are DFTs of size $\frac N2$: $X_k=E_k+\omega_N^kO_k$. For the upper half use $\omega_N^{k+N/2}=\omega_N^k\cdot e^{-i\pi}=-\omega_N^k$ while $E$ and $O$ are periodic with period $\frac N2$, giving $X_{k+N/2}=E_k-\omega_N^kO_k$. <strong>The whole saving comes from $\omega_N^2=\omega_{N/2}$</strong> — the roots of unity nest.</p>
+<p><strong>Result 4: the convolution theorem.</strong> With indices mod $N$:</p>
+<p>$$\mathrm{DFT}(x\circledast y)_k=\sum_n\left(\sum_m x_my_{n-m}\right)\omega_N^{kn}$$</p>
+<p>Substitute $n=m+r$ and exchange:</p>
+<p>$$=\sum_m x_m\sum_r y_r\omega_N^{k(m+r)}=\left(\sum_m x_m\omega_N^{km}\right)\left(\sum_r y_r\omega_N^{kr}\right)=X_kY_k$$</p>
+<p>The step that makes it work is $\omega_N^{k(m+r)}=\omega_N^{km}\omega_N^{kr}$ — the exponential turning addition into multiplication, which is the homomorphism of M38 doing the real work. <strong>And the sum over $r$ runs over a full period only because the convolution was circular</strong>, which is precisely why linear convolution needs zero-padding.</p>
+<p><strong>Result 5: why aliasing is irreversible.</strong> Sample $\cos(2\pi ft)$ at $t_n=\frac{n}{f_s}$:</p>
+<p>$$x_n=\cos\!\left(\frac{2\pi fn}{f_s}\right)$$</p>
+<p>Replace $f$ by $f+mf_s$ for any integer $m$:</p>
+<p>$$\cos\!\left(\frac{2\pi(f+mf_s)n}{f_s}\right)=\cos\!\left(\frac{2\pi fn}{f_s}+2\pi mn\right)=\cos\!\left(\frac{2\pi fn}{f_s}\right)$$</p>
+<p>since $2\pi mn$ is a whole number of turns. The sample values are <strong>exactly equal</strong> — not approximately. An infinite family of frequencies produces the identical sample sequence, so the map from signal to samples is not injective, and no inverse exists. Kiran's 98 Hz and 2 Hz are the same data.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle checks each fast method against a slow one that is obviously correct.</p>
+<p>The FFT is compared against the DFT computed from its definition, which is in turn compared against an independent evaluation of the complex exponential sums. Convolution via the FFT is compared against the $O(N^2)$ double loop. Polynomial multiplication via the FFT is compared against schoolbook multiplication with exact integer arithmetic, so there is no floating-point reference to hide behind. Parseval and the shift theorem are checked as identities.</p>
+<p>The mutant omits zero-padding before an FFT convolution — the single most common real bug — which produces a circular result that is wrong only in its first few entries.</p>
+<div class="lab demo" data-demo="m39-fast-against-slow">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>FFT against DFT, and convolution against the double loop</h3></div>
+
+<textarea class="code" spellcheck="false">import cmath
+import random
+from math import pi
+
+rng = random.Random(1805)
+
+
+def dft(x):
+    &quot;&quot;&quot;The definition, directly: O(N^2).&quot;&quot;&quot;
+    N = len(x)
+    return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))
+            for k in range(N)]
+
+
+def idft(X):
+    N = len(X)
+    return [sum(X[k] * cmath.exp(2j * pi * k * n / N) for k in range(N)) / N
+            for n in range(N)]
+
+
+def fft(x):
+    &quot;&quot;&quot;Cooley-Tukey, radix 2.&quot;&quot;&quot;
+    N = len(x)
+    if N == 1:
+        return list(x)
+    if N &amp; (N - 1):
+        raise ValueError(&quot;length must be a power of two&quot;)
+    even = fft(x[0::2])
+    odd = fft(x[1::2])
+    out = [0j] * N
+    for k in range(N // 2):
+        t = cmath.exp(-2j * pi * k / N) * odd[k]
+        out[k] = even[k] + t
+        out[k + N // 2] = even[k] - t
+    return out
+
+
+def ifft(X):
+    N = len(X)
+    conj = [z.conjugate() for z in X]
+    return [z.conjugate() / N for z in fft(conj)]
+
+
+def close(a, b, tol=1e-9):
+    return all(abs(p - q) &lt; tol for p, q in zip(a, b))
+
+
+# --- FFT against the definition ---
+print(f&quot;{&#x27;N&#x27;:&gt;6} {&#x27;max |FFT - DFT|&#x27;:&gt;18} {&#x27;round trip error&#x27;:&gt;19}&quot;)
+for N in (2, 4, 8, 16, 64, 256):
+    x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]
+    a, b = fft(x), dft(x)
+    err = max(abs(p - q) for p, q in zip(a, b))
+    back = max(abs(p - q) for p, q in zip(ifft(fft(x)), x))
+    print(f&quot;{N:&gt;6} {err:&gt;18.3e} {back:&gt;19.3e}&quot;)
+    assert err &lt; 1e-9, N
+    assert back &lt; 1e-9, N
+
+# a hand-checkable case: the DFT of [1,0,0,0] is all ones
+assert close(fft([1, 0, 0, 0]), [1, 1, 1, 1])
+# and of a constant it is N at bin 0 and zero elsewhere
+assert close(fft([3, 3, 3, 3]), [12, 0, 0, 0])
+# a pure bin-1 sinusoid lands entirely in bins 1 and N-1
+N = 8
+tone = [cmath.exp(2j * pi * n / N).real for n in range(N)]
+spec = fft(tone)
+assert abs(abs(spec[1]) - N / 2) &lt; 1e-9 and abs(abs(spec[7]) - N / 2) &lt; 1e-9
+assert all(abs(spec[k]) &lt; 1e-9 for k in (0, 2, 3, 4, 5, 6)), \
+    &quot;a bin-centred tone occupies exactly two bins&quot;
+
+# --- the identities ---
+print()
+x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(32)]
+y = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(32)]
+X, Y = fft(x), fft(y)
+energy_time = sum(abs(v) ** 2 for v in x)
+energy_freq = sum(abs(v) ** 2 for v in X) / len(x)
+print(f&quot;Parseval: time {energy_time:.10f}, frequency {energy_freq:.10f}&quot;)
+assert abs(energy_time - energy_freq) &lt; 1e-9, &quot;energy is conserved&quot;
+# linearity
+assert close(fft([3 * a + 2 * b for a, b in zip(x, y)]),
+             [3 * a + 2 * b for a, b in zip(X, Y)])
+# the shift theorem
+m = 5
+shifted = x[-m:] + x[:-m]
+S = fft(shifted)
+pred = [X[k] * cmath.exp(-2j * pi * k * m / len(x)) for k in range(len(x))]
+assert close(S, pred), &quot;a circular shift multiplies each bin by a phase&quot;
+print(&quot;linearity, the shift theorem and Parseval all hold exactly&quot;)
+# conjugate symmetry for a real input
+real_x = [rng.gauss(0, 1) for _ in range(16)]
+R = fft(real_x)
+assert all(abs(R[16 - k] - R[k].conjugate()) &lt; 1e-9 for k in range(1, 8)), \
+    &quot;a real signal&#x27;s spectrum mirrors about Nyquist&quot;
+
+# --- convolution: FFT against the honest double loop ---
+print()
+
+
+def convolve_slow(a, b):
+    out = [0.0] * (len(a) + len(b) - 1)
+    for i, av in enumerate(a):
+        for j, bv in enumerate(b):
+            out[i + j] += av * bv
+    return out
+
+
+def convolve_fft(a, b):
+    n = 1
+    need = len(a) + len(b) - 1
+    while n &lt; need:                       # zero-pad: without this it WRAPS
+        n *= 2
+    A = fft([complex(v) for v in a] + [0j] * (n - len(a)))
+    B = fft([complex(v) for v in b] + [0j] * (n - len(b)))
+    C = ifft([p * q for p, q in zip(A, B)])
+    return [c.real for c in C[:need]]
+
+
+for trial in range(50):
+    a = [rng.gauss(0, 1) for _ in range(rng.randrange(2, 20))]
+    b = [rng.gauss(0, 1) for _ in range(rng.randrange(2, 20))]
+    s, f = convolve_slow(a, b), convolve_fft(a, b)
+    assert len(s) == len(f)
+    assert max(abs(p - q) for p, q in zip(s, f)) &lt; 1e-9, (a, b)
+print(&quot;FFT convolution agrees with the double loop on 50 random pairs&quot;)
+
+# circular convolution is what the theorem actually states
+n = 8
+a = [rng.gauss(0, 1) for _ in range(n)]
+b = [rng.gauss(0, 1) for _ in range(n)]
+circ = [sum(a[m] * b[(k - m) % n] for m in range(n)) for k in range(n)]
+viafft = ifft([p * q for p, q in zip(fft([complex(v) for v in a]),
+                                     fft([complex(v) for v in b]))])
+assert max(abs(c - v.real) for c, v in zip(circ, viafft)) &lt; 1e-9, \
+    &quot;the convolution theorem is about CIRCULAR convolution&quot;
+
+# --- polynomial multiplication, checked against exact integer arithmetic ---
+print()
+
+
+def poly_mul_exact(p, q):
+    out = [0] * (len(p) + len(q) - 1)
+    for i, a in enumerate(p):
+        for j, b in enumerate(q):
+            out[i + j] += a * b
+    return out
+
+
+for trial in range(30):
+    p = [rng.randrange(-20, 21) for _ in range(rng.randrange(2, 16))]
+    q = [rng.randrange(-20, 21) for _ in range(rng.randrange(2, 16))]
+    exact = poly_mul_exact(p, q)
+    viafft = [round(v) for v in convolve_fft(p, q)]
+    assert exact == viafft, (p, q, exact, viafft)
+print(&quot;FFT polynomial multiplication matches exact integer arithmetic on 30 pairs&quot;)
+print(f&quot;  example: (x+2)(x+3) coefficients -&gt; &quot;
+      f&quot;{[round(v) for v in convolve_fft([2, 1], [3, 1])]}  (expect [6, 5, 1])&quot;)
+assert [round(v) for v in convolve_fft([2, 1], [3, 1])] == [6, 5, 1]
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Four predictions.</p>
+<p><strong>First, Kiran's aliasing.</strong> A 98 Hz tone sampled at 100 Hz should give sample values <strong>bit-for-bit identical</strong> to a 2 Hz tone — not merely a similar-looking spectrum.</p>
+<p><strong>Second, the Nyquist threshold is sharp.</strong> Below $\frac{f_s}{2}$ the measured frequency should be correct; above it, folded.</p>
+<p><strong>Third, leakage is real and windows trade resolution for it.</strong> A tone exactly on a bin centre should occupy one bin; moved half a bin, it should smear across the whole spectrum, and a Hann window should cut the distant leakage while widening the peak.</p>
+<p><strong>Fourth, the FFT's $O(N\log N)$ is measurable</strong> against the DFT's $O(N^2)$.</p>
+<div class="lab demo" data-demo="m39-aliasing-and-leakage">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Kiran&#x27;s phantom wobble, the Nyquist cliff, and spectral leakage</h3></div>
+
+<textarea class="code" spellcheck="false">import cmath
+from math import pi, sin, cos
+
+
+def fft(x):
+    N = len(x)
+    if N == 1:
+        return list(x)
+    even = fft(x[0::2])
+    odd = fft(x[1::2])
+    out = [0j] * N
+    for k in range(N // 2):
+        t = cmath.exp(-2j * pi * k / N) * odd[k]
+        out[k] = even[k] + t
+        out[k + N // 2] = even[k] - t
+    return out
+
+
+def dft(x):
+    N = len(x)
+    return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))
+            for k in range(N)]
+
+
+# --- 1. Kiran&#x27;s dashboard ---
+FS = 100.0
+N = 512
+t = [n / FS for n in range(N)]
+true_98 = [cos(2 * pi * 98 * tn) for tn in t]
+phantom_2 = [cos(2 * pi * 2 * tn) for tn in t]
+
+print(&quot;a 98 Hz vibration and a 2 Hz wobble, both sampled at 100 Hz&quot;)
+print(f&quot;{&#x27;n&#x27;:&gt;4} {&#x27;98 Hz sample&#x27;:&gt;16} {&#x27;2 Hz sample&#x27;:&gt;16} {&#x27;difference&#x27;:&gt;14}&quot;)
+for n in (0, 1, 2, 37, 511):
+    print(f&quot;{n:&gt;4} {true_98[n]:&gt;16.12f} {phantom_2[n]:&gt;16.12f} &quot;
+          f&quot;{abs(true_98[n] - phantom_2[n]):&gt;14.2e}&quot;)
+worst = max(abs(a - b) for a, b in zip(true_98, phantom_2))
+print(f&quot;largest difference over all {N} samples: {worst:.3e}&quot;)
+print()
+print(&quot;predicted: the two signals give IDENTICAL samples, so no algorithm can&quot;)
+print(&quot;           tell them apart. The information is gone, not hidden.&quot;)
+assert worst &lt; 1e-9, &quot;they must agree to floating-point precision&quot;
+
+spec98 = fft([complex(v) for v in true_98])
+spec2 = fft([complex(v) for v in phantom_2])
+assert max(abs(a - b) for a, b in zip(spec98, spec2)) &lt; 1e-7, \
+    &quot;identical samples must give identical spectra&quot;
+peak = max(range(1, N // 2), key=lambda k: abs(spec98[k]))
+print(f&quot;measured : the peak of the 98 Hz recording sits at bin {peak} = &quot;
+      f&quot;{peak * FS / N:.2f} Hz&quot;)
+assert abs(peak * FS / N - 2.0) &lt; 0.3, &quot;the dashboard reports 2 Hz&quot;
+
+# --- 2. the Nyquist cliff ---
+print()
+
+
+def apparent(f, fs):
+    return abs(f - fs * round(f / fs))
+
+
+def measured_peak(f, fs=FS, n=1024):
+    sig = [complex(cos(2 * pi * f * k / fs)) for k in range(n)]
+    sp = fft(sig)
+    kk = max(range(1, n // 2), key=lambda k: abs(sp[k]))
+    return kk * fs / n
+
+
+print(f&quot;sampling at {FS:.0f} Hz, so Nyquist is {FS / 2:.0f} Hz&quot;)
+print(f&quot;{&#x27;true f&#x27;:&gt;9} {&#x27;predicted&#x27;:&gt;11} {&#x27;measured&#x27;:&gt;10} {&#x27;faithful?&#x27;:&gt;11}&quot;)
+for f in (10.0, 30.0, 49.0, 51.0, 70.0, 98.0, 130.0):
+    pred = apparent(f, FS)
+    got = measured_peak(f)
+    faithful = abs(got - f) &lt; 0.2
+    print(f&quot;{f:&gt;9.1f} {pred:&gt;11.1f} {got:&gt;10.2f} {str(faithful):&gt;11}&quot;)
+    assert abs(got - pred) &lt; 0.2, (f, pred, got)
+    if f &lt; FS / 2:
+        assert faithful, f&quot;{f} is below Nyquist and must be reported correctly&quot;
+    else:
+        assert not faithful, f&quot;{f} is above Nyquist and must fold&quot;
+print()
+print(&quot;predicted: exact below fs/2, folded above it, with the fold at |f - m*fs|&quot;)
+
+# --- 3. leakage and windowing ---
+print()
+N = 256
+fs = 256.0
+
+
+def spectrum(freq, window=None):
+    sig = [cos(2 * pi * freq * n / fs) for n in range(N)]
+    if window:
+        sig = [s * w for s, w in zip(sig, window)]
+    sp = fft([complex(v) for v in sig])
+    return [abs(v) for v in sp[:N // 2]]
+
+
+rect = [1.0] * N
+hann = [0.5 - 0.5 * cos(2 * pi * n / (N - 1)) for n in range(N)]
+
+on_bin = spectrum(20.0)                 # bin 20 exactly
+off_bin = spectrum(20.5)                # halfway between bins
+off_hann = spectrum(20.5, hann)
+
+
+def concentration(sp, centre, half=2):
+    &quot;&quot;&quot;Fraction of the energy within a few bins of the peak.&quot;&quot;&quot;
+    tot = sum(v * v for v in sp)
+    near = sum(sp[k] ** 2 for k in range(max(0, centre - half),
+                                         min(len(sp), centre + half + 1)))
+    return near / tot
+
+
+print(f&quot;{&#x27;case&#x27;:&gt;28} {&#x27;peak bin&#x27;:&gt;9} {&#x27;energy within 2 bins&#x27;:&gt;22} &quot;
+      f&quot;{&#x27;leak at bin 60&#x27;:&gt;16}&quot;)
+for name, sp in ((&quot;20.0 Hz, rectangular&quot;, on_bin),
+                 (&quot;20.5 Hz, rectangular&quot;, off_bin),
+                 (&quot;20.5 Hz, Hann&quot;, off_hann)):
+    pk = max(range(len(sp)), key=lambda k: sp[k])
+    print(f&quot;{name:&gt;28} {pk:&gt;9} {concentration(sp, pk):&gt;22.4f} &quot;
+          f&quot;{sp[60] / max(sp):&gt;16.5f}&quot;)
+
+print()
+print(&quot;predicted: a bin-centred tone is perfectly contained; half a bin off it&quot;)
+print(&quot;           leaks everywhere; a Hann window cuts the distant leakage&quot;)
+assert concentration(on_bin, 20) &gt; 0.999, &quot;a bin-centred tone occupies one bin&quot;
+assert concentration(off_bin, 20) &lt; 0.95, &quot;off-centre, energy escapes&quot;
+assert off_bin[60] / max(off_bin) &gt; 10 * off_hann[60] / max(off_hann), \
+    &quot;Hann must cut the far sidelobes by an order of magnitude&quot;
+# and the price: the Hann main lobe is wider
+w_rect = sum(1 for v in on_bin if v &gt; 0.5 * max(on_bin))
+w_hann = sum(1 for v in spectrum(20.0, hann) if v &gt; 0.5 * max(spectrum(20.0, hann)))
+print(f&quot;measured : main lobe width, rectangular {w_rect} bin(s), &quot;
+      f&quot;Hann {w_hann} bin(s) - that is the price&quot;)
+assert w_hann &gt; w_rect, &quot;better sidelobes cost resolution; there is no free lunch&quot;
+
+# --- 4. the FFT really is O(N log N) ---
+# Counting operations rather than seconds: the count is exact and identical on
+# every machine, where a wall-clock timing is neither.
+print()
+
+
+def dft_counted(x):
+    &quot;&quot;&quot;The definition, counting one complex multiply per term.&quot;&quot;&quot;
+    N = len(x)
+    mults = 0
+    out = []
+    for k in range(N):
+        acc = 0j
+        for n in range(N):
+            acc += x[n] * cmath.exp(-2j * pi * k * n / N)
+            mults += 1
+        out.append(acc)
+    return out, mults
+
+
+def fft_counted(x):
+    &quot;&quot;&quot;Cooley-Tukey, counting the twiddle multiplications.&quot;&quot;&quot;
+    N = len(x)
+    if N == 1:
+        return [complex(x[0])], 0
+    even, me = fft_counted(x[0::2])
+    odd, mo = fft_counted(x[1::2])
+    out = [0j] * N
+    mults = me + mo
+    for k in range(N // 2):
+        t = cmath.exp(-2j * pi * k / N) * odd[k]
+        mults += 1
+        out[k] = even[k] + t
+        out[k + N // 2] = even[k] - t
+    return out, mults
+
+
+from math import log2
+
+print(f&quot;{&#x27;N&#x27;:&gt;6} {&#x27;DFT multiplies&#x27;:&gt;16} {&#x27;FFT multiplies&#x27;:&gt;16} {&#x27;ratio&#x27;:&gt;8} &quot;
+      f&quot;{&#x27;DFT/N^2&#x27;:&gt;9} {&#x27;FFT/(N log2 N)&#x27;:&gt;16}&quot;)
+dm, fm = {}, {}
+for N in (8, 16, 64, 256):
+    x = [complex(n % 7, n % 3) for n in range(N)]
+    a, dm[N] = dft_counted(x)
+    b, fm[N] = fft_counted(x)
+    assert max(abs(p - q) for p, q in zip(a, b)) &lt; 1e-9, &quot;and they agree&quot;
+    print(f&quot;{N:&gt;6} {dm[N]:&gt;16} {fm[N]:&gt;16} {dm[N] / fm[N]:&gt;8.1f} &quot;
+          f&quot;{dm[N] / N ** 2:&gt;9.2f} {fm[N] / (N * log2(N)):&gt;16.2f}&quot;)
+
+print()
+print(&quot;predicted: the DFT does exactly N^2 multiplies and the FFT exactly&quot;)
+print(&quot;           (N/2) log2(N), so the normalised columns are flat constants&quot;)
+for N in (8, 16, 64, 256):
+    assert dm[N] == N * N, (N, dm[N])
+    assert fm[N] == (N // 2) * int(log2(N)), (N, fm[N])
+assert all(abs(dm[N] / N ** 2 - 1.0) &lt; 1e-12 for N in (8, 16, 64, 256))
+assert all(abs(fm[N] / (N * log2(N)) - 0.5) &lt; 1e-12 for N in (8, 16, 64, 256))
+# the advantage grows without bound
+assert dm[256] / fm[256] &gt; dm[8] / fm[8]
+print(f&quot;measured : the saving grew from {dm[8] / fm[8]:.1f}x at N = 8 to &quot;
+      f&quot;{dm[256] / fm[256]:.1f}x at N = 256, and keeps growing&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the first table is the whole module in five rows. The 98 Hz and 2 Hz sample values agree to around $10^{-14}$ — the difference is pure floating-point rounding, not signal. Their spectra are identical too, because identical inputs give identical outputs. Kiran's team did not misread a noisy plot; they read a perfectly clean plot of a signal that genuinely was not there, and <em>no</em> processing applied after the converter could have told them otherwise.</p>
+<p>The Nyquist table shows how sharp the boundary is: 49 Hz is reported as 49 Hz, and 51 Hz is reported as 49 Hz too. One hertz either side of the threshold, and the second one is unrecoverable.</p>
+<p>The leakage rows are the practical sting. Moving the tone by <strong>half a bin</strong> — a change no instrument would call significant — dropped the energy concentration from over 99.9% to below 95% and smeared the rest across the entire spectrum. The Hann window cut the far leakage by more than tenfold and paid for it in main-lobe width, exactly as the table in <em>Precisely</em> promises. If you have ever seen a spectrum with an inexplicable noise floor, this is usually it.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m39-ex1-dft" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Periodic signals and the DFT from its definition</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>sample_sinusoid(freq, fs, n, phase=0.0)</code> returning <code>n</code> samples of <code>cos(2*pi*freq*k/fs + phase)</code>. Write <code>is_periodic(x, period)</code> for a sample list. Write <code>dft(x)</code> from the definition. Write <code>idft(X)</code>. Write <code>bin_frequency(k, fs, n)</code> returning <code>k*fs/n</code>. Write <code>magnitude_spectrum(X)</code>. Raise <code>ValueError</code> for a non-positive <code>fs</code> or <code>n</code>, or a non-positive period.</p></div>
+<textarea class="code" spellcheck="false">def sample_sinusoid(freq, fs, n, phase=0.0):
+    &quot;&quot;&quot;n samples of a cosine.&quot;&quot;&quot;
+    return []
+
+
+def is_periodic(x, period):
+    &quot;&quot;&quot;True when x repeats with the given period.&quot;&quot;&quot;
+    return False
+
+
+def dft(x):
+    &quot;&quot;&quot;The discrete Fourier transform, from the definition.&quot;&quot;&quot;
+    return []
+
+
+def idft(X):
+    &quot;&quot;&quot;The inverse transform.&quot;&quot;&quot;
+    return []
+
+
+def bin_frequency(k, fs, n):
+    &quot;&quot;&quot;The frequency that bin k represents.&quot;&quot;&quot;
+    return 0.0
+
+
+def magnitude_spectrum(X):
+    &quot;&quot;&quot;The magnitude of each bin.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_sampling_and_periodicity():
+    from math import pi, cos
+    x = sample_sinusoid(1.0, 8.0, 8)
+    assert len(x) == 8
+    assert abs(x[0] - 1.0) &lt; 1e-12
+    assert abs(x[2] - cos(pi / 2)) &lt; 1e-12
+    # 8 samples of a 1 Hz tone at 8 Hz is exactly one period
+    y = sample_sinusoid(1.0, 8.0, 24)
+    assert is_periodic(y, 8) is True
+    assert is_periodic(y, 4) is False
+    # a 2 Hz tone at 8 Hz repeats every 4 samples
+    assert is_periodic(sample_sinusoid(2.0, 8.0, 24), 4) is True
+    # phase shifts the samples but not the periodicity
+    assert is_periodic(sample_sinusoid(1.0, 8.0, 24, phase=0.7), 8) is True
+    for bad in (lambda: sample_sinusoid(1.0, 0.0, 8),
+                lambda: sample_sinusoid(1.0, 8.0, 0),
+                lambda: is_periodic([1, 2, 3], 0)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_dft_on_hand_checkable_cases():
+    # a unit impulse transforms to a flat spectrum
+    assert all(abs(v - 1) &lt; 1e-9 for v in dft([1, 0, 0, 0]))
+    # a constant signal is all at DC
+    X = dft([3, 3, 3, 3])
+    assert abs(X[0] - 12) &lt; 1e-9
+    assert all(abs(X[k]) &lt; 1e-9 for k in (1, 2, 3))
+    # an alternating signal is all at Nyquist
+    X = dft([1, -1, 1, -1])
+    assert abs(X[2] - 4) &lt; 1e-9
+    assert all(abs(X[k]) &lt; 1e-9 for k in (0, 1, 3))
+    # a bin-centred cosine splits evenly between bins k and N-k
+    N = 16
+    x = sample_sinusoid(3.0, float(N), N)
+    X = dft(x)
+    mag = magnitude_spectrum(X)
+    assert abs(mag[3] - N / 2) &lt; 1e-9
+    assert abs(mag[N - 3] - N / 2) &lt; 1e-9
+    assert all(mag[k] &lt; 1e-9 for k in range(N) if k not in (3, N - 3))
+    try:
+        dft([])
+        assert False, &quot;an empty signal must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_round_trip_and_bin_frequencies():
+    import random
+    rng = random.Random(1807)
+    for N in (1, 2, 5, 8, 13):
+        x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]
+        back = idft(dft(x))
+        assert max(abs(a - b) for a, b in zip(x, back)) &lt; 1e-9, N
+    # the transform is linear
+    a = [complex(rng.gauss(0, 1)) for _ in range(8)]
+    b = [complex(rng.gauss(0, 1)) for _ in range(8)]
+    lhs = dft([2 * p + 3 * q for p, q in zip(a, b)])
+    rhs = [2 * p + 3 * q for p, q in zip(dft(a), dft(b))]
+    assert max(abs(p - q) for p, q in zip(lhs, rhs)) &lt; 1e-9
+    # Parseval
+    e_time = sum(abs(v) ** 2 for v in a)
+    e_freq = sum(abs(v) ** 2 for v in dft(a)) / len(a)
+    assert abs(e_time - e_freq) &lt; 1e-9
+    # bin frequencies
+    assert bin_frequency(0, 100.0, 10) == 0.0
+    assert abs(bin_frequency(1, 100.0, 10) - 10.0) &lt; 1e-12
+    assert abs(bin_frequency(5, 1000.0, 100) - 50.0) &lt; 1e-12
+    # a real signal has a conjugate-symmetric spectrum
+    real = [rng.gauss(0, 1) for _ in range(16)]
+    R = dft(real)
+    assert all(abs(R[16 - k] - R[k].conjugate()) &lt; 1e-9 for k in range(1, 8))
+    try:
+        bin_frequency(1, -1.0, 10)
+        assert False, &quot;a negative rate must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m39-ex2-fft" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>The Cooley-Tukey FFT</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>is_power_of_two(n)</code>. Write <code>next_power_of_two(n)</code>. Write <code>fft(x)</code> by radix-2 Cooley-Tukey, raising <code>ValueError</code> when the length is not a power of two. Write <code>ifft(X)</code> using the conjugate trick. Write <code>fft_padded(x)</code> zero-padding to the next power of two. Write <code>twiddle(k, n)</code> returning <code>exp(-2j*pi*k/n)</code>.</p></div>
+<textarea class="code" spellcheck="false">def is_power_of_two(n):
+    &quot;&quot;&quot;True when n is a positive power of two.&quot;&quot;&quot;
+    return False
+
+
+def next_power_of_two(n):
+    &quot;&quot;&quot;The smallest power of two at least n.&quot;&quot;&quot;
+    return 0
+
+
+def twiddle(k, n):
+    &quot;&quot;&quot;exp(-2j*pi*k/n).&quot;&quot;&quot;
+    return 0j
+
+
+def fft(x):
+    &quot;&quot;&quot;Radix-2 Cooley-Tukey.&quot;&quot;&quot;
+    return []
+
+
+def ifft(X):
+    &quot;&quot;&quot;The inverse FFT.&quot;&quot;&quot;
+    return []
+
+
+def fft_padded(x):
+    &quot;&quot;&quot;FFT after zero-padding to a power of two.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_power_of_two_helpers():
+    for n in (1, 2, 4, 8, 1024):
+        assert is_power_of_two(n) is True, n
+    for n in (0, 3, 6, 100, -4):
+        assert is_power_of_two(n) is False, n
+    assert next_power_of_two(1) == 1
+    assert next_power_of_two(5) == 8
+    assert next_power_of_two(8) == 8
+    assert next_power_of_two(9) == 16
+    assert next_power_of_two(1000) == 1024
+    # the twiddle factors are roots of unity
+    import cmath
+    assert abs(twiddle(0, 8) - 1) &lt; 1e-12
+    assert abs(twiddle(4, 8) + 1) &lt; 1e-12, &quot;w^(N/2) = -1&quot;
+    for n in (4, 8, 16):
+        assert abs(twiddle(n, n) - 1) &lt; 1e-12
+        for k in range(n):
+            assert abs(abs(twiddle(k, n)) - 1) &lt; 1e-12
+            # the key identity behind the split
+            assert abs(twiddle(k + n // 2, n) + twiddle(k, n)) &lt; 1e-12, (k, n)
+    try:
+        next_power_of_two(0)
+        assert False, &quot;zero must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_fft_matches_the_definition():
+    import cmath
+    import random
+    from math import pi
+    rng = random.Random(1965)
+
+    def slow_dft(x):
+        N = len(x)
+        return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))
+                for k in range(N)]
+
+    for N in (1, 2, 4, 8, 16, 64):
+        x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]
+        fast, slow = fft(x), slow_dft(x)
+        assert max(abs(a - b) for a, b in zip(fast, slow)) &lt; 1e-9, N
+    # hand-checkable cases
+    assert all(abs(v - 1) &lt; 1e-12 for v in fft([1, 0, 0, 0]))
+    assert abs(fft([3, 3, 3, 3])[0] - 12) &lt; 1e-12
+    assert all(abs(fft([3, 3, 3, 3])[k]) &lt; 1e-12 for k in (1, 2, 3))
+    assert abs(fft([1, -1, 1, -1])[2] - 4) &lt; 1e-12
+    for bad in (lambda: fft([1, 2, 3]), lambda: fft([])):
+        try:
+            bad()
+            assert False, &quot;a bad length must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_inverse_padding_and_identities():
+    import random
+    rng = random.Random(1805)
+    for N in (1, 2, 8, 32):
+        x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]
+        assert max(abs(a - b) for a, b in zip(ifft(fft(x)), x)) &lt; 1e-9, N
+    # Parseval survives the fast transform
+    x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(32)]
+    assert abs(sum(abs(v) ** 2 for v in x)
+               - sum(abs(v) ** 2 for v in fft(x)) / 32) &lt; 1e-9
+    # the shift theorem
+    m = 3
+    X = fft(x)
+    S = fft(x[-m:] + x[:-m])
+    pred = [X[k] * twiddle(k * m, len(x)) for k in range(len(x))]
+    assert max(abs(a - b) for a, b in zip(S, pred)) &lt; 1e-9
+    # padding gives a power-of-two length and leaves bin 0 as the plain sum
+    y = [1.0, 2.0, 3.0, 4.0, 5.0]
+    P = fft_padded(y)
+    assert len(P) == 8
+    assert abs(P[0] - sum(y)) &lt; 1e-9
+    # padding interpolates the spectrum: the unpadded bins still appear
+    z = [1.0, 2.0, 3.0, 4.0]
+    assert len(fft_padded(z)) == 4
+    assert max(abs(a - b) for a, b in zip(fft_padded(z), fft(z))) &lt; 1e-12
+    try:
+        ifft([])
+        assert False, &quot;an empty spectrum must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m39-ex3-convolution" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Convolution and the convolution theorem</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>convolve_direct(a, b)</code> by the double loop. Write <code>circular_convolve(a, b)</code> for equal lengths, raising <code>ValueError</code> otherwise. Write <code>convolve_fft(a, b)</code> with correct zero-padding. Write <code>polynomial_multiply(p, q)</code> returning integer coefficients via the FFT. Write <code>cross_correlate(a, b)</code> as the convolution of <code>a</code> with the reverse of <code>b</code>. Write <code>needed_length(la, lb)</code> returning <code>la + lb - 1</code>.</p></div>
+<textarea class="code" spellcheck="false">def needed_length(la, lb):
+    &quot;&quot;&quot;The length of a linear convolution.&quot;&quot;&quot;
+    return 0
+
+
+def convolve_direct(a, b):
+    &quot;&quot;&quot;Linear convolution, by the double loop.&quot;&quot;&quot;
+    return []
+
+
+def circular_convolve(a, b):
+    &quot;&quot;&quot;Circular convolution of two equal-length lists.&quot;&quot;&quot;
+    return []
+
+
+def convolve_fft(a, b):
+    &quot;&quot;&quot;Linear convolution via the FFT.&quot;&quot;&quot;
+    return []
+
+
+def polynomial_multiply(p, q):
+    &quot;&quot;&quot;Integer polynomial coefficients, via the FFT.&quot;&quot;&quot;
+    return []
+
+
+def cross_correlate(a, b):
+    &quot;&quot;&quot;Cross-correlation of a with b.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_direct_and_circular_convolution():
+    # (x + 2)(x + 3) = x^2 + 5x + 6, low order first
+    assert convolve_direct([2, 1], [3, 1]) == [6, 5, 1]
+    assert needed_length(2, 2) == 3
+    assert needed_length(5, 1) == 5
+    # an impulse is the identity
+    assert convolve_direct([1, 2, 3], [1]) == [1, 2, 3]
+    # convolution is commutative
+    import random
+    rng = random.Random(1965)
+    for _ in range(20):
+        a = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 8))]
+        b = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 8))]
+        p, q = convolve_direct(a, b), convolve_direct(b, a)
+        assert max(abs(u - v) for u, v in zip(p, q)) &lt; 1e-12
+    # circular convolution wraps
+    c = circular_convolve([1, 2, 3, 4], [1, 0, 0, 0])
+    assert c == [1, 2, 3, 4], &quot;an impulse is the circular identity too&quot;
+    c = circular_convolve([1, 2, 3, 4], [0, 1, 0, 0])
+    assert c == [4, 1, 2, 3], &quot;shifting by one rotates&quot;
+    for bad in (lambda: circular_convolve([1, 2], [1, 2, 3]),
+                lambda: needed_length(0, 3)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_the_convolution_theorem_needs_padding():
+    import random
+    rng = random.Random(1805)
+    # the FFT route matches the double loop, for many random shapes
+    for _ in range(40):
+        a = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 17))]
+        b = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 17))]
+        s, f = convolve_direct(a, b), convolve_fft(a, b)
+        assert len(s) == len(f) == needed_length(len(a), len(b))
+        assert max(abs(u - v) for u, v in zip(s, f)) &lt; 1e-9, (a, b)
+    # the result is longer than either input: that is exactly why padding is
+    # required, and an unpadded transform would have to wrap
+    a = [1.0, 2.0, 3.0, 4.0]
+    b = [1.0, 1.0, 1.0, 1.0]
+    full = convolve_fft(a, b)
+    assert len(full) == 7
+    assert max(abs(u - v) for u, v in zip(full, convolve_direct(a, b))) &lt; 1e-9
+    # and the circular version of the same pair is genuinely different
+    circ = circular_convolve(a, b)
+    assert len(circ) == 4
+    assert abs(circ[0] - (full[0] + full[4])) &lt; 1e-9, \
+        &quot;circular convolution is the linear one folded back on itself&quot;
+    assert abs(circ[1] - (full[1] + full[5])) &lt; 1e-9
+    assert abs(circ[2] - (full[2] + full[6])) &lt; 1e-9
+
+
+def test_polynomials_and_correlation():
+    import random
+    rng = random.Random(1807)
+    assert polynomial_multiply([2, 1], [3, 1]) == [6, 5, 1]
+    assert polynomial_multiply([1], [1]) == [1]
+    assert polynomial_multiply([0, 0, 1], [0, 1]) == [0, 0, 0, 1], &quot;x^2 * x = x^3&quot;
+
+    def exact(p, q):
+        out = [0] * (len(p) + len(q) - 1)
+        for i, u in enumerate(p):
+            for j, v in enumerate(q):
+                out[i + j] += u * v
+        return out
+
+    for _ in range(40):
+        p = [rng.randrange(-30, 31) for _ in range(rng.randrange(1, 17))]
+        q = [rng.randrange(-30, 31) for _ in range(rng.randrange(1, 17))]
+        assert polynomial_multiply(p, q) == exact(p, q), (p, q)
+    # cross-correlation peaks where the signals line up
+    sig = [0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0]
+    pat = [1.0, 2.0, 3.0]
+    xc = cross_correlate(sig, pat)
+    best = max(range(len(xc)), key=lambda k: xc[k])
+    assert abs(xc[best] - 14.0) &lt; 1e-9, &quot;the peak is the energy of the pattern&quot;
+    # a signal correlated with itself peaks at zero lag
+    auto = cross_correlate(pat, pat)
+    assert max(range(len(auto)), key=lambda k: auto[k]) == len(pat) - 1
+    try:
+        polynomial_multiply([1.5], [2])
+        assert False, &quot;non-integer coefficients must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m39-ex4-sampling" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Sampling, Nyquist and aliasing</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>nyquist_frequency(fs)</code>. Write <code>alias_frequency(f, fs)</code> returning the apparent frequency. Write <code>is_above_nyquist(f, fs)</code>. Write <code>samples_identical(f1, f2, fs, n)</code> returning <code>True</code> when two frequencies give the same samples. Write <code>min_sample_rate(f_max)</code> returning just above <code>2*f_max</code>. Write <code>reconstruct_sinc(samples, fs, t)</code> evaluating the sinc interpolation at a time. Raise <code>ValueError</code> for a non-positive rate or frequency.</p></div>
+<textarea class="code" spellcheck="false">def nyquist_frequency(fs):
+    &quot;&quot;&quot;Half the sample rate.&quot;&quot;&quot;
+    return 0.0
+
+
+def alias_frequency(f, fs):
+    &quot;&quot;&quot;The apparent frequency after sampling.&quot;&quot;&quot;
+    return 0.0
+
+
+def is_above_nyquist(f, fs):
+    &quot;&quot;&quot;True when f will alias.&quot;&quot;&quot;
+    return False
+
+
+def samples_identical(f1, f2, fs, n):
+    &quot;&quot;&quot;True when two frequencies give identical samples.&quot;&quot;&quot;
+    return False
+
+
+def min_sample_rate(f_max):
+    &quot;&quot;&quot;The smallest safe sample rate.&quot;&quot;&quot;
+    return 0.0
+
+
+def reconstruct_sinc(samples, fs, t):
+    &quot;&quot;&quot;Sinc interpolation at time t.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_nyquist_and_aliasing_arithmetic():
+    assert nyquist_frequency(100.0) == 50.0
+    assert nyquist_frequency(44100.0) == 22050.0
+    # Kiran&#x27;s case
+    assert abs(alias_frequency(98.0, 100.0) - 2.0) &lt; 1e-12
+    assert abs(alias_frequency(102.0, 100.0) - 2.0) &lt; 1e-12
+    # below Nyquist nothing changes
+    for f in (0.0, 10.0, 30.0, 49.0):
+        assert abs(alias_frequency(f, 100.0) - f) &lt; 1e-12, f
+        assert is_above_nyquist(f, 100.0) is False
+    # above it, frequencies fold
+    assert abs(alias_frequency(51.0, 100.0) - 49.0) &lt; 1e-12
+    assert abs(alias_frequency(70.0, 100.0) - 30.0) &lt; 1e-12
+    assert abs(alias_frequency(130.0, 100.0) - 30.0) &lt; 1e-12
+    assert is_above_nyquist(51.0, 100.0) is True
+    # the alias is always at or below Nyquist
+    for f in (0.5, 17.0, 51.0, 99.0, 177.0, 1001.0):
+        assert alias_frequency(f, 100.0) &lt;= 50.0 + 1e-12, f
+    assert abs(min_sample_rate(20000.0) - 40000.0) &lt; 1e-9
+    for bad in (lambda: nyquist_frequency(0.0), lambda: alias_frequency(-1.0, 10.0),
+                lambda: min_sample_rate(0.0)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_aliased_frequencies_are_literally_indistinguishable():
+    # 98 Hz and 2 Hz at 100 Hz give the SAME samples, not similar ones
+    assert samples_identical(98.0, 2.0, 100.0, 500) is True
+    assert samples_identical(102.0, 2.0, 100.0, 500) is True
+    assert samples_identical(198.0, 2.0, 100.0, 500) is True
+    # and any f, f + fs, f + 2fs ... are the same
+    for m in range(1, 5):
+        assert samples_identical(7.0, 7.0 + m * 100.0, 100.0, 200) is True
+    # two distinct frequencies BELOW Nyquist are always distinguishable
+    assert samples_identical(10.0, 20.0, 100.0, 500) is False
+    assert samples_identical(10.0, 10.5, 100.0, 500) is False
+    assert samples_identical(49.0, 48.0, 100.0, 500) is False
+    # frequencies that alias together share an apparent frequency
+    for f1, f2 in ((98.0, 2.0), (70.0, 30.0), (151.0, 49.0)):
+        assert abs(alias_frequency(f1, 100.0) - alias_frequency(f2, 100.0)) &lt; 1e-9
+    try:
+        samples_identical(1.0, 2.0, 100.0, 0)
+        assert False, &quot;zero samples must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_sinc_reconstruction_works_below_nyquist():
+    from math import pi, cos
+    fs = 100.0
+    n = 400
+    f = 10.0                     # comfortably below Nyquist
+    samples = [cos(2 * pi * f * k / fs) for k in range(n)]
+    # at the sample instants reconstruction returns the samples
+    for k in (50, 100, 200):
+        assert abs(reconstruct_sinc(samples, fs, k / fs) - samples[k]) &lt; 1e-6, k
+    # and BETWEEN them it recovers the true continuous signal
+    worst = 0.0
+    for k in range(150, 250):
+        t = (k + 0.5) / fs
+        worst = max(worst, abs(reconstruct_sinc(samples, fs, t)
+                               - cos(2 * pi * f * t)))
+    assert worst &lt; 0.02, worst
+    # an aliased signal reconstructs to its ALIAS, not to the original
+    f_hi = 98.0
+    hi = [cos(2 * pi * f_hi * k / fs) for k in range(n)]
+    t = 200.5 / fs
+    got = reconstruct_sinc(hi, fs, t)
+    assert abs(got - cos(2 * pi * 2.0 * t)) &lt; 0.02, &quot;it rebuilds the 2 Hz alias&quot;
+    assert abs(got - cos(2 * pi * 98.0 * t)) &gt; 0.1, &quot;not the original 98 Hz&quot;
+    try:
+        reconstruct_sinc([1.0], 0.0, 0.0)
+        assert False, &quot;a zero rate must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m39-ex5-filters" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Windowing, leakage and simple filters</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>rectangular_window(n)</code>, <code>hann_window(n)</code> and <code>hamming_window(n)</code>. Write <code>apply_window(x, w)</code> raising <code>ValueError</code> on a length mismatch. Write <code>moving_average(x, L)</code> returning the same length as <code>x</code> using only past samples. Write <code>first_difference(x)</code>. Write <code>exponential_moving_average(x, alpha)</code> raising <code>ValueError</code> unless <code>0 &lt; alpha &lt;= 1</code>. Write <code>frequency_response(taps, freq, fs)</code> returning <code>|H|</code>. Write <code>leakage_ratio(spectrum, peak_bin, half=2)</code> returning the fraction of energy outside a few bins of the peak.</p></div>
+<textarea class="code" spellcheck="false">def rectangular_window(n):
+    &quot;&quot;&quot;A window of all ones.&quot;&quot;&quot;
+    return []
+
+
+def hann_window(n):
+    &quot;&quot;&quot;The Hann window.&quot;&quot;&quot;
+    return []
+
+
+def hamming_window(n):
+    &quot;&quot;&quot;The Hamming window.&quot;&quot;&quot;
+    return []
+
+
+def apply_window(x, w):
+    &quot;&quot;&quot;Multiply a signal by a window.&quot;&quot;&quot;
+    return []
+
+
+def moving_average(x, L):
+    &quot;&quot;&quot;An L-point causal moving average.&quot;&quot;&quot;
+    return []
+
+
+def first_difference(x):
+    &quot;&quot;&quot;The first difference, a high-pass filter.&quot;&quot;&quot;
+    return []
+
+
+def exponential_moving_average(x, alpha):
+    &quot;&quot;&quot;A one-pole IIR low pass.&quot;&quot;&quot;
+    return []
+
+
+def frequency_response(taps, freq, fs):
+    &quot;&quot;&quot;|H(freq)| for an FIR filter.&quot;&quot;&quot;
+    return 0.0
+
+
+def leakage_ratio(spectrum, peak_bin, half=2):
+    &quot;&quot;&quot;The fraction of energy outside a few bins of the peak.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_window_shapes():
+    from math import pi, cos
+    assert rectangular_window(5) == [1.0] * 5
+    h = hann_window(8)
+    assert len(h) == 8
+    assert abs(h[0]) &lt; 1e-12 and abs(h[-1]) &lt; 1e-12, &quot;Hann reaches zero at both ends&quot;
+    # The peak is 1.0 only when a sample lands exactly on the midpoint, which
+    # needs an ODD length. At n = 8 the two central samples sit at 0.9505.
+    assert max(h) &lt;= 1.0 + 1e-12
+    assert abs(max(h) - 0.950484) &lt; 1e-5, max(h)
+    assert abs(max(hann_window(9)) - 1.0) &lt; 1e-12, &quot;odd length hits the peak&quot;
+    assert all(abs(h[k] - h[7 - k]) &lt; 1e-12 for k in range(8)), &quot;symmetric&quot;
+    hm = hamming_window(8)
+    assert abs(hm[0] - 0.08) &lt; 1e-9, &quot;Hamming does NOT reach zero&quot;
+    assert all(abs(hm[k] - hm[7 - k]) &lt; 1e-12 for k in range(8))
+    # a window only attenuates
+    assert all(0 &lt;= v &lt;= 1 + 1e-12 for v in h + hm)
+    assert apply_window([2.0, 4.0], [0.5, 0.25]) == [1.0, 1.0]
+    assert apply_window([1.0, 2.0, 3.0], rectangular_window(3)) == [1.0, 2.0, 3.0]
+    for bad in (lambda: hann_window(0), lambda: apply_window([1.0], [1.0, 2.0])):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_filters_do_what_their_names_say():
+    from math import pi, cos
+    fs = 100.0
+    n = 400
+    dc = [5.0] * n
+    nyq = [5.0 * (-1) ** k for k in range(n)]
+    # a moving average passes DC untouched and kills alternation
+    ma = moving_average(dc, 10)
+    assert all(abs(v - 5.0) &lt; 1e-9 for v in ma), &quot;DC passes a low-pass filter&quot;
+    ma_n = moving_average(nyq, 10)
+    assert max(abs(v) for v in ma_n[20:]) &lt; 1e-9, &quot;Nyquist is annihilated&quot;
+    # the first difference does the opposite
+    fd = first_difference(dc)
+    assert all(abs(v) &lt; 1e-9 for v in fd[1:]), &quot;DC is removed by a high-pass&quot;
+    fd_n = first_difference(nyq)
+    assert min(abs(v) for v in fd_n[1:]) &gt; 9.0, &quot;alternation is amplified&quot;
+    # the exponential moving average converges to the input level
+    ema = exponential_moving_average([0.0] * 5 + [10.0] * 200, 0.1)
+    assert abs(ema[-1] - 10.0) &lt; 0.1
+    assert ema[6] &lt; 5.0, &quot;it lags, which is the point&quot;
+    # a smaller alpha smooths harder and lags more
+    fast = exponential_moving_average([0.0] * 5 + [10.0] * 50, 0.5)
+    slow = exponential_moving_average([0.0] * 5 + [10.0] * 50, 0.05)
+    assert fast[12] &gt; slow[12]
+    for bad in (lambda: moving_average([1.0], 0),
+                lambda: exponential_moving_average([1.0], 0.0),
+                lambda: exponential_moving_average([1.0], 1.5),
+                lambda: first_difference([])):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_frequency_response_and_leakage():
+    import cmath
+    from math import pi, cos
+    fs = 100.0
+    # a 10-point moving average has nulls at multiples of fs/L = 10 Hz
+    taps = [0.1] * 10
+    assert abs(frequency_response(taps, 0.0, fs) - 1.0) &lt; 1e-9, &quot;unity at DC&quot;
+    for f in (10.0, 20.0, 30.0, 40.0):
+        assert frequency_response(taps, f, fs) &lt; 1e-9, f
+    assert frequency_response(taps, 5.0, fs) &gt; 0.0
+    # it attenuates monotonically up to the first null
+    r = [frequency_response(taps, f, fs) for f in (0.0, 2.0, 4.0, 6.0, 8.0)]
+    assert all(a &gt; b for a, b in zip(r, r[1:])), r
+    # the first difference is zero at DC and maximal at Nyquist
+    d = [1.0, -1.0]
+    assert frequency_response(d, 0.0, fs) &lt; 1e-12
+    assert abs(frequency_response(d, 50.0, fs) - 2.0) &lt; 1e-9
+    # --- leakage: a bin-centred tone against one half a bin off ---
+    def _fft(x):
+        N = len(x)
+        if N == 1:
+            return [complex(x[0])]
+        e, o = _fft(x[0::2]), _fft(x[1::2])
+        out = [0j] * N
+        for k in range(N // 2):
+            t = cmath.exp(-2j * pi * k / N) * o[k]
+            out[k], out[k + N // 2] = e[k] + t, e[k] - t
+        return out
+
+    N = 256
+
+    def spec(freq, window):
+        sig = apply_window([cos(2 * pi * freq * k / N) for k in range(N)], window)
+        return [abs(v) for v in _fft([complex(v) for v in sig])[:N // 2]]
+
+    rect = rectangular_window(N)
+    on = spec(20.0, rect)
+    off = spec(20.5, rect)
+    off_h = spec(20.5, hann_window(N))
+    assert leakage_ratio(on, 20) &lt; 1e-6, &quot;a bin-centred tone does not leak&quot;
+    assert leakage_ratio(off, 20) &gt; 0.05, &quot;half a bin off, it leaks badly&quot;
+    assert leakage_ratio(off_h, 20) &lt; leakage_ratio(off, 20), \
+        &quot;a Hann window reduces the leakage&quot;
+    try:
+        leakage_ratio([0.0, 0.0], 0)
+        assert False, &quot;a zero spectrum must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Sampling faster fixes aliasing after the fact."</strong> Nothing applied after the converter can. Kiran's 98 Hz and 2 Hz samples are bit-identical, so the information is gone. The anti-aliasing filter must be <strong>analogue and before</strong> the ADC.</li>
+<li><strong>"Nyquist says sample at twice the highest frequency."</strong> It says <em>strictly more</em> than twice. At exactly $2f$ a sinusoid can be sampled entirely at its zero crossings and vanish.</li>
+<li><strong>"The FFT is a different transform from the DFT."</strong> It is the same transform, computed faster. The outputs are identical to rounding error.</li>
+<li><strong>"Zero-padding adds resolution."</strong> It interpolates the existing spectrum onto a finer grid; it does not resolve two tones that the recording length cannot separate. Resolution is set by the <strong>duration</strong>, $\Delta f=\frac{1}{T}$, and only a longer recording improves it.</li>
+<li><strong>"A window removes leakage."</strong> It reduces distant leakage at the cost of a wider main lobe. The trade is unavoidable, and the rectangular window is the right choice when the signal is exactly periodic in the frame.</li>
+<li><strong>"Spectrum bins mean frequencies exactly."</strong> Bin $k$ is the response of a filter centred at $\frac{kf_s}{N}$ with a finite width. A peak at bin 20 means "near 20", not "exactly 20".</li>
+<li><strong>"A real signal's negative frequencies are meaningless."</strong> They are the conjugate mirror, which is why half the spectrum is plotted — but the mirror is what makes the signal real in the first place.</li>
+<li><strong>"Convolution via the FFT is always faster."</strong> The crossover is typically around 50-100 taps. Below that, the direct loop wins on cache behaviour alone.</li>
+<li><strong>"The convolution theorem gives linear convolution."</strong> It gives <em>circular</em> convolution. Linear convolution requires zero-padding to <code>len(a)+len(b)-1</code>, and forgetting it corrupts the start of the result.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>The DFT assumes the signal is <strong>periodic in the frame</strong>. It is not, so the implicit discontinuity at the frame boundary is itself a source of spectral content — which is just leakage from a different angle, and why overlapping windowed frames (the STFT) exist.</p>
+<p>Stationarity is assumed too. A frequency that changes during the recording is smeared across bins, and the DFT cannot say <em>when</em> anything happened. Time-frequency resolution is governed by an uncertainty principle: $\Delta t\cdot\Delta f\gtrsim\frac{1}{4\pi}$. Wavelets and the STFT trade along that curve; none of them beats it.</p>
+<p>Radix-2 Cooley-Tukey needs a power-of-two length. Real libraries use mixed-radix, Bluestein's chirp-z or Rader's algorithm for other sizes, and performance can differ by an order of magnitude between $N=1024$ and a nearby prime.</p>
+<p>Numerically, the FFT's error grows like $O(\sqrt{\log N})$ — better than the DFT's $O(\sqrt N)$ and one of the reasons it displaced it. But FFT-based polynomial multiplication on large integers eventually loses precision and needs the number-theoretic transform over a finite field instead, which is M38's algebra reappearing exactly where floating point gives up.</p>
+<p>Finally, Nyquist assumes a strictly band-limited signal, and no real signal is: band-limiting requires infinite duration. Practical anti-aliasing filters have finite roll-off, so you oversample and leave a guard band — which is why 44.1 kHz audio has a 22.05 kHz Nyquist for a 20 kHz signal.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Every audio pipeline is this module. 44.1 kHz was chosen to clear 20 kHz hearing with room for the anti-aliasing filter. MP3 and AAC transform to frequency, discard what the ear cannot hear, and transform back. Any plugin's "EQ" is a filter whose response you are drawing by hand.</p>
+<p>Images are two-dimensional versions. JPEG transforms $8\times8$ blocks with the DCT — a cousin of the DFT — and quantises the high-frequency coefficients, which is why over-compressed images show blocky ringing: Gibbs' phenomenon in two dimensions. Downscaling without a low-pass pre-filter produces moiré, which is aliasing with a prettier name.</p>
+<p>In monitoring, every "smoothed" metric is an exponential moving average, and every dashboard that samples a counter every 60 seconds will alias any faster periodicity into a slow phantom trend — Kiran's bug, in a different costume, and the reason a weekly traffic cycle can appear in a graph where no weekly cycle exists.</p>
+<p>Convolution is the <code>conv</code> in convolutional networks, and large-kernel convolutions are still done by FFT. Fast multiplication of big integers in every arbitrary-precision library goes through an FFT or an NTT. And in machine learning, positional encodings are sinusoids at geometrically spaced frequencies for exactly the reason Fourier gives: that basis separates scales.</p>
+<p>The habit worth forming is to ask, whenever you see a periodic signal in sampled data: <em>is this real, or is it the alias of something faster?</em> Kiran's team spent a shutdown learning to ask it.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does Fourier's theorem claim?</p></div><div class="a" hidden><p>Any reasonable periodic signal is a unique sum of sinusoids, and the representation loses nothing — you can move between signal and coefficients freely.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why do the DFT coefficients come out unique?</p></div><div class="a" hidden><p>Orthogonality: the sum over n of exp(2<em>pi</em>i<em>(j-k)</em>n/N) is N when j = k and 0 otherwise, because otherwise it is a geometric series whose numerator vanishes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>State the Cooley-Tukey split.</p></div><div class="a" hidden><p>X[k] = E[k] + w^k O[k] and X[k+N/2] = E[k] - w^k O[k], where E and O are the DFTs of the even and odd indexed samples. It works because w_N^2 = w_(N/2) and w^(k+N/2) = -w^k.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why is the FFT O(N log N)?</p></div><div class="a" hidden><p>T(N) = 2T(N/2) + O(N), which the Master theorem solves to O(N log N).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>State the convolution theorem and its catch.</p></div><div class="a" hidden><p>DFT(x circularly-convolved y) = DFT(x) * DFT(y) pointwise. The catch is that it is CIRCULAR — linear convolution needs zero-padding to len(a)+len(b)-1.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>State the Nyquist-Shannon sampling theorem.</p></div><div class="a" hidden><p>A signal with no energy above f_max is perfectly reconstructible from samples at a rate STRICTLY greater than 2*f_max.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>What is the apparent frequency of an aliased tone?</p></div><div class="a" hidden><p>|f - fs * round(f/fs)|. A 98 Hz tone sampled at 100 Hz appears at 2 Hz.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Why can aliasing not be undone in software?</p></div><div class="a" hidden><p>Because f and f + m<em>fs give EXACTLY equal sample values — 2</em>pi<em>m</em>n is a whole number of turns. The mapping is not injective, so no inverse exists.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>What causes spectral leakage?</p></div><div class="a" hidden><p>A finite recording multiplies the signal by a window, and multiplication in time is convolution in frequency, so each spectral line is smeared by the window's transform.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What do window functions trade?</p></div><div class="a" hidden><p>Main-lobe width (resolution) against sidelobe level (leakage). Rectangular has the narrowest lobe and the worst sidelobes at -13 dB; Hann is twice as wide at -31 dB.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="10"><div class="q"><p>Does zero-padding improve frequency resolution?</p></div><div class="a" hidden><p>No. It interpolates the spectrum onto a finer grid. Resolution is 1/T and only a longer recording improves it.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="11"><div class="q"><p>Name the simplest low-pass and high-pass filters and their nulls.</p></div><div class="a" hidden><p>An L-point moving average is low-pass with nulls at multiples of fs/L. The first difference is high-pass, zero at DC and maximal at Nyquist.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to Kiran's team, from the algebra, why 98 Hz and 2 Hz are the same data, you can derive the orthogonality sum and say what it underwrites, you can write the Cooley-Tukey butterfly from memory and say why $\omega_N^2=\omega_{N/2}$ is the whole trick, you can state the convolution theorem including the circular caveat and say what zero-padding is for, you can compute an alias frequency in your head, you can explain why zero-padding is not resolution, you can say which window you would pick and what it costs you, you pass the boss exercise without hints, and you never again look at a periodic wiggle in sampled data without asking whether it is real.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Alan V. Oppenheim and Ronald W. Schafer, <em>Discrete-Time Signal Processing</em>, 3rd edition, Pearson.</li>
+<li>Steven W. Smith, <em>The Scientist and Engineer's Guide to Digital Signal Processing</em>, available free online.</li>
+<li>James W. Cooley and John W. Tukey, "An Algorithm for the Machine Calculation of Complex Fourier Series", <em>Mathematics of Computation</em>, 1965.</li>
+<li>Fredric J. Harris, "On the Use of Windows for Harmonic Analysis with the Discrete Fourier Transform", <em>Proceedings of the IEEE</em>, 1978.</li>
+<li>Claude E. Shannon, "Communication in the Presence of Noise", <em>Proceedings of the IRE</em>, 1949.</li>
+</ul></section>
+<footer class="pager"><a href="M38.html">&larr; M38 Abstract algebra for computing</a>
+<a href="M40.html">M40 Markov chains, random walks and queues &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M39", "packages": [], "exercises": {"m39-ex1-dft": {"starter": "def sample_sinusoid(freq, fs, n, phase=0.0):\n    \"\"\"n samples of a cosine.\"\"\"\n    return []\n\n\ndef is_periodic(x, period):\n    \"\"\"True when x repeats with the given period.\"\"\"\n    return False\n\n\ndef dft(x):\n    \"\"\"The discrete Fourier transform, from the definition.\"\"\"\n    return []\n\n\ndef idft(X):\n    \"\"\"The inverse transform.\"\"\"\n    return []\n\n\ndef bin_frequency(k, fs, n):\n    \"\"\"The frequency that bin k represents.\"\"\"\n    return 0.0\n\n\ndef magnitude_spectrum(X):\n    \"\"\"The magnitude of each bin.\"\"\"\n    return []\n", "solution": "import cmath\nfrom math import pi, cos\n\n\ndef sample_sinusoid(freq, fs, n, phase=0.0):\n    \"\"\"n samples of a cosine at the given frequency.\"\"\"\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [cos(2 * pi * freq * k / fs + phase) for k in range(n)]\n\n\ndef is_periodic(x, period):\n    \"\"\"True when x repeats with the given period.\"\"\"\n    if not isinstance(period, int) or period < 1:\n        raise ValueError(\"the period must be a positive integer\")\n    if period >= len(x):\n        raise ValueError(\"the period must be shorter than the signal\")\n    return all(abs(x[i] - x[i + period]) < 1e-9\n               for i in range(len(x) - period))\n\n\ndef dft(x):\n    \"\"\"The discrete Fourier transform, from the definition.\"\"\"\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    N = len(x)\n    return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))\n            for k in range(N)]\n\n\ndef idft(X):\n    \"\"\"The inverse transform: conjugate the exponent and divide by N.\"\"\"\n    if not X:\n        raise ValueError(\"the spectrum must be non-empty\")\n    N = len(X)\n    return [sum(X[k] * cmath.exp(2j * pi * k * n / N) for k in range(N)) / N\n            for n in range(N)]\n\n\ndef bin_frequency(k, fs, n):\n    \"\"\"The frequency that bin k represents.\"\"\"\n    if fs <= 0 or n < 1:\n        raise ValueError(\"fs and n must be positive\")\n    return k * fs / n\n\n\ndef magnitude_spectrum(X):\n    \"\"\"The magnitude of each bin.\"\"\"\n    return [abs(v) for v in X]\n", "tests": "def test_sampling_and_periodicity():\n    from math import pi, cos\n    x = sample_sinusoid(1.0, 8.0, 8)\n    assert len(x) == 8\n    assert abs(x[0] - 1.0) < 1e-12\n    assert abs(x[2] - cos(pi / 2)) < 1e-12\n    # 8 samples of a 1 Hz tone at 8 Hz is exactly one period\n    y = sample_sinusoid(1.0, 8.0, 24)\n    assert is_periodic(y, 8) is True\n    assert is_periodic(y, 4) is False\n    # a 2 Hz tone at 8 Hz repeats every 4 samples\n    assert is_periodic(sample_sinusoid(2.0, 8.0, 24), 4) is True\n    # phase shifts the samples but not the periodicity\n    assert is_periodic(sample_sinusoid(1.0, 8.0, 24, phase=0.7), 8) is True\n    for bad in (lambda: sample_sinusoid(1.0, 0.0, 8),\n                lambda: sample_sinusoid(1.0, 8.0, 0),\n                lambda: is_periodic([1, 2, 3], 0)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_dft_on_hand_checkable_cases():\n    # a unit impulse transforms to a flat spectrum\n    assert all(abs(v - 1) < 1e-9 for v in dft([1, 0, 0, 0]))\n    # a constant signal is all at DC\n    X = dft([3, 3, 3, 3])\n    assert abs(X[0] - 12) < 1e-9\n    assert all(abs(X[k]) < 1e-9 for k in (1, 2, 3))\n    # an alternating signal is all at Nyquist\n    X = dft([1, -1, 1, -1])\n    assert abs(X[2] - 4) < 1e-9\n    assert all(abs(X[k]) < 1e-9 for k in (0, 1, 3))\n    # a bin-centred cosine splits evenly between bins k and N-k\n    N = 16\n    x = sample_sinusoid(3.0, float(N), N)\n    X = dft(x)\n    mag = magnitude_spectrum(X)\n    assert abs(mag[3] - N / 2) < 1e-9\n    assert abs(mag[N - 3] - N / 2) < 1e-9\n    assert all(mag[k] < 1e-9 for k in range(N) if k not in (3, N - 3))\n    try:\n        dft([])\n        assert False, \"an empty signal must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_round_trip_and_bin_frequencies():\n    import random\n    rng = random.Random(1807)\n    for N in (1, 2, 5, 8, 13):\n        x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]\n        back = idft(dft(x))\n        assert max(abs(a - b) for a, b in zip(x, back)) < 1e-9, N\n    # the transform is linear\n    a = [complex(rng.gauss(0, 1)) for _ in range(8)]\n    b = [complex(rng.gauss(0, 1)) for _ in range(8)]\n    lhs = dft([2 * p + 3 * q for p, q in zip(a, b)])\n    rhs = [2 * p + 3 * q for p, q in zip(dft(a), dft(b))]\n    assert max(abs(p - q) for p, q in zip(lhs, rhs)) < 1e-9\n    # Parseval\n    e_time = sum(abs(v) ** 2 for v in a)\n    e_freq = sum(abs(v) ** 2 for v in dft(a)) / len(a)\n    assert abs(e_time - e_freq) < 1e-9\n    # bin frequencies\n    assert bin_frequency(0, 100.0, 10) == 0.0\n    assert abs(bin_frequency(1, 100.0, 10) - 10.0) < 1e-12\n    assert abs(bin_frequency(5, 1000.0, 100) - 50.0) < 1e-12\n    # a real signal has a conjugate-symmetric spectrum\n    real = [rng.gauss(0, 1) for _ in range(16)]\n    R = dft(real)\n    assert all(abs(R[16 - k] - R[k].conjugate()) < 1e-9 for k in range(1, 8))\n    try:\n        bin_frequency(1, -1.0, 10)\n        assert False, \"a negative rate must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["import cmath\nfrom math import pi, cos\n\n\ndef sample_sinusoid(freq, fs, n, phase=0.0):\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [cos(2 * pi * freq * k / fs + phase) for k in range(n)]\n\n\ndef is_periodic(x, period):\n    if not isinstance(period, int) or period < 1:\n        raise ValueError(\"the period must be a positive integer\")\n    if period >= len(x):\n        raise ValueError(\"the period must be shorter than the signal\")\n    return all(abs(x[i] - x[i + period]) < 1e-9\n               for i in range(len(x) - period))\n\n\ndef dft(x):\n    \"\"\"Bug: uses a positive exponent, which computes the INVERSE transform's\n    kernel. The magnitude spectrum is unchanged, so only a phase-sensitive\n    check catches it.\"\"\"\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    N = len(x)\n    return [sum(x[n] * cmath.exp(2j * pi * k * n / N) for n in range(N))\n            for k in range(N)]\n\n\ndef idft(X):\n    if not X:\n        raise ValueError(\"the spectrum must be non-empty\")\n    N = len(X)\n    return [sum(X[k] * cmath.exp(2j * pi * k * n / N) for k in range(N)) / N\n            for n in range(N)]\n\n\ndef bin_frequency(k, fs, n):\n    if fs <= 0 or n < 1:\n        raise ValueError(\"fs and n must be positive\")\n    return k * fs / n\n\n\ndef magnitude_spectrum(X):\n    return [abs(v) for v in X]\n", "import cmath\nfrom math import pi, cos\n\n\ndef sample_sinusoid(freq, fs, n, phase=0.0):\n    \"\"\"Bug: omits the 2*pi, so the frequency is in radians per sample rather\n    than hertz and every spectrum lands in the wrong bin.\"\"\"\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [cos(freq * k / fs + phase) for k in range(n)]\n\n\ndef is_periodic(x, period):\n    if not isinstance(period, int) or period < 1:\n        raise ValueError(\"the period must be a positive integer\")\n    if period >= len(x):\n        raise ValueError(\"the period must be shorter than the signal\")\n    return all(abs(x[i] - x[i + period]) < 1e-9\n               for i in range(len(x) - period))\n\n\ndef dft(x):\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    N = len(x)\n    return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))\n            for k in range(N)]\n\n\ndef idft(X):\n    \"\"\"Bug: forgets the 1/N normalisation, so the round trip scales by N.\"\"\"\n    if not X:\n        raise ValueError(\"the spectrum must be non-empty\")\n    N = len(X)\n    return [sum(X[k] * cmath.exp(2j * pi * k * n / N) for k in range(N))\n            for n in range(N)]\n\n\ndef bin_frequency(k, fs, n):\n    if fs <= 0 or n < 1:\n        raise ValueError(\"fs and n must be positive\")\n    return k * fs / n\n\n\ndef magnitude_spectrum(X):\n    return [abs(v) for v in X]\n"], "hints": ["The forward DFT uses a NEGATIVE exponent; the inverse uses a positive one and divides by N.", "A frequency in hertz enters the cosine as `2*pi*f*k/fs`. Dropping the `2*pi` changes the units."], "level": "warmup", "title": "Periodic signals and the DFT from its definition"}, "m39-ex2-fft": {"starter": "def is_power_of_two(n):\n    \"\"\"True when n is a positive power of two.\"\"\"\n    return False\n\n\ndef next_power_of_two(n):\n    \"\"\"The smallest power of two at least n.\"\"\"\n    return 0\n\n\ndef twiddle(k, n):\n    \"\"\"exp(-2j*pi*k/n).\"\"\"\n    return 0j\n\n\ndef fft(x):\n    \"\"\"Radix-2 Cooley-Tukey.\"\"\"\n    return []\n\n\ndef ifft(X):\n    \"\"\"The inverse FFT.\"\"\"\n    return []\n\n\ndef fft_padded(x):\n    \"\"\"FFT after zero-padding to a power of two.\"\"\"\n    return []\n", "solution": "import cmath\nfrom math import pi\n\n\ndef is_power_of_two(n):\n    \"\"\"True when n is a positive power of two.\"\"\"\n    return isinstance(n, int) and n > 0 and (n & (n - 1)) == 0\n\n\ndef next_power_of_two(n):\n    \"\"\"The smallest power of two at least n.\"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    p = 1\n    while p < n:\n        p *= 2\n    return p\n\n\ndef twiddle(k, n):\n    \"\"\"exp(-2j*pi*k/n), the factor that combines the two half-transforms.\"\"\"\n    if n < 1:\n        raise ValueError(\"n must be positive\")\n    return cmath.exp(-2j * pi * k / n)\n\n\ndef fft(x):\n    \"\"\"Radix-2 Cooley-Tukey.\n\n    X[k]       = E[k] + w^k O[k]\n    X[k + N/2] = E[k] - w^k O[k]\n    because w_N^(k+N/2) = -w_N^k, and w_N^2 = w_(N/2) makes the halves\n    genuine smaller DFTs.\n    \"\"\"\n    N = len(x)\n    if N == 0:\n        raise ValueError(\"the signal must be non-empty\")\n    if not is_power_of_two(N):\n        raise ValueError(\"the length must be a power of two\")\n    if N == 1:\n        return [complex(x[0])]\n    even = fft(x[0::2])\n    odd = fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = twiddle(k, N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef ifft(X):\n    \"\"\"The inverse FFT, via conjugation: ifft(X) = conj(fft(conj(X))) / N.\"\"\"\n    N = len(X)\n    if N == 0:\n        raise ValueError(\"the spectrum must be non-empty\")\n    conj = [complex(z).conjugate() for z in X]\n    return [z.conjugate() / N for z in fft(conj)]\n\n\ndef fft_padded(x):\n    \"\"\"FFT after zero-padding to a power of two.\"\"\"\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    n = next_power_of_two(len(x))\n    return fft([complex(v) for v in x] + [0j] * (n - len(x)))\n", "tests": "def test_power_of_two_helpers():\n    for n in (1, 2, 4, 8, 1024):\n        assert is_power_of_two(n) is True, n\n    for n in (0, 3, 6, 100, -4):\n        assert is_power_of_two(n) is False, n\n    assert next_power_of_two(1) == 1\n    assert next_power_of_two(5) == 8\n    assert next_power_of_two(8) == 8\n    assert next_power_of_two(9) == 16\n    assert next_power_of_two(1000) == 1024\n    # the twiddle factors are roots of unity\n    import cmath\n    assert abs(twiddle(0, 8) - 1) < 1e-12\n    assert abs(twiddle(4, 8) + 1) < 1e-12, \"w^(N/2) = -1\"\n    for n in (4, 8, 16):\n        assert abs(twiddle(n, n) - 1) < 1e-12\n        for k in range(n):\n            assert abs(abs(twiddle(k, n)) - 1) < 1e-12\n            # the key identity behind the split\n            assert abs(twiddle(k + n // 2, n) + twiddle(k, n)) < 1e-12, (k, n)\n    try:\n        next_power_of_two(0)\n        assert False, \"zero must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_fft_matches_the_definition():\n    import cmath\n    import random\n    from math import pi\n    rng = random.Random(1965)\n\n    def slow_dft(x):\n        N = len(x)\n        return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))\n                for k in range(N)]\n\n    for N in (1, 2, 4, 8, 16, 64):\n        x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]\n        fast, slow = fft(x), slow_dft(x)\n        assert max(abs(a - b) for a, b in zip(fast, slow)) < 1e-9, N\n    # hand-checkable cases\n    assert all(abs(v - 1) < 1e-12 for v in fft([1, 0, 0, 0]))\n    assert abs(fft([3, 3, 3, 3])[0] - 12) < 1e-12\n    assert all(abs(fft([3, 3, 3, 3])[k]) < 1e-12 for k in (1, 2, 3))\n    assert abs(fft([1, -1, 1, -1])[2] - 4) < 1e-12\n    for bad in (lambda: fft([1, 2, 3]), lambda: fft([])):\n        try:\n            bad()\n            assert False, \"a bad length must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_inverse_padding_and_identities():\n    import random\n    rng = random.Random(1805)\n    for N in (1, 2, 8, 32):\n        x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]\n        assert max(abs(a - b) for a, b in zip(ifft(fft(x)), x)) < 1e-9, N\n    # Parseval survives the fast transform\n    x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(32)]\n    assert abs(sum(abs(v) ** 2 for v in x)\n               - sum(abs(v) ** 2 for v in fft(x)) / 32) < 1e-9\n    # the shift theorem\n    m = 3\n    X = fft(x)\n    S = fft(x[-m:] + x[:-m])\n    pred = [X[k] * twiddle(k * m, len(x)) for k in range(len(x))]\n    assert max(abs(a - b) for a, b in zip(S, pred)) < 1e-9\n    # padding gives a power-of-two length and leaves bin 0 as the plain sum\n    y = [1.0, 2.0, 3.0, 4.0, 5.0]\n    P = fft_padded(y)\n    assert len(P) == 8\n    assert abs(P[0] - sum(y)) < 1e-9\n    # padding interpolates the spectrum: the unpadded bins still appear\n    z = [1.0, 2.0, 3.0, 4.0]\n    assert len(fft_padded(z)) == 4\n    assert max(abs(a - b) for a, b in zip(fft_padded(z), fft(z))) < 1e-12\n    try:\n        ifft([])\n        assert False, \"an empty spectrum must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["import cmath\nfrom math import pi\n\n\ndef is_power_of_two(n):\n    return isinstance(n, int) and n > 0 and (n & (n - 1)) == 0\n\n\ndef next_power_of_two(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    p = 1\n    while p < n:\n        p *= 2\n    return p\n\n\ndef twiddle(k, n):\n    \"\"\"Bug: omits the factor of 2, so these are square roots of the correct\n    twiddles and the butterfly combines the halves wrongly.\"\"\"\n    if n < 1:\n        raise ValueError(\"n must be positive\")\n    return cmath.exp(-1j * pi * k / n)\n\n\ndef fft(x):\n    N = len(x)\n    if N == 0:\n        raise ValueError(\"the signal must be non-empty\")\n    if not is_power_of_two(N):\n        raise ValueError(\"the length must be a power of two\")\n    if N == 1:\n        return [complex(x[0])]\n    even = fft(x[0::2])\n    odd = fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = twiddle(k, N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef ifft(X):\n    N = len(X)\n    if N == 0:\n        raise ValueError(\"the spectrum must be non-empty\")\n    conj = [complex(z).conjugate() for z in X]\n    return [z.conjugate() / N for z in fft(conj)]\n\n\ndef fft_padded(x):\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    n = next_power_of_two(len(x))\n    return fft([complex(v) for v in x] + [0j] * (n - len(x)))\n", "import cmath\nfrom math import pi\n\n\ndef is_power_of_two(n):\n    return isinstance(n, int) and n > 0 and (n & (n - 1)) == 0\n\n\ndef next_power_of_two(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    p = 1\n    while p < n:\n        p *= 2\n    return p\n\n\ndef twiddle(k, n):\n    if n < 1:\n        raise ValueError(\"n must be positive\")\n    return cmath.exp(-2j * pi * k / n)\n\n\ndef fft(x):\n    \"\"\"Bug: splits into the first and second HALVES rather than by index\n    parity. The recursion still terminates and the sizes still halve, but the\n    butterfly identity no longer applies.\"\"\"\n    N = len(x)\n    if N == 0:\n        raise ValueError(\"the signal must be non-empty\")\n    if not is_power_of_two(N):\n        raise ValueError(\"the length must be a power of two\")\n    if N == 1:\n        return [complex(x[0])]\n    even = fft(x[:N // 2])\n    odd = fft(x[N // 2:])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = twiddle(k, N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef ifft(X):\n    \"\"\"Bug: divides by N twice over by also scaling inside, so the round trip\n    shrinks by a further factor of N.\"\"\"\n    N = len(X)\n    if N == 0:\n        raise ValueError(\"the spectrum must be non-empty\")\n    conj = [complex(z).conjugate() / N for z in X]\n    return [z.conjugate() / N for z in fft(conj)]\n\n\ndef fft_padded(x):\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    n = next_power_of_two(len(x))\n    return fft([complex(v) for v in x] + [0j] * (n - len(x)))\n"], "hints": ["The twiddle factor is `exp(-2j*pi*k/n)`, and the split relies on `w^(k+N/2) = -w^k`.", "Cooley-Tukey splits by index PARITY \u2014 even indices and odd indices \u2014 not into first and second halves."], "level": "core", "title": "The Cooley-Tukey FFT"}, "m39-ex3-convolution": {"starter": "def needed_length(la, lb):\n    \"\"\"The length of a linear convolution.\"\"\"\n    return 0\n\n\ndef convolve_direct(a, b):\n    \"\"\"Linear convolution, by the double loop.\"\"\"\n    return []\n\n\ndef circular_convolve(a, b):\n    \"\"\"Circular convolution of two equal-length lists.\"\"\"\n    return []\n\n\ndef convolve_fft(a, b):\n    \"\"\"Linear convolution via the FFT.\"\"\"\n    return []\n\n\ndef polynomial_multiply(p, q):\n    \"\"\"Integer polynomial coefficients, via the FFT.\"\"\"\n    return []\n\n\ndef cross_correlate(a, b):\n    \"\"\"Cross-correlation of a with b.\"\"\"\n    return []\n", "solution": "import cmath\nfrom math import pi\n\n\ndef _fft(x):\n    N = len(x)\n    if N == 1:\n        return [complex(x[0])]\n    even = _fft(x[0::2])\n    odd = _fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = cmath.exp(-2j * pi * k / N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef _ifft(X):\n    N = len(X)\n    conj = [z.conjugate() for z in X]\n    return [z.conjugate() / N for z in _fft(conj)]\n\n\ndef needed_length(la, lb):\n    \"\"\"The length of a linear convolution.\"\"\"\n    if la < 1 or lb < 1:\n        raise ValueError(\"both inputs must be non-empty\")\n    return la + lb - 1\n\n\ndef convolve_direct(a, b):\n    \"\"\"Linear convolution, by the double loop.\"\"\"\n    n = needed_length(len(a), len(b))\n    out = [0.0] * n\n    for i, av in enumerate(a):\n        for j, bv in enumerate(b):\n            out[i + j] += av * bv\n    return out\n\n\ndef circular_convolve(a, b):\n    \"\"\"Circular convolution of two equal-length lists.\"\"\"\n    if len(a) != len(b):\n        raise ValueError(\"circular convolution needs equal lengths\")\n    if not a:\n        raise ValueError(\"the inputs must be non-empty\")\n    n = len(a)\n    return [sum(a[m] * b[(k - m) % n] for m in range(n)) for k in range(n)]\n\n\ndef convolve_fft(a, b):\n    \"\"\"Linear convolution via the FFT.\n\n    The theorem is about CIRCULAR convolution, so both inputs must be padded\n    to at least len(a)+len(b)-1 before transforming. Skipping this is the\n    classic bug: the tail wraps round and corrupts the first few outputs.\n    \"\"\"\n    need = needed_length(len(a), len(b))\n    n = 1\n    while n < need:\n        n *= 2\n    A = _fft([complex(v) for v in a] + [0j] * (n - len(a)))\n    B = _fft([complex(v) for v in b] + [0j] * (n - len(b)))\n    C = _ifft([p * q for p, q in zip(A, B)])\n    return [c.real for c in C[:need]]\n\n\ndef polynomial_multiply(p, q):\n    \"\"\"Integer polynomial coefficients, via the FFT.\"\"\"\n    if any(not isinstance(v, int) for v in list(p) + list(q)):\n        raise ValueError(\"coefficients must be integers\")\n    return [int(round(v)) for v in convolve_fft(p, q)]\n\n\ndef cross_correlate(a, b):\n    \"\"\"Cross-correlation: convolution of a with b reversed.\"\"\"\n    return convolve_direct(a, list(reversed(b)))\n", "tests": "def test_direct_and_circular_convolution():\n    # (x + 2)(x + 3) = x^2 + 5x + 6, low order first\n    assert convolve_direct([2, 1], [3, 1]) == [6, 5, 1]\n    assert needed_length(2, 2) == 3\n    assert needed_length(5, 1) == 5\n    # an impulse is the identity\n    assert convolve_direct([1, 2, 3], [1]) == [1, 2, 3]\n    # convolution is commutative\n    import random\n    rng = random.Random(1965)\n    for _ in range(20):\n        a = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 8))]\n        b = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 8))]\n        p, q = convolve_direct(a, b), convolve_direct(b, a)\n        assert max(abs(u - v) for u, v in zip(p, q)) < 1e-12\n    # circular convolution wraps\n    c = circular_convolve([1, 2, 3, 4], [1, 0, 0, 0])\n    assert c == [1, 2, 3, 4], \"an impulse is the circular identity too\"\n    c = circular_convolve([1, 2, 3, 4], [0, 1, 0, 0])\n    assert c == [4, 1, 2, 3], \"shifting by one rotates\"\n    for bad in (lambda: circular_convolve([1, 2], [1, 2, 3]),\n                lambda: needed_length(0, 3)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_the_convolution_theorem_needs_padding():\n    import random\n    rng = random.Random(1805)\n    # the FFT route matches the double loop, for many random shapes\n    for _ in range(40):\n        a = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 17))]\n        b = [rng.gauss(0, 1) for _ in range(rng.randrange(1, 17))]\n        s, f = convolve_direct(a, b), convolve_fft(a, b)\n        assert len(s) == len(f) == needed_length(len(a), len(b))\n        assert max(abs(u - v) for u, v in zip(s, f)) < 1e-9, (a, b)\n    # the result is longer than either input: that is exactly why padding is\n    # required, and an unpadded transform would have to wrap\n    a = [1.0, 2.0, 3.0, 4.0]\n    b = [1.0, 1.0, 1.0, 1.0]\n    full = convolve_fft(a, b)\n    assert len(full) == 7\n    assert max(abs(u - v) for u, v in zip(full, convolve_direct(a, b))) < 1e-9\n    # and the circular version of the same pair is genuinely different\n    circ = circular_convolve(a, b)\n    assert len(circ) == 4\n    assert abs(circ[0] - (full[0] + full[4])) < 1e-9, \\\n        \"circular convolution is the linear one folded back on itself\"\n    assert abs(circ[1] - (full[1] + full[5])) < 1e-9\n    assert abs(circ[2] - (full[2] + full[6])) < 1e-9\n\n\ndef test_polynomials_and_correlation():\n    import random\n    rng = random.Random(1807)\n    assert polynomial_multiply([2, 1], [3, 1]) == [6, 5, 1]\n    assert polynomial_multiply([1], [1]) == [1]\n    assert polynomial_multiply([0, 0, 1], [0, 1]) == [0, 0, 0, 1], \"x^2 * x = x^3\"\n\n    def exact(p, q):\n        out = [0] * (len(p) + len(q) - 1)\n        for i, u in enumerate(p):\n            for j, v in enumerate(q):\n                out[i + j] += u * v\n        return out\n\n    for _ in range(40):\n        p = [rng.randrange(-30, 31) for _ in range(rng.randrange(1, 17))]\n        q = [rng.randrange(-30, 31) for _ in range(rng.randrange(1, 17))]\n        assert polynomial_multiply(p, q) == exact(p, q), (p, q)\n    # cross-correlation peaks where the signals line up\n    sig = [0.0, 0.0, 1.0, 2.0, 3.0, 0.0, 0.0]\n    pat = [1.0, 2.0, 3.0]\n    xc = cross_correlate(sig, pat)\n    best = max(range(len(xc)), key=lambda k: xc[k])\n    assert abs(xc[best] - 14.0) < 1e-9, \"the peak is the energy of the pattern\"\n    # a signal correlated with itself peaks at zero lag\n    auto = cross_correlate(pat, pat)\n    assert max(range(len(auto)), key=lambda k: auto[k]) == len(pat) - 1\n    try:\n        polynomial_multiply([1.5], [2])\n        assert False, \"non-integer coefficients must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["import cmath\nfrom math import pi\n\n\ndef _fft(x):\n    N = len(x)\n    if N == 1:\n        return [complex(x[0])]\n    even = _fft(x[0::2])\n    odd = _fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = cmath.exp(-2j * pi * k / N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef _ifft(X):\n    N = len(X)\n    conj = [z.conjugate() for z in X]\n    return [z.conjugate() / N for z in _fft(conj)]\n\n\ndef needed_length(la, lb):\n    \"\"\"Bug: returns the longer length rather than la+lb-1, so every linear\n    convolution is truncated and the FFT version wraps.\"\"\"\n    if la < 1 or lb < 1:\n        raise ValueError(\"both inputs must be non-empty\")\n    return max(la, lb)\n\n\ndef convolve_direct(a, b):\n    n = needed_length(len(a), len(b))\n    out = [0.0] * n\n    for i, av in enumerate(a):\n        for j, bv in enumerate(b):\n            if i + j < n:\n                out[i + j] += av * bv\n    return out\n\n\ndef circular_convolve(a, b):\n    if len(a) != len(b):\n        raise ValueError(\"circular convolution needs equal lengths\")\n    if not a:\n        raise ValueError(\"the inputs must be non-empty\")\n    n = len(a)\n    return [sum(a[m] * b[(k - m) % n] for m in range(n)) for k in range(n)]\n\n\ndef convolve_fft(a, b):\n    need = needed_length(len(a), len(b))\n    n = 1\n    while n < need:\n        n *= 2\n    A = _fft([complex(v) for v in a] + [0j] * (n - len(a)))\n    B = _fft([complex(v) for v in b] + [0j] * (n - len(b)))\n    C = _ifft([p * q for p, q in zip(A, B)])\n    return [c.real for c in C[:need]]\n\n\ndef polynomial_multiply(p, q):\n    if any(not isinstance(v, int) for v in list(p) + list(q)):\n        raise ValueError(\"coefficients must be integers\")\n    return [int(round(v)) for v in convolve_fft(p, q)]\n\n\ndef cross_correlate(a, b):\n    return convolve_direct(a, list(reversed(b)))\n", "import cmath\nfrom math import pi\n\n\ndef _fft(x):\n    N = len(x)\n    if N == 1:\n        return [complex(x[0])]\n    even = _fft(x[0::2])\n    odd = _fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = cmath.exp(-2j * pi * k / N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef _ifft(X):\n    N = len(X)\n    conj = [z.conjugate() for z in X]\n    return [z.conjugate() / N for z in _fft(conj)]\n\n\ndef needed_length(la, lb):\n    if la < 1 or lb < 1:\n        raise ValueError(\"both inputs must be non-empty\")\n    return la + lb - 1\n\n\ndef convolve_direct(a, b):\n    n = needed_length(len(a), len(b))\n    out = [0.0] * n\n    for i, av in enumerate(a):\n        for j, bv in enumerate(b):\n            out[i + j] += av * bv\n    return out\n\n\ndef circular_convolve(a, b):\n    \"\"\"Bug: indexes forwards rather than backwards, computing a correlation\n    instead of a convolution. It agrees for symmetric inputs.\"\"\"\n    if len(a) != len(b):\n        raise ValueError(\"circular convolution needs equal lengths\")\n    if not a:\n        raise ValueError(\"the inputs must be non-empty\")\n    n = len(a)\n    return [sum(a[m] * b[(k + m) % n] for m in range(n)) for k in range(n)]\n\n\ndef convolve_fft(a, b):\n    \"\"\"Bug: ADDS the spectra instead of multiplying them. The convolution\n    theorem turns convolution into a pointwise PRODUCT.\"\"\"\n    need = needed_length(len(a), len(b))\n    n = 1\n    while n < need:\n        n *= 2\n    A = _fft([complex(v) for v in a] + [0j] * (n - len(a)))\n    B = _fft([complex(v) for v in b] + [0j] * (n - len(b)))\n    C = _ifft([p + q for p, q in zip(A, B)])\n    return [c.real for c in C[:need]]\n\n\ndef polynomial_multiply(p, q):\n    if any(not isinstance(v, int) for v in list(p) + list(q)):\n        raise ValueError(\"coefficients must be integers\")\n    return [int(round(v)) for v in convolve_fft(p, q)]\n\n\ndef cross_correlate(a, b):\n    return convolve_direct(a, list(reversed(b)))\n"], "hints": ["A linear convolution is `len(a) + len(b) - 1` long. Padding to anything shorter makes the tail wrap.", "The convolution theorem says the spectra MULTIPLY pointwise."], "level": "core", "title": "Convolution and the convolution theorem"}, "m39-ex4-sampling": {"starter": "def nyquist_frequency(fs):\n    \"\"\"Half the sample rate.\"\"\"\n    return 0.0\n\n\ndef alias_frequency(f, fs):\n    \"\"\"The apparent frequency after sampling.\"\"\"\n    return 0.0\n\n\ndef is_above_nyquist(f, fs):\n    \"\"\"True when f will alias.\"\"\"\n    return False\n\n\ndef samples_identical(f1, f2, fs, n):\n    \"\"\"True when two frequencies give identical samples.\"\"\"\n    return False\n\n\ndef min_sample_rate(f_max):\n    \"\"\"The smallest safe sample rate.\"\"\"\n    return 0.0\n\n\ndef reconstruct_sinc(samples, fs, t):\n    \"\"\"Sinc interpolation at time t.\"\"\"\n    return 0.0\n", "solution": "from math import pi, cos, sin\n\n\ndef _check(fs):\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n\n\ndef nyquist_frequency(fs):\n    \"\"\"Half the sample rate: the highest faithfully representable frequency.\"\"\"\n    _check(fs)\n    return fs / 2.0\n\n\ndef alias_frequency(f, fs):\n    \"\"\"The apparent frequency after sampling: |f - fs * round(f/fs)|.\"\"\"\n    _check(fs)\n    if f < 0:\n        raise ValueError(\"the frequency must be non-negative\")\n    return abs(f - fs * round(f / fs))\n\n\ndef is_above_nyquist(f, fs):\n    \"\"\"True when f will alias.\"\"\"\n    return f > nyquist_frequency(fs)\n\n\ndef samples_identical(f1, f2, fs, n, tol=1e-9):\n    \"\"\"True when two frequencies give identical samples.\n\n    This happens exactly when they alias to the same apparent frequency, and\n    it is the reason aliasing cannot be undone after the fact.\n    \"\"\"\n    _check(fs)\n    if n < 1:\n        raise ValueError(\"n must be positive\")\n    a = [cos(2 * pi * f1 * k / fs) for k in range(n)]\n    b = [cos(2 * pi * f2 * k / fs) for k in range(n)]\n    return all(abs(p - q) < tol for p, q in zip(a, b))\n\n\ndef min_sample_rate(f_max):\n    \"\"\"The smallest safe sample rate: strictly above twice the maximum.\"\"\"\n    if f_max <= 0:\n        raise ValueError(\"the maximum frequency must be positive\")\n    return 2.0 * f_max\n\n\ndef reconstruct_sinc(samples, fs, t):\n    \"\"\"Sinc interpolation at time t: the exact reconstruction formula.\"\"\"\n    _check(fs)\n    total = 0.0\n    for n, s in enumerate(samples):\n        u = pi * (t * fs - n)\n        total += s * (1.0 if abs(u) < 1e-12 else sin(u) / u)\n    return total\n", "tests": "def test_nyquist_and_aliasing_arithmetic():\n    assert nyquist_frequency(100.0) == 50.0\n    assert nyquist_frequency(44100.0) == 22050.0\n    # Kiran's case\n    assert abs(alias_frequency(98.0, 100.0) - 2.0) < 1e-12\n    assert abs(alias_frequency(102.0, 100.0) - 2.0) < 1e-12\n    # below Nyquist nothing changes\n    for f in (0.0, 10.0, 30.0, 49.0):\n        assert abs(alias_frequency(f, 100.0) - f) < 1e-12, f\n        assert is_above_nyquist(f, 100.0) is False\n    # above it, frequencies fold\n    assert abs(alias_frequency(51.0, 100.0) - 49.0) < 1e-12\n    assert abs(alias_frequency(70.0, 100.0) - 30.0) < 1e-12\n    assert abs(alias_frequency(130.0, 100.0) - 30.0) < 1e-12\n    assert is_above_nyquist(51.0, 100.0) is True\n    # the alias is always at or below Nyquist\n    for f in (0.5, 17.0, 51.0, 99.0, 177.0, 1001.0):\n        assert alias_frequency(f, 100.0) <= 50.0 + 1e-12, f\n    assert abs(min_sample_rate(20000.0) - 40000.0) < 1e-9\n    for bad in (lambda: nyquist_frequency(0.0), lambda: alias_frequency(-1.0, 10.0),\n                lambda: min_sample_rate(0.0)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_aliased_frequencies_are_literally_indistinguishable():\n    # 98 Hz and 2 Hz at 100 Hz give the SAME samples, not similar ones\n    assert samples_identical(98.0, 2.0, 100.0, 500) is True\n    assert samples_identical(102.0, 2.0, 100.0, 500) is True\n    assert samples_identical(198.0, 2.0, 100.0, 500) is True\n    # and any f, f + fs, f + 2fs ... are the same\n    for m in range(1, 5):\n        assert samples_identical(7.0, 7.0 + m * 100.0, 100.0, 200) is True\n    # two distinct frequencies BELOW Nyquist are always distinguishable\n    assert samples_identical(10.0, 20.0, 100.0, 500) is False\n    assert samples_identical(10.0, 10.5, 100.0, 500) is False\n    assert samples_identical(49.0, 48.0, 100.0, 500) is False\n    # frequencies that alias together share an apparent frequency\n    for f1, f2 in ((98.0, 2.0), (70.0, 30.0), (151.0, 49.0)):\n        assert abs(alias_frequency(f1, 100.0) - alias_frequency(f2, 100.0)) < 1e-9\n    try:\n        samples_identical(1.0, 2.0, 100.0, 0)\n        assert False, \"zero samples must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_sinc_reconstruction_works_below_nyquist():\n    from math import pi, cos\n    fs = 100.0\n    n = 400\n    f = 10.0                     # comfortably below Nyquist\n    samples = [cos(2 * pi * f * k / fs) for k in range(n)]\n    # at the sample instants reconstruction returns the samples\n    for k in (50, 100, 200):\n        assert abs(reconstruct_sinc(samples, fs, k / fs) - samples[k]) < 1e-6, k\n    # and BETWEEN them it recovers the true continuous signal\n    worst = 0.0\n    for k in range(150, 250):\n        t = (k + 0.5) / fs\n        worst = max(worst, abs(reconstruct_sinc(samples, fs, t)\n                               - cos(2 * pi * f * t)))\n    assert worst < 0.02, worst\n    # an aliased signal reconstructs to its ALIAS, not to the original\n    f_hi = 98.0\n    hi = [cos(2 * pi * f_hi * k / fs) for k in range(n)]\n    t = 200.5 / fs\n    got = reconstruct_sinc(hi, fs, t)\n    assert abs(got - cos(2 * pi * 2.0 * t)) < 0.02, \"it rebuilds the 2 Hz alias\"\n    assert abs(got - cos(2 * pi * 98.0 * t)) > 0.1, \"not the original 98 Hz\"\n    try:\n        reconstruct_sinc([1.0], 0.0, 0.0)\n        assert False, \"a zero rate must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import pi, cos, sin\n\n\ndef _check(fs):\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n\n\ndef nyquist_frequency(fs):\n    \"\"\"Bug: returns the full sample rate instead of half of it.\"\"\"\n    _check(fs)\n    return fs\n\n\ndef alias_frequency(f, fs):\n    _check(fs)\n    if f < 0:\n        raise ValueError(\"the frequency must be non-negative\")\n    return abs(f - fs * round(f / fs))\n\n\ndef is_above_nyquist(f, fs):\n    return f > nyquist_frequency(fs)\n\n\ndef samples_identical(f1, f2, fs, n, tol=1e-9):\n    _check(fs)\n    if n < 1:\n        raise ValueError(\"n must be positive\")\n    a = [cos(2 * pi * f1 * k / fs) for k in range(n)]\n    b = [cos(2 * pi * f2 * k / fs) for k in range(n)]\n    return all(abs(p - q) < tol for p, q in zip(a, b))\n\n\ndef min_sample_rate(f_max):\n    \"\"\"Bug: the same rate as the maximum frequency, not twice it.\"\"\"\n    if f_max <= 0:\n        raise ValueError(\"the maximum frequency must be positive\")\n    return f_max\n\n\ndef reconstruct_sinc(samples, fs, t):\n    _check(fs)\n    total = 0.0\n    for n, s in enumerate(samples):\n        u = pi * (t * fs - n)\n        total += s * (1.0 if abs(u) < 1e-12 else sin(u) / u)\n    return total\n", "from math import pi, cos, sin\n\n\ndef _check(fs):\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n\n\ndef nyquist_frequency(fs):\n    _check(fs)\n    return fs / 2.0\n\n\ndef alias_frequency(f, fs):\n    \"\"\"Bug: uses a modulo instead of folding, so frequencies between fs/2 and\n    fs are reported as f - fs rather than folded back down.\"\"\"\n    _check(fs)\n    if f < 0:\n        raise ValueError(\"the frequency must be non-negative\")\n    return f % fs\n\n\ndef is_above_nyquist(f, fs):\n    return f > nyquist_frequency(fs)\n\n\ndef samples_identical(f1, f2, fs, n, tol=1e-9):\n    \"\"\"Bug: compares only the first sample, which is cos(0) = 1 for every\n    frequency, so it reports everything as identical.\"\"\"\n    _check(fs)\n    if n < 1:\n        raise ValueError(\"n must be positive\")\n    return abs(cos(0.0) - cos(0.0)) < tol\n\n\ndef min_sample_rate(f_max):\n    if f_max <= 0:\n        raise ValueError(\"the maximum frequency must be positive\")\n    return 2.0 * f_max\n\n\ndef reconstruct_sinc(samples, fs, t):\n    \"\"\"Bug: uses sin(u) rather than sin(u)/u, which is not a sinc at all.\"\"\"\n    _check(fs)\n    total = 0.0\n    for n, s in enumerate(samples):\n        u = pi * (t * fs - n)\n        total += s * sin(u)\n    return total\n"], "hints": ["Nyquist is HALF the sample rate, and the alias folds: `|f - fs*round(f/fs)|`, not `f % fs`.", "Every cosine starts at 1, so comparing only the first sample proves nothing."], "level": "core", "title": "Sampling, Nyquist and aliasing"}, "m39-ex5-filters": {"starter": "def rectangular_window(n):\n    \"\"\"A window of all ones.\"\"\"\n    return []\n\n\ndef hann_window(n):\n    \"\"\"The Hann window.\"\"\"\n    return []\n\n\ndef hamming_window(n):\n    \"\"\"The Hamming window.\"\"\"\n    return []\n\n\ndef apply_window(x, w):\n    \"\"\"Multiply a signal by a window.\"\"\"\n    return []\n\n\ndef moving_average(x, L):\n    \"\"\"An L-point causal moving average.\"\"\"\n    return []\n\n\ndef first_difference(x):\n    \"\"\"The first difference, a high-pass filter.\"\"\"\n    return []\n\n\ndef exponential_moving_average(x, alpha):\n    \"\"\"A one-pole IIR low pass.\"\"\"\n    return []\n\n\ndef frequency_response(taps, freq, fs):\n    \"\"\"|H(freq)| for an FIR filter.\"\"\"\n    return 0.0\n\n\ndef leakage_ratio(spectrum, peak_bin, half=2):\n    \"\"\"The fraction of energy outside a few bins of the peak.\"\"\"\n    return 0.0\n", "solution": "import cmath\nfrom math import pi, cos\n\n\ndef rectangular_window(n):\n    \"\"\"A window of all ones: the narrowest main lobe, the worst sidelobes.\"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [1.0] * n\n\n\ndef hann_window(n):\n    \"\"\"The Hann window: a raised cosine, tapering to zero at both ends.\"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    if n == 1:\n        return [1.0]\n    return [0.5 - 0.5 * cos(2 * pi * k / (n - 1)) for k in range(n)]\n\n\ndef hamming_window(n):\n    \"\"\"The Hamming window: like Hann but not quite reaching zero.\"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    if n == 1:\n        return [1.0]\n    return [0.54 - 0.46 * cos(2 * pi * k / (n - 1)) for k in range(n)]\n\n\ndef apply_window(x, w):\n    \"\"\"Multiply a signal by a window, sample by sample.\"\"\"\n    if len(x) != len(w):\n        raise ValueError(\"the window must match the signal length\")\n    return [a * b for a, b in zip(x, w)]\n\n\ndef moving_average(x, L):\n    \"\"\"An L-point causal moving average: the simplest low-pass filter.\"\"\"\n    if not isinstance(L, int) or L < 1:\n        raise ValueError(\"L must be a positive integer\")\n    out = []\n    for i in range(len(x)):\n        lo = max(0, i - L + 1)\n        chunk = x[lo:i + 1]\n        out.append(sum(chunk) / len(chunk))\n    return out\n\n\ndef first_difference(x):\n    \"\"\"The first difference: zero at DC, maximum at Nyquist.\"\"\"\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    return [x[0]] + [x[i] - x[i - 1] for i in range(1, len(x))]\n\n\ndef exponential_moving_average(x, alpha):\n    \"\"\"A one-pole IIR low pass: y[n] = a x[n] + (1-a) y[n-1].\"\"\"\n    if not 0 < alpha <= 1:\n        raise ValueError(\"alpha must lie in (0, 1]\")\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    out = [x[0]]\n    for v in x[1:]:\n        out.append(alpha * v + (1 - alpha) * out[-1])\n    return out\n\n\ndef frequency_response(taps, freq, fs):\n    \"\"\"|H(freq)| for an FIR filter with the given impulse response.\"\"\"\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n    if not taps:\n        raise ValueError(\"the filter must have taps\")\n    h = sum(t * cmath.exp(-2j * pi * freq * k / fs) for k, t in enumerate(taps))\n    return abs(h)\n\n\ndef leakage_ratio(spectrum, peak_bin, half=2):\n    \"\"\"The fraction of energy outside a few bins of the peak.\"\"\"\n    if not spectrum:\n        raise ValueError(\"the spectrum must be non-empty\")\n    total = sum(v * v for v in spectrum)\n    if total <= 0:\n        raise ValueError(\"the spectrum carries no energy\")\n    near = sum(spectrum[k] ** 2\n               for k in range(max(0, peak_bin - half),\n                              min(len(spectrum), peak_bin + half + 1)))\n    return 1.0 - near / total\n", "tests": "def test_window_shapes():\n    from math import pi, cos\n    assert rectangular_window(5) == [1.0] * 5\n    h = hann_window(8)\n    assert len(h) == 8\n    assert abs(h[0]) < 1e-12 and abs(h[-1]) < 1e-12, \"Hann reaches zero at both ends\"\n    # The peak is 1.0 only when a sample lands exactly on the midpoint, which\n    # needs an ODD length. At n = 8 the two central samples sit at 0.9505.\n    assert max(h) <= 1.0 + 1e-12\n    assert abs(max(h) - 0.950484) < 1e-5, max(h)\n    assert abs(max(hann_window(9)) - 1.0) < 1e-12, \"odd length hits the peak\"\n    assert all(abs(h[k] - h[7 - k]) < 1e-12 for k in range(8)), \"symmetric\"\n    hm = hamming_window(8)\n    assert abs(hm[0] - 0.08) < 1e-9, \"Hamming does NOT reach zero\"\n    assert all(abs(hm[k] - hm[7 - k]) < 1e-12 for k in range(8))\n    # a window only attenuates\n    assert all(0 <= v <= 1 + 1e-12 for v in h + hm)\n    assert apply_window([2.0, 4.0], [0.5, 0.25]) == [1.0, 1.0]\n    assert apply_window([1.0, 2.0, 3.0], rectangular_window(3)) == [1.0, 2.0, 3.0]\n    for bad in (lambda: hann_window(0), lambda: apply_window([1.0], [1.0, 2.0])):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_filters_do_what_their_names_say():\n    from math import pi, cos\n    fs = 100.0\n    n = 400\n    dc = [5.0] * n\n    nyq = [5.0 * (-1) ** k for k in range(n)]\n    # a moving average passes DC untouched and kills alternation\n    ma = moving_average(dc, 10)\n    assert all(abs(v - 5.0) < 1e-9 for v in ma), \"DC passes a low-pass filter\"\n    ma_n = moving_average(nyq, 10)\n    assert max(abs(v) for v in ma_n[20:]) < 1e-9, \"Nyquist is annihilated\"\n    # the first difference does the opposite\n    fd = first_difference(dc)\n    assert all(abs(v) < 1e-9 for v in fd[1:]), \"DC is removed by a high-pass\"\n    fd_n = first_difference(nyq)\n    assert min(abs(v) for v in fd_n[1:]) > 9.0, \"alternation is amplified\"\n    # the exponential moving average converges to the input level\n    ema = exponential_moving_average([0.0] * 5 + [10.0] * 200, 0.1)\n    assert abs(ema[-1] - 10.0) < 0.1\n    assert ema[6] < 5.0, \"it lags, which is the point\"\n    # a smaller alpha smooths harder and lags more\n    fast = exponential_moving_average([0.0] * 5 + [10.0] * 50, 0.5)\n    slow = exponential_moving_average([0.0] * 5 + [10.0] * 50, 0.05)\n    assert fast[12] > slow[12]\n    for bad in (lambda: moving_average([1.0], 0),\n                lambda: exponential_moving_average([1.0], 0.0),\n                lambda: exponential_moving_average([1.0], 1.5),\n                lambda: first_difference([])):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_frequency_response_and_leakage():\n    import cmath\n    from math import pi, cos\n    fs = 100.0\n    # a 10-point moving average has nulls at multiples of fs/L = 10 Hz\n    taps = [0.1] * 10\n    assert abs(frequency_response(taps, 0.0, fs) - 1.0) < 1e-9, \"unity at DC\"\n    for f in (10.0, 20.0, 30.0, 40.0):\n        assert frequency_response(taps, f, fs) < 1e-9, f\n    assert frequency_response(taps, 5.0, fs) > 0.0\n    # it attenuates monotonically up to the first null\n    r = [frequency_response(taps, f, fs) for f in (0.0, 2.0, 4.0, 6.0, 8.0)]\n    assert all(a > b for a, b in zip(r, r[1:])), r\n    # the first difference is zero at DC and maximal at Nyquist\n    d = [1.0, -1.0]\n    assert frequency_response(d, 0.0, fs) < 1e-12\n    assert abs(frequency_response(d, 50.0, fs) - 2.0) < 1e-9\n    # --- leakage: a bin-centred tone against one half a bin off ---\n    def _fft(x):\n        N = len(x)\n        if N == 1:\n            return [complex(x[0])]\n        e, o = _fft(x[0::2]), _fft(x[1::2])\n        out = [0j] * N\n        for k in range(N // 2):\n            t = cmath.exp(-2j * pi * k / N) * o[k]\n            out[k], out[k + N // 2] = e[k] + t, e[k] - t\n        return out\n\n    N = 256\n\n    def spec(freq, window):\n        sig = apply_window([cos(2 * pi * freq * k / N) for k in range(N)], window)\n        return [abs(v) for v in _fft([complex(v) for v in sig])[:N // 2]]\n\n    rect = rectangular_window(N)\n    on = spec(20.0, rect)\n    off = spec(20.5, rect)\n    off_h = spec(20.5, hann_window(N))\n    assert leakage_ratio(on, 20) < 1e-6, \"a bin-centred tone does not leak\"\n    assert leakage_ratio(off, 20) > 0.05, \"half a bin off, it leaks badly\"\n    assert leakage_ratio(off_h, 20) < leakage_ratio(off, 20), \\\n        \"a Hann window reduces the leakage\"\n    try:\n        leakage_ratio([0.0, 0.0], 0)\n        assert False, \"a zero spectrum must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["import cmath\nfrom math import pi, cos\n\n\ndef rectangular_window(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [1.0] * n\n\n\ndef hann_window(n):\n    \"\"\"Bug: adds the cosine instead of subtracting, inverting the window so it\n    is largest at the EDGES and zero in the middle - worse than no window.\"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    if n == 1:\n        return [1.0]\n    return [0.5 + 0.5 * cos(2 * pi * k / (n - 1)) for k in range(n)]\n\n\ndef hamming_window(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    if n == 1:\n        return [1.0]\n    return [0.54 - 0.46 * cos(2 * pi * k / (n - 1)) for k in range(n)]\n\n\ndef apply_window(x, w):\n    if len(x) != len(w):\n        raise ValueError(\"the window must match the signal length\")\n    return [a * b for a, b in zip(x, w)]\n\n\ndef moving_average(x, L):\n    if not isinstance(L, int) or L < 1:\n        raise ValueError(\"L must be a positive integer\")\n    out = []\n    for i in range(len(x)):\n        lo = max(0, i - L + 1)\n        chunk = x[lo:i + 1]\n        out.append(sum(chunk) / len(chunk))\n    return out\n\n\ndef first_difference(x):\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    return [x[0]] + [x[i] - x[i - 1] for i in range(1, len(x))]\n\n\ndef exponential_moving_average(x, alpha):\n    if not 0 < alpha <= 1:\n        raise ValueError(\"alpha must lie in (0, 1]\")\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    out = [x[0]]\n    for v in x[1:]:\n        out.append(alpha * v + (1 - alpha) * out[-1])\n    return out\n\n\ndef frequency_response(taps, freq, fs):\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n    if not taps:\n        raise ValueError(\"the filter must have taps\")\n    h = sum(t * cmath.exp(-2j * pi * freq * k / fs) for k, t in enumerate(taps))\n    return abs(h)\n\n\ndef leakage_ratio(spectrum, peak_bin, half=2):\n    if not spectrum:\n        raise ValueError(\"the spectrum must be non-empty\")\n    total = sum(v * v for v in spectrum)\n    if total <= 0:\n        raise ValueError(\"the spectrum carries no energy\")\n    near = sum(spectrum[k] ** 2\n               for k in range(max(0, peak_bin - half),\n                              min(len(spectrum), peak_bin + half + 1)))\n    return 1.0 - near / total\n", "import cmath\nfrom math import pi, cos\n\n\ndef rectangular_window(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [1.0] * n\n\n\ndef hann_window(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    if n == 1:\n        return [1.0]\n    return [0.5 - 0.5 * cos(2 * pi * k / (n - 1)) for k in range(n)]\n\n\ndef hamming_window(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    if n == 1:\n        return [1.0]\n    return [0.54 - 0.46 * cos(2 * pi * k / (n - 1)) for k in range(n)]\n\n\ndef apply_window(x, w):\n    if len(x) != len(w):\n        raise ValueError(\"the window must match the signal length\")\n    return [a * b for a, b in zip(x, w)]\n\n\ndef moving_average(x, L):\n    \"\"\"Bug: always divides by L, even in the first L-1 positions where fewer\n    samples are available, so the filter ramps up from zero and does not pass\n    DC cleanly.\"\"\"\n    if not isinstance(L, int) or L < 1:\n        raise ValueError(\"L must be a positive integer\")\n    out = []\n    for i in range(len(x)):\n        lo = max(0, i - L + 1)\n        out.append(sum(x[lo:i + 1]) / L)\n    return out\n\n\ndef first_difference(x):\n    \"\"\"Bug: differences forwards rather than backwards and drops a sample, so\n    the filter is not causal and the lengths disagree.\"\"\"\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    return [x[i + 1] - x[i] for i in range(len(x) - 1)] + [0.0]\n\n\ndef exponential_moving_average(x, alpha):\n    \"\"\"Bug: swaps the weights, so alpha controls the HISTORY rather than the\n    new sample and the filter responds backwards to its parameter.\"\"\"\n    if not 0 < alpha <= 1:\n        raise ValueError(\"alpha must lie in (0, 1]\")\n    if not x:\n        raise ValueError(\"the signal must be non-empty\")\n    out = [x[0]]\n    for v in x[1:]:\n        out.append((1 - alpha) * v + alpha * out[-1])\n    return out\n\n\ndef frequency_response(taps, freq, fs):\n    \"\"\"Bug: sums the taps without the phase factors, so the response is a\n    constant and shows no frequency dependence at all.\"\"\"\n    if fs <= 0:\n        raise ValueError(\"the sample rate must be positive\")\n    if not taps:\n        raise ValueError(\"the filter must have taps\")\n    return abs(sum(taps))\n\n\ndef leakage_ratio(spectrum, peak_bin, half=2):\n    if not spectrum:\n        raise ValueError(\"the spectrum must be non-empty\")\n    total = sum(v * v for v in spectrum)\n    if total <= 0:\n        raise ValueError(\"the spectrum carries no energy\")\n    near = sum(spectrum[k] ** 2\n               for k in range(max(0, peak_bin - half),\n                              min(len(spectrum), peak_bin + half + 1)))\n    return near / total\n"], "hints": ["A Hann window tapers to ZERO at both ends. Adding the cosine instead of subtracting inverts it.", "A frequency response needs the phase factors `exp(-2j*pi*f*k/fs)`. Summing the taps alone gives only the DC gain."], "level": "boss", "title": "Windowing, leakage and simple filters"}}, "demos": {"m39-fast-against-slow": {"code": "import cmath\nimport random\nfrom math import pi\n\nrng = random.Random(1805)\n\n\ndef dft(x):\n    \"\"\"The definition, directly: O(N^2).\"\"\"\n    N = len(x)\n    return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))\n            for k in range(N)]\n\n\ndef idft(X):\n    N = len(X)\n    return [sum(X[k] * cmath.exp(2j * pi * k * n / N) for k in range(N)) / N\n            for n in range(N)]\n\n\ndef fft(x):\n    \"\"\"Cooley-Tukey, radix 2.\"\"\"\n    N = len(x)\n    if N == 1:\n        return list(x)\n    if N & (N - 1):\n        raise ValueError(\"length must be a power of two\")\n    even = fft(x[0::2])\n    odd = fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = cmath.exp(-2j * pi * k / N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef ifft(X):\n    N = len(X)\n    conj = [z.conjugate() for z in X]\n    return [z.conjugate() / N for z in fft(conj)]\n\n\ndef close(a, b, tol=1e-9):\n    return all(abs(p - q) < tol for p, q in zip(a, b))\n\n\n# --- FFT against the definition ---\nprint(f\"{'N':>6} {'max |FFT - DFT|':>18} {'round trip error':>19}\")\nfor N in (2, 4, 8, 16, 64, 256):\n    x = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(N)]\n    a, b = fft(x), dft(x)\n    err = max(abs(p - q) for p, q in zip(a, b))\n    back = max(abs(p - q) for p, q in zip(ifft(fft(x)), x))\n    print(f\"{N:>6} {err:>18.3e} {back:>19.3e}\")\n    assert err < 1e-9, N\n    assert back < 1e-9, N\n\n# a hand-checkable case: the DFT of [1,0,0,0] is all ones\nassert close(fft([1, 0, 0, 0]), [1, 1, 1, 1])\n# and of a constant it is N at bin 0 and zero elsewhere\nassert close(fft([3, 3, 3, 3]), [12, 0, 0, 0])\n# a pure bin-1 sinusoid lands entirely in bins 1 and N-1\nN = 8\ntone = [cmath.exp(2j * pi * n / N).real for n in range(N)]\nspec = fft(tone)\nassert abs(abs(spec[1]) - N / 2) < 1e-9 and abs(abs(spec[7]) - N / 2) < 1e-9\nassert all(abs(spec[k]) < 1e-9 for k in (0, 2, 3, 4, 5, 6)), \\\n    \"a bin-centred tone occupies exactly two bins\"\n\n# --- the identities ---\nprint()\nx = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(32)]\ny = [complex(rng.gauss(0, 1), rng.gauss(0, 1)) for _ in range(32)]\nX, Y = fft(x), fft(y)\nenergy_time = sum(abs(v) ** 2 for v in x)\nenergy_freq = sum(abs(v) ** 2 for v in X) / len(x)\nprint(f\"Parseval: time {energy_time:.10f}, frequency {energy_freq:.10f}\")\nassert abs(energy_time - energy_freq) < 1e-9, \"energy is conserved\"\n# linearity\nassert close(fft([3 * a + 2 * b for a, b in zip(x, y)]),\n             [3 * a + 2 * b for a, b in zip(X, Y)])\n# the shift theorem\nm = 5\nshifted = x[-m:] + x[:-m]\nS = fft(shifted)\npred = [X[k] * cmath.exp(-2j * pi * k * m / len(x)) for k in range(len(x))]\nassert close(S, pred), \"a circular shift multiplies each bin by a phase\"\nprint(\"linearity, the shift theorem and Parseval all hold exactly\")\n# conjugate symmetry for a real input\nreal_x = [rng.gauss(0, 1) for _ in range(16)]\nR = fft(real_x)\nassert all(abs(R[16 - k] - R[k].conjugate()) < 1e-9 for k in range(1, 8)), \\\n    \"a real signal's spectrum mirrors about Nyquist\"\n\n# --- convolution: FFT against the honest double loop ---\nprint()\n\n\ndef convolve_slow(a, b):\n    out = [0.0] * (len(a) + len(b) - 1)\n    for i, av in enumerate(a):\n        for j, bv in enumerate(b):\n            out[i + j] += av * bv\n    return out\n\n\ndef convolve_fft(a, b):\n    n = 1\n    need = len(a) + len(b) - 1\n    while n < need:                       # zero-pad: without this it WRAPS\n        n *= 2\n    A = fft([complex(v) for v in a] + [0j] * (n - len(a)))\n    B = fft([complex(v) for v in b] + [0j] * (n - len(b)))\n    C = ifft([p * q for p, q in zip(A, B)])\n    return [c.real for c in C[:need]]\n\n\nfor trial in range(50):\n    a = [rng.gauss(0, 1) for _ in range(rng.randrange(2, 20))]\n    b = [rng.gauss(0, 1) for _ in range(rng.randrange(2, 20))]\n    s, f = convolve_slow(a, b), convolve_fft(a, b)\n    assert len(s) == len(f)\n    assert max(abs(p - q) for p, q in zip(s, f)) < 1e-9, (a, b)\nprint(\"FFT convolution agrees with the double loop on 50 random pairs\")\n\n# circular convolution is what the theorem actually states\nn = 8\na = [rng.gauss(0, 1) for _ in range(n)]\nb = [rng.gauss(0, 1) for _ in range(n)]\ncirc = [sum(a[m] * b[(k - m) % n] for m in range(n)) for k in range(n)]\nviafft = ifft([p * q for p, q in zip(fft([complex(v) for v in a]),\n                                     fft([complex(v) for v in b]))])\nassert max(abs(c - v.real) for c, v in zip(circ, viafft)) < 1e-9, \\\n    \"the convolution theorem is about CIRCULAR convolution\"\n\n# --- polynomial multiplication, checked against exact integer arithmetic ---\nprint()\n\n\ndef poly_mul_exact(p, q):\n    out = [0] * (len(p) + len(q) - 1)\n    for i, a in enumerate(p):\n        for j, b in enumerate(q):\n            out[i + j] += a * b\n    return out\n\n\nfor trial in range(30):\n    p = [rng.randrange(-20, 21) for _ in range(rng.randrange(2, 16))]\n    q = [rng.randrange(-20, 21) for _ in range(rng.randrange(2, 16))]\n    exact = poly_mul_exact(p, q)\n    viafft = [round(v) for v in convolve_fft(p, q)]\n    assert exact == viafft, (p, q, exact, viafft)\nprint(\"FFT polynomial multiplication matches exact integer arithmetic on 30 pairs\")\nprint(f\"  example: (x+2)(x+3) coefficients -> \"\n      f\"{[round(v) for v in convolve_fft([2, 1], [3, 1])]}  (expect [6, 5, 1])\")\nassert [round(v) for v in convolve_fft([2, 1], [3, 1])] == [6, 5, 1]\n", "mutants": ["import cmath\nimport random\nfrom math import pi\n\nrng = random.Random(1805)\n\n\ndef fft(x):\n    N = len(x)\n    if N == 1:\n        return list(x)\n    even = fft(x[0::2])\n    odd = fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = cmath.exp(-2j * pi * k / N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef ifft(X):\n    N = len(X)\n    conj = [z.conjugate() for z in X]\n    return [z.conjugate() / N for z in fft(conj)]\n\n\ndef convolve_slow(a, b):\n    out = [0.0] * (len(a) + len(b) - 1)\n    for i, av in enumerate(a):\n        for j, bv in enumerate(b):\n            out[i + j] += av * bv\n    return out\n\n\ndef convolve_fft(a, b):\n    \"\"\"Bug: pads only to the length of the longer input instead of to\n    len(a)+len(b)-1, so the tail wraps around and corrupts the start.\"\"\"\n    n = 1\n    while n < max(len(a), len(b)):\n        n *= 2\n    A = fft([complex(v) for v in a] + [0j] * (n - len(a)))\n    B = fft([complex(v) for v in b] + [0j] * (n - len(b)))\n    C = ifft([p * q for p, q in zip(A, B)])\n    need = len(a) + len(b) - 1\n    return [C[i % n].real for i in range(need)]\n\n\nfor trial in range(50):\n    a = [rng.gauss(0, 1) for _ in range(rng.randrange(2, 20))]\n    b = [rng.gauss(0, 1) for _ in range(rng.randrange(2, 20))]\n    s, f = convolve_slow(a, b), convolve_fft(a, b)\n    assert max(abs(p - q) for p, q in zip(s, f)) < 1e-9, \"wrap-around corruption\"\nprint(\"all 50 pairs agreed\")\n"]}, "m39-aliasing-and-leakage": {"code": "import cmath\nfrom math import pi, sin, cos\n\n\ndef fft(x):\n    N = len(x)\n    if N == 1:\n        return list(x)\n    even = fft(x[0::2])\n    odd = fft(x[1::2])\n    out = [0j] * N\n    for k in range(N // 2):\n        t = cmath.exp(-2j * pi * k / N) * odd[k]\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out\n\n\ndef dft(x):\n    N = len(x)\n    return [sum(x[n] * cmath.exp(-2j * pi * k * n / N) for n in range(N))\n            for k in range(N)]\n\n\n# --- 1. Kiran's dashboard ---\nFS = 100.0\nN = 512\nt = [n / FS for n in range(N)]\ntrue_98 = [cos(2 * pi * 98 * tn) for tn in t]\nphantom_2 = [cos(2 * pi * 2 * tn) for tn in t]\n\nprint(\"a 98 Hz vibration and a 2 Hz wobble, both sampled at 100 Hz\")\nprint(f\"{'n':>4} {'98 Hz sample':>16} {'2 Hz sample':>16} {'difference':>14}\")\nfor n in (0, 1, 2, 37, 511):\n    print(f\"{n:>4} {true_98[n]:>16.12f} {phantom_2[n]:>16.12f} \"\n          f\"{abs(true_98[n] - phantom_2[n]):>14.2e}\")\nworst = max(abs(a - b) for a, b in zip(true_98, phantom_2))\nprint(f\"largest difference over all {N} samples: {worst:.3e}\")\nprint()\nprint(\"predicted: the two signals give IDENTICAL samples, so no algorithm can\")\nprint(\"           tell them apart. The information is gone, not hidden.\")\nassert worst < 1e-9, \"they must agree to floating-point precision\"\n\nspec98 = fft([complex(v) for v in true_98])\nspec2 = fft([complex(v) for v in phantom_2])\nassert max(abs(a - b) for a, b in zip(spec98, spec2)) < 1e-7, \\\n    \"identical samples must give identical spectra\"\npeak = max(range(1, N // 2), key=lambda k: abs(spec98[k]))\nprint(f\"measured : the peak of the 98 Hz recording sits at bin {peak} = \"\n      f\"{peak * FS / N:.2f} Hz\")\nassert abs(peak * FS / N - 2.0) < 0.3, \"the dashboard reports 2 Hz\"\n\n# --- 2. the Nyquist cliff ---\nprint()\n\n\ndef apparent(f, fs):\n    return abs(f - fs * round(f / fs))\n\n\ndef measured_peak(f, fs=FS, n=1024):\n    sig = [complex(cos(2 * pi * f * k / fs)) for k in range(n)]\n    sp = fft(sig)\n    kk = max(range(1, n // 2), key=lambda k: abs(sp[k]))\n    return kk * fs / n\n\n\nprint(f\"sampling at {FS:.0f} Hz, so Nyquist is {FS / 2:.0f} Hz\")\nprint(f\"{'true f':>9} {'predicted':>11} {'measured':>10} {'faithful?':>11}\")\nfor f in (10.0, 30.0, 49.0, 51.0, 70.0, 98.0, 130.0):\n    pred = apparent(f, FS)\n    got = measured_peak(f)\n    faithful = abs(got - f) < 0.2\n    print(f\"{f:>9.1f} {pred:>11.1f} {got:>10.2f} {str(faithful):>11}\")\n    assert abs(got - pred) < 0.2, (f, pred, got)\n    if f < FS / 2:\n        assert faithful, f\"{f} is below Nyquist and must be reported correctly\"\n    else:\n        assert not faithful, f\"{f} is above Nyquist and must fold\"\nprint()\nprint(\"predicted: exact below fs/2, folded above it, with the fold at |f - m*fs|\")\n\n# --- 3. leakage and windowing ---\nprint()\nN = 256\nfs = 256.0\n\n\ndef spectrum(freq, window=None):\n    sig = [cos(2 * pi * freq * n / fs) for n in range(N)]\n    if window:\n        sig = [s * w for s, w in zip(sig, window)]\n    sp = fft([complex(v) for v in sig])\n    return [abs(v) for v in sp[:N // 2]]\n\n\nrect = [1.0] * N\nhann = [0.5 - 0.5 * cos(2 * pi * n / (N - 1)) for n in range(N)]\n\non_bin = spectrum(20.0)                 # bin 20 exactly\noff_bin = spectrum(20.5)                # halfway between bins\noff_hann = spectrum(20.5, hann)\n\n\ndef concentration(sp, centre, half=2):\n    \"\"\"Fraction of the energy within a few bins of the peak.\"\"\"\n    tot = sum(v * v for v in sp)\n    near = sum(sp[k] ** 2 for k in range(max(0, centre - half),\n                                         min(len(sp), centre + half + 1)))\n    return near / tot\n\n\nprint(f\"{'case':>28} {'peak bin':>9} {'energy within 2 bins':>22} \"\n      f\"{'leak at bin 60':>16}\")\nfor name, sp in ((\"20.0 Hz, rectangular\", on_bin),\n                 (\"20.5 Hz, rectangular\", off_bin),\n                 (\"20.5 Hz, Hann\", off_hann)):\n    pk = max(range(len(sp)), key=lambda k: sp[k])\n    print(f\"{name:>28} {pk:>9} {concentration(sp, pk):>22.4f} \"\n          f\"{sp[60] / max(sp):>16.5f}\")\n\nprint()\nprint(\"predicted: a bin-centred tone is perfectly contained; half a bin off it\")\nprint(\"           leaks everywhere; a Hann window cuts the distant leakage\")\nassert concentration(on_bin, 20) > 0.999, \"a bin-centred tone occupies one bin\"\nassert concentration(off_bin, 20) < 0.95, \"off-centre, energy escapes\"\nassert off_bin[60] / max(off_bin) > 10 * off_hann[60] / max(off_hann), \\\n    \"Hann must cut the far sidelobes by an order of magnitude\"\n# and the price: the Hann main lobe is wider\nw_rect = sum(1 for v in on_bin if v > 0.5 * max(on_bin))\nw_hann = sum(1 for v in spectrum(20.0, hann) if v > 0.5 * max(spectrum(20.0, hann)))\nprint(f\"measured : main lobe width, rectangular {w_rect} bin(s), \"\n      f\"Hann {w_hann} bin(s) - that is the price\")\nassert w_hann > w_rect, \"better sidelobes cost resolution; there is no free lunch\"\n\n# --- 4. the FFT really is O(N log N) ---\n# Counting operations rather than seconds: the count is exact and identical on\n# every machine, where a wall-clock timing is neither.\nprint()\n\n\ndef dft_counted(x):\n    \"\"\"The definition, counting one complex multiply per term.\"\"\"\n    N = len(x)\n    mults = 0\n    out = []\n    for k in range(N):\n        acc = 0j\n        for n in range(N):\n            acc += x[n] * cmath.exp(-2j * pi * k * n / N)\n            mults += 1\n        out.append(acc)\n    return out, mults\n\n\ndef fft_counted(x):\n    \"\"\"Cooley-Tukey, counting the twiddle multiplications.\"\"\"\n    N = len(x)\n    if N == 1:\n        return [complex(x[0])], 0\n    even, me = fft_counted(x[0::2])\n    odd, mo = fft_counted(x[1::2])\n    out = [0j] * N\n    mults = me + mo\n    for k in range(N // 2):\n        t = cmath.exp(-2j * pi * k / N) * odd[k]\n        mults += 1\n        out[k] = even[k] + t\n        out[k + N // 2] = even[k] - t\n    return out, mults\n\n\nfrom math import log2\n\nprint(f\"{'N':>6} {'DFT multiplies':>16} {'FFT multiplies':>16} {'ratio':>8} \"\n      f\"{'DFT/N^2':>9} {'FFT/(N log2 N)':>16}\")\ndm, fm = {}, {}\nfor N in (8, 16, 64, 256):\n    x = [complex(n % 7, n % 3) for n in range(N)]\n    a, dm[N] = dft_counted(x)\n    b, fm[N] = fft_counted(x)\n    assert max(abs(p - q) for p, q in zip(a, b)) < 1e-9, \"and they agree\"\n    print(f\"{N:>6} {dm[N]:>16} {fm[N]:>16} {dm[N] / fm[N]:>8.1f} \"\n          f\"{dm[N] / N ** 2:>9.2f} {fm[N] / (N * log2(N)):>16.2f}\")\n\nprint()\nprint(\"predicted: the DFT does exactly N^2 multiplies and the FFT exactly\")\nprint(\"           (N/2) log2(N), so the normalised columns are flat constants\")\nfor N in (8, 16, 64, 256):\n    assert dm[N] == N * N, (N, dm[N])\n    assert fm[N] == (N // 2) * int(log2(N)), (N, fm[N])\nassert all(abs(dm[N] / N ** 2 - 1.0) < 1e-12 for N in (8, 16, 64, 256))\nassert all(abs(fm[N] / (N * log2(N)) - 0.5) < 1e-12 for N in (8, 16, 64, 256))\n# the advantage grows without bound\nassert dm[256] / fm[256] > dm[8] / fm[8]\nprint(f\"measured : the saving grew from {dm[8] / fm[8]:.1f}x at N = 8 to \"\n      f\"{dm[256] / fm[256]:.1f}x at N = 256, and keeps growing\")\n", "mutants": ["from math import pi, cos\n\n# Wrong theory: \"sampling at twice the highest frequency ALWAYS reconstructs\n# the signal, so a 98 Hz tone at 100 Hz samples is simply a bit noisy.\"\nFS = 100.0\nN = 512\nt = [n / FS for n in range(N)]\ntrue_98 = [cos(2 * pi * 98 * tn) for tn in t]\nphantom_2 = [cos(2 * pi * 2 * tn) for tn in t]\n\nworst = max(abs(a - b) for a, b in zip(true_98, phantom_2))\nprint(f\"largest difference between the 98 Hz and 2 Hz sample sets: {worst:.3e}\")\n# If aliasing merely added noise, the two sample sets would still be\n# distinguishable - some sample, somewhere, would differ appreciably.\nassert worst > 1e-3, \"the 98 Hz signal should be distinguishable from a 2 Hz one\"\n"]}}, "cards": [{"q": "What does Fourier's theorem claim?", "a": "Any reasonable periodic signal is a unique sum of sinusoids, and the representation loses nothing \u2014 you can move between signal and coefficients freely."}, {"q": "Why do the DFT coefficients come out unique?", "a": "Orthogonality: the sum over n of exp(2*pi*i*(j-k)*n/N) is N when j = k and 0 otherwise, because otherwise it is a geometric series whose numerator vanishes."}, {"q": "State the Cooley-Tukey split.", "a": "X[k] = E[k] + w^k O[k] and X[k+N/2] = E[k] - w^k O[k], where E and O are the DFTs of the even and odd indexed samples. It works because w_N^2 = w_(N/2) and w^(k+N/2) = -w^k."}, {"q": "Why is the FFT O(N log N)?", "a": "T(N) = 2T(N/2) + O(N), which the Master theorem solves to O(N log N)."}, {"q": "State the convolution theorem and its catch.", "a": "DFT(x circularly-convolved y) = DFT(x) * DFT(y) pointwise. The catch is that it is CIRCULAR \u2014 linear convolution needs zero-padding to len(a)+len(b)-1."}, {"q": "State the Nyquist-Shannon sampling theorem.", "a": "A signal with no energy above f_max is perfectly reconstructible from samples at a rate STRICTLY greater than 2*f_max."}, {"q": "What is the apparent frequency of an aliased tone?", "a": "|f - fs * round(f/fs)|. A 98 Hz tone sampled at 100 Hz appears at 2 Hz."}, {"q": "Why can aliasing not be undone in software?", "a": "Because f and f + m*fs give EXACTLY equal sample values \u2014 2*pi*m*n is a whole number of turns. The mapping is not injective, so no inverse exists."}, {"q": "What causes spectral leakage?", "a": "A finite recording multiplies the signal by a window, and multiplication in time is convolution in frequency, so each spectral line is smeared by the window's transform."}, {"q": "What do window functions trade?", "a": "Main-lobe width (resolution) against sidelobe level (leakage). Rectangular has the narrowest lobe and the worst sidelobes at -13 dB; Hann is twice as wide at -31 dB."}, {"q": "Does zero-padding improve frequency resolution?", "a": "No. It interpolates the spectrum onto a finer grid. Resolution is 1/T and only a longer recording improves it."}, {"q": "Name the simplest low-pass and high-pass filters and their nulls.", "a": "An L-point moving average is low-pass with nulls at multiples of fs/L. The first difference is high-pass, zero at DC and maximal at Nyquist."}], "title": "Fourier analysis and signals"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

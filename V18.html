@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V18 Reading and reproducing papers</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V18">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · Grad · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V18</p><h1>Reading and reproducing papers</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V09.html">V09</a> <a href="V05.html">V05</a></div><div><b>Covers:</b> research methods</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>the anatomy of a paper</li><li>three-pass reading</li><li>extracting the claims</li><li>checking a paper&#x27;s statistics</li><li>reproducing a result (data, code, environment)</li><li>reproduction vs replication</li><li>reporting discrepancies</li><li>reading related work</li><li>keeping a research log</li><li>reading a proof line by line</li><li>meta-analysis idea: pooling effect sizes, forest plots, heterogeneity</li><li>ACM artifact badges and the repeatability, reproducibility and replicability distinction</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In a grand coastal astronomical observatory overlooking rocky cliffs, a young student rushes into the library holding a newly printed research treatise from an overseas academy. The treatise claims that on the winter solstice, a brilliant new blue star appeared directly inside the constellation of the Scorpion, outshining every celestial body in the southern sky!</p>
+<p>The student shouts with awe: "Professor! A newly discovered star! The treatise has fifty pages of equations and twelve engraved illustrations! It will revolutionize all our navigational charts!"</p>
+<p>The old observatory director adjusts his spectacles and does not look at the illustrations. Instead, he asks four quiet questions: "Did the authors publish their telescope aperture and lens curvature? Did they log the atmospheric humidity on that night? Did they record their raw angular measurements? Did they provide the mathematical derivation for their atmospheric refraction correction?"</p>
+<p>The student hesitates: "They... they said their observations were confirmed by the academy's senior astronomer!"</p>
+<p>The director walks to the brass telescope, points it to the exact sky coordinates, and invites the student to look through the eyepiece. The sky is pitch black. "A scientific paper," the director explains, "is not sacred scripture to be believed. It is an engineering blueprint. When an author publishes a claim, they are handing you a recipe and challenging you to bake the bread in your own oven. If their recipe cannot produce bread in our kitchen, they have not discovered a star—they have only described a speck of dust on their own telescope lens."</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Reading scientific and technical papers is an active auditing skill, not passive consumption. Keshav's three-pass method structures reading: pass one surveys the big picture, pass two grasps the core content and evidence, and pass three virtually re-implements the work to find hidden assumptions. Replicating results requires auditing statistical calculations, distinguishing between repeatability, reproducibility, and replicability (ACM standards), and synthesizing multiple studies through meta-analysis to evaluate effect sizes and heterogeneity.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $P = (H, D, M, C)$ be a research paper with hypotheses $H$, empirical data $D$, methodology $M$, and claims $C$.
+1. <strong>ACM Artifact Terminology:</strong>
+   - <strong>Repeatability:</strong> Same team, same experimental setup (author replicates own result).
+   - <strong>Reproducibility:</strong> Different team, same experimental setup (independent team runs author artifacts on identical setup).
+   - <strong>Replicability:</strong> Different team, different experimental setup (independent team gathers fresh data or builds new implementation).
+2. <strong>Statistical Moment Verification:</strong> For independent two-sample comparison with $(m_1, s_1, n_1)$ and $(m_2, s_2, n_2)$:
+   $$s_p = \sqrt{\frac{(n_1-1)s_1^2 + (n_2-1)s_2^2}{n_1 + n_2 - 2}}, \quad t = \frac{m_1 - m_2}{s_p \sqrt{1/n_1 + 1/n_2}}, \quad df = n_1 + n_2 - 2$$
+   Two-tailed $p$-value is $2(1 - F_{t, df}(|t|))$. Discrepancies between reported and recomputed statistics indicate transcription error or selective reporting.
+3. <strong>Fixed-Effects Inverse-Variance Meta-Analysis:</strong> For $k$ studies with effect sizes $y_i$ and standard errors $SE_i$, weights are $w_i = \frac{1}{SE_i^2}$.
+   $$\hat{\theta} = \frac{\sum w_i y_i}{\sum w_i}, \quad SE(\hat{\theta}) = \frac{1}{\sqrt{\sum w_i}}, \quad Q = \sum_{i=1}^k w_i(y_i - \hat{\theta})^2, \quad I^2 = \max\left(0, \frac{Q - (k-1)}{Q}\right) \times 100\%$$</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why do an estimated fifty to seventy percent of published empirical software engineering and computer science papers fail to replicate? Large-scale reproducibility investigations (such as Collberg et al.'s analysis of ACM/IEEE papers) revealed that over half of published artifacts cannot even be compiled due to missing third-party dependencies, unpinned compiler versions, undocumented platform assumptions, and missing scripts.</p>
+<p>Furthermore, published scientific literature suffers from severe publication bias (the "File Drawer Effect"): journals disproportionately accept papers showing positive $p &lt; 0.05$ results while rejecting null findings. As a consequence:
+1. <strong>P-hacking and HARKing:</strong> Researchers hypothesize after results are known (HARKing) or adjust sample sizes until $p$ dips just below $0.05$.
+2. <strong>Statistical Incoherence:</strong> Over 12% of published psychological and engineering papers contain reporting inconsistencies where reported test statistics, degrees of freedom, and $p$-values are mathematically incompatible.</p>
+<p>Auditing literature systematically using Keshav's Three-Pass Method guards against these pitfalls:
+- <strong>Pass 1:</strong> Rapid 10-minute scan of title, abstract, section headings, and conclusions to categorize the paper and determine relevance.
+- <strong>Pass 2:</strong> Deep 1-hour scan inspecting figures, tables, error bars, and mathematical formulations, marking unclear concepts.
+- <strong>Pass 3:</strong> Multi-hour virtual reconstruction: re-implementing key algorithms or proofs step by step, identifying implicit assumptions.</p>
+<p>Finally, when multiple independent replications exist, meta-analysis pools effect sizes using inverse-variance weights, transforming scattered noisy studies into rigorous scientific consensus.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The test oracle for paper verification recomputes two-sample t-test statistics and p-values directly from reported sample moments, verifying whether reported statistical claims are mathematically sound. In the demonstration below, we audit a reported claim comparing two garbage collection algorithms. A broken mutant auditor that miscalculates degrees of freedom or pooled variance is caught instantly by the assertion engine.</p>
+<div class="lab demo" data-demo="oracle-stat-audit-ttest">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Mathematical recomputation and audit of reported t-test statistics</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+from scipy import stats
+
+def audit_ttest_reported(m1: float, s1: float, n1: int, m2: float, s2: float, n2: int, 
+                        reported_t: float, reported_p: float, tol: float = 0.01) -&gt; dict:
+    if n1 &lt;= 1 or n2 &lt;= 1:
+        raise ValueError(&quot;Sample sizes must be greater than 1&quot;)
+    
+    df = n1 + n2 - 2
+    # Pooled variance
+    sp2 = ((n1 - 1) * (s1 ** 2) + (n2 - 1) * (s2 ** 2)) / df
+    sp = math.sqrt(sp2)
+    se_diff = sp * math.sqrt(1.0 / n1 + 1.0 / n2)
+    
+    computed_t = (m1 - m2) / se_diff
+    computed_p = 2.0 * (1.0 - stats.t.cdf(abs(computed_t), df))
+    
+    t_match = abs(computed_t - reported_t) &lt;= tol
+    p_match = abs(computed_p - reported_p) &lt;= tol
+    
+    return {
+        &#x27;computed_t&#x27;: round(float(computed_t), 4),
+        &#x27;computed_p&#x27;: round(float(computed_p), 4),
+        &#x27;is_statistically_coherent&#x27;: bool(t_match and p_match)
+    }
+
+# Paper reports: Group 1 (m=25.0, s=4.0, n=30), Group 2 (m=20.0, s=4.5, n=30), t=4.549, p=0.00003
+res = audit_ttest_reported(25.0, 4.0, 30, 20.0, 4.5, 30, 4.549, 0.00003)
+assert res[&#x27;is_statistically_coherent&#x27;] is True
+assert abs(res[&#x27;computed_t&#x27;] - 4.549) &lt; 0.01
+print(f&quot;Paper statistics verified: t={res[&#x27;computed_t&#x27;]}, p={res[&#x27;computed_p&#x27;]}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical meta-analysis experiment pooling effect sizes across six independent replication studies evaluating an optimizing compiler pass. We compute individual study weights using inverse-variance weighting, determine the pooled effect size and 95% confidence interval, and evaluate Cochran's Q and Higgins' I-squared to rigorously measure between-study heterogeneity and statistical consistency across independent software deployment platforms.</p>
+<div class="lab demo" data-demo="exp-meta-analysis-pooling">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Inverse-variance fixed-effects meta-analysis and heterogeneity audit</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+from scipy import stats
+
+def meta_analysis_pool(studies: list[dict]) -&gt; dict:
+    # Each study: {&#x27;name&#x27;: str, &#x27;effect&#x27;: float, &#x27;se&#x27;: float}
+    k = len(studies)
+    if k &lt; 2:
+        raise ValueError(&quot;Meta-analysis requires at least 2 studies&quot;)
+
+    weights = [1.0 / (s[&#x27;se&#x27;] ** 2) for s in studies]
+    sum_w = sum(weights)
+    pooled_effect = sum(w * s[&#x27;effect&#x27;] for w, s in zip(weights, studies)) / sum_w
+    pooled_se = 1.0 / math.sqrt(sum_w)
+
+    # Cochran&#x27;s Q
+    Q = sum(w * ((s[&#x27;effect&#x27;] - pooled_effect) ** 2) for w, s in zip(weights, studies))
+    df = k - 1
+    p_heterogeneity = 1.0 - stats.chi2.cdf(Q, df)
+    
+    # Higgins&#x27; I^2
+    I2 = max(0.0, (Q - df) / Q) * 100.0 if Q &gt; 0 else 0.0
+
+    z_crit = 1.96
+    ci_lower = pooled_effect - z_crit * pooled_se
+    ci_upper = pooled_effect + z_crit * pooled_se
+
+    return {
+        &#x27;pooled_effect&#x27;: round(float(pooled_effect), 4),
+        &#x27;pooled_se&#x27;: round(float(pooled_se), 4),
+        &#x27;ci_95&#x27;: (round(float(ci_lower), 4), round(float(ci_upper), 4)),
+        &#x27;Q&#x27;: round(float(Q), 4),
+        &#x27;p_heterogeneity&#x27;: round(float(p_heterogeneity), 4),
+        &#x27;I2_pct&#x27;: round(float(I2), 2)
+    }
+
+# 4 replication studies measuring percentage throughput gain
+studies = [
+    {&#x27;name&#x27;: &#x27;Study A&#x27;, &#x27;effect&#x27;: 12.0, &#x27;se&#x27;: 2.0},
+    {&#x27;name&#x27;: &#x27;Study B&#x27;, &#x27;effect&#x27;: 14.5, &#x27;se&#x27;: 2.5},
+    {&#x27;name&#x27;: &#x27;Study C&#x27;, &#x27;effect&#x27;: 11.0, &#x27;se&#x27;: 1.8},
+    {&#x27;name&#x27;: &#x27;Study D&#x27;, &#x27;effect&#x27;: 13.0, &#x27;se&#x27;: 2.2},
+]
+
+res = meta_analysis_pool(studies)
+print(f&quot;Pooled Effect: {res[&#x27;pooled_effect&#x27;]}% (95% CI: {res[&#x27;ci_95&#x27;]})&quot;)
+print(f&quot;Heterogeneity Q: {res[&#x27;Q&#x27;]} (p={res[&#x27;p_heterogeneity&#x27;]}), I^2: {res[&#x27;I2_pct&#x27;]}%&quot;)
+assert res[&#x27;pooled_effect&#x27;] &gt; 11.0
+assert res[&#x27;I2_pct&#x27;] &lt; 50.0  # Low heterogeneity
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-acm-badge-classifier" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Classify experimental reproducibility according to ACM standards</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>classify_acm_artifact_badge(same_team, same_artifact, same_setup)</code> to map an experimental audit into official ACM artifact categories:
+Inputs:
+- <code>same_team</code>: Boolean indicating if experiment was conducted by original authors (<code>True</code>) or independent team (<code>False</code>).
+- <code>same_artifact</code>: Boolean indicating if author-supplied code/data artifacts were used (<code>True</code>) or independently implemented (<code>False</code>).
+- <code>same_setup</code>: Boolean indicating if identical experimental hardware/OS environment was used (<code>True</code>) or different environment (<code>False</code>).</p>
+<p>Rules:
+1. <code>'REPEATABILITY'</code>: <code>same_team == True</code> and <code>same_artifact == True</code> and <code>same_setup == True</code>.
+2. <code>'REPRODUCIBILITY'</code>: <code>same_team == False</code> and <code>same_artifact == True</code> and <code>same_setup == True</code>.
+3. <code>'REPLICATION'</code>: <code>same_team == False</code> and <code>same_artifact == False</code> (regardless of setup).
+4. <code>'NON_CONFORMING'</code>: Any other configuration (e.g. original team using different setup or artifacts, or independent team with same artifact on different setup).
+Return a string equal to one of these four classifications.</p></div>
+<textarea class="code" spellcheck="false">def classify_acm_artifact_badge(same_team, same_artifact, same_setup):
+    # Classifies experimental audit into ACM reproducibility badges
+    return &quot;&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_acm_repeatability():
+    assert classify_acm_artifact_badge(True, True, True) == &#x27;REPEATABILITY&#x27;
+
+def test_acm_reproducibility():
+    assert classify_acm_artifact_badge(False, True, True) == &#x27;REPRODUCIBILITY&#x27;
+
+def test_acm_replication():
+    assert classify_acm_artifact_badge(False, False, True) == &#x27;REPLICATION&#x27;
+    assert classify_acm_artifact_badge(False, False, False) == &#x27;REPLICATION&#x27;
+
+def test_acm_non_conforming():
+    # Same team running different artifacts
+    assert classify_acm_artifact_badge(True, False, True) == &#x27;NON_CONFORMING&#x27;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-three-pass-reader" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Three-pass scientific literature extraction model</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>extract_three_pass(paper_metadata)</code> that processes paper metadata and extracts key information following Keshav's Three-Pass reading method:
+Inputs:
+- <code>paper_metadata</code>: Dictionary containing:
+  - <code>'title'</code>: str
+  - <code>'abstract'</code>: str
+  - <code>'sections'</code>: list of str section headers
+  - <code>'figures'</code>: list of str figure captions
+  - <code>'conclusions'</code>: str
+  - <code>'has_reproducibility_package'</code>: bool</p>
+<p>Requirements:
+Return a dictionary:
+1. <code>'pass_1'</code>: Dict containing:
+   - <code>'category'</code>: Detected category string: <code>'EMPIRICAL'</code> (if section contains 'evaluation' or 'benchmark'), <code>'THEORETICAL'</code> (if section contains 'proof' or 'theorem'), else <code>'DESCRIPTIVE'</code>. (Case-insensitive check).
+   - <code>'has_conclusion'</code>: Boolean <code>True</code> if <code>'conclusions'</code> is non-empty.
+   - <code>'read_time_minutes'</code>: Integer 10.
+2. <code>'pass_2'</code>: Dict containing:
+   - <code>'figure_count'</code>: Integer count of figures.
+   - <code>'reproducible'</code>: Boolean value of <code>has_reproducibility_package</code>.
+   - <code>'read_time_minutes'</code>: Integer 60.
+3. <code>'pass_3'</code>: Dict containing:
+   - <code>'recommended_action'</code>: <code>'FULL_REIMPLEMENTATION'</code> if <code>has_reproducibility_package</code> is True and category is <code>'EMPIRICAL'</code>, else <code>'READ_CRITICALLY'</code>.
+   - <code>'read_time_minutes'</code>: Integer 240.
+Raise <code>ValueError</code> if <code>title</code> or <code>abstract</code> is empty.</p></div>
+<textarea class="code" spellcheck="false">def extract_three_pass(paper_metadata):
+    # Extracts structured three-pass reading model
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_three_pass_empirical():
+    meta = {
+        &#x27;title&#x27;: &#x27;Fast SQLite Sync&#x27;,
+        &#x27;abstract&#x27;: &#x27;We improve mobile sync throughput.&#x27;,
+        &#x27;sections&#x27;: [&#x27;Introduction&#x27;, &#x27;Architecture&#x27;, &#x27;Benchmark Evaluation&#x27;, &#x27;Conclusion&#x27;],
+        &#x27;figures&#x27;: [&#x27;Fig 1: Throughput&#x27;, &#x27;Fig 2: Latency&#x27;],
+        &#x27;conclusions&#x27;: &#x27;Our sync is fast.&#x27;,
+        &#x27;has_reproducibility_package&#x27;: True
+    }
+    res = extract_three_pass(meta)
+    assert res[&#x27;pass_1&#x27;][&#x27;category&#x27;] == &#x27;EMPIRICAL&#x27;
+    assert res[&#x27;pass_1&#x27;][&#x27;has_conclusion&#x27;] is True
+    assert res[&#x27;pass_2&#x27;][&#x27;figure_count&#x27;] == 2
+    assert res[&#x27;pass_3&#x27;][&#x27;recommended_action&#x27;] == &#x27;FULL_REIMPLEMENTATION&#x27;
+
+def test_three_pass_theoretical():
+    meta = {
+        &#x27;title&#x27;: &#x27;Decidable Hoare Logic&#x27;,
+        &#x27;abstract&#x27;: &#x27;Proof of completeness.&#x27;,
+        &#x27;sections&#x27;: [&#x27;Intro&#x27;, &#x27;Core Calculus&#x27;, &#x27;Proof of Theorem 1&#x27;],
+        &#x27;has_reproducibility_package&#x27;: False
+    }
+    res = extract_three_pass(meta)
+    assert res[&#x27;pass_1&#x27;][&#x27;category&#x27;] == &#x27;THEORETICAL&#x27;
+    assert res[&#x27;pass_3&#x27;][&#x27;recommended_action&#x27;] == &#x27;READ_CRITICALLY&#x27;
+
+def test_three_pass_empty_title():
+    try:
+        extract_three_pass({&#x27;title&#x27;: &#x27;&#x27;, &#x27;abstract&#x27;: &#x27;Valid&#x27;})
+        assert False, &quot;Should raise ValueError for empty title&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-grim-test-checker" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>GRIM test for reported mean plausibility on discrete Likert scales</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>grim_test_checker(reported_mean, sample_size, scale_min=1, scale_max=7, decimals=2)</code>:
+The GRIM (Granularity-Related Inconsistency of Means) test verifies whether a reported mean of discrete integer responses could mathematically exist.
+Mathematical Rule:
+If $N$ participants answer on an integer scale from $S_{\min}$ to $S_{\max}$, the sum of their responses must be an exact integer $T \in [N \cdot S_{\min}, N \cdot S_{\max}]$.
+Therefore, the true mean must be $\bar{X} = \frac{T}{N}$.
+For a reported mean rounded to $D$ decimal places, it is <strong>GRIM-consistent</strong> if and only if there exists an integer $T$ such that:
+$$\left|\text{round}\left(\frac{T}{N}, D\right) - \text{reported\_mean}\right| == 0$$
+Requirements:
+1. <code>sample_size</code> must be positive integer; <code>reported_mean</code> must lie within $[scale\_min, scale\_max]$. Raise <code>ValueError</code> on violation.
+2. Check whether any valid integer sum $T \in [N \cdot S_{\min}, N \cdot S_{\max}]$ produces the reported mean when rounded to $D$ decimal places.
+3. Return dictionary:
+   <code>{'is_grim_consistent': bool, 'possible_integer_sums': [matching_T_values], 'granularity': round(1.0 / sample_size, 4)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def grim_test_checker(reported_mean, sample_size, scale_min=1, scale_max=7, decimals=2):
+    # GRIM test for integer mean granularity
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_grim_consistent():
+    # N=20, scale 1..5. Possible means have step 1/20 = 0.05. Mean 3.45 is 69/20 = 3.45.
+    res = grim_test_checker(3.45, 20, 1, 5, decimals=2)
+    assert res[&#x27;is_grim_consistent&#x27;] is True
+    assert 69 in res[&#x27;possible_integer_sums&#x27;]
+
+def test_grim_inconsistent():
+    # N=20, scale 1..5. Mean 3.42 is impossible with N=20 (would require sum 68.4)!
+    res = grim_test_checker(3.42, 20, 1, 5, decimals=2)
+    assert res[&#x27;is_grim_consistent&#x27;] is False
+    assert res[&#x27;possible_integer_sums&#x27;] == []
+
+def test_grim_out_of_bounds():
+    try:
+        grim_test_checker(8.5, 20, 1, 7)
+        assert False, &quot;Should raise ValueError for out-of-bounds mean&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-inverse-variance-meta-analysis" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Fixed-effects inverse-variance meta-analysis engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>fixed_effects_meta_analysis(studies)</code>:
+Inputs:
+- <code>studies</code>: Non-empty list of study dicts: <code>{'id': str, 'effect_size': float, 'std_error': float}</code>.</p>
+<p>Requirements:
+1. Validate inputs: All <code>std_error</code> must be $&gt; 0$. Length of <code>studies</code> must be $\ge 2$. Raise <code>ValueError</code> on violation.
+2. For each study $i$:
+   - Weight $w_i = \frac{1}{\text{std\_error}_i^2}$
+3. Pooled effect size:
+   $$\hat{\theta} = \frac{\sum w_i \cdot \text{effect\_size}_i}{\sum w_i}$$
+4. Pooled standard error:
+   $$SE(\hat{\theta}) = \frac{1}{\sqrt{\sum w_i}}$$
+5. 95% Confidence Interval:
+   $$[\hat{\theta} - 1.96 \cdot SE(\hat{\theta}), \; \hat{\theta} + 1.96 \cdot SE(\hat{\theta})]$$
+6. Cochran's Heterogeneity $Q$:
+   $$Q = \sum_{i=1}^k w_i (\text{effect\_size}_i - \hat{\theta})^2$$
+7. Higgins' $I^2$:
+   $$I^2 = \max\left(0.0, \frac{Q - (k - 1)}{Q}\right) \times 100\%$$
+Return dictionary:
+<code>{'pooled_effect': round(theta, 4), 'pooled_se': round(se, 4), 'ci_95': (ci_low, ci_high), 'cochran_q': round(Q, 4), 'i2_pct': round(I2, 2)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def fixed_effects_meta_analysis(studies):
+    # Fixed-effects inverse-variance meta-analysis engine
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_meta_analysis_clean():
+    studies = [
+        {&#x27;id&#x27;: &#x27;S1&#x27;, &#x27;effect_size&#x27;: 10.0, &#x27;std_error&#x27;: 2.0},
+        {&#x27;id&#x27;: &#x27;S2&#x27;, &#x27;effect_size&#x27;: 12.0, &#x27;std_error&#x27;: 2.0}
+    ]
+    # Equal weights: pooled = 11.0, w = 1/4 + 1/4 = 0.5, SE = 1/sqrt(0.5) = 1.4142
+    res = fixed_effects_meta_analysis(studies)
+    assert res[&#x27;pooled_effect&#x27;] == 11.0
+    assert abs(res[&#x27;pooled_se&#x27;] - 1.4142) &lt; 0.001
+    assert res[&#x27;i2_pct&#x27;] &gt;= 0.0
+
+def test_meta_analysis_invalid_se():
+    studies = [
+        {&#x27;id&#x27;: &#x27;S1&#x27;, &#x27;effect_size&#x27;: 1.0, &#x27;std_error&#x27;: 0.0},
+        {&#x27;id&#x27;: &#x27;S2&#x27;, &#x27;effect_size&#x27;: 2.0, &#x27;std_error&#x27;: 1.0}
+    ]
+    try:
+        fixed_effects_meta_analysis(studies)
+        assert False, &quot;Should raise ValueError for non-positive SE&quot;
+    except ValueError:
+        pass
+
+def test_meta_analysis_single_study():
+    try:
+        fixed_effects_meta_analysis([{&#x27;id&#x27;: &#x27;S1&#x27;, &#x27;effect_size&#x27;: 1.0, &#x27;std_error&#x27;: 1.0}])
+        assert False, &quot;Should raise ValueError for fewer than 2 studies&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"If a paper is published in a peer-reviewed journal, its statistics must be correct."</strong> Independent audits demonstrate that over 12% of published peer-reviewed papers contain mathematical or reporting errors.</li>
+<li><strong>"Repeatability, reproducibility, and replicability are interchangeable synonyms."</strong> ACM formally distinguishes them: Repeatability is same team, Reproducibility is different team with same artifact, Replicability is different team with new artifacts.</li>
+<li><strong>"A non-reproducible paper was necessarily written by fraudulent authors."</strong> Most non-reproducibility stems from mundane software engineering decay: unpinned package dependencies, deleted repository links, and missing build steps.</li>
+<li><strong>"Meta-analysis is just taking the average of reported study findings."</strong> Naive averaging ignores sample size precision; meta-analysis uses inverse-variance weighting so large, low-variance studies dominate the consensus.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Paper reproduction and meta-analysis break down when original raw datasets are proprietary, encrypted, or restricted by patient privacy laws (HIPAA/GDPR), preventing third-party recomputation. Furthermore, when publication bias is extreme (funnel plot asymmetry), meta-analysis pools only the surviving positive studies, inflating the estimated effect size above empirical reality.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>In research engineering and high-reliability systems work, reading a paper means reproducing its baseline in an isolated container before adopting the technique. In a data pipeline, a sync algorithm should be adopted only after its claimed throughput and memory characteristics have been reproduced against real database traces.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What are the three passes in Keshav's Three-Pass paper reading method?</p></div><div class="a" hidden><p>Pass 1: Birds-eye view (10 min). Pass 2: Grasp content without details (1 hour). Pass 3: Virtual re-implementation (several hours).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the ACM definition of Reproducibility?</p></div><div class="a" hidden><p>An independent team obtains identical results using the original author's artifacts on the same experimental setup.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the ACM definition of Replicability?</p></div><div class="a" hidden><p>An independent team obtains consistent findings using completely independent code, fresh data, or different experimental setups.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the GRIM test?</p></div><div class="a" hidden><p>A mathematical test checking whether reported means of integer Likert ratings are consistent with integer arithmetic given the reported sample size.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does inverse-variance weighting work in meta-analysis?</p></div><div class="a" hidden><p>Each study's effect size is weighted by $w_i = 1 / SE_i^2$, giving higher statistical influence to studies with smaller standard errors.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What does Higgins' $I^2$ measure in meta-analysis?</p></div><div class="a" hidden><p>The percentage of variation across study results that is due to true heterogeneity rather than chance sampling error.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can execute Keshav's three-pass reading method, audit a paper's reported t-test statistics for mathematical coherence, and perform an inverse-variance meta-analysis.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Keshav, S. 'How to Read a Paper.' <em>ACM SIGCOMM Computer Communication Review</em>, 37(3), 2007.</li>
+<li>Borenstein, M., et al. <em>Introduction to Meta-Analysis</em>. John Wiley &amp; Sons, 2009.</li>
+</ul></section>
+<footer class="pager"><a href="V16.html">&larr; V16 Automated reasoning: SAT, SMT and model checking</a>
+<a href="V19.html">V19 Scientific and technical writing &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V18", "packages": ["scipy", "numpy"], "exercises": {"ex1-acm-badge-classifier": {"starter": "def classify_acm_artifact_badge(same_team, same_artifact, same_setup):\n    # Classifies experimental audit into ACM reproducibility badges\n    return \"\"\n", "solution": "def classify_acm_artifact_badge(same_team, same_artifact, same_setup):\n    if not isinstance(same_team, bool) or not isinstance(same_artifact, bool) or not isinstance(same_setup, bool):\n        raise TypeError(\"Arguments must be booleans\")\n\n    if same_team and same_artifact and same_setup:\n        return 'REPEATABILITY'\n    elif not same_team and same_artifact and same_setup:\n        return 'REPRODUCIBILITY'\n    elif not same_team and not same_artifact:\n        return 'REPLICATION'\n    else:\n        return 'NON_CONFORMING'\n", "tests": "def test_acm_repeatability():\n    assert classify_acm_artifact_badge(True, True, True) == 'REPEATABILITY'\n\ndef test_acm_reproducibility():\n    assert classify_acm_artifact_badge(False, True, True) == 'REPRODUCIBILITY'\n\ndef test_acm_replication():\n    assert classify_acm_artifact_badge(False, False, True) == 'REPLICATION'\n    assert classify_acm_artifact_badge(False, False, False) == 'REPLICATION'\n\ndef test_acm_non_conforming():\n    # Same team running different artifacts\n    assert classify_acm_artifact_badge(True, False, True) == 'NON_CONFORMING'\n", "mutants": ["def classify_acm_artifact_badge(same_team, same_artifact, same_setup):\n    # Always returns REPRODUCIBILITY\n    return 'REPRODUCIBILITY'\n", "def classify_acm_artifact_badge(same_team, same_artifact, same_setup):\n    # Confuses REPEATABILITY with REPRODUCIBILITY\n    if same_team: return 'REPRODUCIBILITY'\n    return 'REPLICATION'\n"], "hints": ["Check `same_team and same_artifact and same_setup` for REPEATABILITY.", "Check `not same_team and same_artifact and same_setup` for REPRODUCIBILITY."], "level": "warmup", "title": "Classify experimental reproducibility according to ACM standards"}, "ex2-three-pass-reader": {"starter": "def extract_three_pass(paper_metadata):\n    # Extracts structured three-pass reading model\n    return {}\n", "solution": "def extract_three_pass(paper_metadata):\n    title = paper_metadata.get('title', '').strip()\n    abstract = paper_metadata.get('abstract', '').strip()\n    if not title or not abstract:\n        raise ValueError(\"Paper title and abstract must be non-empty\")\n\n    sections = [s.lower() for s in paper_metadata.get('sections', [])]\n    is_empirical = any('evaluation' in s or 'benchmark' in s or 'experiment' in s for s in sections)\n    is_theoretical = any('proof' in s or 'theorem' in s for s in sections)\n\n    if is_empirical:\n        cat = 'EMPIRICAL'\n    elif is_theoretical:\n        cat = 'THEORETICAL'\n    else:\n        cat = 'DESCRIPTIVE'\n\n    has_conc = bool(paper_metadata.get('conclusions', '').strip())\n    fig_count = len(paper_metadata.get('figures', []))\n    has_pkg = bool(paper_metadata.get('has_reproducibility_package', False))\n\n    pass_1 = {\n        'category': cat,\n        'has_conclusion': has_conc,\n        'read_time_minutes': 10\n    }\n    pass_2 = {\n        'figure_count': fig_count,\n        'reproducible': has_pkg,\n        'read_time_minutes': 60\n    }\n    pass_3 = {\n        'recommended_action': 'FULL_REIMPLEMENTATION' if (has_pkg and cat == 'EMPIRICAL') else 'READ_CRITICALLY',\n        'read_time_minutes': 240\n    }\n\n    return {\n        'pass_1': pass_1,\n        'pass_2': pass_2,\n        'pass_3': pass_3\n    }\n", "tests": "def test_three_pass_empirical():\n    meta = {\n        'title': 'Fast SQLite Sync',\n        'abstract': 'We improve mobile sync throughput.',\n        'sections': ['Introduction', 'Architecture', 'Benchmark Evaluation', 'Conclusion'],\n        'figures': ['Fig 1: Throughput', 'Fig 2: Latency'],\n        'conclusions': 'Our sync is fast.',\n        'has_reproducibility_package': True\n    }\n    res = extract_three_pass(meta)\n    assert res['pass_1']['category'] == 'EMPIRICAL'\n    assert res['pass_1']['has_conclusion'] is True\n    assert res['pass_2']['figure_count'] == 2\n    assert res['pass_3']['recommended_action'] == 'FULL_REIMPLEMENTATION'\n\ndef test_three_pass_theoretical():\n    meta = {\n        'title': 'Decidable Hoare Logic',\n        'abstract': 'Proof of completeness.',\n        'sections': ['Intro', 'Core Calculus', 'Proof of Theorem 1'],\n        'has_reproducibility_package': False\n    }\n    res = extract_three_pass(meta)\n    assert res['pass_1']['category'] == 'THEORETICAL'\n    assert res['pass_3']['recommended_action'] == 'READ_CRITICALLY'\n\ndef test_three_pass_empty_title():\n    try:\n        extract_three_pass({'title': '', 'abstract': 'Valid'})\n        assert False, \"Should raise ValueError for empty title\"\n    except ValueError:\n        pass\n", "mutants": ["def extract_three_pass(paper_metadata):\n    # Always marks category as DESCRIPTIVE\n    if not paper_metadata.get('title'): raise ValueError()\n    return {'pass_1': {'category': 'DESCRIPTIVE', 'has_conclusion': False, 'read_time_minutes': 10}, 'pass_2': {}, 'pass_3': {}}\n", "def extract_three_pass(paper_metadata):\n    # Fails to validate empty title\n    return {'pass_1': {'category': 'EMPIRICAL', 'has_conclusion': True, 'read_time_minutes': 10}, 'pass_2': {}, 'pass_3': {}}\n"], "hints": ["Inspect section headers for keywords like \"evaluation\" or \"proof\".", "Raise `ValueError` if `title` or `abstract` is missing or whitespace."], "level": "core", "title": "Three-pass scientific literature extraction model"}, "ex3-grim-test-checker": {"starter": "def grim_test_checker(reported_mean, sample_size, scale_min=1, scale_max=7, decimals=2):\n    # GRIM test for integer mean granularity\n    return {}\n", "solution": "def grim_test_checker(reported_mean, sample_size, scale_min=1, scale_max=7, decimals=2):\n    if not isinstance(sample_size, int) or sample_size <= 0:\n        raise ValueError(\"sample_size must be a positive integer\")\n    if not (scale_min <= reported_mean <= scale_max):\n        raise ValueError(\"reported_mean must be within scale bounds\")\n\n    t_min = sample_size * scale_min\n    t_max = sample_size * scale_max\n\n    matching_t = []\n    # Test all possible integer sums\n    for t in range(t_min, t_max + 1):\n        cand_mean = round(t / sample_size, decimals)\n        if round(abs(cand_mean - reported_mean), decimals + 1) == 0:\n            matching_t.append(t)\n\n    return {\n        'is_grim_consistent': len(matching_t) > 0,\n        'possible_integer_sums': matching_t,\n        'granularity': round(1.0 / sample_size, 4)\n    }\n", "tests": "def test_grim_consistent():\n    # N=20, scale 1..5. Possible means have step 1/20 = 0.05. Mean 3.45 is 69/20 = 3.45.\n    res = grim_test_checker(3.45, 20, 1, 5, decimals=2)\n    assert res['is_grim_consistent'] is True\n    assert 69 in res['possible_integer_sums']\n\ndef test_grim_inconsistent():\n    # N=20, scale 1..5. Mean 3.42 is impossible with N=20 (would require sum 68.4)!\n    res = grim_test_checker(3.42, 20, 1, 5, decimals=2)\n    assert res['is_grim_consistent'] is False\n    assert res['possible_integer_sums'] == []\n\ndef test_grim_out_of_bounds():\n    try:\n        grim_test_checker(8.5, 20, 1, 7)\n        assert False, \"Should raise ValueError for out-of-bounds mean\"\n    except ValueError:\n        pass\n", "mutants": ["def grim_test_checker(reported_mean, sample_size, scale_min=1, scale_max=7, decimals=2):\n    # Always claims consistent\n    if not (scale_min <= reported_mean <= scale_max): raise ValueError()\n    return {'is_grim_consistent': True, 'possible_integer_sums': [1], 'granularity': 0.1}\n", "def grim_test_checker(reported_mean, sample_size, scale_min=1, scale_max=7, decimals=2):\n    # Fails to validate sample_size > 0\n    return {'is_grim_consistent': False, 'possible_integer_sums': [], 'granularity': 0.1}\n"], "hints": ["Iterate integer total $T$ from $N \\times S_{\\min}$ to $N \\times S_{\\max}$.", "Check `round(T / N, decimals) == reported_mean`."], "level": "core", "title": "GRIM test for reported mean plausibility on discrete Likert scales"}, "ex4-inverse-variance-meta-analysis": {"starter": "def fixed_effects_meta_analysis(studies):\n    # Fixed-effects inverse-variance meta-analysis engine\n    return {}\n", "solution": "import math\n\ndef fixed_effects_meta_analysis(studies):\n    if not isinstance(studies, list) or len(studies) < 2:\n        raise ValueError(\"Must provide at least 2 studies for meta-analysis\")\n\n    weights = []\n    effects = []\n\n    for s in studies:\n        se = s.get('std_error', 0.0)\n        eff = s.get('effect_size', 0.0)\n        if se <= 0:\n            raise ValueError(f\"std_error must be strictly positive, got {se}\")\n        w = 1.0 / (se ** 2)\n        weights.append(w)\n        effects.append(eff)\n\n    sum_w = sum(weights)\n    pooled_effect = sum(w * y for w, y in zip(weights, effects)) / sum_w\n    pooled_se = 1.0 / math.sqrt(sum_w)\n\n    k = len(studies)\n    df = k - 1\n    Q = sum(w * ((y - pooled_effect) ** 2) for w, y in zip(weights, effects))\n    I2 = max(0.0, (Q - df) / Q) * 100.0 if Q > 0 else 0.0\n\n    ci_low = round(float(pooled_effect - 1.96 * pooled_se), 4)\n    ci_high = round(float(pooled_effect + 1.96 * pooled_se), 4)\n\n    return {\n        'pooled_effect': round(float(pooled_effect), 4),\n        'pooled_se': round(float(pooled_se), 4),\n        'ci_95': (ci_low, ci_high),\n        'cochran_q': round(float(Q), 4),\n        'i2_pct': round(float(I2), 2)\n    }\n", "tests": "def test_meta_analysis_clean():\n    studies = [\n        {'id': 'S1', 'effect_size': 10.0, 'std_error': 2.0},\n        {'id': 'S2', 'effect_size': 12.0, 'std_error': 2.0}\n    ]\n    # Equal weights: pooled = 11.0, w = 1/4 + 1/4 = 0.5, SE = 1/sqrt(0.5) = 1.4142\n    res = fixed_effects_meta_analysis(studies)\n    assert res['pooled_effect'] == 11.0\n    assert abs(res['pooled_se'] - 1.4142) < 0.001\n    assert res['i2_pct'] >= 0.0\n\ndef test_meta_analysis_invalid_se():\n    studies = [\n        {'id': 'S1', 'effect_size': 1.0, 'std_error': 0.0},\n        {'id': 'S2', 'effect_size': 2.0, 'std_error': 1.0}\n    ]\n    try:\n        fixed_effects_meta_analysis(studies)\n        assert False, \"Should raise ValueError for non-positive SE\"\n    except ValueError:\n        pass\n\ndef test_meta_analysis_single_study():\n    try:\n        fixed_effects_meta_analysis([{'id': 'S1', 'effect_size': 1.0, 'std_error': 1.0}])\n        assert False, \"Should raise ValueError for fewer than 2 studies\"\n    except ValueError:\n        pass\n", "mutants": ["def fixed_effects_meta_analysis(studies):\n    # Uses simple unweighted arithmetic mean\n    if len(studies) < 2: raise ValueError()\n    m = sum(s['effect_size'] for s in studies) / len(studies)\n    return {'pooled_effect': round(m, 4), 'pooled_se': 1.0, 'ci_95': (0.0, 0.0), 'cochran_q': 0.0, 'i2_pct': 0.0}\n", "def fixed_effects_meta_analysis(studies):\n    # Fails to validate std_error > 0\n    if len(studies) < 2: raise ValueError()\n    return {'pooled_effect': 0.0, 'pooled_se': 0.0, 'ci_95': (0.0, 0.0), 'cochran_q': 0.0, 'i2_pct': 0.0}\n"], "hints": ["Compute study weights as $w_i = 1 / SE_i^2$.", "Cochran\\'s $Q = \\sum w_i (y_i - \\hat{\\theta})^2$."], "level": "boss", "title": "Fixed-effects inverse-variance meta-analysis engine"}}, "demos": {"oracle-stat-audit-ttest": {"code": "import math\nfrom scipy import stats\n\ndef audit_ttest_reported(m1: float, s1: float, n1: int, m2: float, s2: float, n2: int, \n                        reported_t: float, reported_p: float, tol: float = 0.01) -> dict:\n    if n1 <= 1 or n2 <= 1:\n        raise ValueError(\"Sample sizes must be greater than 1\")\n    \n    df = n1 + n2 - 2\n    # Pooled variance\n    sp2 = ((n1 - 1) * (s1 ** 2) + (n2 - 1) * (s2 ** 2)) / df\n    sp = math.sqrt(sp2)\n    se_diff = sp * math.sqrt(1.0 / n1 + 1.0 / n2)\n    \n    computed_t = (m1 - m2) / se_diff\n    computed_p = 2.0 * (1.0 - stats.t.cdf(abs(computed_t), df))\n    \n    t_match = abs(computed_t - reported_t) <= tol\n    p_match = abs(computed_p - reported_p) <= tol\n    \n    return {\n        'computed_t': round(float(computed_t), 4),\n        'computed_p': round(float(computed_p), 4),\n        'is_statistically_coherent': bool(t_match and p_match)\n    }\n\n# Paper reports: Group 1 (m=25.0, s=4.0, n=30), Group 2 (m=20.0, s=4.5, n=30), t=4.549, p=0.00003\nres = audit_ttest_reported(25.0, 4.0, 30, 20.0, 4.5, 30, 4.549, 0.00003)\nassert res['is_statistically_coherent'] is True\nassert abs(res['computed_t'] - 4.549) < 0.01\nprint(f\"Paper statistics verified: t={res['computed_t']}, p={res['computed_p']}\")\n", "mutants": ["def audit_ttest_reported(m1, s1, n1, m2, s2, n2, reported_t, reported_p, tol=0.01):\n    # Broken mutant: always claims statistics are incoherent\n    return {'computed_t': 0.0, 'computed_p': 1.0, 'is_statistically_coherent': False}\n\nres = audit_ttest_reported(25.0, 4.0, 30, 20.0, 4.5, 30, 4.549, 0.00003)\nassert res['is_statistically_coherent'] is True, \"Mutant must verify coherent statistics!\"\n"]}, "exp-meta-analysis-pooling": {"code": "import math\nfrom scipy import stats\n\ndef meta_analysis_pool(studies: list[dict]) -> dict:\n    # Each study: {'name': str, 'effect': float, 'se': float}\n    k = len(studies)\n    if k < 2:\n        raise ValueError(\"Meta-analysis requires at least 2 studies\")\n\n    weights = [1.0 / (s['se'] ** 2) for s in studies]\n    sum_w = sum(weights)\n    pooled_effect = sum(w * s['effect'] for w, s in zip(weights, studies)) / sum_w\n    pooled_se = 1.0 / math.sqrt(sum_w)\n\n    # Cochran's Q\n    Q = sum(w * ((s['effect'] - pooled_effect) ** 2) for w, s in zip(weights, studies))\n    df = k - 1\n    p_heterogeneity = 1.0 - stats.chi2.cdf(Q, df)\n    \n    # Higgins' I^2\n    I2 = max(0.0, (Q - df) / Q) * 100.0 if Q > 0 else 0.0\n\n    z_crit = 1.96\n    ci_lower = pooled_effect - z_crit * pooled_se\n    ci_upper = pooled_effect + z_crit * pooled_se\n\n    return {\n        'pooled_effect': round(float(pooled_effect), 4),\n        'pooled_se': round(float(pooled_se), 4),\n        'ci_95': (round(float(ci_lower), 4), round(float(ci_upper), 4)),\n        'Q': round(float(Q), 4),\n        'p_heterogeneity': round(float(p_heterogeneity), 4),\n        'I2_pct': round(float(I2), 2)\n    }\n\n# 4 replication studies measuring percentage throughput gain\nstudies = [\n    {'name': 'Study A', 'effect': 12.0, 'se': 2.0},\n    {'name': 'Study B', 'effect': 14.5, 'se': 2.5},\n    {'name': 'Study C', 'effect': 11.0, 'se': 1.8},\n    {'name': 'Study D', 'effect': 13.0, 'se': 2.2},\n]\n\nres = meta_analysis_pool(studies)\nprint(f\"Pooled Effect: {res['pooled_effect']}% (95% CI: {res['ci_95']})\")\nprint(f\"Heterogeneity Q: {res['Q']} (p={res['p_heterogeneity']}), I^2: {res['I2_pct']}%\")\nassert res['pooled_effect'] > 11.0\nassert res['I2_pct'] < 50.0  # Low heterogeneity\n", "mutants": ["# Broken mutant: claims unweighted average is the meta-analysis result\nstudies = [\n    {'name': 'Study A', 'effect': 12.0, 'se': 2.0},\n    {'name': 'Study B', 'effect': 14.5, 'se': 2.5}\n]\nres = {'pooled_effect': (12.0 + 14.5) / 2.0, 'I2_pct': 0.0}\nassert res['pooled_effect'] != 13.25, \"Mutant must perform inverse-variance weighting!\"\n"]}}, "cards": [{"q": "What are the three passes in Keshav's Three-Pass paper reading method?", "a": "Pass 1: Birds-eye view (10 min). Pass 2: Grasp content without details (1 hour). Pass 3: Virtual re-implementation (several hours)."}, {"q": "What is the ACM definition of Reproducibility?", "a": "An independent team obtains identical results using the original author's artifacts on the same experimental setup."}, {"q": "What is the ACM definition of Replicability?", "a": "An independent team obtains consistent findings using completely independent code, fresh data, or different experimental setups."}, {"q": "What is the GRIM test?", "a": "A mathematical test checking whether reported means of integer Likert ratings are consistent with integer arithmetic given the reported sample size."}, {"q": "How does inverse-variance weighting work in meta-analysis?", "a": "Each study's effect size is weighted by $w_i = 1 / SE_i^2$, giving higher statistical influence to studies with smaller standard errors."}, {"q": "What does Higgins' $I^2$ measure in meta-analysis?", "a": "The percentage of variation across study results that is due to true heterogeneity rather than chance sampling error."}], "title": "Reading and reproducing papers"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

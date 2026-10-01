@@ -1,0 +1,382 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P24 Society, ethics and the profession</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P24">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-1 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P24</p><h1>Society, ethics and the profession</h1>
+<div class="meta"><div><b>Needs first:</b> <span class="muted">none</span></div><div><b>Covers:</b> CS2023 SEP</div>
+<details><summary>Everything this module teaches (18 items)</summary><ul class="must"><li>privacy and data protection (India&#x27;s DPDP Act 2023)</li><li>PII and masking</li><li>consent</li><li>bias and fairness</li><li>accessibility as an ethical duty</li><li>open-source licences (MIT, Apache, GPL)</li><li>professional codes (ACM)</li><li>honesty in reporting results and claims</li><li>responsible disclosure</li><li>ethics of AI use</li><li>ethical frameworks (consequentialist, deontological, virtue, care) and how ethics differs from law and social norms</li><li>intellectual property: copyright, patents, trademarks, trade secrets, fair dealing and plagiarism</li><li>privacy engineering: privacy by design, data minimisation, anonymity vs pseudonymity, re-identification and differential privacy</li><li>environmental sustainability of computing: energy, carbon and e-waste, including AI training</li><li>accountability, liability and whistleblowing for harmful software (Therac-25)</li><li>computing in civic life: algorithmic decisions, the digital divide, human oversight and AI regulation (EU AI Act)</li><li>diversity, equity and inclusion in computing, and inclusive language</li><li>a short history of computing and how it shapes today&#x27;s debates</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Between June 1985 and January 1987, a medical linear accelerator called the Therac-25 administered massive, lethal radiation overdoses to six cancer patients in hospitals across North America. When machine operators typed treatment instructions too quickly, an obscure software race condition occurred: the computer set the high-intensity 25 MeV electron beam mode without rotating the heavy tungsten protective shield into place, silently delivering over one hundred times the prescribed dose. When patients screamed in agony, the system console simply displayed a cryptic error code—"Malfunction 54"—and allowed the operator to restart the beam. The system had no hardware interlocks; the manufacturer had completely replaced physical safety relays with unverified assembly code.</p>
+<p>The subsequent investigative report by Nancy Leveson at the University of Washington became a watershed moment in computer science history, proving that software engineering is not an abstract mathematical game, but a life-critical discipline carrying moral, legal, and public safety consequences. The catastrophe led directly to the modern ACM/IEEE-CS Code of Ethics and Professional Practice, establishing that software engineers must place public safety, privacy, and well-being above corporate profit. In the 1980s and 1990s, Richard Stallman established the Free Software Foundation, creating the GNU General Public License (GPL) to defend software freedom and collaborative knowledge sharing. In the modern era, ethics has shifted from voluntary guidelines to binding statutory law: India enacted the Digital Personal Data Protection (DPDP) Act in 2023, while the European Union introduced the GDPR and the EU AI Act. Today's software engineers face unprecedented societal responsibilities—preventing algorithmic bias in AI models, safeguarding personally identifiable information (PII), and curbing the staggering energy consumption of massive AI training datacenters.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Software engineering is a powerful profession whose creations directly shape human lives, society, and the physical world. Because software controls medical devices, banking transactions, judicial sentencing, and hiring algorithms, engineers have a profound ethical duty to build systems that are safe, fair, and respectful of fundamental human rights. Ethical engineering means actively protecting user privacy by masking personal data and using differential privacy; auditing automated decision systems to eliminate algorithmic bias against marginalized groups; honoring open-source software licenses like MIT and GPL; and taking personal responsibility for reporting safety hazards rather than concealing software bugs.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal frameworks, mathematical models, and legal statutes of computing ethics and privacy engineering are defined across several key disciplines:</p>
+<ol>
+<li>
+<p><strong>Differential Privacy ($\epsilon$-DP and Laplace Mechanism)</strong>:
+A randomized algorithm $\mathcal{M}$ satisfies $\epsilon$-differential privacy if for all neighboring datasets $D_1, D_2$ differing by at most one individual's record ($\|D_1 \Delta D_2\| = 1$), and for all possible query output sets $S$:
+$$\Pr[\mathcal{M}(D_1) \in S] \le e^\epsilon \cdot \Pr[\mathcal{M}(D_2) \in S]$$
+For a numeric query function $f: \mathcal{D} \to \mathbb{R}$ with $L_1$ global sensitivity $\Delta f = \max \|f(D_1) - f(D_2)\|_1$, the Laplace mechanism adds calibrated random noise:
+$$\mathcal{M}(D) = f(D) + \text{Lap}\left(0, \frac{\Delta f}{\epsilon}\right)$$
+The parameter $\epsilon$ (privacy loss budget) controls the mathematical privacy-utility tradeoff: smaller $\epsilon$ yields greater anonymity at the cost of higher query noise.</p>
+</li>
+<li>
+<p><strong>Algorithmic Fairness and Disparate Impact (Four-Fifths Rule)</strong>:
+Let $A \in \{0, 1\}$ denote a sensitive protected attribute (e.g. gender or caste), and $\hat{Y} \in \{0, 1\}$ denote an automated selection outcome (e.g. loan approval).
+- <strong>Demographic Parity</strong>: Requires selection rates to be statistically independent of group membership:
+$$\Pr[\hat{Y} = 1 \mid A = 0] = \Pr[\hat{Y} = 1 \mid A = 1]$$
+- <strong>Disparate Impact Ratio (DIR)</strong>:
+$$\text{DIR} = \frac{\Pr[\hat{Y} = 1 \mid A = \text{unprivileged}]}{\Pr[\hat{Y} = 1 \mid A = \text{privileged}]}$$
+Under established employment and anti-discrimination standards (the US EEOC Four-Fifths Rule), an automated system exhibits actionable adverse disparate impact if:
+$$\text{DIR} &lt; 0.80$$</p>
+</li>
+<li>
+<p><strong>Data Protection Statutory Architecture (India DPDP Act 2023)</strong>:
+India's Digital Personal Data Protection Act establishes enforceable legal obligations on Data Fiduciaries:
+- <strong>Notice and Verifiable Consent</strong>: Data processing requires unambiguous, specific, and revocable consent.
+- <strong>Data Minimization and Purpose Limitation</strong>: Collection must be strictly confined to data necessary for specified legal purposes.
+- <strong>Breach Notification Duties</strong>: Security breaches must be reported to the Data Protection Board of India and CERT-In without unreasonable delay (typically within 6 hours to CERT-In).
+- <strong>Penalties</strong>: Non-compliance carries severe administrative monetary penalties up to ₹250 crore (<span class=dollar>&#36;</span>30M USD).</p>
+</li>
+<li>
+<p><strong>Open-Source License Compatibility</strong>:
+- <strong>Permissive (MIT, Apache-2.0, BSD)</strong>: Grants broad redistribution rights in proprietary closed-source products, requiring only copyright and license notice retention. Apache-2.0 includes an explicit defensive patent license.
+- <strong>Copyleft (GPL-3.0, AGPL-3.0)</strong>: Enforces reciprocal sharing: any derivative work containing GPL code must publish its complete source code under the GPL. AGPL-3.0 extends this requirement to network service invocation.</p>
+</li>
+<li>
+<p><strong>Environmental Footprint of Compute</strong>:
+$$\text{Emissions (kg CO}_2\text{e)} = \text{Compute Energy (kWh)} \times \text{PUE} \times \text{Carbon Intensity (kg CO}_2\text{e/kWh)}$$
+where Power Usage Effectiveness (PUE) measures datacenter cooling and power delivery efficiency.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Software engineers possess extraordinary leverage in the modern world. A single code deployment can instantaneously impact the privacy, financial stability, and physical safety of hundreds of millions of human beings. When engineers treat code purely as an abstract technical exercise divorced from ethical consequences, the results are catastrophic: social media algorithms that maximize user engagement through algorithmic radicalization and adolescent mental health harm; predictive policing models that perpetuate historical racial and caste biases; and dark patterns that trick elderly citizens into recurring financial subscriptions.</p>
+<p>Ethics is not a vague philosophical luxury; it is the structural integrity of the software profession. Just as civil engineers are held legally and morally accountable for the structural load calculations of bridges, software engineers are responsible for the algorithms, data pipelines, and safety interlocks they construct. Grounding engineering practice in ethical frameworks—consequentialism (evaluating real-world outcomes), deontology (upholding fundamental duties like honesty and privacy), and virtue ethics—provides engineers with the professional courage to say "no" to unethical directives, such as building fraudulent emissions test bypasses (Volkswagen Dieselgate) or releasing unverified medical devices.</p>
+<p>Furthermore, privacy engineering is essential for building trustworthy software. With the enactment of India's DPDP Act 2023 and global privacy regulations, failing to protect sensitive user PII is a severe corporate risk that destroys brand reputation and triggers devastating statutory fines. Integrating privacy by design, implementing differential privacy, auditing ML models for fairness, and selecting compliant open-source licenses ensures that software serves humanity with dignity, transparency, and justice.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates differential privacy using the calibrated Laplace mechanism. In database analytics, counting queries have a global sensitivity of one, meaning that adding or removing a single individual's record alters the query result by at most one. The oracle injects calibrated Laplace noise into numeric database query results, demonstrating how smaller values of epsilon mathematically guarantee stronger differential privacy bounds through larger noise dispersion, while larger epsilon values preserve greater analytical utility.</p>
+<div class="lab demo" data-demo="p24-oracle-differential-privacy">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Laplace Mechanism Differential Privacy Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def laplace_noise(sensitivity: float, epsilon: float, uniform_sample: float) -&gt; float:
+    # Inverse CDF transform sampling: u in (-0.5, 0.5)
+    scale = sensitivity / epsilon
+    u = uniform_sample
+    sgn = 1.0 if u &gt;= 0 else -1.0
+    return -scale * sgn * math.log(1.0 - 2.0 * abs(u))
+
+def private_count_query(true_count: int, epsilon: float, sample: float) -&gt; float:
+    if epsilon &lt;= 0: raise ValueError(&quot;epsilon must be positive&quot;)
+    # Count queries have global L1 sensitivity of 1 (adding/removing one person changes count by 1)
+    noise = laplace_noise(sensitivity=1.0, epsilon=epsilon, uniform_sample=sample)
+    return true_count + noise
+
+true_medical_count = 1000
+
+# High privacy protection: epsilon = 0.1 (large noise scale = 1/0.1 = 10)
+# Sample u = 0.25 -&gt; noise = -10 * 1 * ln(1 - 0.5) = -10 * ln(0.5) = 6.931
+noisy_high_priv = private_count_query(true_medical_count, epsilon=0.1, sample=0.25)
+noise_high = noisy_high_priv - true_medical_count
+
+# Low privacy protection: epsilon = 2.0 (small noise scale = 1/2.0 = 0.5)
+# Sample u = 0.25 -&gt; noise = -0.5 * 1 * ln(0.5) = 0.347
+noisy_low_priv = private_count_query(true_medical_count, epsilon=2.0, sample=0.25)
+noise_low = noisy_low_priv - true_medical_count
+
+print(f&quot;True Medical Count: {true_medical_count}&quot;)
+print(f&quot;High Privacy (eps=0.1): Result = {noisy_high_priv:.2f}, Noise = {noise_high:+.2f}&quot;)
+print(f&quot;Low Privacy  (eps=2.0): Result = {noisy_low_priv:.2f}, Noise = {noise_low:+.2f}&quot;)
+
+# Verify that high privacy introduces 20x higher noise than low privacy (0.1 vs 2.0)
+assert round(noise_high, 3) == 6.931
+assert round(noise_low, 3) == 0.347
+assert noise_high &gt; noise_low
+assert round(noise_high / noise_low, 1) == 20.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment evaluates an algorithmic decision system for adverse disparate impact under the Four-Fifths Rule established by the EEOC. The experiment analyzes selection and approval rates across protected demographic groups, computes the Disparate Impact Ratio (DIR) relative to the privileged group with the highest selection rate, and rigorously verifies whether hiring or automated loan underwriting algorithms systematically discriminate against protected classes in real-world deployment.</p>
+<div class="lab demo" data-demo="p24-experiment-disparate-impact-audit">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Algorithmic Bias and Disparate Impact Ratio Audit Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def audit_disparate_impact(records: list[dict], group_key: str, outcome_key: str) -&gt; dict:
+    group_totals = {}
+    group_positives = {}
+    
+    for r in records:
+        grp = r[group_key]
+        outcome = r[outcome_key]
+        group_totals[grp] = group_totals.get(grp, 0) + 1
+        if outcome:
+            group_positives[grp] = group_positives.get(grp, 0) + 1
+            
+    rates = {grp: group_positives.get(grp, 0) / group_totals[grp] for grp in group_totals}
+    
+    # Identify privileged group with highest selection rate
+    priv_group = max(rates, key=rates.get)
+    priv_rate = rates[priv_group]
+    
+    ratios = {}
+    is_fair = True
+    for grp, rate in rates.items():
+        ratio = 1.0 if priv_rate == 0 else rate / priv_rate
+        ratios[grp] = round(ratio, 3)
+        # Four-fifths rule: selection rate must be at least 80% of privileged group
+        if ratio &lt; 0.80:
+            is_fair = False
+            
+    return {
+        &quot;rates&quot;: rates,
+        &quot;privileged_group&quot;: priv_group,
+        &quot;disparate_impact_ratios&quot;: ratios,
+        &quot;passes_four_fifths_rule&quot;: is_fair
+    }
+
+# Synthetic hiring dataset: Group A vs Group B
+# Group A: 100 applicants, 80 hired (80% rate)
+# Group B: 100 applicants, 40 hired (40% rate) -&gt; Ratio = 40/80 = 0.50 &lt; 0.80 -&gt; Severe Bias!
+biased_dataset = (
+    [{&quot;group&quot;: &quot;A&quot;, &quot;hired&quot;: True}] * 80 + [{&quot;group&quot;: &quot;A&quot;, &quot;hired&quot;: False}] * 20 +
+    [{&quot;group&quot;: &quot;B&quot;, &quot;hired&quot;: True}] * 40 + [{&quot;group&quot;: &quot;B&quot;, &quot;hired&quot;: False}] * 60
+)
+
+audit_biased = audit_disparate_impact(biased_dataset, &quot;group&quot;, &quot;hired&quot;)
+print(&quot;Biased Dataset Audit:&quot;, audit_biased)
+assert not audit_biased[&quot;passes_four_fifths_rule&quot;]
+assert audit_biased[&quot;disparate_impact_ratios&quot;][&quot;B&quot;] == 0.50
+
+# Fair dataset: Group A 80% (80/100), Group B 72% (72/100) -&gt; Ratio = 72/80 = 0.90 &gt;= 0.80 -&gt; Passes!
+fair_dataset = (
+    [{&quot;group&quot;: &quot;A&quot;, &quot;hired&quot;: True}] * 80 + [{&quot;group&quot;: &quot;A&quot;, &quot;hired&quot;: False}] * 20 +
+    [{&quot;group&quot;: &quot;B&quot;, &quot;hired&quot;: True}] * 72 + [{&quot;group&quot;: &quot;B&quot;, &quot;hired&quot;: False}] * 28
+)
+
+audit_fair = audit_disparate_impact(fair_dataset, &quot;group&quot;, &quot;hired&quot;)
+print(&quot;Fair Dataset Audit:&quot;, audit_fair)
+assert audit_fair[&quot;passes_four_fifths_rule&quot;]
+assert audit_fair[&quot;disparate_impact_ratios&quot;][&quot;B&quot;] == 0.90
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-pii-masker-and-sanitizer" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Personally Identifiable Information (PII) Data Masking</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement sanitize_record to mask sensitive user phone numbers, personal email addresses, and national identity numbers such as PAN or Aadhaar in accordance with data protection and privacy engineering standards.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict
+
+def sanitize_record(record: Dict[str, Any]) -&gt; Dict[str, Any]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pii_sanitization_phone_and_email():
+    user = {
+        &quot;name&quot;: &quot;Ankit Kumar&quot;,
+        &quot;phone&quot;: &quot;9876543210&quot;,
+        &quot;email&quot;: &quot;ankit.dev@example.com&quot;,
+        &quot;balance&quot;: 50000
+    }
+    clean = sanitize_record(user)
+    assert clean[&quot;name&quot;] == &quot;Ankit Kumar&quot;
+    assert clean[&quot;balance&quot;] == 50000
+    assert clean[&quot;phone&quot;] == &quot;******3210&quot;
+    assert clean[&quot;email&quot;] == &quot;a*******v@example.com&quot;
+
+def test_government_id_masking():
+    record = {
+        &quot;pan_number&quot;: &quot;ABCDE1234F&quot;,
+        &quot;aadhaar&quot;: &quot;123456789012&quot;
+    }
+    clean = sanitize_record(record)
+    assert clean[&quot;pan_number&quot;] == &quot;XXXXXX234F&quot;
+    assert clean[&quot;aadhaar&quot;] == &quot;XXXXXXXX9012&quot;
+
+def test_non_string_and_short_inputs():
+    rec = {&quot;phone&quot;: &quot;12&quot;, &quot;email&quot;: &quot;a@b.com&quot;, &quot;other&quot;: None}
+    clean = sanitize_record(rec)
+    assert clean[&quot;phone&quot;] == &quot;****&quot;
+    assert clean[&quot;email&quot;] == &quot;a*@b.com&quot;
+    assert clean[&quot;other&quot;] is None
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-laplace-differential-privacy" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Laplace Mechanism Differential Privacy Query Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement private_count_query using the calibrated Laplace mechanism to inject mathematical differential privacy noise into numerical database query results based on global sensitivity and privacy budget epsilon.</p></div>
+<textarea class="code" spellcheck="false">def private_count_query(true_count: int, epsilon: float, uniform_sample: float) -&gt; float:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_laplace_zero_noise_at_median():
+    # At u = 0.0, Laplace noise is exactly 0.0
+    res = private_count_query(500, epsilon=1.0, uniform_sample=0.0)
+    assert res == 500.0
+
+def test_laplace_calibrated_noise_scaling():
+    # u = 0.25 -&gt; ln(1 - 0.5) = ln(0.5) = -0.693147
+    # For eps = 1.0: -1.0 * 1 * (-0.693147) = +0.6931
+    res1 = private_count_query(100, epsilon=1.0, uniform_sample=0.25)
+    assert res1 == 100.6931
+    
+    # For eps = 0.1: noise is 10x larger: +6.9315
+    res2 = private_count_query(100, epsilon=0.1, uniform_sample=0.25)
+    assert res2 == 106.9315
+
+def test_laplace_validation():
+    try:
+        private_count_query(100, epsilon=0.0, uniform_sample=0.1)
+        assert False, &quot;Should raise ValueError for epsilon &lt;= 0&quot;
+    except ValueError:
+        pass
+    try:
+        private_count_query(100, epsilon=1.0, uniform_sample=0.5) # Out of range
+        assert False, &quot;Should raise ValueError for sample &gt;= 0.5&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-disparate-impact-fairness-auditor" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Algorithmic Fairness and Disparate Impact Auditor</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement audit_disparate_impact to calculate demographic selection rates, compute Disparate Impact Ratios (DIR), and evaluate compliance with the Four-Fifths fairness rule across protected demographic groups in datasets.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict, List
+
+def audit_disparate_impact(records: List[Dict[str, Any]], group_key: str, outcome_key: str) -&gt; Dict[str, Any]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_fair_dataset_passes_four_fifths():
+    # Group A: 80% (80/100), Group B: 72% (72/100) -&gt; Ratio = 72/80 = 0.90 &gt;= 0.80
+    data = (
+        [{&quot;gender&quot;: &quot;M&quot;, &quot;hired&quot;: True}] * 80 + [{&quot;gender&quot;: &quot;M&quot;, &quot;hired&quot;: False}] * 20 +
+        [{&quot;gender&quot;: &quot;F&quot;, &quot;hired&quot;: True}] * 72 + [{&quot;gender&quot;: &quot;F&quot;, &quot;hired&quot;: False}] * 28
+    )
+    audit = audit_disparate_impact(data, &quot;gender&quot;, &quot;hired&quot;)
+    assert audit[&quot;passes_four_fifths_rule&quot;]
+    assert audit[&quot;privileged_group&quot;] == &quot;M&quot;
+    assert audit[&quot;disparate_impact_ratios&quot;][&quot;F&quot;] == 0.90
+
+def test_biased_dataset_fails_four_fifths():
+    # Group A: 80% (80/100), Group B: 30% (30/100) -&gt; Ratio = 30/80 = 0.375 &lt; 0.80
+    data = (
+        [{&quot;region&quot;: &quot;Urban&quot;, &quot;approved&quot;: True}] * 80 + [{&quot;region&quot;: &quot;Urban&quot;, &quot;approved&quot;: False}] * 20 +
+        [{&quot;region&quot;: &quot;Rural&quot;, &quot;approved&quot;: True}] * 30 + [{&quot;region&quot;: &quot;Rural&quot;, &quot;approved&quot;: False}] * 70
+    )
+    audit = audit_disparate_impact(data, &quot;region&quot;, &quot;approved&quot;)
+    assert not audit[&quot;passes_four_fifths_rule&quot;]
+    assert audit[&quot;disparate_impact_ratios&quot;][&quot;Rural&quot;] == 0.375
+
+def test_empty_records_error():
+    try:
+        audit_disparate_impact([], &quot;group&quot;, &quot;outcome&quot;)
+        assert False, &quot;Should raise ValueError on empty dataset&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-open-source-license-compliance" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Open-Source Software License Compatibility Verifier</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement LicenseComplianceChecker to analyze software dependency trees, detect license incompatibilities between proprietary and copyleft licenses, and generate attribution notices for third-party open-source software libraries.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict, List, Set
+
+class LicenseComplianceChecker:
+    def __init__(self):
+        pass
+
+    def add_dependency(self, package_name: str, license_name: str):
+        pass
+
+    def check_compliance(self, project_license: str) -&gt; Dict[str, Any]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_proprietary_project_clean_permissive():
+    checker = LicenseComplianceChecker()
+    checker.add_dependency(&quot;flutter_bloc&quot;, &quot;MIT&quot;)
+    checker.add_dependency(&quot;dio&quot;, &quot;MIT&quot;)
+    checker.add_dependency(&quot;firebase_core&quot;, &quot;Apache-2.0&quot;)
+    
+    report = checker.check_compliance(project_license=&quot;PROPRIETARY&quot;)
+    assert report[&quot;compliant&quot;]
+    assert len(report[&quot;violations&quot;]) == 0
+    assert len(report[&quot;attribution_notices&quot;]) == 3
+
+def test_proprietary_project_copyleft_violation():
+    checker = LicenseComplianceChecker()
+    checker.add_dependency(&quot;requests&quot;, &quot;Apache-2.0&quot;)
+    checker.add_dependency(&quot;gpl_database_driver&quot;, &quot;GPL-3.0&quot;)
+    
+    report = checker.check_compliance(project_license=&quot;PROPRIETARY&quot;)
+    assert not report[&quot;compliant&quot;]
+    assert len(report[&quot;violations&quot;]) == 1
+    assert &quot;gpl_database_driver&quot; in report[&quot;violations&quot;][0]
+
+def test_permissive_project_copyleft_conflict():
+    checker = LicenseComplianceChecker()
+    checker.add_dependency(&quot;copyleft_tool&quot;, &quot;GPL-3.0&quot;)
+    report = checker.check_compliance(project_license=&quot;MIT&quot;)
+    assert not report[&quot;compliant&quot;]
+    assert len(report[&quot;violations&quot;]) == 1
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"If code is legal, it is automatically ethical."</strong> Laws are lagging indicators of societal norms and often fail to cover emerging technologies. A software practice can be completely legal while being deeply unethical—such as harvesting public data without consent or deploying addictive psychological triggers in children's software.</li>
+<li><strong>"Removing sensitive demographic columns (like gender or caste) prevents machine learning models from being biased."</strong> Models easily reconstruct protected attributes from proxy features (such as postal code, browsing history, school name, or voice pitch). True fairness requires active bias auditing and disparate impact mitigation, not naive feature deletion.</li>
+<li><strong>"Open-source software means you can take any code and use it however you want in commercial software."</strong> Open-source code is protected by copyright law and released under specific licenses. Using copyleft code (like GPL or AGPL) in a proprietary closed-source product triggers legal violations and can legally compel a company to open-source its entire proprietary codebase.</li>
+<li><strong>"Differential privacy is the same thing as hashing or encrypting customer data."</strong> Hashing and encryption protect data at rest and in transit, but do not protect against re-identification attacks when aggregate statistics are published. Differential privacy mathematically prevents reconstruction of individual records from query outputs.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Ethical and privacy engineering models encounter severe friction in several realistic settings:
+1. <strong>Utility Destruction in Small-Sample Differential Privacy</strong>: When applied to small clinical cohorts (e.g. 50 rare disease patients in an Indian hospital), the Laplace noise required for strong $\epsilon$-differential privacy completely drowns the signal, rendering medical research data useless unless $\epsilon$ is relaxed to insecure levels.
+2. <strong>Impossibility Theorems of Algorithmic Fairness</strong>: Kleinberg, Mullainathan, and Raghavan (2016) proved mathematically that it is impossible for a risk scoring algorithm to simultaneously satisfy Demographic Parity, Equalized Odds, and Predictive Value Parity when base rates differ between groups, forcing engineers to make tragic, unavoidable moral tradeoffs.
+3. <strong>Copyleft Contamination in Mobile SDK Distribution</strong>: Statically linking a single GPL-licensed C library into a mobile Flutter application distributed via Apple App Store or Google Play legally triggers the GPL requirement to distribute the application's entire source code, conflicting directly with closed-source commercial app distribution.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Software ethics and data governance are enforced across production software engineering:
+- <strong>India DPDP Act Compliance Architectures</strong>: Indian technology companies (Zerodha, Swiggy, large consumer fintechs) implement automated consent management portals, PII redaction filters, and cryptographic audit logs to satisfy Data Protection Board mandates.
+- <strong>Apple App Store and Google Play Privacy Nutrition Labels</strong>: Mobile developers must declare all collected data types, tracking SDKs, and purposes in privacy nutrition manifests, with automated static analysis verifying app compliance before store approval.
+- <strong>Automated Open Source License Scanning in CI</strong>: Tools like FOSSA and Snyk scan every pull request for transitive dependency license conflicts, blocking merges if copyleft AGPL/GPL libraries are introduced into proprietary codebases.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What lessons did the Therac-25 radiation disaster teach computer science?</p></div><div class="a" hidden><p>Software is life-critical engineering requiring formal safety interlocks, rigorous unit testing, and management accountability; software cannot blindly replace physical safety relays.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is differential privacy and how does the Laplace mechanism work?</p></div><div class="a" hidden><p>A mathematical guarantee that query outputs do not reveal whether any individual record was present, achieved by adding Laplace noise calibrated to sensitivity / epsilon.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the Disparate Impact Four-Fifths Rule in algorithmic fairness?</p></div><div class="a" hidden><p>A selection standard stating that an automated system has adverse disparate impact if the selection rate of an unprivileged group is less than 80% (0.80) of the privileged group.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What are the key obligations under India's DPDP Act 2023?</p></div><div class="a" hidden><p>Verifiable consent, purpose limitation, data minimization, user right of erasure, and mandatory incident notification to CERT-In and the Data Protection Board.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the difference between permissive and copyleft open-source licenses?</p></div><div class="a" hidden><p>Permissive licenses (MIT, Apache) allow closed-source proprietary redistribution with attribution; copyleft licenses (GPL, AGPL) legally compel derivative works to remain open source.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why is algorithmic bias not solved simply by removing protected attributes like gender or race?</p></div><div class="a" hidden><p>Machine learning models easily reconstruct protected attributes from correlated proxy features (postal code, school, browsing patterns); proactive fairness audits are required.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can sanitize sensitive PII data fields, implement Laplace differential privacy query engines, audit algorithmic models for disparate impact under the Four-Fifths rule, and verify open-source license compatibility.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Leveson, Nancy G., &amp; Turner, Clark S. (1993). An Investigation of the Therac-25 Accidents. IEEE Computer, 26(7), 18-41.</li>
+<li>Dwork, Cynthia (2008). Differential Privacy: A Survey of Results. Theory and Applications of Models of Computation, Springer.</li>
+<li>Stallman, Richard (2002). Free Software, Free Society: Selected Essays of Richard M. Stallman. GNU Press.</li>
+<li>Feldman, Michael, et al. (2015). Computational Fairness with Respect to a Specific Attribute. ACM KDD Conference Proceedings.</li>
+</ul></section>
+<footer class="pager"><a href="P04.html">&larr; P04 Boolean logic and digital circuits</a>
+<a href="M30.html">M30 Linear algebra I: vector spaces and linear maps &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P24", "packages": ["numpy"], "exercises": {"ex1-pii-masker-and-sanitizer": {"starter": "from typing import Any, Dict\n\ndef sanitize_record(record: Dict[str, Any]) -> Dict[str, Any]:\n    pass\n", "solution": "from typing import Any, Dict\n\ndef sanitize_record(record: Dict[str, Any]) -> Dict[str, Any]:\n    def mask_phone(phone: str) -> str:\n        cleaned = phone.strip()\n        if len(cleaned) < 4:\n            return \"****\"\n        return \"*\" * (len(cleaned) - 4) + cleaned[-4:]\n\n    def mask_email(email: str) -> str:\n        parts = email.strip().split(\"@\")\n        if len(parts) != 2:\n            return \"***\"\n        local, domain = parts\n        if len(local) <= 2:\n            masked_local = local[0] + \"*\"\n        else:\n            masked_local = local[0] + \"*\" * (len(local) - 2) + local[-1]\n        return f\"{masked_local}@{domain}\"\n\n    def mask_id(gov_id: str) -> str:\n        cleaned = gov_id.strip()\n        if len(cleaned) < 4:\n            return \"X\" * len(cleaned)\n        return \"X\" * (len(cleaned) - 4) + cleaned[-4:]\n\n    sanitized = dict(record)\n    for key, val in record.items():\n        k = key.lower()\n        if not isinstance(val, str):\n            continue\n        if \"phone\" in k or \"mobile\" in k:\n            sanitized[key] = mask_phone(val)\n        elif \"email\" in k:\n            sanitized[key] = mask_email(val)\n        elif \"aadhaar\" in k or \"pan\" in k or \"ssn\" in k or \"id_number\" in k:\n            sanitized[key] = mask_id(val)\n    return sanitized\n", "tests": "def test_pii_sanitization_phone_and_email():\n    user = {\n        \"name\": \"Ankit Kumar\",\n        \"phone\": \"9876543210\",\n        \"email\": \"ankit.dev@example.com\",\n        \"balance\": 50000\n    }\n    clean = sanitize_record(user)\n    assert clean[\"name\"] == \"Ankit Kumar\"\n    assert clean[\"balance\"] == 50000\n    assert clean[\"phone\"] == \"******3210\"\n    assert clean[\"email\"] == \"a*******v@example.com\"\n\ndef test_government_id_masking():\n    record = {\n        \"pan_number\": \"ABCDE1234F\",\n        \"aadhaar\": \"123456789012\"\n    }\n    clean = sanitize_record(record)\n    assert clean[\"pan_number\"] == \"XXXXXX234F\"\n    assert clean[\"aadhaar\"] == \"XXXXXXXX9012\"\n\ndef test_non_string_and_short_inputs():\n    rec = {\"phone\": \"12\", \"email\": \"a@b.com\", \"other\": None}\n    clean = sanitize_record(rec)\n    assert clean[\"phone\"] == \"****\"\n    assert clean[\"email\"] == \"a*@b.com\"\n    assert clean[\"other\"] is None\n", "mutants": ["def sanitize_record(record):\n    assert False, 'mutant injected'\n", "def sanitize_record(record):\n    # Mutant returns unmasked record, leaking PII!\n    return dict(record)\n"], "hints": ["Preserve non-string and non-PII fields without modification.", "Mask phone numbers by keeping only the last 4 digits and replacing previous digits with asterisks.", "Mask emails by retaining only first and last characters of local-part before domain."], "level": "warmup", "title": "Personally Identifiable Information (PII) Data Masking"}, "ex2-laplace-differential-privacy": {"starter": "def private_count_query(true_count: int, epsilon: float, uniform_sample: float) -> float:\n    pass\n", "solution": "import math\n\ndef private_count_query(true_count: int, epsilon: float, uniform_sample: float) -> float:\n    if epsilon <= 0.0:\n        raise ValueError(\"epsilon must be strictly positive\")\n    if not (-0.5 < uniform_sample < 0.5):\n        raise ValueError(\"uniform_sample must be in open interval (-0.5, 0.5)\")\n        \n    # Global L1 sensitivity for a counting query is 1.0\n    sensitivity = 1.0\n    scale = sensitivity / epsilon\n    \n    u = uniform_sample\n    sgn = 1.0 if u >= 0 else -1.0\n    # Inverse CDF of Laplace(0, scale): -scale * sgn(u) * ln(1 - 2|u|)\n    noise = -scale * sgn * math.log(1.0 - 2.0 * abs(u))\n    \n    return round(true_count + noise, 4)\n", "tests": "def test_laplace_zero_noise_at_median():\n    # At u = 0.0, Laplace noise is exactly 0.0\n    res = private_count_query(500, epsilon=1.0, uniform_sample=0.0)\n    assert res == 500.0\n\ndef test_laplace_calibrated_noise_scaling():\n    # u = 0.25 -> ln(1 - 0.5) = ln(0.5) = -0.693147\n    # For eps = 1.0: -1.0 * 1 * (-0.693147) = +0.6931\n    res1 = private_count_query(100, epsilon=1.0, uniform_sample=0.25)\n    assert res1 == 100.6931\n    \n    # For eps = 0.1: noise is 10x larger: +6.9315\n    res2 = private_count_query(100, epsilon=0.1, uniform_sample=0.25)\n    assert res2 == 106.9315\n\ndef test_laplace_validation():\n    try:\n        private_count_query(100, epsilon=0.0, uniform_sample=0.1)\n        assert False, \"Should raise ValueError for epsilon <= 0\"\n    except ValueError:\n        pass\n    try:\n        private_count_query(100, epsilon=1.0, uniform_sample=0.5) # Out of range\n        assert False, \"Should raise ValueError for sample >= 0.5\"\n    except ValueError:\n        pass\n", "mutants": ["def private_count_query(true_count, epsilon, uniform_sample):\n    assert False, 'mutant injected'\n", "def private_count_query(true_count, epsilon, uniform_sample):\n    # Mutant adds constant 1.0 instead of calibrated Laplace noise\n    if epsilon <= 0: raise ValueError()\n    return float(true_count + 1)\n"], "hints": ["Validate that epsilon > 0 and uniform_sample is strictly inside (-0.5, 0.5).", "Use the Laplace quantile formula: -scale * sgn(u) * log(1 - 2*abs(u)).", "Scale parameter is sensitivity / epsilon."], "level": "core", "title": "Laplace Mechanism Differential Privacy Query Engine"}, "ex3-disparate-impact-fairness-auditor": {"starter": "from typing import Any, Dict, List\n\ndef audit_disparate_impact(records: List[Dict[str, Any]], group_key: str, outcome_key: str) -> Dict[str, Any]:\n    pass\n", "solution": "from typing import Any, Dict, List\n\ndef audit_disparate_impact(records: List[Dict[str, Any]], group_key: str, outcome_key: str) -> Dict[str, Any]:\n    if not records:\n        raise ValueError(\"records list cannot be empty\")\n        \n    group_totals = {}\n    group_positives = {}\n    \n    for r in records:\n        if group_key not in r or outcome_key not in r:\n            raise KeyError(\"Missing required keys in record\")\n        grp = r[group_key]\n        outcome = bool(r[outcome_key])\n        group_totals[grp] = group_totals.get(grp, 0) + 1\n        if outcome:\n            group_positives[grp] = group_positives.get(grp, 0) + 1\n            \n    rates = {grp: group_positives.get(grp, 0) / group_totals[grp] for grp in group_totals}\n    \n    priv_group = max(rates, key=rates.get)\n    priv_rate = rates[priv_group]\n    \n    ratios = {}\n    is_fair = True\n    for grp, rate in rates.items():\n        ratio = 1.0 if priv_rate == 0 else rate / priv_rate\n        ratios[grp] = round(ratio, 3)\n        if ratio < 0.80:\n            is_fair = False\n            \n    return {\n        \"rates\": {k: round(v, 3) for k, v in rates.items()},\n        \"privileged_group\": priv_group,\n        \"disparate_impact_ratios\": ratios,\n        \"passes_four_fifths_rule\": is_fair\n    }\n", "tests": "def test_fair_dataset_passes_four_fifths():\n    # Group A: 80% (80/100), Group B: 72% (72/100) -> Ratio = 72/80 = 0.90 >= 0.80\n    data = (\n        [{\"gender\": \"M\", \"hired\": True}] * 80 + [{\"gender\": \"M\", \"hired\": False}] * 20 +\n        [{\"gender\": \"F\", \"hired\": True}] * 72 + [{\"gender\": \"F\", \"hired\": False}] * 28\n    )\n    audit = audit_disparate_impact(data, \"gender\", \"hired\")\n    assert audit[\"passes_four_fifths_rule\"]\n    assert audit[\"privileged_group\"] == \"M\"\n    assert audit[\"disparate_impact_ratios\"][\"F\"] == 0.90\n\ndef test_biased_dataset_fails_four_fifths():\n    # Group A: 80% (80/100), Group B: 30% (30/100) -> Ratio = 30/80 = 0.375 < 0.80\n    data = (\n        [{\"region\": \"Urban\", \"approved\": True}] * 80 + [{\"region\": \"Urban\", \"approved\": False}] * 20 +\n        [{\"region\": \"Rural\", \"approved\": True}] * 30 + [{\"region\": \"Rural\", \"approved\": False}] * 70\n    )\n    audit = audit_disparate_impact(data, \"region\", \"approved\")\n    assert not audit[\"passes_four_fifths_rule\"]\n    assert audit[\"disparate_impact_ratios\"][\"Rural\"] == 0.375\n\ndef test_empty_records_error():\n    try:\n        audit_disparate_impact([], \"group\", \"outcome\")\n        assert False, \"Should raise ValueError on empty dataset\"\n    except ValueError:\n        pass\n", "mutants": ["def audit_disparate_impact(records, group_key, outcome_key):\n    assert False, 'mutant injected'\n", "def audit_disparate_impact(records, group_key, outcome_key):\n    if not records: raise ValueError()\n    # Mutant always reports passing fairness\n    return {\"passes_four_fifths_rule\": True, \"disparate_impact_ratios\": {}}\n"], "hints": ["Calculate the proportion of positive outcomes for each group.", "Determine the highest selection rate as the privileged group baseline.", "Flag passes_four_fifths_rule as False if any group has ratio < 0.80."], "level": "core", "title": "Algorithmic Fairness and Disparate Impact Auditor"}, "ex4-open-source-license-compliance": {"starter": "from typing import Any, Dict, List, Set\n\nclass LicenseComplianceChecker:\n    def __init__(self):\n        pass\n\n    def add_dependency(self, package_name: str, license_name: str):\n        pass\n\n    def check_compliance(self, project_license: str) -> Dict[str, Any]:\n        pass\n", "solution": "from typing import Any, Dict, List, Set\n\nclass LicenseComplianceChecker:\n    # Known license categories\n    PERMISSIVE = {\"MIT\", \"Apache-2.0\", \"BSD-3-Clause\", \"ISC\"}\n    COPYLEFT = {\"GPL-2.0\", \"GPL-3.0\", \"LGPL-3.0\", \"AGPL-3.0\"}\n\n    def __init__(self):\n        # package -> license\n        self._deps = {}\n\n    def add_dependency(self, package_name: str, license_name: str):\n        self._deps[package_name] = license_name\n\n    def check_compliance(self, project_license: str) -> Dict[str, Any]:\n        violations = []\n        attributions = []\n\n        is_proprietary = (project_license.upper() in (\"PROPRIETARY\", \"CLOSED-SOURCE\"))\n\n        for pkg, lic in self._deps.items():\n            attributions.append(f\"{pkg}: licensed under {lic}\")\n            \n            # Check proprietary project using copyleft code\n            if is_proprietary and lic in self.COPYLEFT:\n                violations.append(\n                    f\"Violation: Proprietary project cannot link copyleft dependency '{pkg}' ({lic})\"\n                )\n            # Check permissive project attempting to link strong copyleft without re-licensing\n            elif project_license in self.PERMISSIVE and lic in (\"GPL-3.0\", \"AGPL-3.0\"):\n                violations.append(\n                    f\"Warning/Conflict: Permissive project ({project_license}) contaminated by copyleft '{pkg}' ({lic})\"\n                )\n\n        return {\n            \"compliant\": len(violations) == 0,\n            \"violations\": violations,\n            \"attribution_notices\": sorted(attributions)\n        }\n", "tests": "def test_proprietary_project_clean_permissive():\n    checker = LicenseComplianceChecker()\n    checker.add_dependency(\"flutter_bloc\", \"MIT\")\n    checker.add_dependency(\"dio\", \"MIT\")\n    checker.add_dependency(\"firebase_core\", \"Apache-2.0\")\n    \n    report = checker.check_compliance(project_license=\"PROPRIETARY\")\n    assert report[\"compliant\"]\n    assert len(report[\"violations\"]) == 0\n    assert len(report[\"attribution_notices\"]) == 3\n\ndef test_proprietary_project_copyleft_violation():\n    checker = LicenseComplianceChecker()\n    checker.add_dependency(\"requests\", \"Apache-2.0\")\n    checker.add_dependency(\"gpl_database_driver\", \"GPL-3.0\")\n    \n    report = checker.check_compliance(project_license=\"PROPRIETARY\")\n    assert not report[\"compliant\"]\n    assert len(report[\"violations\"]) == 1\n    assert \"gpl_database_driver\" in report[\"violations\"][0]\n\ndef test_permissive_project_copyleft_conflict():\n    checker = LicenseComplianceChecker()\n    checker.add_dependency(\"copyleft_tool\", \"GPL-3.0\")\n    report = checker.check_compliance(project_license=\"MIT\")\n    assert not report[\"compliant\"]\n    assert len(report[\"violations\"]) == 1\n", "mutants": ["class LicenseComplianceChecker:\n    def __init__(self): pass\n    def add_dependency(self, package_name, license_name): pass\n    def check_compliance(self, project_license): assert False, 'mutant injected'\n", "class LicenseComplianceChecker:\n    def __init__(self):\n        self._deps = {}\n    def add_dependency(self, package_name, license_name):\n        self._deps[package_name] = license_name\n    def check_compliance(self, project_license):\n        # Mutant ignores all copyleft violations and claims compliance!\n        return {\n            \"compliant\": True,\n            \"violations\": [],\n            \"attribution_notices\": sorted([f\"{p}: licensed under {l}\" for p, l in self._deps.items()])\n        }\n"], "hints": ["Maintain sets of permissive licenses (MIT, Apache-2.0) and copyleft licenses (GPL, AGPL).", "Flag violations when proprietary or permissive projects include strong copyleft dependencies.", "Collect attribution notices formatted as 'package: licensed under license'."], "level": "boss", "title": "Open-Source Software License Compatibility Verifier"}}, "demos": {"p24-oracle-differential-privacy": {"code": "import math\n\ndef laplace_noise(sensitivity: float, epsilon: float, uniform_sample: float) -> float:\n    # Inverse CDF transform sampling: u in (-0.5, 0.5)\n    scale = sensitivity / epsilon\n    u = uniform_sample\n    sgn = 1.0 if u >= 0 else -1.0\n    return -scale * sgn * math.log(1.0 - 2.0 * abs(u))\n\ndef private_count_query(true_count: int, epsilon: float, sample: float) -> float:\n    if epsilon <= 0: raise ValueError(\"epsilon must be positive\")\n    # Count queries have global L1 sensitivity of 1 (adding/removing one person changes count by 1)\n    noise = laplace_noise(sensitivity=1.0, epsilon=epsilon, uniform_sample=sample)\n    return true_count + noise\n\ntrue_medical_count = 1000\n\n# High privacy protection: epsilon = 0.1 (large noise scale = 1/0.1 = 10)\n# Sample u = 0.25 -> noise = -10 * 1 * ln(1 - 0.5) = -10 * ln(0.5) = 6.931\nnoisy_high_priv = private_count_query(true_medical_count, epsilon=0.1, sample=0.25)\nnoise_high = noisy_high_priv - true_medical_count\n\n# Low privacy protection: epsilon = 2.0 (small noise scale = 1/2.0 = 0.5)\n# Sample u = 0.25 -> noise = -0.5 * 1 * ln(0.5) = 0.347\nnoisy_low_priv = private_count_query(true_medical_count, epsilon=2.0, sample=0.25)\nnoise_low = noisy_low_priv - true_medical_count\n\nprint(f\"True Medical Count: {true_medical_count}\")\nprint(f\"High Privacy (eps=0.1): Result = {noisy_high_priv:.2f}, Noise = {noise_high:+.2f}\")\nprint(f\"Low Privacy  (eps=2.0): Result = {noisy_low_priv:.2f}, Noise = {noise_low:+.2f}\")\n\n# Verify that high privacy introduces 20x higher noise than low privacy (0.1 vs 2.0)\nassert round(noise_high, 3) == 6.931\nassert round(noise_low, 3) == 0.347\nassert noise_high > noise_low\nassert round(noise_high / noise_low, 1) == 20.0\n", "mutants": ["def laplace_noise(sens, eps, u): return 0.0 # Mutant adds zero noise, completely violating differential privacy!\ndef private_count_query(tc, eps, s): return float(tc)\n\nnoisy_high = private_count_query(1000, 0.1, 0.25)\nassert noisy_high != 1000, \"Differential privacy query must add calibrated noise\"\n"]}, "p24-experiment-disparate-impact-audit": {"code": "def audit_disparate_impact(records: list[dict], group_key: str, outcome_key: str) -> dict:\n    group_totals = {}\n    group_positives = {}\n    \n    for r in records:\n        grp = r[group_key]\n        outcome = r[outcome_key]\n        group_totals[grp] = group_totals.get(grp, 0) + 1\n        if outcome:\n            group_positives[grp] = group_positives.get(grp, 0) + 1\n            \n    rates = {grp: group_positives.get(grp, 0) / group_totals[grp] for grp in group_totals}\n    \n    # Identify privileged group with highest selection rate\n    priv_group = max(rates, key=rates.get)\n    priv_rate = rates[priv_group]\n    \n    ratios = {}\n    is_fair = True\n    for grp, rate in rates.items():\n        ratio = 1.0 if priv_rate == 0 else rate / priv_rate\n        ratios[grp] = round(ratio, 3)\n        # Four-fifths rule: selection rate must be at least 80% of privileged group\n        if ratio < 0.80:\n            is_fair = False\n            \n    return {\n        \"rates\": rates,\n        \"privileged_group\": priv_group,\n        \"disparate_impact_ratios\": ratios,\n        \"passes_four_fifths_rule\": is_fair\n    }\n\n# Synthetic hiring dataset: Group A vs Group B\n# Group A: 100 applicants, 80 hired (80% rate)\n# Group B: 100 applicants, 40 hired (40% rate) -> Ratio = 40/80 = 0.50 < 0.80 -> Severe Bias!\nbiased_dataset = (\n    [{\"group\": \"A\", \"hired\": True}] * 80 + [{\"group\": \"A\", \"hired\": False}] * 20 +\n    [{\"group\": \"B\", \"hired\": True}] * 40 + [{\"group\": \"B\", \"hired\": False}] * 60\n)\n\naudit_biased = audit_disparate_impact(biased_dataset, \"group\", \"hired\")\nprint(\"Biased Dataset Audit:\", audit_biased)\nassert not audit_biased[\"passes_four_fifths_rule\"]\nassert audit_biased[\"disparate_impact_ratios\"][\"B\"] == 0.50\n\n# Fair dataset: Group A 80% (80/100), Group B 72% (72/100) -> Ratio = 72/80 = 0.90 >= 0.80 -> Passes!\nfair_dataset = (\n    [{\"group\": \"A\", \"hired\": True}] * 80 + [{\"group\": \"A\", \"hired\": False}] * 20 +\n    [{\"group\": \"B\", \"hired\": True}] * 72 + [{\"group\": \"B\", \"hired\": False}] * 28\n)\n\naudit_fair = audit_disparate_impact(fair_dataset, \"group\", \"hired\")\nprint(\"Fair Dataset Audit:\", audit_fair)\nassert audit_fair[\"passes_four_fifths_rule\"]\nassert audit_fair[\"disparate_impact_ratios\"][\"B\"] == 0.90\n", "mutants": ["def audit_disparate_impact(records, gk, ok):\n    # Mutant always claims the model passes fairness checks\n    return {\"passes_four_fifths_rule\": True, \"disparate_impact_ratios\": {\"B\": 1.0}}\n\nbiased = [{\"group\": \"A\", \"hired\": True}]*80 + [{\"group\": \"B\", \"hired\": True}]*20 + [{\"group\": \"B\", \"hired\": False}]*80\nres = audit_disparate_impact(biased, \"group\", \"hired\")\nassert not res[\"passes_four_fifths_rule\"], \"Biased dataset must fail the Four-Fifths rule\"\n"]}}, "cards": [{"q": "What lessons did the Therac-25 radiation disaster teach computer science?", "a": "Software is life-critical engineering requiring formal safety interlocks, rigorous unit testing, and management accountability; software cannot blindly replace physical safety relays."}, {"q": "What is differential privacy and how does the Laplace mechanism work?", "a": "A mathematical guarantee that query outputs do not reveal whether any individual record was present, achieved by adding Laplace noise calibrated to sensitivity / epsilon."}, {"q": "What is the Disparate Impact Four-Fifths Rule in algorithmic fairness?", "a": "A selection standard stating that an automated system has adverse disparate impact if the selection rate of an unprivileged group is less than 80% (0.80) of the privileged group."}, {"q": "What are the key obligations under India's DPDP Act 2023?", "a": "Verifiable consent, purpose limitation, data minimization, user right of erasure, and mandatory incident notification to CERT-In and the Data Protection Board."}, {"q": "What is the difference between permissive and copyleft open-source licenses?", "a": "Permissive licenses (MIT, Apache) allow closed-source proprietary redistribution with attribution; copyleft licenses (GPL, AGPL) legally compel derivative works to remain open source."}, {"q": "Why is algorithmic bias not solved simply by removing protected attributes like gender or race?", "a": "Machine learning models easily reconstruct protected attributes from correlated proxy features (postal code, school, browsing patterns); proactive fairness audits are required."}], "title": "Society, ethics and the profession"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,418 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M09 Data handling and descriptive statistics</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M09">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 6-8 · ~3h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M09</p><h1>Data handling and descriptive statistics</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M03.html">M03</a></div><div><b>Covers:</b> NCERT 6: Data Handling and Presentation, NCERT 7-8: Data Handling, NCERT 9: Statistics, NCERT 10: Statistics, NCERT 11: Statistics, CS2023 MSF</div>
+<details><summary>Everything this module teaches (15 items)</summary><ul class="must"><li>collecting and organising data</li><li>tally marks, pictographs, bar graphs, histograms</li><li>frequency distributions and class intervals</li><li>mean, median and mode for raw and grouped data</li><li>cumulative frequency and ogives</li><li>range, mean deviation, variance and standard deviation</li><li>population vs sample variance (n vs n-1)</li><li>outliers and robust statistics</li><li>misleading graphs</li><li>pie charts: sector angles proportional to shares</li><li>line graphs for data over time and reading trends</li><li>coefficient of variation for comparing the spread of two distributions</li><li>the mean as the balance point: deviations from the mean sum to zero</li><li>dot plots</li><li>frequency polygons</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Ms Rao asks everyone in Class 3 to bring mangoes on Monday. Twenty children come in. She cannot remember twenty numbers, so she draws a line on the board for each mango a child brought, and crosses off every fifth line so the bundles are easy to count. Now the board holds the whole class in one picture.</p>
+<p>Then she asks two questions that sound the same but are not.</p>
+<p>"If we pour all the mangoes into one basket and share them out equally, how many does each child get?" That is the sharing number.</p>
+<p>"If I line you up from fewest mangoes to most, who is standing in the middle, and how many do they have?" That is the middle child.</p>
+<p>Most days the two answers are close. Then Bunty walks in with forty mangoes because his uncle owns an orchard. The sharing number jumps. The middle child does not move at all.</p>
+<p>Here is the surprise: one child changed the first answer and could not touch the second. Neither number is lying. They are answering different questions, and if you only ever ask one of them, somebody can fool you.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Descriptive statistics is the art of squeezing a pile of numbers into a few numbers that still tell the truth about the pile.</p>
+<p>You need three kinds of summary, not one. <strong>Centre</strong>: where the data sits (mean, median, mode). <strong>Spread</strong>: how far it scatters (range, mean deviation, variance, standard deviation). <strong>Shape</strong>: how it is distributed, which you read off a picture (bar graph, histogram, dot plot, frequency polygon, ogive).</p>
+<p>The one-line takeaway: a centre without a spread is a half-truth, and an average without the shape behind it can be made to say almost anything. Every statistic you will meet later — a benchmark, a latency report, a model's accuracy — is one of these summaries wearing a suit.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>A <strong>data set</strong> is a list of observations $x_1, x_2, \dots, x_n$ of some variable. <strong>Raw data</strong> is the unordered list; an <strong>array</strong> is the same data sorted.</p>
+<p>A <strong>frequency distribution</strong> groups the data into <strong>class intervals</strong> of width $h$. For a class, the <strong>lower limit</strong> is $l$, the <strong>frequency</strong> $f$ is how many observations fall in it, and the <strong>class mark</strong> (midpoint) is the average of its limits. <strong>Cumulative frequency</strong> is the running total of $f$ up to and including a class; plotting it against class boundaries gives an <strong>ogive</strong>.</p>
+<p><strong>Pictures.</strong> A <em>pictograph</em> uses one icon per fixed count. A <em>bar graph</em> has gaps between bars and compares categories. A <em>histogram</em> has no gaps and shows continuous classes, where area is proportional to frequency. A <em>dot plot</em> stacks one dot per observation above its value, and is the honest choice for small data. A <em>frequency polygon</em> joins the class marks of a histogram with straight lines. A <em>line graph</em> puts time on the horizontal axis and is read for trend, not for individual points. A <em>pie chart</em> turns shares into angles:</p>
+<p>$$\text{angle of a sector} = \frac{\text{value}}{\text{total}} \times 360^\circ$$</p>
+<p><strong>Centre.</strong> For raw data the <strong>mean</strong> is $\bar{x} = \frac{1}{n}\sum_{i=1}^{n} x_i$. The <strong>median</strong> is the middle value of the sorted data when $n$ is odd, and the mean of the two middle values when $n$ is even. The <strong>mode</strong> is the most frequent value.</p>
+<p>For <strong>grouped data</strong> with classes of frequency $f_i$ and class mark $x_i$:</p>
+<p>$$\bar{x} = \frac{\sum f_i x_i}{\sum f_i}, \qquad \text{median} = l + \left(\frac{\frac{n}{2} - cf}{f}\right) h, \qquad \text{mode} = l + \left(\frac{f_1 - f_0}{2f_1 - f_0 - f_2}\right) h$$</p>
+<p>where for the median, $l$ is the lower boundary of the class containing the $\frac{n}{2}$-th observation, $cf$ is the cumulative frequency of all classes before it, and $f$ is its own frequency; and for the mode, $f_1$ is the largest frequency, with $f_0$ and $f_2$ the frequencies of the classes just before and just after it.</p>
+<p><strong>Spread.</strong> The <strong>range</strong> is $\max - \min$. The <strong>mean deviation about the mean</strong> is $\frac{1}{n}\sum |x_i - \bar{x}|$. The <strong>population variance</strong> of a complete population of size $N$ with mean $\mu$ is</p>
+<p>$$\sigma^2 = \frac{1}{N}\sum_{i=1}^{N} (x_i - \mu)^2$$</p>
+<p>and the <strong>sample variance</strong> of a sample of size $n$ is</p>
+<p>$$s^2 = \frac{1}{n-1}\sum_{i=1}^{n} (x_i - \bar{x})^2$$</p>
+<p>The <strong>standard deviation</strong> is the positive square root of the variance, and carries the same unit as the data. The <strong>coefficient of variation</strong> is unit-free and lets you compare the spread of two different quantities:</p>
+<p>$$CV = \frac{\sigma}{\bar{x}} \times 100\%$$</p>
+<h2>A pinch of history</h2>
+<p>Summarising people by counting them is old, but treating the summary as a subject is not. John Graunt analysed London's Bills of Mortality in 1662 and built the first life table from parish death records. William Playfair invented the bar chart in 1786 and the pie chart in 1801. Florence Nightingale used a polar-area diagram in 1858 to argue that disease, not battle wounds, was killing soldiers in the Crimea — an early case of a graph winning an argument. Karl Pearson introduced the term <em>standard deviation</em> in 1894.</p>
+<p>In India, Prasanta Chandra Mahalanobis founded the Indian Statistical Institute in Kolkata in 1931 and defined the Mahalanobis distance in 1936; he went on to design the large-scale sample surveys that became the National Sample Survey, set up in 1950. Sampling theory in India was built to answer practical questions about crops and households, which is a good reminder that these formulas were invented to be used.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Two results in this module are worth proving, because both are routinely misquoted.</p>
+<p><strong>Result 1: the mean is the balance point. The deviations from the mean always sum to exactly zero.</strong></p>
+<ol>
+<li>Write the sum of deviations: $\sum_{i=1}^{n}(x_i - \bar{x})$.</li>
+<li>Split it: $\sum x_i - \sum \bar{x}$.</li>
+<li>The second term adds the same constant $n$ times, so it is $n\bar{x}$.</li>
+<li>By definition $\bar{x} = \frac{1}{n}\sum x_i$, so $n\bar{x} = \sum x_i$.</li>
+<li>Therefore the expression is $\sum x_i - \sum x_i = 0$.</li>
+</ol>
+<p>This is why we square the deviations before averaging them. If we just averaged the raw deviations we would get zero for every data set on earth, which measures nothing. It also says the mean is the point where the data balances like a see-saw, and that is exactly why one heavy value far from the centre drags it so hard.</p>
+<p><strong>Result 2: dividing by $n-1$ is not a fudge. It is what makes the sample variance unbiased.</strong></p>
+<p>Let $x_1,\dots,x_n$ be drawn independently from a population with true mean $\mu$ and true variance $\sigma^2$.</p>
+<ol>
+<li>Start from the identity $\sum (x_i - \bar{x})^2 = \sum (x_i - \mu)^2 - n(\bar{x} - \mu)^2$. (Add and subtract $\mu$ inside the bracket and expand; the cross term collapses by Result 1.)</li>
+<li>Take expectations of both sides.</li>
+<li>$E\left[\sum (x_i - \mu)^2\right] = n\sigma^2$, because each term has expectation $\sigma^2$ by the definition of variance.</li>
+<li>$E\left[(\bar{x} - \mu)^2\right] = \frac{\sigma^2}{n}$, because the variance of a mean of $n$ independent draws is $\frac{\sigma^2}{n}$.</li>
+<li>So $E\left[\sum (x_i - \bar{x})^2\right] = n\sigma^2 - n \cdot \frac{\sigma^2}{n} = (n-1)\sigma^2$.</li>
+<li>Divide by $n-1$ and the expectation is exactly $\sigma^2$.</li>
+</ol>
+<p><strong>Step 1 is the non-obvious one.</strong> Everything else is bookkeeping. The intuition behind it: $\bar{x}$ is computed <em>from the sample</em>, so it sits closer to the sample than the true mean $\mu$ does. Squared distances measured to $\bar{x}$ are therefore systematically too small — by exactly one sample's worth of information. We say the sample has $n-1$ <strong>degrees of freedom</strong>, because once you know $\bar{x}$ and any $n-1$ of the values, the last one is forced.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle checks variance two genuinely independent ways. The first is the textbook two-pass method: compute the mean, then average the squared deviations. The second is Welford's online algorithm, which never stores the data and never computes the mean in advance — it updates a running mean and a running sum of squared deviations one observation at a time. The two routines share no helper and no loop structure; they agree only if both are right.</p>
+<p>Welford's update is the subtle part. For each new value it computes the gap to the <em>old</em> mean, updates the mean, computes the gap to the <em>new</em> mean, and accumulates the product of the two gaps. Using the same gap twice is the classic bug, and the mutant below does exactly that.</p>
+<div class="lab demo" data-demo="m09-variance-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Two independent routes to the variance</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+
+def two_pass_variance(xs):
+    &quot;&quot;&quot;Textbook definition: find the mean, then average squared deviations.&quot;&quot;&quot;
+    n = len(xs)
+    mean = sum(xs) / n
+    return sum((x - mean) ** 2 for x in xs) / n
+
+
+def welford_variance(xs):
+    &quot;&quot;&quot;Streaming: one pass, no stored data, no precomputed mean.&quot;&quot;&quot;
+    count = 0
+    mean = 0.0
+    m2 = 0.0
+    for x in xs:
+        count += 1
+        delta = x - mean
+        mean += delta / count
+        delta2 = x - mean
+        m2 += delta * delta2
+    return m2 / count
+
+
+rng = random.Random(20260930)
+worst = 0.0
+for trial in range(200):
+    n = rng.randint(2, 60)
+    xs = [rng.uniform(-500, 500) for _ in range(n)]
+    a = two_pass_variance(xs)
+    b = welford_variance(xs)
+    worst = max(worst, abs(a - b) / max(a, 1e-12))
+
+print(&quot;trials:&quot;, 200)
+print(&quot;largest relative disagreement:&quot;, f&quot;{worst:.3e}&quot;)
+assert worst &lt; 1e-9, &quot;the two methods must agree to floating-point precision&quot;
+
+# The deviations from the mean sum to zero: the balance-point result.
+sample = [4, 8, 15, 16, 23, 42]
+mean = sum(sample) / len(sample)
+total_deviation = sum(x - mean for x in sample)
+print(&quot;sum of deviations from the mean:&quot;, round(total_deviation, 12))
+assert abs(total_deviation) &lt; 1e-9, &quot;deviations from the mean must cancel exactly&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory says the $n-1$ divisor makes the sample variance unbiased, and that the $n$ divisor is biased low by the factor $\frac{n-1}{n}$. That is a sharp, falsifiable prediction, so we measure it.</p>
+<p>We roll a fair six-sided die, whose population variance we know exactly: the mean is $3.5$ and the variance is $\frac{35}{12} \approx 2.9167$. We draw many independent samples of size $n = 5$, compute both estimators on each sample, and average them over all the repetitions. The prediction is that the $n-1$ version converges to $2.9167$ and the $n$ version converges to $2.9167 \times \frac{4}{5} = 2.3333$.</p>
+<div class="lab demo" data-demo="m09-bessel-correction">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Measuring the bias of the two variance formulas</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+TRUE_VARIANCE = 35 / 12          # exact population variance of one fair die
+N = 5                            # sample size
+REPS = 30000                     # independent samples
+
+
+def variance(xs, ddof):
+    n = len(xs)
+    mean = sum(xs) / n
+    return sum((x - mean) ** 2 for x in xs) / (n - ddof)
+
+
+rng = random.Random(4242)
+total_sample = 0.0
+total_population = 0.0
+for _ in range(REPS):
+    roll = [rng.randint(1, 6) for _ in range(N)]
+    total_sample += variance(roll, ddof=1)
+    total_population += variance(roll, ddof=0)
+
+measured_sample = total_sample / REPS
+measured_population = total_population / REPS
+predicted_population = TRUE_VARIANCE * (N - 1) / N
+
+print(&quot;true population variance:&quot;, round(TRUE_VARIANCE, 4))
+print(&quot;predicted mean of the n-1 estimator:&quot;, round(TRUE_VARIANCE, 4))
+print(&quot;measured  mean of the n-1 estimator:&quot;, round(measured_sample, 4))
+print(&quot;predicted mean of the n estimator:  &quot;, round(predicted_population, 4))
+print(&quot;measured  mean of the n estimator:  &quot;, round(measured_population, 4))
+
+assert abs(measured_sample - TRUE_VARIANCE) &lt; 0.05, &quot;the n-1 estimator must be unbiased&quot;
+assert abs(measured_population - predicted_population) &lt; 0.05, &quot;the n estimator must be low by (n-1)/n&quot;
+assert measured_population &lt; measured_sample, &quot;dividing by n must underestimate&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the measured numbers never land exactly on the prediction, because 30000 repetitions is a finite sample and the estimator itself has variance. Widen the tolerance and the test proves nothing; narrow it too far and it fails on an unlucky seed. The honest move is to pick a tolerance from the standard error of the mean, not from whatever makes the run go green. Note also that unbiasedness is a statement about the <em>variance</em>, not the standard deviation: taking a square root is a non-linear operation, so $s$ is <strong>not</strong> an unbiased estimator of $\sigma$ even though $s^2$ is unbiased for $\sigma^2$.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m09-ex1-frequency-table" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Build a frequency table with fixed class intervals</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>frequency_table(values, width)</code> that groups integer observations into class intervals of the given width and returns a list of <code>(lower, upper, count)</code> tuples. The first class starts at <code>(min(values) // width) * width</code>, each class covers the half-open interval <code>[lower, lower + width)</code>, and classes continue until every observation is covered. Classes must be returned in increasing order of <code>lower</code>, including any class whose count is zero. Raise <code>ValueError</code> if <code>values</code> is empty or if <code>width</code> is not a positive integer.</p></div>
+<textarea class="code" spellcheck="false">def frequency_table(values, width):
+    &quot;&quot;&quot;Group values into [lower, lower+width) classes. Return (lower, upper, count) tuples.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_simple_table_counts_every_value():
+    data = [1, 3, 5, 7, 9, 11]
+    table = frequency_table(data, 5)
+    # classes start at (1 // 5) * 5 = 0, so [0,5), [5,10), [10,15)
+    assert table == [(0, 5, 2), (5, 10, 3), (10, 15, 1)]
+    assert sum(c for _, _, c in table) == len(data)
+
+
+def test_boundary_value_goes_to_the_upper_class():
+    # 5 must land in [5,10), not in [0,5): intervals are half-open.
+    table = frequency_table([4, 5], 5)
+    assert table == [(0, 5, 1), (5, 10, 1)]
+
+
+def test_empty_classes_are_kept_and_errors_raised():
+    table = frequency_table([0, 25], 5)
+    assert [c for _, _, c in table] == [1, 0, 0, 0, 0, 1]
+    for bad in ([], ):
+        try:
+            frequency_table(bad, 5)
+            assert False, &quot;empty values must raise ValueError&quot;
+        except ValueError:
+            pass
+    try:
+        frequency_table([1, 2], 0)
+        assert False, &quot;width 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m09-ex2-centres" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Mean, median and mode of raw data</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>centres(values)</code> returning a dict with keys <code>"mean"</code>, <code>"median"</code> and <code>"mode"</code> for a non-empty list of numbers. The mean is the arithmetic average as a float. The median is the middle value of the sorted data when the count is odd, and the average of the two middle values when it is even. The mode is the most frequent value; when several values tie for most frequent, return the smallest of them. Raise <code>ValueError</code> when <code>values</code> is empty.</p></div>
+<textarea class="code" spellcheck="false">def centres(values):
+    &quot;&quot;&quot;Return {&quot;mean&quot;: ..., &quot;median&quot;: ..., &quot;mode&quot;: ...} for a non-empty list of numbers.&quot;&quot;&quot;
+    return {&quot;mean&quot;: 0.0, &quot;median&quot;: 0.0, &quot;mode&quot;: 0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_odd_count_hand_checked():
+    # sorted: 1, 2, 2, 7, 8  -&gt; sum 20, mean 4.0, middle value 2, most frequent 2
+    r = centres([7, 2, 1, 8, 2])
+    assert r[&quot;mean&quot;] == 4.0
+    assert r[&quot;median&quot;] == 2.0
+    assert r[&quot;mode&quot;] == 2
+
+
+def test_even_count_averages_the_two_middles():
+    # sorted: 1, 3, 5, 9 -&gt; middles 3 and 5 -&gt; median 4.0
+    r = centres([9, 1, 5, 3])
+    assert r[&quot;median&quot;] == 4.0
+    assert r[&quot;mean&quot;] == 4.5
+
+
+def test_unsorted_input_and_mode_tie_breaks_low():
+    # 4 and 9 both appear twice; the smaller one wins.
+    r = centres([9, 4, 9, 4, 1])
+    assert r[&quot;mode&quot;] == 4
+    # median must not depend on input order
+    assert centres([5, 1, 3])[&quot;median&quot;] == centres([3, 5, 1])[&quot;median&quot;] == 3.0
+    try:
+        centres([])
+        assert False, &quot;empty input must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m09-ex3-grouped-stats" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Mean, median and mode from a grouped frequency table</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>grouped_stats(classes)</code> where <code>classes</code> is a list of <code>(lower, upper, frequency)</code> tuples in increasing order, each class covering <code>[lower, upper)</code>. Return a dict with keys <code>"mean"</code>, <code>"median"</code> and <code>"mode"</code>. The mean uses class marks: the midpoint of each class weighted by its frequency. The median uses <code>l + ((n/2 - cf) / f) * h</code>, where the median class is the first class whose cumulative frequency reaches or exceeds <code>n/2</code>, <code>cf</code> is the cumulative frequency strictly before it, <code>f</code> its frequency and <code>h</code> its width. The mode uses <code>l + ((f1 - f0) / (2*f1 - f0 - f2)) * h</code> for the first class with the largest frequency, treating a missing neighbour as frequency 0. Raise <code>ValueError</code> if <code>classes</code> is empty or the total frequency is zero.</p></div>
+<textarea class="code" spellcheck="false">def grouped_stats(classes):
+    &quot;&quot;&quot;Return {&quot;mean&quot;: ..., &quot;median&quot;: ..., &quot;mode&quot;: ...} from (lower, upper, freq) tuples.&quot;&quot;&quot;
+    return {&quot;mean&quot;: 0.0, &quot;median&quot;: 0.0, &quot;mode&quot;: 0.0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_mean_uses_class_marks():
+    # classes [0,10) f=2 mark 5 ; [10,20) f=3 mark 15 ; [20,30) f=5 mark 25
+    # mean = (2*5 + 3*15 + 5*25) / 10 = (10 + 45 + 125)/10 = 18.0
+    r = grouped_stats([(0, 10, 2), (10, 20, 3), (20, 30, 5)])
+    assert abs(r[&quot;mean&quot;] - 18.0) &lt; 1e-9
+
+
+def test_median_formula_hand_checked():
+    # n = 10, n/2 = 5. cumulative: 2, 5, 10. First class reaching 5 is [10,20).
+    # cf before it = 2, f = 3, h = 10 -&gt; 10 + ((5-2)/3)*10 = 20.0
+    r = grouped_stats([(0, 10, 2), (10, 20, 3), (20, 30, 5)])
+    assert abs(r[&quot;median&quot;] - 20.0) &lt; 1e-9
+
+
+def test_mode_formula_and_errors():
+    # largest frequency 5 in [20,30): f1=5, f0=3, f2=0
+    # 20 + ((5-3)/(10-3-0))*10 = 20 + (2/7)*10 = 22.857142857...
+    r = grouped_stats([(0, 10, 2), (10, 20, 3), (20, 30, 5)])
+    assert abs(r[&quot;mode&quot;] - (20 + (2 / 7) * 10)) &lt; 1e-9
+    try:
+        grouped_stats([])
+        assert False, &quot;empty classes must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        grouped_stats([(0, 10, 0)])
+        assert False, &quot;zero total frequency must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m09-ex4-spread" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Range, mean deviation, variance, standard deviation and CV</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>spread(values, ddof)</code> returning a dict with keys <code>"range"</code>, <code>"mean_deviation"</code>, <code>"variance"</code>, <code>"std"</code> and <code>"cv"</code>. The range is <code>max - min</code>. The mean deviation is the average absolute deviation from the mean. The variance divides the sum of squared deviations by <code>len(values) - ddof</code>, so <code>ddof=0</code> gives the population variance and <code>ddof=1</code> the sample variance. The standard deviation is the square root of the variance. The coefficient of variation is <code>std / mean * 100</code>, and must be <code>None</code> when the mean is exactly zero. Raise <code>ValueError</code> if <code>values</code> is empty or if <code>len(values) - ddof</code> is not positive.</p></div>
+<textarea class="code" spellcheck="false">def spread(values, ddof):
+    &quot;&quot;&quot;Return range, mean_deviation, variance, std and cv for a list of numbers.&quot;&quot;&quot;
+    return {&quot;range&quot;: 0, &quot;mean_deviation&quot;: 0.0, &quot;variance&quot;: 0.0, &quot;std&quot;: 0.0, &quot;cv&quot;: None}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_population_variance_hand_checked():
+    # data 2,4,4,4,5,5,7,9 -&gt; mean 5. squared deviations: 9,1,1,1,0,0,4,16 = 32
+    # population variance 32/8 = 4.0, std 2.0
+    r = spread([2, 4, 4, 4, 5, 5, 7, 9], ddof=0)
+    assert abs(r[&quot;variance&quot;] - 4.0) &lt; 1e-9
+    assert abs(r[&quot;std&quot;] - 2.0) &lt; 1e-9
+    assert r[&quot;range&quot;] == 7
+
+
+def test_sample_variance_uses_n_minus_one():
+    # same data, 32 / 7
+    r = spread([2, 4, 4, 4, 5, 5, 7, 9], ddof=1)
+    assert abs(r[&quot;variance&quot;] - 32 / 7) &lt; 1e-9
+    # mean deviation: |-3|+1+1+1+0+0+2+4 = 12, over 8 -&gt; 1.5
+    assert abs(r[&quot;mean_deviation&quot;] - 1.5) &lt; 1e-9
+
+
+def test_cv_is_unit_free_and_none_at_zero_mean():
+    r = spread([2, 4, 4, 4, 5, 5, 7, 9], ddof=0)
+    assert abs(r[&quot;cv&quot;] - (2.0 / 5.0 * 100)) &lt; 1e-9
+    # Scaling every value by 10 leaves the CV unchanged.
+    scaled = spread([20, 40, 40, 40, 50, 50, 70, 90], ddof=0)
+    assert abs(scaled[&quot;cv&quot;] - r[&quot;cv&quot;]) &lt; 1e-9
+    assert spread([-1, 1], ddof=0)[&quot;cv&quot;] is None
+    try:
+        spread([3], ddof=1)
+        assert False, &quot;n - ddof must be positive&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m09-ex5-outliers" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Tukey outliers and the robustness of the median</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write two functions. <code>quartiles(values)</code> returns <code>(q1, median, q3)</code> using Tukey's rule: sort the data, and when the count is odd exclude the middle value from both halves; <code>q1</code> is the median of the lower half and <code>q3</code> the median of the upper half, each computed with the usual even/odd median rule. <code>outliers(values)</code> returns a sorted list of the values that lie below <code>q1 - 1.5 * iqr</code> or above <code>q3 + 1.5 * iqr</code>, where <code>iqr = q3 - q1</code>. Both raise <code>ValueError</code> if there are fewer than four values.</p></div>
+<textarea class="code" spellcheck="false">def quartiles(values):
+    &quot;&quot;&quot;Return (q1, median, q3) using Tukey&#x27;s rule.&quot;&quot;&quot;
+    return (0.0, 0.0, 0.0)
+
+
+def outliers(values):
+    &quot;&quot;&quot;Return the sorted values outside the 1.5 * IQR fences.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_quartiles_odd_count_excludes_the_middle():
+    # sorted: 1 2 3 4 5 -&gt; lower [1,2], upper [4,5] -&gt; q1 1.5, median 3, q3 4.5
+    q1, med, q3 = quartiles([5, 3, 1, 4, 2])
+    assert q1 == 1.5 and med == 3.0 and q3 == 4.5
+
+
+def test_quartiles_even_count_splits_in_half():
+    # sorted: 1 2 3 4 5 6 -&gt; lower [1,2,3] q1 2 ; upper [4,5,6] q3 5 ; median 3.5
+    q1, med, q3 = quartiles([6, 5, 4, 3, 2, 1])
+    assert q1 == 2.0 and med == 3.5 and q3 == 5.0
+
+
+def test_outliers_and_median_robustness():
+    data = [1, 2, 3, 4, 5, 6, 7, 8, 100]
+    # lower [1,2,3,4] q1 2.5 ; upper [6,7,8,100] q3 7.5 ; iqr 5 ; fences -5 and 15
+    assert outliers(data) == [100]
+    # A value inside the 1.5 * IQR fence must NOT be flagged. For this data
+    # q1 = 2.5, q3 = 7.5, iqr = 5, so the upper fence is 7.5 + 7.5 = 15.
+    # A 1.0 * IQR fence would sit at 12.5 and wrongly flag the 13.
+    assert outliers([1, 2, 3, 4, 5, 6, 7, 8, 13]) == []
+    # The median ignores the wild value; the mean does not.
+    clean = [1, 2, 3, 4, 5, 6, 7, 8, 9]
+    assert quartiles(data)[1] == quartiles(clean)[1]
+    assert sum(data) / len(data) &gt; sum(clean) / len(clean) + 5
+    try:
+        quartiles([1, 2, 3])
+        assert False, &quot;fewer than four values must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"The average tells you what is typical."</strong> Only when the data is roughly symmetric and has no long tail. For incomes, house prices or request latencies the mean sits above almost every observation. Report the median too, and for latency report high percentiles rather than any measure of centre.</li>
+<li><strong>"The median is just a worse mean, so use the mean when you can."</strong> They answer different questions. The mean is the balance point and the only one that adds up — total mangoes equals mean times count. The median is the middle and survives a wild value untouched. Robustness is a feature, not a consolation prize.</li>
+<li><strong>"Variance and standard deviation are interchangeable."</strong> The variance is in squared units, so a variance of 4 rupees-squared is meaningless to a reader. The standard deviation is in rupees. Variance is the quantity that adds for independent sources; the standard deviation is the one you report.</li>
+<li><strong>"Dividing by n-1 is a correction for small samples that stops mattering when n is large."</strong> It is an exactness requirement at every n, not an approximation. It does shrink in importance as n grows, but the reason is unbiasedness, not sample size.</li>
+<li><strong>"A bigger standard deviation always means more variable data."</strong> Not across different units or scales. A standard deviation of 5 is huge for a quantity averaging 10 and negligible for one averaging 10000. That is precisely what the coefficient of variation is for.</li>
+<li><strong>"A graph cannot lie if the numbers are right."</strong> A truncated vertical axis, unequal class widths in a histogram, or a 3-D pie chart can make a 2% difference look like a doubling. The numbers can all be correct while the picture is dishonest.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Every summary here assumes the data is one population of comparable things. Average two different populations together and you get a number describing nobody — this is how Simpson's paradox is born, where a trend present in every subgroup reverses once the groups are pooled.</p>
+<p>The mean and standard deviation assume the distribution has a finite mean and variance. For heavy-tailed data they are unstable: adding one more observation can move them arbitrarily far, and they never settle however much data you collect. Use quantiles instead.</p>
+<p>Grouped formulas assume observations spread evenly inside each class, so the grouped mean is only an estimate of the true mean, and the grouped mode formula additionally assumes equal class widths. The mode is unstable for continuous data, where no value repeats.</p>
+<p>Finally, all of this is <em>descriptive</em>: it summarises the data in front of you and justifies no claim about a wider population or about cause. That requires sampling theory and inference, which is where V-track statistics picks up.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>These are the summaries behind every engineering number you will read or defend. A benchmark reported as a mean hides its tail; latency is reported at p50, p95 and p99 precisely because the mean of a heavy-tailed distribution is not typical. Variance versus standard deviation, and n versus n-1, are standard L5 interview follow-ups once you quote any measured number. The habit worth building here is reporting a centre, a spread and a sample size together, because any one of them alone can be defended by someone who is wrong.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why do we square the deviations from the mean instead of just averaging them?</p></div><div class="a" hidden><p>Because the raw deviations always sum to exactly zero for every data set, so their average measures nothing. Squaring removes the cancellation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>A dataset gets one new, enormous value. What happens to the mean and to the median?</p></div><div class="a" hidden><p>The mean moves towards it, without bound. The median moves by at most one position in the sorted order, and often not at all.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What exactly does the n-1 divisor in the sample variance achieve?</p></div><div class="a" hidden><p>It makes the estimator unbiased: the expected value of the sample variance equals the true population variance, because deviations measured from the sample mean are systematically too small.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>When is the coefficient of variation the right thing to report?</p></div><div class="a" hidden><p>When comparing the spread of two quantities with different units or very different means, because CV is a unit-free ratio of the standard deviation to the mean.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How do you compute the angle of a pie-chart sector?</p></div><div class="a" hidden><p>The sector's share of the total, multiplied by 360 degrees.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the difference between a bar graph and a histogram?</p></div><div class="a" hidden><p>A bar graph compares separate categories and has gaps between bars. A histogram shows continuous class intervals with no gaps, and the area of each bar is proportional to its frequency.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>In the grouped-data median formula, what is cf?</p></div><div class="a" hidden><p>The cumulative frequency of all classes strictly before the median class, not including the median class's own frequency.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Give one way a graph can mislead while every number on it is correct.</p></div><div class="a" hidden><p>Truncating the vertical axis so it does not start at zero, which exaggerates small differences into apparently large ones.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why the sharing number and the middle child can disagree, you can derive why the deviations from the mean sum to zero and why the sample variance divides by n-1, you pass the boss exercise without hints, and you can look at any published average and immediately ask the two right questions: what is the spread, and how many observations is it based on.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 9, chapter on Statistics, and Class 10, chapter on Statistics (grouped mean, median and mode).</li>
+<li>NCERT, <em>Mathematics</em> Class 11, chapter on Statistics (mean deviation, variance, standard deviation and the coefficient of variation).</li>
+<li>Freedman, Pisani and Purves, <em>Statistics</em>, 4th edition, W. W. Norton.</li>
+<li>B. P. Welford, "Note on a Method for Calculating Corrected Sums of Squares and Products", <em>Technometrics</em>, 1962.</li>
+<li>Edward R. Tufte, <em>The Visual Display of Quantitative Information</em>, 2nd edition, Graphics Press.</li>
+</ul></section>
+<footer class="pager"><a href="M03.html">&larr; M03 Fractions, decimals, ratio and percentages</a>
+<a href="M04.html">M04 Exponents, squares, cubes and roots &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M09", "packages": [], "exercises": {"m09-ex1-frequency-table": {"starter": "def frequency_table(values, width):\n    \"\"\"Group values into [lower, lower+width) classes. Return (lower, upper, count) tuples.\"\"\"\n    return []\n", "solution": "def frequency_table(values, width):\n    \"\"\"Group values into [lower, lower+width) classes. Return (lower, upper, count) tuples.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    if not isinstance(width, int) or width <= 0:\n        raise ValueError(\"width must be a positive integer\")\n    start = (min(values) // width) * width\n    top = max(values)\n    out = []\n    lower = start\n    while lower <= top:\n        upper = lower + width\n        count = sum(1 for v in values if lower <= v < upper)\n        out.append((lower, upper, count))\n        lower = upper\n    return out\n", "tests": "def test_simple_table_counts_every_value():\n    data = [1, 3, 5, 7, 9, 11]\n    table = frequency_table(data, 5)\n    # classes start at (1 // 5) * 5 = 0, so [0,5), [5,10), [10,15)\n    assert table == [(0, 5, 2), (5, 10, 3), (10, 15, 1)]\n    assert sum(c for _, _, c in table) == len(data)\n\n\ndef test_boundary_value_goes_to_the_upper_class():\n    # 5 must land in [5,10), not in [0,5): intervals are half-open.\n    table = frequency_table([4, 5], 5)\n    assert table == [(0, 5, 1), (5, 10, 1)]\n\n\ndef test_empty_classes_are_kept_and_errors_raised():\n    table = frequency_table([0, 25], 5)\n    assert [c for _, _, c in table] == [1, 0, 0, 0, 0, 1]\n    for bad in ([], ):\n        try:\n            frequency_table(bad, 5)\n            assert False, \"empty values must raise ValueError\"\n        except ValueError:\n            pass\n    try:\n        frequency_table([1, 2], 0)\n        assert False, \"width 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def frequency_table(values, width):\n    \"\"\"Bug: closed interval, so a boundary value is counted in two classes.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    if not isinstance(width, int) or width <= 0:\n        raise ValueError(\"width must be a positive integer\")\n    start = (min(values) // width) * width\n    top = max(values)\n    out = []\n    lower = start\n    while lower <= top:\n        upper = lower + width\n        count = sum(1 for v in values if lower <= v <= upper)\n        out.append((lower, upper, count))\n        lower = upper\n    return out\n", "def frequency_table(values, width):\n    \"\"\"Bug: starts the first class at min(values) instead of a multiple of width.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    if not isinstance(width, int) or width <= 0:\n        raise ValueError(\"width must be a positive integer\")\n    start = min(values)\n    top = max(values)\n    out = []\n    lower = start\n    while lower <= top:\n        upper = lower + width\n        count = sum(1 for v in values if lower <= v < upper)\n        out.append((lower, upper, count))\n        lower = upper\n    return out\n"], "hints": ["The first class does not start at the smallest value; it starts at the largest multiple of `width` that is not above it.", "Class intervals are half-open. A value exactly on a boundary belongs to the class above it, so use `lower <= v < upper`."], "level": "warmup", "title": "Build a frequency table with fixed class intervals"}, "m09-ex2-centres": {"starter": "def centres(values):\n    \"\"\"Return {\"mean\": ..., \"median\": ..., \"mode\": ...} for a non-empty list of numbers.\"\"\"\n    return {\"mean\": 0.0, \"median\": 0.0, \"mode\": 0}\n", "solution": "def centres(values):\n    \"\"\"Return {\"mean\": ..., \"median\": ..., \"mode\": ...} for a non-empty list of numbers.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    n = len(values)\n    ordered = sorted(values)\n    mean = sum(ordered) / n\n    mid = n // 2\n    if n % 2 == 1:\n        median = float(ordered[mid])\n    else:\n        median = (ordered[mid - 1] + ordered[mid]) / 2\n    counts = {}\n    for v in ordered:\n        counts[v] = counts.get(v, 0) + 1\n    best = max(counts.values())\n    mode = min(v for v, c in counts.items() if c == best)\n    return {\"mean\": mean, \"median\": median, \"mode\": mode}\n", "tests": "def test_odd_count_hand_checked():\n    # sorted: 1, 2, 2, 7, 8  -> sum 20, mean 4.0, middle value 2, most frequent 2\n    r = centres([7, 2, 1, 8, 2])\n    assert r[\"mean\"] == 4.0\n    assert r[\"median\"] == 2.0\n    assert r[\"mode\"] == 2\n\n\ndef test_even_count_averages_the_two_middles():\n    # sorted: 1, 3, 5, 9 -> middles 3 and 5 -> median 4.0\n    r = centres([9, 1, 5, 3])\n    assert r[\"median\"] == 4.0\n    assert r[\"mean\"] == 4.5\n\n\ndef test_unsorted_input_and_mode_tie_breaks_low():\n    # 4 and 9 both appear twice; the smaller one wins.\n    r = centres([9, 4, 9, 4, 1])\n    assert r[\"mode\"] == 4\n    # median must not depend on input order\n    assert centres([5, 1, 3])[\"median\"] == centres([3, 5, 1])[\"median\"] == 3.0\n    try:\n        centres([])\n        assert False, \"empty input must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def centres(values):\n    \"\"\"Bug: takes the middle of the unsorted list, so the median depends on input order.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    n = len(values)\n    mean = sum(values) / n\n    mid = n // 2\n    if n % 2 == 1:\n        median = float(values[mid])\n    else:\n        median = (values[mid - 1] + values[mid]) / 2\n    counts = {}\n    for v in values:\n        counts[v] = counts.get(v, 0) + 1\n    best = max(counts.values())\n    mode = min(v for v, c in counts.items() if c == best)\n    return {\"mean\": mean, \"median\": median, \"mode\": mode}\n", "def centres(values):\n    \"\"\"Bug: for an even count it takes the lower middle instead of averaging the two.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    n = len(values)\n    ordered = sorted(values)\n    mean = sum(ordered) / n\n    mid = n // 2\n    if n % 2 == 1:\n        median = float(ordered[mid])\n    else:\n        median = float(ordered[mid - 1])\n    counts = {}\n    for v in ordered:\n        counts[v] = counts.get(v, 0) + 1\n    best = max(counts.values())\n    mode = min(v for v, c in counts.items() if c == best)\n    return {\"mean\": mean, \"median\": median, \"mode\": mode}\n", "def centres(values):\n    \"\"\"Bug: on a tie for most frequent it returns the largest value, not the smallest.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    n = len(values)\n    ordered = sorted(values)\n    mean = sum(ordered) / n\n    mid = n // 2\n    if n % 2 == 1:\n        median = float(ordered[mid])\n    else:\n        median = (ordered[mid - 1] + ordered[mid]) / 2\n    counts = {}\n    for v in ordered:\n        counts[v] = counts.get(v, 0) + 1\n    best = max(counts.values())\n    mode = max(v for v, c in counts.items() if c == best)\n    return {\"mean\": mean, \"median\": median, \"mode\": mode}\n"], "hints": ["Sort a copy of the data before you look for the middle. The mean does not need sorting, but the median does.", "For an even count there are two middle values, at indices `n//2 - 1` and `n//2`. Average them."], "level": "core", "title": "Mean, median and mode of raw data"}, "m09-ex3-grouped-stats": {"starter": "def grouped_stats(classes):\n    \"\"\"Return {\"mean\": ..., \"median\": ..., \"mode\": ...} from (lower, upper, freq) tuples.\"\"\"\n    return {\"mean\": 0.0, \"median\": 0.0, \"mode\": 0.0}\n", "solution": "def grouped_stats(classes):\n    \"\"\"Return {\"mean\": ..., \"median\": ..., \"mode\": ...} from (lower, upper, freq) tuples.\"\"\"\n    if not classes:\n        raise ValueError(\"classes must not be empty\")\n    n = sum(f for _, _, f in classes)\n    if n == 0:\n        raise ValueError(\"total frequency must be positive\")\n\n    mean = sum(((lo + hi) / 2) * f for lo, hi, f in classes) / n\n\n    cumulative = 0\n    median = None\n    for i, (lo, hi, f) in enumerate(classes):\n        if cumulative + f >= n / 2:\n            median = lo + ((n / 2 - cumulative) / f) * (hi - lo)\n            break\n        cumulative += f\n\n    best = max(f for _, _, f in classes)\n    k = next(i for i, (_, _, f) in enumerate(classes) if f == best)\n    lo, hi, f1 = classes[k]\n    f0 = classes[k - 1][2] if k > 0 else 0\n    f2 = classes[k + 1][2] if k + 1 < len(classes) else 0\n    denom = 2 * f1 - f0 - f2\n    mode = lo if denom == 0 else lo + ((f1 - f0) / denom) * (hi - lo)\n\n    return {\"mean\": mean, \"median\": median, \"mode\": mode}\n", "tests": "def test_mean_uses_class_marks():\n    # classes [0,10) f=2 mark 5 ; [10,20) f=3 mark 15 ; [20,30) f=5 mark 25\n    # mean = (2*5 + 3*15 + 5*25) / 10 = (10 + 45 + 125)/10 = 18.0\n    r = grouped_stats([(0, 10, 2), (10, 20, 3), (20, 30, 5)])\n    assert abs(r[\"mean\"] - 18.0) < 1e-9\n\n\ndef test_median_formula_hand_checked():\n    # n = 10, n/2 = 5. cumulative: 2, 5, 10. First class reaching 5 is [10,20).\n    # cf before it = 2, f = 3, h = 10 -> 10 + ((5-2)/3)*10 = 20.0\n    r = grouped_stats([(0, 10, 2), (10, 20, 3), (20, 30, 5)])\n    assert abs(r[\"median\"] - 20.0) < 1e-9\n\n\ndef test_mode_formula_and_errors():\n    # largest frequency 5 in [20,30): f1=5, f0=3, f2=0\n    # 20 + ((5-3)/(10-3-0))*10 = 20 + (2/7)*10 = 22.857142857...\n    r = grouped_stats([(0, 10, 2), (10, 20, 3), (20, 30, 5)])\n    assert abs(r[\"mode\"] - (20 + (2 / 7) * 10)) < 1e-9\n    try:\n        grouped_stats([])\n        assert False, \"empty classes must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        grouped_stats([(0, 10, 0)])\n        assert False, \"zero total frequency must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def grouped_stats(classes):\n    \"\"\"Bug: weights the lower limit instead of the class mark when averaging.\"\"\"\n    if not classes:\n        raise ValueError(\"classes must not be empty\")\n    n = sum(f for _, _, f in classes)\n    if n == 0:\n        raise ValueError(\"total frequency must be positive\")\n\n    mean = sum(lo * f for lo, hi, f in classes) / n\n\n    cumulative = 0\n    median = None\n    for i, (lo, hi, f) in enumerate(classes):\n        if cumulative + f >= n / 2:\n            median = lo + ((n / 2 - cumulative) / f) * (hi - lo)\n            break\n        cumulative += f\n\n    best = max(f for _, _, f in classes)\n    k = next(i for i, (_, _, f) in enumerate(classes) if f == best)\n    lo, hi, f1 = classes[k]\n    f0 = classes[k - 1][2] if k > 0 else 0\n    f2 = classes[k + 1][2] if k + 1 < len(classes) else 0\n    denom = 2 * f1 - f0 - f2\n    mode = lo if denom == 0 else lo + ((f1 - f0) / denom) * (hi - lo)\n\n    return {\"mean\": mean, \"median\": median, \"mode\": mode}\n", "def grouped_stats(classes):\n    \"\"\"Bug: includes the median class's own frequency in cf.\"\"\"\n    if not classes:\n        raise ValueError(\"classes must not be empty\")\n    n = sum(f for _, _, f in classes)\n    if n == 0:\n        raise ValueError(\"total frequency must be positive\")\n\n    mean = sum(((lo + hi) / 2) * f for lo, hi, f in classes) / n\n\n    cumulative = 0\n    median = None\n    for i, (lo, hi, f) in enumerate(classes):\n        cumulative += f\n        if cumulative >= n / 2:\n            median = lo + ((n / 2 - cumulative) / f) * (hi - lo)\n            break\n\n    best = max(f for _, _, f in classes)\n    k = next(i for i, (_, _, f) in enumerate(classes) if f == best)\n    lo, hi, f1 = classes[k]\n    f0 = classes[k - 1][2] if k > 0 else 0\n    f2 = classes[k + 1][2] if k + 1 < len(classes) else 0\n    denom = 2 * f1 - f0 - f2\n    mode = lo if denom == 0 else lo + ((f1 - f0) / denom) * (hi - lo)\n\n    return {\"mean\": mean, \"median\": median, \"mode\": mode}\n"], "hints": ["The class mark is the midpoint `(lower + upper) / 2`, not the lower limit. A grouped mean pretends every observation sits at its class mark.", "In the median formula `cf` is the cumulative frequency *before* the median class. Add the current frequency only after you decide the class is not the one."], "level": "core", "title": "Mean, median and mode from a grouped frequency table"}, "m09-ex4-spread": {"starter": "def spread(values, ddof):\n    \"\"\"Return range, mean_deviation, variance, std and cv for a list of numbers.\"\"\"\n    return {\"range\": 0, \"mean_deviation\": 0.0, \"variance\": 0.0, \"std\": 0.0, \"cv\": None}\n", "solution": "def spread(values, ddof):\n    \"\"\"Return range, mean_deviation, variance, std and cv for a list of numbers.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    n = len(values)\n    if n - ddof <= 0:\n        raise ValueError(\"len(values) - ddof must be positive\")\n    mean = sum(values) / n\n    squared = sum((x - mean) ** 2 for x in values)\n    variance = squared / (n - ddof)\n    std = variance ** 0.5\n    return {\n        \"range\": max(values) - min(values),\n        \"mean_deviation\": sum(abs(x - mean) for x in values) / n,\n        \"variance\": variance,\n        \"std\": std,\n        \"cv\": None if mean == 0 else std / mean * 100,\n    }\n", "tests": "def test_population_variance_hand_checked():\n    # data 2,4,4,4,5,5,7,9 -> mean 5. squared deviations: 9,1,1,1,0,0,4,16 = 32\n    # population variance 32/8 = 4.0, std 2.0\n    r = spread([2, 4, 4, 4, 5, 5, 7, 9], ddof=0)\n    assert abs(r[\"variance\"] - 4.0) < 1e-9\n    assert abs(r[\"std\"] - 2.0) < 1e-9\n    assert r[\"range\"] == 7\n\n\ndef test_sample_variance_uses_n_minus_one():\n    # same data, 32 / 7\n    r = spread([2, 4, 4, 4, 5, 5, 7, 9], ddof=1)\n    assert abs(r[\"variance\"] - 32 / 7) < 1e-9\n    # mean deviation: |-3|+1+1+1+0+0+2+4 = 12, over 8 -> 1.5\n    assert abs(r[\"mean_deviation\"] - 1.5) < 1e-9\n\n\ndef test_cv_is_unit_free_and_none_at_zero_mean():\n    r = spread([2, 4, 4, 4, 5, 5, 7, 9], ddof=0)\n    assert abs(r[\"cv\"] - (2.0 / 5.0 * 100)) < 1e-9\n    # Scaling every value by 10 leaves the CV unchanged.\n    scaled = spread([20, 40, 40, 40, 50, 50, 70, 90], ddof=0)\n    assert abs(scaled[\"cv\"] - r[\"cv\"]) < 1e-9\n    assert spread([-1, 1], ddof=0)[\"cv\"] is None\n    try:\n        spread([3], ddof=1)\n        assert False, \"n - ddof must be positive\"\n    except ValueError:\n        pass\n", "mutants": ["def spread(values, ddof):\n    \"\"\"Bug: always divides by n, ignoring ddof.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    n = len(values)\n    if n - ddof <= 0:\n        raise ValueError(\"len(values) - ddof must be positive\")\n    mean = sum(values) / n\n    squared = sum((x - mean) ** 2 for x in values)\n    variance = squared / n\n    std = variance ** 0.5\n    return {\n        \"range\": max(values) - min(values),\n        \"mean_deviation\": sum(abs(x - mean) for x in values) / n,\n        \"variance\": variance,\n        \"std\": std,\n        \"cv\": None if mean == 0 else std / mean * 100,\n    }\n", "def spread(values, ddof):\n    \"\"\"Bug: mean deviation squares instead of taking absolute value.\"\"\"\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    n = len(values)\n    if n - ddof <= 0:\n        raise ValueError(\"len(values) - ddof must be positive\")\n    mean = sum(values) / n\n    squared = sum((x - mean) ** 2 for x in values)\n    variance = squared / (n - ddof)\n    std = variance ** 0.5\n    return {\n        \"range\": max(values) - min(values),\n        \"mean_deviation\": sum((x - mean) ** 2 for x in values) / n,\n        \"variance\": variance,\n        \"std\": std,\n        \"cv\": None if mean == 0 else std / mean * 100,\n    }\n"], "hints": ["`ddof` stands for delta degrees of freedom. The divisor is `n - ddof`, so `ddof=1` is the sample formula.", "Mean deviation uses `abs(x - mean)`. If you square it you have computed the variance again under a different name."], "level": "core", "title": "Range, mean deviation, variance, standard deviation and CV"}, "m09-ex5-outliers": {"starter": "def quartiles(values):\n    \"\"\"Return (q1, median, q3) using Tukey's rule.\"\"\"\n    return (0.0, 0.0, 0.0)\n\n\ndef outliers(values):\n    \"\"\"Return the sorted values outside the 1.5 * IQR fences.\"\"\"\n    return []\n", "solution": "def _median(sorted_values):\n    n = len(sorted_values)\n    mid = n // 2\n    if n % 2 == 1:\n        return float(sorted_values[mid])\n    return (sorted_values[mid - 1] + sorted_values[mid]) / 2\n\n\ndef quartiles(values):\n    \"\"\"Return (q1, median, q3) using Tukey's rule.\"\"\"\n    if len(values) < 4:\n        raise ValueError(\"need at least four values\")\n    ordered = sorted(values)\n    n = len(ordered)\n    half = n // 2\n    lower = ordered[:half]\n    upper = ordered[half + 1:] if n % 2 == 1 else ordered[half:]\n    return (_median(lower), _median(ordered), _median(upper))\n\n\ndef outliers(values):\n    \"\"\"Return the sorted values outside the 1.5 * IQR fences.\"\"\"\n    q1, _, q3 = quartiles(values)\n    iqr = q3 - q1\n    low = q1 - 1.5 * iqr\n    high = q3 + 1.5 * iqr\n    return sorted(v for v in values if v < low or v > high)\n", "tests": "def test_quartiles_odd_count_excludes_the_middle():\n    # sorted: 1 2 3 4 5 -> lower [1,2], upper [4,5] -> q1 1.5, median 3, q3 4.5\n    q1, med, q3 = quartiles([5, 3, 1, 4, 2])\n    assert q1 == 1.5 and med == 3.0 and q3 == 4.5\n\n\ndef test_quartiles_even_count_splits_in_half():\n    # sorted: 1 2 3 4 5 6 -> lower [1,2,3] q1 2 ; upper [4,5,6] q3 5 ; median 3.5\n    q1, med, q3 = quartiles([6, 5, 4, 3, 2, 1])\n    assert q1 == 2.0 and med == 3.5 and q3 == 5.0\n\n\ndef test_outliers_and_median_robustness():\n    data = [1, 2, 3, 4, 5, 6, 7, 8, 100]\n    # lower [1,2,3,4] q1 2.5 ; upper [6,7,8,100] q3 7.5 ; iqr 5 ; fences -5 and 15\n    assert outliers(data) == [100]\n    # A value inside the 1.5 * IQR fence must NOT be flagged. For this data\n    # q1 = 2.5, q3 = 7.5, iqr = 5, so the upper fence is 7.5 + 7.5 = 15.\n    # A 1.0 * IQR fence would sit at 12.5 and wrongly flag the 13.\n    assert outliers([1, 2, 3, 4, 5, 6, 7, 8, 13]) == []\n    # The median ignores the wild value; the mean does not.\n    clean = [1, 2, 3, 4, 5, 6, 7, 8, 9]\n    assert quartiles(data)[1] == quartiles(clean)[1]\n    assert sum(data) / len(data) > sum(clean) / len(clean) + 5\n    try:\n        quartiles([1, 2, 3])\n        assert False, \"fewer than four values must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _median(sorted_values):\n    n = len(sorted_values)\n    mid = n // 2\n    if n % 2 == 1:\n        return float(sorted_values[mid])\n    return (sorted_values[mid - 1] + sorted_values[mid]) / 2\n\n\ndef quartiles(values):\n    \"\"\"Bug: keeps the middle value in both halves when the count is odd.\"\"\"\n    if len(values) < 4:\n        raise ValueError(\"need at least four values\")\n    ordered = sorted(values)\n    n = len(ordered)\n    half = n // 2\n    lower = ordered[:half + 1] if n % 2 == 1 else ordered[:half]\n    upper = ordered[half:]\n    return (_median(lower), _median(ordered), _median(upper))\n\n\ndef outliers(values):\n    q1, _, q3 = quartiles(values)\n    iqr = q3 - q1\n    low = q1 - 1.5 * iqr\n    high = q3 + 1.5 * iqr\n    return sorted(v for v in values if v < low or v > high)\n", "def _median(sorted_values):\n    n = len(sorted_values)\n    mid = n // 2\n    if n % 2 == 1:\n        return float(sorted_values[mid])\n    return (sorted_values[mid - 1] + sorted_values[mid]) / 2\n\n\ndef quartiles(values):\n    if len(values) < 4:\n        raise ValueError(\"need at least four values\")\n    ordered = sorted(values)\n    n = len(ordered)\n    half = n // 2\n    lower = ordered[:half]\n    upper = ordered[half + 1:] if n % 2 == 1 else ordered[half:]\n    return (_median(lower), _median(ordered), _median(upper))\n\n\ndef outliers(values):\n    \"\"\"Bug: uses a 1.0 * IQR fence, so ordinary values get flagged.\"\"\"\n    q1, _, q3 = quartiles(values)\n    iqr = q3 - q1\n    low = q1 - 1.0 * iqr\n    high = q3 + 1.0 * iqr\n    return sorted(v for v in values if v < low or v > high)\n"], "hints": ["When the count is odd, the middle value belongs to neither half. Slice `[:half]` and `[half+1:]`.", "Compute the fences once from `q1`, `q3` and `iqr`, then filter the original list. A value exactly on a fence is not an outlier."], "level": "boss", "title": "Tukey outliers and the robustness of the median"}}, "demos": {"m09-variance-two-ways": {"code": "import random\n\n\ndef two_pass_variance(xs):\n    \"\"\"Textbook definition: find the mean, then average squared deviations.\"\"\"\n    n = len(xs)\n    mean = sum(xs) / n\n    return sum((x - mean) ** 2 for x in xs) / n\n\n\ndef welford_variance(xs):\n    \"\"\"Streaming: one pass, no stored data, no precomputed mean.\"\"\"\n    count = 0\n    mean = 0.0\n    m2 = 0.0\n    for x in xs:\n        count += 1\n        delta = x - mean\n        mean += delta / count\n        delta2 = x - mean\n        m2 += delta * delta2\n    return m2 / count\n\n\nrng = random.Random(20260930)\nworst = 0.0\nfor trial in range(200):\n    n = rng.randint(2, 60)\n    xs = [rng.uniform(-500, 500) for _ in range(n)]\n    a = two_pass_variance(xs)\n    b = welford_variance(xs)\n    worst = max(worst, abs(a - b) / max(a, 1e-12))\n\nprint(\"trials:\", 200)\nprint(\"largest relative disagreement:\", f\"{worst:.3e}\")\nassert worst < 1e-9, \"the two methods must agree to floating-point precision\"\n\n# The deviations from the mean sum to zero: the balance-point result.\nsample = [4, 8, 15, 16, 23, 42]\nmean = sum(sample) / len(sample)\ntotal_deviation = sum(x - mean for x in sample)\nprint(\"sum of deviations from the mean:\", round(total_deviation, 12))\nassert abs(total_deviation) < 1e-9, \"deviations from the mean must cancel exactly\"\n", "mutants": ["import random\n\n\ndef two_pass_variance(xs):\n    n = len(xs)\n    mean = sum(xs) / n\n    return sum((x - mean) ** 2 for x in xs) / n\n\n\ndef welford_variance(xs):\n    \"\"\"Bug: accumulates delta * delta instead of delta * delta2.\"\"\"\n    count = 0\n    mean = 0.0\n    m2 = 0.0\n    for x in xs:\n        count += 1\n        delta = x - mean\n        mean += delta / count\n        m2 += delta * delta\n    return m2 / count\n\n\nrng = random.Random(20260930)\nworst = 0.0\nfor trial in range(200):\n    n = rng.randint(2, 60)\n    xs = [rng.uniform(-500, 500) for _ in range(n)]\n    a = two_pass_variance(xs)\n    b = welford_variance(xs)\n    worst = max(worst, abs(a - b) / max(a, 1e-12))\n\nprint(\"trials:\", 200)\nprint(\"largest relative disagreement:\", f\"{worst:.3e}\")\nassert worst < 1e-9, \"the two methods must agree to floating-point precision\"\n\nsample = [4, 8, 15, 16, 23, 42]\nmean = sum(sample) / len(sample)\ntotal_deviation = sum(x - mean for x in sample)\nprint(\"sum of deviations from the mean:\", round(total_deviation, 12))\nassert abs(total_deviation) < 1e-9, \"deviations from the mean must cancel exactly\"\n"]}, "m09-bessel-correction": {"code": "import random\n\nTRUE_VARIANCE = 35 / 12          # exact population variance of one fair die\nN = 5                            # sample size\nREPS = 30000                     # independent samples\n\n\ndef variance(xs, ddof):\n    n = len(xs)\n    mean = sum(xs) / n\n    return sum((x - mean) ** 2 for x in xs) / (n - ddof)\n\n\nrng = random.Random(4242)\ntotal_sample = 0.0\ntotal_population = 0.0\nfor _ in range(REPS):\n    roll = [rng.randint(1, 6) for _ in range(N)]\n    total_sample += variance(roll, ddof=1)\n    total_population += variance(roll, ddof=0)\n\nmeasured_sample = total_sample / REPS\nmeasured_population = total_population / REPS\npredicted_population = TRUE_VARIANCE * (N - 1) / N\n\nprint(\"true population variance:\", round(TRUE_VARIANCE, 4))\nprint(\"predicted mean of the n-1 estimator:\", round(TRUE_VARIANCE, 4))\nprint(\"measured  mean of the n-1 estimator:\", round(measured_sample, 4))\nprint(\"predicted mean of the n estimator:  \", round(predicted_population, 4))\nprint(\"measured  mean of the n estimator:  \", round(measured_population, 4))\n\nassert abs(measured_sample - TRUE_VARIANCE) < 0.05, \"the n-1 estimator must be unbiased\"\nassert abs(measured_population - predicted_population) < 0.05, \"the n estimator must be low by (n-1)/n\"\nassert measured_population < measured_sample, \"dividing by n must underestimate\"\n", "mutants": ["import random\n\nTRUE_VARIANCE = 35 / 12\nN = 5\nREPS = 30000\n\n\ndef variance(xs, ddof):\n    n = len(xs)\n    mean = sum(xs) / n\n    return sum((x - mean) ** 2 for x in xs) / (n - ddof)\n\n\nrng = random.Random(4242)\ntotal_sample = 0.0\ntotal_population = 0.0\nfor _ in range(REPS):\n    roll = [rng.randint(1, 6) for _ in range(N)]\n    total_sample += variance(roll, ddof=1)\n    total_population += variance(roll, ddof=0)\n\nmeasured_sample = total_sample / REPS\nmeasured_population = total_population / REPS\n\nprint(\"true population variance:\", round(TRUE_VARIANCE, 4))\nprint(\"measured mean of the n estimator:\", round(measured_population, 4))\n\n# Wrong theory: claims the n divisor is already unbiased.\nassert abs(measured_population - TRUE_VARIANCE) < 0.05, \"the n estimator must be unbiased\"\n"]}}, "cards": [{"q": "Why do we square the deviations from the mean instead of just averaging them?", "a": "Because the raw deviations always sum to exactly zero for every data set, so their average measures nothing. Squaring removes the cancellation."}, {"q": "A dataset gets one new, enormous value. What happens to the mean and to the median?", "a": "The mean moves towards it, without bound. The median moves by at most one position in the sorted order, and often not at all."}, {"q": "What exactly does the n-1 divisor in the sample variance achieve?", "a": "It makes the estimator unbiased: the expected value of the sample variance equals the true population variance, because deviations measured from the sample mean are systematically too small."}, {"q": "When is the coefficient of variation the right thing to report?", "a": "When comparing the spread of two quantities with different units or very different means, because CV is a unit-free ratio of the standard deviation to the mean."}, {"q": "How do you compute the angle of a pie-chart sector?", "a": "The sector's share of the total, multiplied by 360 degrees."}, {"q": "What is the difference between a bar graph and a histogram?", "a": "A bar graph compares separate categories and has gaps between bars. A histogram shows continuous class intervals with no gaps, and the area of each bar is proportional to its frequency."}, {"q": "In the grouped-data median formula, what is cf?", "a": "The cumulative frequency of all classes strictly before the median class, not including the median class's own frequency."}, {"q": "Give one way a graph can mislead while every number on it is correct.", "a": "Truncating the vertical axis so it does not start at zero, which exaggerates small differences into apparently large ones."}], "title": "Data handling and descriptive statistics"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

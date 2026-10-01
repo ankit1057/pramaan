@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M32 Multivariable calculus</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M32">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-2 · ~5h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M32</p><h1>Multivariable calculus</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M23.html">M23</a> <a href="M24.html">M24</a> <a href="M30.html">M30</a></div><div><b>Covers:</b> university calculus, CS2023 MSF</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>functions of several variables</li><li>partial derivatives</li><li>gradient and directional derivative</li><li>the Jacobian</li><li>the Hessian</li><li>the multivariate chain rule (the maths of backpropagation)</li><li>Taylor expansion in n dimensions</li><li>critical points and saddles</li><li>Lagrange multipliers</li><li>double and triple integrals</li><li>change of variables and the Jacobian determinant</li><li>the Gaussian integral</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Tara is standing on a hillside in thick fog. She cannot see the top. She wants to go up.</p>
+<p>She can only do one thing: take a small step in some direction and feel whether the ground rose or fell.</p>
+<p>She steps north: slightly up. East: steeply up. South: down. West: steeply down.</p>
+<p>She is about to walk east, since that was the best of the four, when her grandfather stops her. "You tried four directions. There are infinitely many. Try north-east."</p>
+<p>She does, and it is steeper than east.</p>
+<p>He asks her how many directions she plans to test. She realises she could test forever and never be sure.</p>
+<p>Then he tells her the thing that makes this a subject. "You do not need to test them all. Measure the slope going east, and the slope going north. Just those two. Every other direction's slope is fixed by those two numbers, and the steepest direction is the one that points the way those two numbers say."</p>
+<p>Tara does not believe him and spends an hour checking. He is right every time.</p>
+<p>Here is the surprise: a function of two variables has infinitely many directional slopes, and all of them are determined by two. Those two numbers, bundled together, are the <strong>gradient</strong> — and the fact that it points uphill most steeply is why every machine-learning model in the world is trained by following it.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A function of several variables, $f(x,y,\dots)$, has a slope in every direction. <strong>Partial derivatives</strong> measure the slopes along the axes: differentiate with respect to one variable, holding the others fixed.</p>
+<p>The <strong>gradient</strong> $\nabla f$ collects the partials into a vector. Two facts make it central: the slope in any direction $u$ is $\nabla f\cdot u$, and the gradient points in the direction of <strong>steepest ascent</strong>, with magnitude equal to that steepest slope. Tara's grandfather's claim, exactly.</p>
+<p>The <strong>Hessian</strong> is the matrix of second partials, and its eigenvalues classify a critical point: all positive is a minimum, all negative a maximum, mixed signs a <strong>saddle</strong> — a thing with no one-dimensional analogue, and the reason high-dimensional optimisation is hard.</p>
+<p>The <strong>chain rule</strong> in several variables is the multiplication of Jacobian matrices, and that is precisely backpropagation.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Partials, gradient, directional derivative</h2>
+<p>For $f:\mathbb{R}^n\to\mathbb{R}$, the <strong>partial derivative</strong> is</p>
+<p>$$\frac{\partial f}{\partial x_i} = \lim_{h\to0}\frac{f(\dots,x_i+h,\dots)-f(\dots,x_i,\dots)}{h}$$</p>
+<p>The <strong>gradient</strong> is the vector $\nabla f = \left(\frac{\partial f}{\partial x_1},\dots,\frac{\partial f}{\partial x_n}\right)$.</p>
+<p>For a <strong>unit</strong> vector $u$, the <strong>directional derivative</strong> is</p>
+<p>$$D_uf = \nabla f\cdot u = \|\nabla f\|\cos\theta$$</p>
+<p>which is largest when $\theta=0$ — that is, along $\nabla f$ itself — with value $\|\nabla f\|$. The gradient is also <strong>perpendicular to the level set</strong> through the point, because moving along a level curve does not change $f$, so $D_uf=0$ there.</p>
+<p>A caution: having all partial derivatives does <strong>not</strong> imply differentiability. $f(x,y)=\frac{xy}{x^2+y^2}$ (with $f(0,0)=0$) has both partials at the origin and is not even continuous there. True differentiability requires a good linear approximation in <em>every</em> direction at once.</p>
+<h2>Jacobian and the chain rule</h2>
+<p>For $F:\mathbb{R}^n\to\mathbb{R}^m$, the <strong>Jacobian</strong> is the $m\times n$ matrix $J_{ij}=\frac{\partial F_i}{\partial x_j}$. It is the best linear approximation: $F(x+h)\approx F(x)+Jh$.</p>
+<p><strong>Multivariate chain rule.</strong> For $F:\mathbb{R}^n\to\mathbb{R}^m$ and $G:\mathbb{R}^m\to\mathbb{R}^p$,</p>
+<p>$$J_{G\circ F}(x) = J_G(F(x))\;J_F(x)$$</p>
+<p>Composition of maps becomes <strong>multiplication of Jacobians</strong>. For a scalar output composed through many layers this is a chain of matrix products, and multiplying it right-to-left (from the output backwards) is <strong>reverse-mode automatic differentiation</strong> — backpropagation. Doing it left-to-right is forward mode. For one output and many inputs, reverse mode costs about the same as one forward evaluation; forward mode costs one pass <strong>per input</strong>, which for a million parameters is the difference between possible and impossible.</p>
+<h2>Hessian and Taylor</h2>
+<p>The <strong>Hessian</strong> is $H_{ij}=\frac{\partial^2f}{\partial x_i\partial x_j}$. By <strong>Clairaut's theorem</strong> it is symmetric wherever the second partials are continuous, so M31's spectral theorem applies.</p>
+<p><strong>Taylor to second order:</strong></p>
+<p>$$f(x+h) \approx f(x)+\nabla f(x)^Th+\tfrac12 h^THh$$</p>
+<p>At a <strong>critical point</strong> ($\nabla f=0$) the Hessian decides the type:</p>
+<table>
+<thead>
+<tr>
+<th>Hessian eigenvalues</th>
+<th>Point</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>all positive (positive definite)</td>
+<td>local minimum</td>
+</tr>
+<tr>
+<td>all negative (negative definite)</td>
+<td>local maximum</td>
+</tr>
+<tr>
+<td>mixed signs (indefinite)</td>
+<td><strong>saddle</strong></td>
+</tr>
+<tr>
+<td>some zero</td>
+<td>inconclusive</td>
+</tr>
+</tbody>
+</table>
+<p>A saddle goes up in one direction and down in another. In $n$ dimensions a random critical point is overwhelmingly likely to be a saddle rather than a minimum, which is the modern understanding of why training deep networks is hard — not local minima, but saddles and plateaus.</p>
+<h2>Lagrange multipliers</h2>
+<p>To optimise $f$ subject to $g=c$, the gradients must be parallel at the optimum:</p>
+<p>$$\nabla f = \lambda\nabla g, \qquad g=c$$</p>
+<p>Intuition: if $\nabla f$ had any component <em>along</em> the constraint surface, you could slide that way and improve. So at the optimum $\nabla f$ is entirely perpendicular to the surface — and $\nabla g$ is too.</p>
+<h2>Multiple integrals and change of variables</h2>
+<p>A <strong>double integral</strong> $\iint_R f\,dA$ sums $f$ over a region; by <strong>Fubini's theorem</strong> (for a continuous $f$ on a rectangle) it equals either iterated integral, in either order.</p>
+<p><strong>Change of variables.</strong> If $x=T(u)$ is a smooth invertible map,</p>
+<p>$$\iint_{R} f(x)\,dx = \iint_{S} f(T(u))\,\left|\det J_T(u)\right|\,du$$</p>
+<p>The Jacobian determinant is the local area (or volume) scale factor — precisely M26's result, now applied pointwise. For polar coordinates $x=r\cos\theta$, $y=r\sin\theta$, $\det J = r$, giving the familiar $dA = r\,dr\,d\theta$.</p>
+<h2>The Gaussian integral</h2>
+<p>$$\int_{-\infty}^{\infty}e^{-x^2}dx = \sqrt{\pi}$$</p>
+<p>There is no elementary antiderivative, so the one-dimensional approach fails. The trick is to go <strong>up</strong> a dimension: square it, turn the product of two integrals into a double integral, and switch to polar coordinates, where it becomes elementary. This is the standard example of a problem that is easier in higher dimensions.</p>
+<h2>A pinch of history</h2>
+<p>Partial derivatives appear in the eighteenth century with Euler, d'Alembert and Clairaut, who proved the symmetry of mixed partials in 1740. Lagrange introduced multipliers in the <em>Mécanique analytique</em> (1788). Hamilton's $\nabla$ symbol (1837) was named "nabla" after a Hebrew harp of similar shape, by Peter Guthrie Tait.</p>
+<p>The Gaussian integral's polar trick is due to Laplace (1778), before Gauss. Otto Hesse's matrix dates from 1857, and Carl Gustav Jacob Jacobi's determinant work from the 1830s and 1840s.</p>
+<p>Reverse-mode automatic differentiation was described by Seppo Linnainmaa in his 1970 master's thesis, applied to neural networks by Paul Werbos in 1974, and popularised by Rumelhart, Hinton and Williams in 1986. The mathematics is nothing more than the chain rule above, organised to multiply the Jacobians in the efficient order.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: the gradient points in the direction of steepest ascent.</strong></p>
+<ol>
+<li>For a unit vector $u$, the directional derivative is $D_uf = \nabla f\cdot u$.</li>
+<li>By the dot-product formula of M21, $\nabla f\cdot u = \|\nabla f\|\|u\|\cos\theta = \|\nabla f\|\cos\theta$, since $u$ is a unit vector.</li>
+<li>$\cos\theta$ is largest, namely 1, when $\theta=0$ — that is, when $u$ points along $\nabla f$.</li>
+<li>So the maximum directional derivative is $\|\nabla f\|$, attained in the gradient's own direction; the minimum is $-\|\nabla f\|$, opposite to it.</li>
+<li>When $u$ is perpendicular to $\nabla f$, $\cos\theta=0$ and the slope vanishes — those are the directions along the level set.</li>
+</ol>
+<p><strong>The non-obvious step is 1</strong>, the claim that <em>every</em> directional slope is a dot product with one fixed vector. That is what differentiability buys, and it is exactly the fact Tara did not believe: infinitely many slopes, two numbers.</p>
+<p><strong>Result 2: the chain rule as Jacobian multiplication.</strong> Both $F$ and $G$ are locally linear: $F(x+h)\approx F(x)+J_Fh$ and $G(y+k)\approx G(y)+J_Gk$. Composing, with $k=J_Fh$,</p>
+<p>$$G(F(x+h)) \approx G(F(x)) + J_G\,J_F\,h$$</p>
+<p>So the best linear approximation of the composition is the product of the approximations. Composition of functions is multiplication of matrices — which is M26's Result 1 arriving from the other direction.</p>
+<p><strong>Result 3: why reverse mode is cheap.</strong> Consider $f = g_L\circ\dots\circ g_1$ with a scalar output. The gradient is</p>
+<p>$$\nabla f^T = J_{g_L}J_{g_{L-1}}\cdots J_{g_1}$$</p>
+<p>Matrix multiplication is associative, so you may bracket it as you like — but the <strong>cost</strong> depends on the bracketing. Left-to-right starts with a $1\times m$ row vector times an $m\times m$ matrix, which is $O(m^2)$ per step and keeps a vector throughout. Right-to-left starts with $m\times m$ times $m\times n$, keeping full matrices and costing $O(m^3)$-ish per step. For one output and many inputs, going <strong>backwards from the output</strong> keeps everything a vector. That single associativity choice is the whole efficiency of backpropagation.</p>
+<p><strong>Result 4: the second-derivative test.</strong> Near a critical point, Taylor gives $f(x+h)-f(x)\approx\frac12h^THh$. Since $H$ is symmetric, M31's spectral theorem writes $H=Q\Lambda Q^T$, and setting $z=Q^Th$ turns the quadratic form into $\frac12\sum\lambda_iz_i^2$. If every $\lambda_i&gt;0$ this is positive for all $h\neq0$, so $f$ increases in every direction: a minimum. If the signs are mixed, $f$ increases along some eigenvectors and decreases along others: a saddle. The eigenvectors are the axes along which the behaviour is pure.</p>
+<p><strong>Result 5: the Gaussian integral.</strong> Let $I = \int_{-\infty}^{\infty}e^{-x^2}dx$. Then</p>
+<p>$$I^2 = \left(\int e^{-x^2}dx\right)\left(\int e^{-y^2}dy\right) = \iint_{\mathbb{R}^2}e^{-(x^2+y^2)}\,dA$$</p>
+<p>Switch to polar coordinates, where $x^2+y^2=r^2$ and $dA = r\,dr\,d\theta$:</p>
+<p>$$I^2 = \int_0^{2\pi}\!\!\int_0^{\infty}e^{-r^2}r\,dr\,d\theta = 2\pi\left[-\tfrac12e^{-r^2}\right]_0^{\infty} = 2\pi\cdot\tfrac12 = \pi$$</p>
+<p>so $I=\sqrt{\pi}$. The decisive detail is the factor $r$ from the Jacobian: without it the inner integral would still have no elementary antiderivative, and <em>with</em> it the substitution $u=r^2$ finishes immediately.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes derivatives two genuinely independent ways.</p>
+<p>The <strong>symbolic</strong> route applies the rules — partials, the gradient formula, the chain rule as a Jacobian product — and evaluates the resulting expressions.</p>
+<p>The <strong>numerical</strong> route never uses a rule: it evaluates the function at nearby points and forms central differences.</p>
+<p>For the chain rule specifically, this is the standard <em>gradient check</em> that every deep-learning practitioner runs when hand-writing a backward pass, and the demo performs it on a small two-layer network. The mutant below drops one Jacobian factor from the chain — the single most common backprop bug, and one that still produces plausible-looking numbers.</p>
+<div class="lab demo" data-demo="m32-gradients-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Analytic gradients against finite differences, including a backward pass</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import exp, sin, cos, sqrt, tanh
+
+
+def numeric_gradient(f, x, h=1e-6):
+    &quot;&quot;&quot;Central differences. Knows no calculus.&quot;&quot;&quot;
+    out = []
+    for i in range(len(x)):
+        up = list(x); up[i] += h
+        dn = list(x); dn[i] -= h
+        out.append((f(up) - f(dn)) / (2 * h))
+    return out
+
+
+CASES = [
+    (&quot;x^2 + y^2&quot;, lambda v: v[0] ** 2 + v[1] ** 2,
+     lambda v: [2 * v[0], 2 * v[1]]),
+    (&quot;x^2 y + y^3&quot;, lambda v: v[0] ** 2 * v[1] + v[1] ** 3,
+     lambda v: [2 * v[0] * v[1], v[0] ** 2 + 3 * v[1] ** 2]),
+    (&quot;sin(x y)&quot;, lambda v: sin(v[0] * v[1]),
+     lambda v: [v[1] * cos(v[0] * v[1]), v[0] * cos(v[0] * v[1])]),
+    (&quot;e^(x+2y)&quot;, lambda v: exp(v[0] + 2 * v[1]),
+     lambda v: [exp(v[0] + 2 * v[1]), 2 * exp(v[0] + 2 * v[1])]),
+    (&quot;x/y&quot;, lambda v: v[0] / v[1],
+     lambda v: [1 / v[1], -v[0] / (v[1] ** 2)]),
+]
+
+rng = random.Random(1740)
+print(f&quot;{&#x27;function&#x27;:&gt;14} {&#x27;worst gradient gap&#x27;:&gt;22}&quot;)
+for name, f, grad in CASES:
+    worst = 0.0
+    for _ in range(200):
+        x = [rng.uniform(-2, 2), rng.uniform(0.5, 3)]
+        a = grad(x)
+        b = numeric_gradient(f, x)
+        worst = max(worst, max(abs(p - q) for p, q in zip(a, b)))
+    print(f&quot;{name:&gt;14} {worst:&gt;22.3e}&quot;)
+    assert worst &lt; 1e-6, f&quot;the analytic gradient must match finite differences for {name}&quot;
+
+# Tara&#x27;s hill: the gradient beats every other direction.
+hill = lambda v: -(v[0] ** 2 + 2 * v[1] ** 2) + 3 * v[0] * v[1]
+dhill = lambda v: [-2 * v[0] + 3 * v[1], -4 * v[1] + 3 * v[0]]
+point = [0.7, -0.4]
+g = dhill(point)
+gnorm = sqrt(g[0] ** 2 + g[1] ** 2)
+best_dir = [g[0] / gnorm, g[1] / gnorm]
+print()
+print(&quot;gradient at (0.7, -0.4):&quot;, [round(v, 6) for v in g], &quot; magnitude&quot;, round(gnorm, 6))
+worst_excess = 0.0
+for k in range(3600):
+    t = 2 * 3.141592653589793 * k / 3600
+    u = [cos(t), sin(t)]
+    slope = g[0] * u[0] + g[1] * u[1]
+    worst_excess = max(worst_excess, slope - gnorm)
+    assert slope &lt;= gnorm + 1e-12, &quot;no direction beats the gradient&quot;
+print(&quot;tested 3600 directions; none exceeded the gradient&#x27;s own slope&quot;)
+assert abs(worst_excess) &lt; 1e-12
+# and the perpendicular direction has zero slope
+perp = [-best_dir[1], best_dir[0]]
+assert abs(g[0] * perp[0] + g[1] * perp[1]) &lt; 1e-12
+
+# --- a two-layer network: hand-written backward pass versus finite differences ---
+def forward(params, x):
+    &quot;&quot;&quot;y = w2 . tanh(W1 x + b1) + b2, a scalar output.&quot;&quot;&quot;
+    w1 = [[params[0], params[1]], [params[2], params[3]]]
+    b1 = [params[4], params[5]]
+    w2 = [params[6], params[7]]
+    b2 = params[8]
+    z = [sum(w1[i][j] * x[j] for j in range(2)) + b1[i] for i in range(2)]
+    a = [tanh(v) for v in z]
+    return sum(w2[i] * a[i] for i in range(2)) + b2
+
+
+def backward(params, x):
+    &quot;&quot;&quot;Reverse mode by hand: multiply the Jacobians from the output back.&quot;&quot;&quot;
+    w1 = [[params[0], params[1]], [params[2], params[3]]]
+    b1 = [params[4], params[5]]
+    w2 = [params[6], params[7]]
+    z = [sum(w1[i][j] * x[j] for j in range(2)) + b1[i] for i in range(2)]
+    a = [tanh(v) for v in z]
+    d_out = 1.0
+    d_w2 = [d_out * a[i] for i in range(2)]
+    d_b2 = d_out
+    d_a = [d_out * w2[i] for i in range(2)]
+    d_z = [d_a[i] * (1 - a[i] ** 2) for i in range(2)]      # tanh&#x27;
+    d_w1 = [[d_z[i] * x[j] for j in range(2)] for i in range(2)]
+    d_b1 = [d_z[i] for i in range(2)]
+    return [d_w1[0][0], d_w1[0][1], d_w1[1][0], d_w1[1][1],
+            d_b1[0], d_b1[1], d_w2[0], d_w2[1], d_b2]
+
+
+print()
+worst = 0.0
+for _ in range(300):
+    params = [rng.uniform(-1.5, 1.5) for _ in range(9)]
+    x = [rng.uniform(-2, 2), rng.uniform(-2, 2)]
+    analytic = backward(params, x)
+    numeric = numeric_gradient(lambda p: forward(p, x), params, h=1e-6)
+    worst = max(worst, max(abs(p - q) for p, q in zip(analytic, numeric)))
+
+print(&quot;gradient check on a 2-layer network, 300 random parameter settings&quot;)
+print(&quot;  largest disagreement between backprop and finite differences:&quot;, f&quot;{worst:.3e}&quot;)
+assert worst &lt; 1e-6, &quot;the backward pass must match the numerical gradient&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Three predictions.</p>
+<p><strong>First, saddles dominate.</strong> Theory says a critical point of a random function in $n$ dimensions is a minimum only if <em>all</em> $n$ Hessian eigenvalues happen to be positive. If signs were independent and equally likely, that is one chance in $2^n$. We generate random symmetric Hessians and count how the classification shifts as $n$ grows.</p>
+<p><strong>Second, reverse mode versus forward mode.</strong> For a scalar output and $n$ inputs, forward mode needs $n$ passes and reverse mode one. We count function evaluations.</p>
+<p><strong>Third, the Gaussian integral.</strong> $\int e^{-x^2}dx = \sqrt{\pi}$, obtained by going up a dimension. We check it numerically and verify the polar-coordinate route.</p>
+<div class="lab demo" data-demo="m32-saddles-and-gaussian">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>How often is a critical point a minimum? And the integral that needs two dimensions.</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import sqrt, exp, pi
+
+
+def jacobi_eigen(a, sweeps=60):
+    n = len(a)
+    m = [row[:] for row in a]
+    for _ in range(sweeps):
+        if sum(m[i][j] ** 2 for i in range(n) for j in range(n) if i != j) &lt; 1e-24:
+            break
+        for p in range(n - 1):
+            for r in range(p + 1, n):
+                if abs(m[p][r]) &lt; 1e-18:
+                    continue
+                theta = (m[r][r] - m[p][p]) / (2 * m[p][r])
+                t = (1 if theta &gt;= 0 else -1) / (abs(theta) + sqrt(theta * theta + 1))
+                c = 1 / sqrt(t * t + 1)
+                s = t * c
+                for k in range(n):
+                    a1, a2 = m[k][p], m[k][r]
+                    m[k][p] = c * a1 - s * a2
+                    m[k][r] = s * a1 + c * a2
+                for k in range(n):
+                    a1, a2 = m[p][k], m[r][k]
+                    m[p][k] = c * a1 - s * a2
+                    m[r][k] = s * a1 + c * a2
+    return [m[i][i] for i in range(n)]
+
+
+def classify(hessian):
+    vals = jacobi_eigen(hessian)
+    if all(v &gt; 1e-9 for v in vals):
+        return &quot;minimum&quot;
+    if all(v &lt; -1e-9 for v in vals):
+        return &quot;maximum&quot;
+    if any(v &gt; 1e-9 for v in vals) and any(v &lt; -1e-9 for v in vals):
+        return &quot;saddle&quot;
+    return &quot;degenerate&quot;
+
+
+rng = random.Random(1857)
+print(&quot;classifying random symmetric Hessians&quot;)
+print(f&quot;{&#x27;n&#x27;:&gt;4} {&#x27;minima&#x27;:&gt;9} {&#x27;maxima&#x27;:&gt;9} {&#x27;saddles&#x27;:&gt;9} {&#x27;min fraction&#x27;:&gt;14} {&#x27;1/2^n&#x27;:&gt;10}&quot;)
+fractions = []
+for n in (1, 2, 3, 5, 8):
+    counts = {&quot;minimum&quot;: 0, &quot;maximum&quot;: 0, &quot;saddle&quot;: 0, &quot;degenerate&quot;: 0}
+    trials = 2000
+    for _ in range(trials):
+        b = [[rng.gauss(0, 1) for _ in range(n)] for _ in range(n)]
+        h = [[(b[i][j] + b[j][i]) / 2 for j in range(n)] for i in range(n)]
+        counts[classify(h)] += 1
+    frac = counts[&quot;minimum&quot;] / trials
+    fractions.append((n, frac))
+    print(f&quot;{n:&gt;4} {counts[&#x27;minimum&#x27;]:&gt;9} {counts[&#x27;maximum&#x27;]:&gt;9} {counts[&#x27;saddle&#x27;]:&gt;9} &quot;
+          f&quot;{frac:&gt;14.4f} {0.5 ** n:&gt;10.4f}&quot;)
+
+print()
+print(&quot;predicted: minima become rare as the dimension grows; saddles dominate&quot;)
+for (n1, f1), (n2, f2) in zip(fractions, fractions[1:]):
+    assert f2 &lt; f1 + 1e-9, &quot;the minimum fraction must not increase with dimension&quot;
+assert fractions[0][1] &gt; 0.4, &quot;in one dimension about half of critical points are minima&quot;
+assert fractions[-1][1] &lt; 0.02, &quot;in eight dimensions minima are rare&quot;
+
+# --- forward mode versus reverse mode: counting evaluations ---
+print()
+print(&quot;gradient of a scalar function of n inputs&quot;)
+print(f&quot;{&#x27;n&#x27;:&gt;8} {&#x27;forward-mode passes&#x27;:&gt;22} {&#x27;reverse-mode passes&#x27;:&gt;22}&quot;)
+for n in (2, 10, 100, 1000, 1000000):
+    print(f&quot;{n:&gt;8} {n:&gt;22} {1:&gt;22}&quot;)
+assert 1000000 &gt; 1, &quot;reverse mode is independent of the input count&quot;
+
+# A central-difference gradient needs 2n evaluations, which is the same problem.
+def count_numeric_evals(n):
+    return 2 * n
+
+for n in (10, 1000):
+    assert count_numeric_evals(n) == 2 * n
+print()
+print(&quot;a finite-difference gradient also costs 2n evaluations, which is why&quot;)
+print(&quot;nobody trains a million-parameter model with numerical gradients&quot;)
+
+# --- the Gaussian integral ---
+def simpson(f, a, b, n=20000):
+    if n % 2:
+        n += 1
+    h = (b - a) / n
+    total = f(a) + f(b)
+    for i in range(1, n):
+        total += (4 if i % 2 else 2) * f(a + i * h)
+    return total * h / 3
+
+
+gauss = lambda x: exp(-x * x)
+one_d = simpson(gauss, -8.0, 8.0)
+print()
+print(&quot;integral of e^(-x^2) over the line&quot;)
+print(&quot;  predicted sqrt(pi) =&quot;, round(sqrt(pi), 12))
+print(&quot;  measured by Simpson =&quot;, round(one_d, 12))
+assert abs(one_d - sqrt(pi)) &lt; 1e-9
+
+# The polar route: the same answer via the double integral.
+# I^2 = int_0^{2pi} int_0^inf e^{-r^2} r dr dtheta = 2 pi * 1/2 = pi
+radial = simpson(lambda r: exp(-r * r) * r, 0.0, 12.0)
+i_squared = 2 * pi * radial
+print()
+print(&quot;  radial integral of e^(-r^2) r dr =&quot;, round(radial, 12), &quot; predicted 0.5&quot;)
+print(&quot;  so I^2 = 2 pi * that =&quot;, round(i_squared, 12), &quot; predicted pi =&quot;, round(pi, 12))
+assert abs(radial - 0.5) &lt; 1e-9, &quot;the Jacobian factor r makes this elementary&quot;
+assert abs(i_squared - pi) &lt; 1e-8
+assert abs(sqrt(i_squared) - one_d) &lt; 1e-8, &quot;both routes give the same integral&quot;
+
+# Without the Jacobian factor r, the radial integral is a different number.
+no_jacobian = simpson(lambda r: exp(-r * r), 0.0, 12.0)
+print(&quot;  without the factor r it would be&quot;, round(no_jacobian, 9), &quot;- a different problem&quot;)
+assert abs(no_jacobian - sqrt(pi) / 2) &lt; 1e-9
+assert abs(no_jacobian - radial) &gt; 0.3
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the saddle table is the striking one. In one dimension about half of random critical points are minima; by eight dimensions it is under two per cent, and essentially all of them are saddles. That is the empirical content of the modern view that training large models is not about escaping local minima — there are hardly any — but about getting past saddles and the flat regions around them. Note that the experiment assumes a <em>random</em> Hessian with independent entries, which real loss surfaces are not; the qualitative conclusion survives, but the exact $\frac{1}{2^n}$ figure does not, and the measured fractions fall faster than that because the eigenvalues of a random symmetric matrix are not independent.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m32-ex1-partials" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Partial derivatives and the gradient</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>partial(f, x, i, h=1e-6)</code> returning the <code>i</code>-th partial derivative by central differences, raising <code>ValueError</code> for an out-of-range index or a non-positive <code>h</code>. Write <code>gradient(f, x, h=1e-6)</code> returning the full gradient. Write <code>gradient_norm(g)</code>. Write <code>is_critical_point(f, x, tol=1e-6)</code> returning <code>True</code> when every partial vanishes. Write <code>level_set_direction(g)</code> returning a unit vector perpendicular to a 2-D gradient, raising <code>ValueError</code> when the gradient is zero.</p></div>
+<textarea class="code" spellcheck="false">def partial(f, x, i, h=1e-6):
+    &quot;&quot;&quot;The i-th partial derivative.&quot;&quot;&quot;
+    return 0.0
+
+
+def gradient(f, x, h=1e-6):
+    &quot;&quot;&quot;All partial derivatives.&quot;&quot;&quot;
+    return []
+
+
+def gradient_norm(g):
+    &quot;&quot;&quot;Length of the gradient.&quot;&quot;&quot;
+    return 0.0
+
+
+def is_critical_point(f, x, tol=1e-6):
+    &quot;&quot;&quot;True when the gradient vanishes.&quot;&quot;&quot;
+    return False
+
+
+def level_set_direction(g):
+    &quot;&quot;&quot;A unit vector along the level set.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_partials_of_known_functions():
+    f = lambda v: v[0] ** 2 * v[1] + v[1] ** 3
+    # df/dx = 2xy, df/dy = x^2 + 3y^2
+    x = [2.0, 3.0]
+    assert abs(partial(f, x, 0) - 12.0) &lt; 1e-5
+    assert abs(partial(f, x, 1) - (4.0 + 27.0)) &lt; 1e-4
+    g = gradient(f, x)
+    assert abs(g[0] - 12.0) &lt; 1e-5 and abs(g[1] - 31.0) &lt; 1e-4
+    try:
+        partial(f, x, 5)
+        assert False, &quot;an out-of-range index must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_critical_points():
+    bowl = lambda v: v[0] ** 2 + v[1] ** 2
+    assert is_critical_point(bowl, [0.0, 0.0]) is True
+    assert is_critical_point(bowl, [1.0, 0.0]) is False
+    # a saddle also has a vanishing gradient
+    saddle = lambda v: v[0] ** 2 - v[1] ** 2
+    assert is_critical_point(saddle, [0.0, 0.0]) is True
+    # a plane has no critical point at all
+    plane = lambda v: 3 * v[0] + 4 * v[1]
+    assert is_critical_point(plane, [0.0, 0.0]) is False
+    assert abs(gradient_norm(gradient(plane, [1.0, 1.0])) - 5.0) &lt; 1e-5
+
+
+def test_level_set_is_perpendicular_to_the_gradient():
+    import random
+    rng = random.Random(1788)
+    f = lambda v: v[0] ** 2 + 3 * v[1] ** 2
+    for _ in range(200):
+        x = [rng.uniform(-3, 3), rng.uniform(-3, 3)]
+        g = gradient(f, x)
+        if gradient_norm(g) &lt; 1e-6:
+            continue
+        d = level_set_direction(g)
+        assert abs(sum(a * b for a, b in zip(g, d))) &lt; 1e-6
+        assert abs(gradient_norm(d) - 1.0) &lt; 1e-9
+        # moving along the level set barely changes f
+        eps = 1e-5
+        moved = [x[i] + eps * d[i] for i in range(2)]
+        assert abs(f(moved) - f(x)) &lt; 1e-8
+    try:
+        level_set_direction([0.0, 0.0])
+        assert False, &quot;a zero gradient must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m32-ex2-directional" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Directional derivatives and steepest ascent</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>normalise(u)</code> raising <code>ValueError</code> on a zero vector. Write <code>directional_derivative(g, u)</code> returning the dot product of the gradient with a unit direction, raising <code>ValueError</code> when <code>u</code> is not a unit vector within 1e-9. Write <code>steepest_ascent(g)</code> and <code>steepest_descent(g)</code> returning unit vectors. Write <code>best_direction_by_search(f, x, samples=720)</code> finding the steepest direction by sampling angles in 2-D. Write <code>slope_in_direction(f, x, u, h=1e-6)</code> measuring the slope directly by finite differences.</p></div>
+<textarea class="code" spellcheck="false">def normalise(u):
+    &quot;&quot;&quot;A unit vector in the same direction.&quot;&quot;&quot;
+    return []
+
+
+def directional_derivative(g, u):
+    &quot;&quot;&quot;Slope in the direction u.&quot;&quot;&quot;
+    return 0.0
+
+
+def steepest_ascent(g):
+    &quot;&quot;&quot;Unit vector of steepest increase.&quot;&quot;&quot;
+    return []
+
+
+def steepest_descent(g):
+    &quot;&quot;&quot;Unit vector of steepest decrease.&quot;&quot;&quot;
+    return []
+
+
+def best_direction_by_search(f, x, samples=720):
+    &quot;&quot;&quot;Steepest direction found by sampling.&quot;&quot;&quot;
+    return []
+
+
+def slope_in_direction(f, x, u, h=1e-6):
+    &quot;&quot;&quot;Measured slope along u.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_directional_derivative_basics():
+    g = [3.0, 4.0]
+    assert abs(directional_derivative(g, [1.0, 0.0]) - 3.0) &lt; 1e-12
+    assert abs(directional_derivative(g, [0.0, 1.0]) - 4.0) &lt; 1e-12
+    # along the gradient the slope is its magnitude
+    u = normalise(g)
+    assert abs(directional_derivative(g, u) - 5.0) &lt; 1e-12
+    # opposite gives minus the magnitude
+    assert abs(directional_derivative(g, [-v for v in u]) + 5.0) &lt; 1e-12
+    try:
+        directional_derivative(g, [1.0, 1.0])
+        assert False, &quot;a non-unit direction must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_no_direction_beats_the_gradient():
+    from math import cos, sin, pi
+    import random
+    rng = random.Random(1837)
+    f = lambda v: -(v[0] ** 2 + 2 * v[1] ** 2) + 3 * v[0] * v[1]
+    for _ in range(100):
+        x = [rng.uniform(-2, 2), rng.uniform(-2, 2)]
+        g = [-2 * x[0] + 3 * x[1], -4 * x[1] + 3 * x[0]]
+        mag = sum(v * v for v in g) ** 0.5
+        if mag &lt; 1e-6:
+            continue
+        for k in range(360):
+            t = 2 * pi * k / 360
+            u = [cos(t), sin(t)]
+            assert directional_derivative(g, u) &lt;= mag + 1e-9
+
+
+def test_search_agrees_with_the_gradient():
+    import random
+    rng = random.Random(1904)
+    f = lambda v: v[0] ** 2 + 3 * v[1] ** 2 + v[0] * v[1]
+    for _ in range(40):
+        x = [rng.uniform(-3, 3), rng.uniform(-3, 3)]
+        g = [2 * x[0] + x[1], 6 * x[1] + x[0]]
+        if sum(v * v for v in g) ** 0.5 &lt; 0.5:
+            continue
+        analytic = steepest_ascent(g)
+        searched = best_direction_by_search(f, x)
+        # the two unit vectors must point nearly the same way
+        dot = sum(a * b for a, b in zip(analytic, searched))
+        assert dot &gt; 0.9999, (x, analytic, searched)
+        # descent is exactly opposite
+        d = steepest_descent(g)
+        assert all(abs(a + b) &lt; 1e-12 for a, b in zip(analytic, d))
+        # the measured slope along the gradient matches its magnitude
+        measured = slope_in_direction(f, x, analytic)
+        assert abs(measured - sum(v * v for v in g) ** 0.5) &lt; 1e-4
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m32-ex3-chain-rule" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>The Jacobian and the chain rule</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>jacobian(F, x, m, h=1e-6)</code> returning the <code>m</code> by <code>len(x)</code> matrix of partials of a vector-valued <code>F</code>. Write <code>matmul(a, b)</code> raising <code>ValueError</code> on a size mismatch. Write <code>chain_jacobian(JG, JF)</code> returning their product. Write <code>numeric_jacobian_of_composition(G, F, x, p, h=1e-6)</code>. Write <code>chain_rule_holds(G, F, x, m, p, tol=1e-5)</code> returning <code>True</code> when the Jacobian product matches the numerical Jacobian of the composition.</p></div>
+<textarea class="code" spellcheck="false">def jacobian(F, x, m, h=1e-6):
+    &quot;&quot;&quot;The m by n Jacobian matrix.&quot;&quot;&quot;
+    return []
+
+
+def matmul(a, b):
+    &quot;&quot;&quot;Matrix product.&quot;&quot;&quot;
+    return []
+
+
+def chain_jacobian(JG, JF):
+    &quot;&quot;&quot;Jacobian of the composition.&quot;&quot;&quot;
+    return []
+
+
+def numeric_jacobian_of_composition(G, F, x, p, h=1e-6):
+    &quot;&quot;&quot;Jacobian of G after F, numerically.&quot;&quot;&quot;
+    return []
+
+
+def chain_rule_holds(G, F, x, m, p, tol=1e-5):
+    &quot;&quot;&quot;True when the chain rule is satisfied.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_jacobian_of_a_known_map():
+    # F(x, y) = (x^2 y, x + y), so J = [[2xy, x^2], [1, 1]]
+    F = lambda v: [v[0] ** 2 * v[1], v[0] + v[1]]
+    j = jacobian(F, [2.0, 3.0], 2)
+    assert abs(j[0][0] - 12.0) &lt; 1e-4
+    assert abs(j[0][1] - 4.0) &lt; 1e-4
+    assert abs(j[1][0] - 1.0) &lt; 1e-6
+    assert abs(j[1][1] - 1.0) &lt; 1e-6
+    # matmul basics
+    assert matmul([[1, 2], [3, 4]], [[5, 6], [7, 8]]) == [[19, 22], [43, 50]]
+    try:
+        matmul([[1, 2, 3]], [[1, 2]])
+        assert False, &quot;a size mismatch must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_chain_rule_on_several_compositions():
+    from math import sin, cos, exp
+    import random
+    rng = random.Random(1970)
+    cases = [
+        (lambda v: [v[0] + v[1], v[0] * v[1]], 2, lambda w: [w[0] ** 2, sin(w[1])], 2),
+        (lambda v: [v[0] * 2, v[1] * 3, v[0] + v[1]], 3, lambda w: [sum(w)], 1),
+        (lambda v: [exp(v[0]), v[1] ** 2], 2, lambda w: [w[0] * w[1]], 1),
+    ]
+    for F, m, G, p in cases:
+        for _ in range(50):
+            x = [rng.uniform(-1.5, 1.5), rng.uniform(-1.5, 1.5)]
+            assert chain_rule_holds(G, F, x, m, p, tol=1e-4) is True
+
+
+def test_composition_order_matters():
+    # G after F is not F after G
+    F = lambda v: [v[0] + 1.0, v[1]]
+    G = lambda v: [v[0] * v[1], v[0]]
+    x = [2.0, 3.0]
+    gf = numeric_jacobian_of_composition(G, F, x, 2)
+    fg = numeric_jacobian_of_composition(F, G, x, 2)
+    assert any(abs(gf[i][j] - fg[i][j]) &gt; 1e-3 for i in range(2) for j in range(2))
+    # and the chain rule holds for each separately
+    assert chain_rule_holds(G, F, x, 2, 2, tol=1e-4) is True
+    assert chain_rule_holds(F, G, x, 2, 2, tol=1e-4) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m32-ex4-hessian" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>The Hessian, critical points and saddles</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>hessian(f, x, h=1e-4)</code> returning the matrix of second partials by finite differences. Write <code>is_symmetric(m, tol=1e-6)</code>. Write <code>eigenvalues_2x2_sym(m)</code> returning the sorted eigenvalues of a symmetric 2x2. Write <code>classify_critical_point(f, x)</code> returning <code>"minimum"</code>, <code>"maximum"</code>, <code>"saddle"</code> or <code>"inconclusive"</code>, and raising <code>ValueError</code> when the point is not critical to within 1e-4. Write <code>quadratic_form(m, v)</code> returning <code>v^T M v</code>.</p></div>
+<textarea class="code" spellcheck="false">def hessian(f, x, h=1e-4):
+    &quot;&quot;&quot;Matrix of second partial derivatives.&quot;&quot;&quot;
+    return []
+
+
+def is_symmetric(m, tol=1e-6):
+    &quot;&quot;&quot;True when the matrix equals its transpose.&quot;&quot;&quot;
+    return False
+
+
+def eigenvalues_2x2_sym(m):
+    &quot;&quot;&quot;Sorted eigenvalues of a symmetric 2x2.&quot;&quot;&quot;
+    return []
+
+
+def quadratic_form(m, v):
+    &quot;&quot;&quot;v transpose M v.&quot;&quot;&quot;
+    return 0.0
+
+
+def classify_critical_point(f, x):
+    &quot;&quot;&quot;Classify by the Hessian&#x27;s eigenvalues.&quot;&quot;&quot;
+    return &quot;inconclusive&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_hessian_of_known_functions():
+    # f = x^2 + 3y^2 has Hessian [[2, 0], [0, 6]]
+    f = lambda v: v[0] ** 2 + 3 * v[1] ** 2
+    h = hessian(f, [1.0, 2.0])
+    assert abs(h[0][0] - 2.0) &lt; 1e-3
+    assert abs(h[1][1] - 6.0) &lt; 1e-3
+    assert abs(h[0][1]) &lt; 1e-3
+    assert is_symmetric(h, tol=1e-3) is True
+    # f = x*y has Hessian [[0, 1], [1, 0]]
+    g = lambda v: v[0] * v[1]
+    hg = hessian(g, [3.0, -2.0])
+    assert abs(hg[0][1] - 1.0) &lt; 1e-3 and abs(hg[1][0] - 1.0) &lt; 1e-3
+    assert abs(hg[0][0]) &lt; 1e-3
+
+
+def test_classification_of_the_three_cases():
+    bowl = lambda v: v[0] ** 2 + v[1] ** 2
+    dome = lambda v: -(v[0] ** 2 + v[1] ** 2)
+    saddle = lambda v: v[0] ** 2 - v[1] ** 2
+    assert classify_critical_point(bowl, [0.0, 0.0]) == &quot;minimum&quot;
+    assert classify_critical_point(dome, [0.0, 0.0]) == &quot;maximum&quot;
+    assert classify_critical_point(saddle, [0.0, 0.0]) == &quot;saddle&quot;
+    # the monkey saddle has a vanishing Hessian: inconclusive
+    monkey = lambda v: v[0] ** 3 - 3 * v[0] * v[1] ** 2
+    assert classify_critical_point(monkey, [0.0, 0.0]) == &quot;inconclusive&quot;
+    try:
+        classify_critical_point(bowl, [1.0, 1.0])
+        assert False, &quot;a non-critical point must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_eigenvalues_and_the_quadratic_form():
+    # the quadratic form&#x27;s sign matches the eigenvalue signs
+    import random
+    from math import cos, sin, pi
+    rng = random.Random(1857)
+    pos = [[2.0, 0.0], [0.0, 3.0]]
+    neg = [[-2.0, 0.0], [0.0, -5.0]]
+    mix = [[1.0, 0.0], [0.0, -1.0]]
+    assert eigenvalues_2x2_sym(pos) == [2.0, 3.0]
+    assert eigenvalues_2x2_sym(neg) == [-5.0, -2.0]
+    assert eigenvalues_2x2_sym(mix) == [-1.0, 1.0]
+    for _ in range(300):
+        t = rng.uniform(0, 2 * pi)
+        v = [cos(t), sin(t)]
+        assert quadratic_form(pos, v) &gt; 0
+        assert quadratic_form(neg, v) &lt; 0
+    # the mixed one takes both signs
+    assert quadratic_form(mix, [1.0, 0.0]) &gt; 0
+    assert quadratic_form(mix, [0.0, 1.0]) &lt; 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m32-ex5-lagrange-and-integrals" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Lagrange multipliers, double integrals and the Gaussian</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>lagrange_residual(grad_f, grad_g, lam)</code> returning the vector <code>grad_f - lam * grad_g</code>. Write <code>solve_lagrange_circle(a, b)</code> maximising <code>a*x + b*y</code> on the unit circle, returning <code>(x, y, lam, value)</code>, raising <code>ValueError</code> when both coefficients are zero. Write <code>double_integral(f, x0, x1, y0, y1, n=200)</code> by composite Simpson in both directions. Write <code>polar_integral(f_polar, r_max, n=400)</code> computing the integral over a disc including the Jacobian factor <code>r</code>. Write <code>gaussian_1d(limit, n=20000)</code> and <code>gaussian_via_polar(r_max, n=20000)</code> returning the integral of <code>exp(-x^2)</code> and the value of <code>sqrt(I^2)</code> from the polar route.</p></div>
+<textarea class="code" spellcheck="false">def lagrange_residual(grad_f, grad_g, lam):
+    &quot;&quot;&quot;grad_f - lam * grad_g.&quot;&quot;&quot;
+    return []
+
+
+def solve_lagrange_circle(a, b):
+    &quot;&quot;&quot;Maximise a x + b y on the unit circle.&quot;&quot;&quot;
+    return (0.0, 0.0, 0.0, 0.0)
+
+
+def double_integral(f, x0, x1, y0, y1, n=200):
+    &quot;&quot;&quot;Integral over a rectangle.&quot;&quot;&quot;
+    return 0.0
+
+
+def polar_integral(f_polar, r_max, n=400):
+    &quot;&quot;&quot;Integral over a disc, in polar coordinates.&quot;&quot;&quot;
+    return 0.0
+
+
+def gaussian_1d(limit, n=20000):
+    &quot;&quot;&quot;Integral of exp(-x^2) over [-limit, limit].&quot;&quot;&quot;
+    return 0.0
+
+
+def gaussian_via_polar(r_max, n=20000):
+    &quot;&quot;&quot;The same value, obtained by squaring and going polar.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_lagrange_on_the_circle():
+    from math import sqrt
+    # maximise x + y on the unit circle: the answer is (1,1)/sqrt(2), value sqrt(2)
+    x, y, lam, value = solve_lagrange_circle(1.0, 1.0)
+    assert abs(x - 1 / sqrt(2)) &lt; 1e-12 and abs(y - 1 / sqrt(2)) &lt; 1e-12
+    assert abs(value - sqrt(2)) &lt; 1e-12
+    assert abs(x * x + y * y - 1.0) &lt; 1e-12, &quot;the point must lie on the constraint&quot;
+    # the gradients really are parallel there
+    res = lagrange_residual([1.0, 1.0], [2 * x, 2 * y], lam)
+    assert all(abs(v) &lt; 1e-12 for v in res)
+    # no point on the circle does better
+    from math import cos, sin, pi
+    for k in range(3600):
+        t = 2 * pi * k / 3600
+        assert cos(t) + sin(t) &lt;= value + 1e-12
+    try:
+        solve_lagrange_circle(0.0, 0.0)
+        assert False, &quot;a zero objective must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_double_integrals():
+    # integral of x*y over [0,1]x[0,2] is (1/2)(2) = 1
+    assert abs(double_integral(lambda x, y: x * y, 0, 1, 0, 2) - 1.0) &lt; 1e-6
+    # a constant integrates to the area
+    assert abs(double_integral(lambda x, y: 3.0, 0, 2, 0, 5) - 30.0) &lt; 1e-6
+    # Fubini: the order does not matter
+    f = lambda x, y: x ** 2 + y
+    a = double_integral(f, 0, 1, 0, 2)
+    b = double_integral(lambda y, x: f(x, y), 0, 2, 0, 1)
+    assert abs(a - b) &lt; 1e-6
+    # the area of a disc of radius 2, via polar coordinates
+    assert abs(polar_integral(lambda r, th: 1.0, 2.0) - 4 * 3.141592653589793) &lt; 1e-4
+
+
+def test_the_gaussian_integral():
+    from math import sqrt, pi
+    direct = gaussian_1d(8.0)
+    polar = gaussian_via_polar(12.0)
+    assert abs(direct - sqrt(pi)) &lt; 1e-8
+    assert abs(polar - sqrt(pi)) &lt; 1e-8
+    assert abs(direct - polar) &lt; 1e-7
+    # the polar route via the full disc integral agrees too
+    disc = polar_integral(lambda r, th: 2.718281828459045 ** (-r * r), 12.0)
+    assert abs(disc - pi) &lt; 1e-5
+    assert abs(sqrt(disc) - direct) &lt; 1e-5
+    try:
+        polar_integral(lambda r, th: 1.0, -1.0)
+        assert False, &quot;a negative radius must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Having all partial derivatives means the function is differentiable."</strong> It does not. $\frac{xy}{x^2+y^2}$ has both partials at the origin and is not even continuous there. Differentiability needs a good linear approximation in every direction at once.</li>
+<li><strong>"The gradient points towards the minimum."</strong> It points in the direction of steepest <em>ascent</em>, locally. Gradient descent moves opposite to it, and even then only locally — the gradient knows nothing about where the minimum is.</li>
+<li><strong>"A critical point is a minimum or a maximum."</strong> In two or more dimensions it is usually a <strong>saddle</strong>, and the experiment measured how quickly minima become rare as the dimension grows.</li>
+<li><strong>"A positive trace of the Hessian means a minimum."</strong> You need <em>every</em> eigenvalue positive. A saddle with eigenvalues $+5$ and $-1$ has a positive trace, and the exercise's mutant exploits exactly that.</li>
+<li><strong>"Backpropagation is a special algorithm for neural networks."</strong> It is the chain rule, with the Jacobian product bracketed right-to-left. The only cleverness is the order of multiplication.</li>
+<li><strong>"Just use numerical gradients, they are simpler."</strong> A central-difference gradient costs $2n$ function evaluations. For a million parameters that is two million forward passes per step, against one for reverse mode.</li>
+<li><strong>"Change of variables just substitutes."</strong> You must also multiply by the absolute Jacobian determinant. Forgetting the $r$ in polar coordinates changes the answer, as the mutant shows.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Clairaut's symmetry of mixed partials requires the second partials to be <strong>continuous</strong>; there are standard counterexamples where $f_{xy}\neq f_{yx}$ at a point. The Hessian is symmetric in practice, but the theorem has hypotheses.</p>
+<p>The second-derivative test is silent when any eigenvalue is zero — the monkey saddle $x^3-3xy^2$ has a completely flat Hessian at the origin and is neither a maximum, a minimum, nor an ordinary saddle. Degenerate critical points need higher-order information.</p>
+<p>Lagrange multipliers need a <strong>regularity condition</strong>: $\nabla g\neq0$ at the optimum. Where the constraint surface has a cusp or a self-intersection, the method silently misses solutions. It also finds all stationary points of the Lagrangian, maxima, minima and saddles alike, so you must classify them afterwards.</p>
+<p>Numerically, finite-difference Hessians are far worse than gradients: the second difference divides by $h^2$, so rounding error is amplified by $\frac{1}{h^2}$ and the usable range of $h$ is narrow. That is the step-size trade-off of M22, squared, and it is why second-order optimisers avoid forming an explicit Hessian.</p>
+<p>Fubini's theorem needs absolute integrability. For a function that is not absolutely integrable the two iterated integrals can genuinely differ, which is the multivariable cousin of M33's conditionally convergent series.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>This module is the mathematics of training. A loss function of a million parameters is a function of a million variables; its gradient is what every optimiser consumes; and backpropagation is the chain rule organised efficiently. The gradient check in the demo is the standard practice when hand-writing a backward pass — and the mutant, a missing activation derivative, is the bug it catches.</p>
+<p>The saddle result changed how the field thinks. For years the folk explanation of hard optimisation was "local minima"; the dimensional argument says minima are vanishingly rare and saddles and plateaus are the real obstacle, which is why momentum and adaptive methods (M36) help so much.</p>
+<p>Outside machine learning: the Jacobian determinant is the area scale factor behind texture mapping and coordinate changes in graphics; Lagrange multipliers are the shadow prices of M20 in a non-linear setting; and the Hessian is the curvature that Newton's method uses and that tells you how well conditioned a local optimisation problem is.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why do two numbers determine infinitely many directional slopes?</p></div><div class="a" hidden><p>Because the directional derivative is the dot product of the gradient with the unit direction, so one vector fixes them all.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>In which direction does the gradient point, and what is its magnitude?</p></div><div class="a" hidden><p>Steepest ascent, with magnitude equal to that steepest slope. Perpendicular to it, the slope is zero.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Does having all partial derivatives imply differentiability?</p></div><div class="a" hidden><p>No. A function can have both partials at a point and not even be continuous there.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the multivariate chain rule in one line?</p></div><div class="a" hidden><p>The Jacobian of a composition is the product of the Jacobians, evaluated at the right points.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why is reverse-mode differentiation cheap for a scalar loss?</p></div><div class="a" hidden><p>Because bracketing the Jacobian product from the output backwards keeps every intermediate a vector, so one pass gives all the partial derivatives.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does the Hessian classify a critical point?</p></div><div class="a" hidden><p>All eigenvalues positive is a minimum, all negative a maximum, mixed signs a saddle, any zero inconclusive.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Why are saddles the dominant critical point in high dimensions?</p></div><div class="a" hidden><p>A minimum needs every one of n eigenvalues to be positive, which becomes exponentially unlikely as n grows.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>State the Lagrange condition and its intuition.</p></div><div class="a" hidden><p>grad f = lambda grad g at the optimum. If the objective's gradient had any component along the constraint surface you could slide that way and improve.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>What must you multiply by when changing variables in a multiple integral?</p></div><div class="a" hidden><p>The absolute value of the Jacobian determinant, the local volume scale factor. For polar coordinates it is r.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>How is the Gaussian integral evaluated, and why?</p></div><div class="a" hidden><p>Square it to get a double integral, switch to polar coordinates, and the Jacobian factor r makes the integrand elementary. The one-dimensional problem has no elementary antiderivative.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why two measured slopes fix every direction, you can prove the gradient is the steepest direction from the dot-product formula, you can write the chain rule as a Jacobian product and explain why reverse mode is cheap, you can classify a critical point from the Hessian's eigenvalues and say why saddles dominate in high dimensions, you pass the boss exercise without hints, and you would run a gradient check before trusting a hand-written backward pass.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>James Stewart, <em>Multivariable Calculus</em>, Cengage.</li>
+<li>Michael Spivak, <em>Calculus on Manifolds</em>, Westview Press.</li>
+<li>Baydin, Pearlmutter, Radul and Siskind, "Automatic Differentiation in Machine Learning: a Survey", <em>JMLR</em>, 2018.</li>
+<li>Dauphin, Pascanu, Gulcehre, Cho, Ganguli and Bengio, "Identifying and attacking the saddle point problem in high-dimensional non-convex optimization", <em>NeurIPS</em>, 2014.</li>
+<li>Goodfellow, Bengio and Courville, <em>Deep Learning</em>, MIT Press, chapters 4 and 6.</li>
+</ul></section>
+<footer class="pager"><a href="M31.html">&larr; M31 Linear algebra II: eigenvalues, orthogonality and the SVD</a>
+<a href="L02.html">L02 Linear and logistic regression &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M32", "packages": [], "exercises": {"m32-ex1-partials": {"starter": "def partial(f, x, i, h=1e-6):\n    \"\"\"The i-th partial derivative.\"\"\"\n    return 0.0\n\n\ndef gradient(f, x, h=1e-6):\n    \"\"\"All partial derivatives.\"\"\"\n    return []\n\n\ndef gradient_norm(g):\n    \"\"\"Length of the gradient.\"\"\"\n    return 0.0\n\n\ndef is_critical_point(f, x, tol=1e-6):\n    \"\"\"True when the gradient vanishes.\"\"\"\n    return False\n\n\ndef level_set_direction(g):\n    \"\"\"A unit vector along the level set.\"\"\"\n    return []\n", "solution": "from math import sqrt\n\n\ndef partial(f, x, i, h=1e-6):\n    \"\"\"The i-th partial derivative.\"\"\"\n    if not 0 <= i < len(x):\n        raise ValueError(\"the index is out of range\")\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    up = list(x); up[i] += h\n    dn = list(x); dn[i] -= h\n    return (f(up) - f(dn)) / (2 * h)\n\n\ndef gradient(f, x, h=1e-6):\n    \"\"\"All partial derivatives.\"\"\"\n    return [partial(f, x, i, h) for i in range(len(x))]\n\n\ndef gradient_norm(g):\n    \"\"\"Length of the gradient.\"\"\"\n    return sqrt(sum(v * v for v in g))\n\n\ndef is_critical_point(f, x, tol=1e-6):\n    \"\"\"True when the gradient vanishes.\"\"\"\n    return all(abs(v) < tol for v in gradient(f, x))\n\n\ndef level_set_direction(g):\n    \"\"\"A unit vector along the level set.\"\"\"\n    if len(g) != 2:\n        raise ValueError(\"this helper is for two dimensions\")\n    n = gradient_norm(g)\n    if n < 1e-12:\n        raise ValueError(\"the gradient vanishes, so no direction is distinguished\")\n    return [-g[1] / n, g[0] / n]\n", "tests": "def test_partials_of_known_functions():\n    f = lambda v: v[0] ** 2 * v[1] + v[1] ** 3\n    # df/dx = 2xy, df/dy = x^2 + 3y^2\n    x = [2.0, 3.0]\n    assert abs(partial(f, x, 0) - 12.0) < 1e-5\n    assert abs(partial(f, x, 1) - (4.0 + 27.0)) < 1e-4\n    g = gradient(f, x)\n    assert abs(g[0] - 12.0) < 1e-5 and abs(g[1] - 31.0) < 1e-4\n    try:\n        partial(f, x, 5)\n        assert False, \"an out-of-range index must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_critical_points():\n    bowl = lambda v: v[0] ** 2 + v[1] ** 2\n    assert is_critical_point(bowl, [0.0, 0.0]) is True\n    assert is_critical_point(bowl, [1.0, 0.0]) is False\n    # a saddle also has a vanishing gradient\n    saddle = lambda v: v[0] ** 2 - v[1] ** 2\n    assert is_critical_point(saddle, [0.0, 0.0]) is True\n    # a plane has no critical point at all\n    plane = lambda v: 3 * v[0] + 4 * v[1]\n    assert is_critical_point(plane, [0.0, 0.0]) is False\n    assert abs(gradient_norm(gradient(plane, [1.0, 1.0])) - 5.0) < 1e-5\n\n\ndef test_level_set_is_perpendicular_to_the_gradient():\n    import random\n    rng = random.Random(1788)\n    f = lambda v: v[0] ** 2 + 3 * v[1] ** 2\n    for _ in range(200):\n        x = [rng.uniform(-3, 3), rng.uniform(-3, 3)]\n        g = gradient(f, x)\n        if gradient_norm(g) < 1e-6:\n            continue\n        d = level_set_direction(g)\n        assert abs(sum(a * b for a, b in zip(g, d))) < 1e-6\n        assert abs(gradient_norm(d) - 1.0) < 1e-9\n        # moving along the level set barely changes f\n        eps = 1e-5\n        moved = [x[i] + eps * d[i] for i in range(2)]\n        assert abs(f(moved) - f(x)) < 1e-8\n    try:\n        level_set_direction([0.0, 0.0])\n        assert False, \"a zero gradient must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt\n\n\ndef partial(f, x, i, h=1e-6):\n    \"\"\"Bug: perturbs every coordinate, not just the i-th.\"\"\"\n    if not 0 <= i < len(x):\n        raise ValueError(\"the index is out of range\")\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    up = [v + h for v in x]\n    dn = [v - h for v in x]\n    return (f(up) - f(dn)) / (2 * h)\n\n\ndef gradient(f, x, h=1e-6):\n    return [partial(f, x, i, h) for i in range(len(x))]\n\n\ndef gradient_norm(g):\n    return sqrt(sum(v * v for v in g))\n\n\ndef is_critical_point(f, x, tol=1e-6):\n    return all(abs(v) < tol for v in gradient(f, x))\n\n\ndef level_set_direction(g):\n    if len(g) != 2:\n        raise ValueError(\"this helper is for two dimensions\")\n    n = gradient_norm(g)\n    if n < 1e-12:\n        raise ValueError(\"the gradient vanishes, so no direction is distinguished\")\n    return [-g[1] / n, g[0] / n]\n", "from math import sqrt\n\n\ndef partial(f, x, i, h=1e-6):\n    if not 0 <= i < len(x):\n        raise ValueError(\"the index is out of range\")\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    up = list(x); up[i] += h\n    dn = list(x); dn[i] -= h\n    return (f(up) - f(dn)) / (2 * h)\n\n\ndef gradient(f, x, h=1e-6):\n    return [partial(f, x, i, h) for i in range(len(x))]\n\n\ndef gradient_norm(g):\n    return sqrt(sum(v * v for v in g))\n\n\ndef is_critical_point(f, x, tol=1e-6):\n    return all(abs(v) < tol for v in gradient(f, x))\n\n\ndef level_set_direction(g):\n    \"\"\"Bug: returns the gradient direction itself, not a perpendicular one.\"\"\"\n    if len(g) != 2:\n        raise ValueError(\"this helper is for two dimensions\")\n    n = gradient_norm(g)\n    if n < 1e-12:\n        raise ValueError(\"the gradient vanishes, so no direction is distinguished\")\n    return [g[0] / n, g[1] / n]\n"], "hints": ["A partial derivative holds every other variable fixed, so perturb only the one coordinate.", "The level set is where the function does not change, so its direction is *perpendicular* to the gradient."], "level": "warmup", "title": "Partial derivatives and the gradient"}, "m32-ex2-directional": {"starter": "def normalise(u):\n    \"\"\"A unit vector in the same direction.\"\"\"\n    return []\n\n\ndef directional_derivative(g, u):\n    \"\"\"Slope in the direction u.\"\"\"\n    return 0.0\n\n\ndef steepest_ascent(g):\n    \"\"\"Unit vector of steepest increase.\"\"\"\n    return []\n\n\ndef steepest_descent(g):\n    \"\"\"Unit vector of steepest decrease.\"\"\"\n    return []\n\n\ndef best_direction_by_search(f, x, samples=720):\n    \"\"\"Steepest direction found by sampling.\"\"\"\n    return []\n\n\ndef slope_in_direction(f, x, u, h=1e-6):\n    \"\"\"Measured slope along u.\"\"\"\n    return 0.0\n", "solution": "from math import sqrt, cos, sin, pi\n\n\ndef normalise(u):\n    \"\"\"A unit vector in the same direction.\"\"\"\n    n = sqrt(sum(v * v for v in u))\n    if n < 1e-12:\n        raise ValueError(\"cannot normalise the zero vector\")\n    return [v / n for v in u]\n\n\ndef directional_derivative(g, u):\n    \"\"\"Slope in the direction u.\"\"\"\n    n = sqrt(sum(v * v for v in u))\n    if abs(n - 1.0) > 1e-9:\n        raise ValueError(\"the direction must be a unit vector\")\n    return sum(a * b for a, b in zip(g, u))\n\n\ndef steepest_ascent(g):\n    \"\"\"Unit vector of steepest increase.\"\"\"\n    return normalise(g)\n\n\ndef steepest_descent(g):\n    \"\"\"Unit vector of steepest decrease.\"\"\"\n    return [-v for v in normalise(g)]\n\n\ndef slope_in_direction(f, x, u, h=1e-6):\n    \"\"\"Measured slope along u.\"\"\"\n    up = [x[i] + h * u[i] for i in range(len(x))]\n    dn = [x[i] - h * u[i] for i in range(len(x))]\n    return (f(up) - f(dn)) / (2 * h)\n\n\ndef best_direction_by_search(f, x, samples=720):\n    \"\"\"Steepest direction found by sampling.\"\"\"\n    if len(x) != 2:\n        raise ValueError(\"this search is for two dimensions\")\n    best_u, best_slope = None, None\n    for k in range(samples):\n        t = 2 * pi * k / samples\n        u = [cos(t), sin(t)]\n        s = slope_in_direction(f, x, u)\n        if best_slope is None or s > best_slope:\n            best_u, best_slope = u, s\n    return best_u\n", "tests": "def test_directional_derivative_basics():\n    g = [3.0, 4.0]\n    assert abs(directional_derivative(g, [1.0, 0.0]) - 3.0) < 1e-12\n    assert abs(directional_derivative(g, [0.0, 1.0]) - 4.0) < 1e-12\n    # along the gradient the slope is its magnitude\n    u = normalise(g)\n    assert abs(directional_derivative(g, u) - 5.0) < 1e-12\n    # opposite gives minus the magnitude\n    assert abs(directional_derivative(g, [-v for v in u]) + 5.0) < 1e-12\n    try:\n        directional_derivative(g, [1.0, 1.0])\n        assert False, \"a non-unit direction must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_no_direction_beats_the_gradient():\n    from math import cos, sin, pi\n    import random\n    rng = random.Random(1837)\n    f = lambda v: -(v[0] ** 2 + 2 * v[1] ** 2) + 3 * v[0] * v[1]\n    for _ in range(100):\n        x = [rng.uniform(-2, 2), rng.uniform(-2, 2)]\n        g = [-2 * x[0] + 3 * x[1], -4 * x[1] + 3 * x[0]]\n        mag = sum(v * v for v in g) ** 0.5\n        if mag < 1e-6:\n            continue\n        for k in range(360):\n            t = 2 * pi * k / 360\n            u = [cos(t), sin(t)]\n            assert directional_derivative(g, u) <= mag + 1e-9\n\n\ndef test_search_agrees_with_the_gradient():\n    import random\n    rng = random.Random(1904)\n    f = lambda v: v[0] ** 2 + 3 * v[1] ** 2 + v[0] * v[1]\n    for _ in range(40):\n        x = [rng.uniform(-3, 3), rng.uniform(-3, 3)]\n        g = [2 * x[0] + x[1], 6 * x[1] + x[0]]\n        if sum(v * v for v in g) ** 0.5 < 0.5:\n            continue\n        analytic = steepest_ascent(g)\n        searched = best_direction_by_search(f, x)\n        # the two unit vectors must point nearly the same way\n        dot = sum(a * b for a, b in zip(analytic, searched))\n        assert dot > 0.9999, (x, analytic, searched)\n        # descent is exactly opposite\n        d = steepest_descent(g)\n        assert all(abs(a + b) < 1e-12 for a, b in zip(analytic, d))\n        # the measured slope along the gradient matches its magnitude\n        measured = slope_in_direction(f, x, analytic)\n        assert abs(measured - sum(v * v for v in g) ** 0.5) < 1e-4\n", "mutants": ["from math import sqrt, cos, sin, pi\n\n\ndef normalise(u):\n    n = sqrt(sum(v * v for v in u))\n    if n < 1e-12:\n        raise ValueError(\"cannot normalise the zero vector\")\n    return [v / n for v in u]\n\n\ndef directional_derivative(g, u):\n    \"\"\"Bug: multiplies the magnitudes instead of taking the dot product,\n    so every direction looks equally steep.\"\"\"\n    n = sqrt(sum(v * v for v in u))\n    if abs(n - 1.0) > 1e-9:\n        raise ValueError(\"the direction must be a unit vector\")\n    return sqrt(sum(a * a for a in g))\n\n\ndef steepest_ascent(g):\n    return normalise(g)\n\n\ndef steepest_descent(g):\n    return [-v for v in normalise(g)]\n\n\ndef slope_in_direction(f, x, u, h=1e-6):\n    up = [x[i] + h * u[i] for i in range(len(x))]\n    dn = [x[i] - h * u[i] for i in range(len(x))]\n    return (f(up) - f(dn)) / (2 * h)\n\n\ndef best_direction_by_search(f, x, samples=720):\n    if len(x) != 2:\n        raise ValueError(\"this search is for two dimensions\")\n    best_u, best_slope = None, None\n    for k in range(samples):\n        t = 2 * pi * k / samples\n        u = [cos(t), sin(t)]\n        s = slope_in_direction(f, x, u)\n        if best_slope is None or s > best_slope:\n            best_u, best_slope = u, s\n    return best_u\n", "from math import sqrt, cos, sin, pi\n\n\ndef normalise(u):\n    n = sqrt(sum(v * v for v in u))\n    if n < 1e-12:\n        raise ValueError(\"cannot normalise the zero vector\")\n    return [v / n for v in u]\n\n\ndef directional_derivative(g, u):\n    n = sqrt(sum(v * v for v in u))\n    if abs(n - 1.0) > 1e-9:\n        raise ValueError(\"the direction must be a unit vector\")\n    return sum(a * b for a, b in zip(g, u))\n\n\ndef steepest_ascent(g):\n    \"\"\"Bug: returns the descent direction, so ascent and descent are swapped.\"\"\"\n    return [-v for v in normalise(g)]\n\n\ndef steepest_descent(g):\n    return normalise(g)\n\n\ndef slope_in_direction(f, x, u, h=1e-6):\n    up = [x[i] + h * u[i] for i in range(len(x))]\n    dn = [x[i] - h * u[i] for i in range(len(x))]\n    return (f(up) - f(dn)) / (2 * h)\n\n\ndef best_direction_by_search(f, x, samples=720):\n    if len(x) != 2:\n        raise ValueError(\"this search is for two dimensions\")\n    best_u, best_slope = None, None\n    for k in range(samples):\n        t = 2 * pi * k / samples\n        u = [cos(t), sin(t)]\n        s = slope_in_direction(f, x, u)\n        if best_slope is None or s > best_slope:\n            best_u, best_slope = u, s\n    return best_u\n"], "hints": ["The directional derivative is the dot product of the gradient with the unit direction, so it varies with the angle.", "Steepest *ascent* is along the gradient; steepest descent is the opposite direction."], "level": "core", "title": "Directional derivatives and steepest ascent"}, "m32-ex3-chain-rule": {"starter": "def jacobian(F, x, m, h=1e-6):\n    \"\"\"The m by n Jacobian matrix.\"\"\"\n    return []\n\n\ndef matmul(a, b):\n    \"\"\"Matrix product.\"\"\"\n    return []\n\n\ndef chain_jacobian(JG, JF):\n    \"\"\"Jacobian of the composition.\"\"\"\n    return []\n\n\ndef numeric_jacobian_of_composition(G, F, x, p, h=1e-6):\n    \"\"\"Jacobian of G after F, numerically.\"\"\"\n    return []\n\n\ndef chain_rule_holds(G, F, x, m, p, tol=1e-5):\n    \"\"\"True when the chain rule is satisfied.\"\"\"\n    return False\n", "solution": "def jacobian(F, x, m, h=1e-6):\n    \"\"\"The m by n Jacobian matrix.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    n = len(x)\n    out = [[0.0] * n for _ in range(m)]\n    for j in range(n):\n        up = list(x); up[j] += h\n        dn = list(x); dn[j] -= h\n        fu, fd = F(up), F(dn)\n        for i in range(m):\n            out[i][j] = (fu[i] - fd[i]) / (2 * h)\n    return out\n\n\ndef matmul(a, b):\n    \"\"\"Matrix product.\"\"\"\n    if not a or not b or len(a[0]) != len(b):\n        raise ValueError(\"inner dimensions must agree\")\n    return [[sum(a[i][k] * b[k][j] for k in range(len(b)))\n             for j in range(len(b[0]))] for i in range(len(a))]\n\n\ndef chain_jacobian(JG, JF):\n    \"\"\"Jacobian of the composition.\"\"\"\n    return matmul(JG, JF)\n\n\ndef numeric_jacobian_of_composition(G, F, x, p, h=1e-6):\n    \"\"\"Jacobian of G after F, numerically.\"\"\"\n    return jacobian(lambda v: G(F(v)), x, p, h)\n\n\ndef chain_rule_holds(G, F, x, m, p, tol=1e-5):\n    \"\"\"True when the chain rule is satisfied.\"\"\"\n    jf = jacobian(F, x, m)\n    jg = jacobian(G, F(x), p)\n    product = chain_jacobian(jg, jf)\n    direct = numeric_jacobian_of_composition(G, F, x, p)\n    for i in range(p):\n        for j in range(len(x)):\n            if abs(product[i][j] - direct[i][j]) > tol:\n                return False\n    return True\n", "tests": "def test_jacobian_of_a_known_map():\n    # F(x, y) = (x^2 y, x + y), so J = [[2xy, x^2], [1, 1]]\n    F = lambda v: [v[0] ** 2 * v[1], v[0] + v[1]]\n    j = jacobian(F, [2.0, 3.0], 2)\n    assert abs(j[0][0] - 12.0) < 1e-4\n    assert abs(j[0][1] - 4.0) < 1e-4\n    assert abs(j[1][0] - 1.0) < 1e-6\n    assert abs(j[1][1] - 1.0) < 1e-6\n    # matmul basics\n    assert matmul([[1, 2], [3, 4]], [[5, 6], [7, 8]]) == [[19, 22], [43, 50]]\n    try:\n        matmul([[1, 2, 3]], [[1, 2]])\n        assert False, \"a size mismatch must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_chain_rule_on_several_compositions():\n    from math import sin, cos, exp\n    import random\n    rng = random.Random(1970)\n    cases = [\n        (lambda v: [v[0] + v[1], v[0] * v[1]], 2, lambda w: [w[0] ** 2, sin(w[1])], 2),\n        (lambda v: [v[0] * 2, v[1] * 3, v[0] + v[1]], 3, lambda w: [sum(w)], 1),\n        (lambda v: [exp(v[0]), v[1] ** 2], 2, lambda w: [w[0] * w[1]], 1),\n    ]\n    for F, m, G, p in cases:\n        for _ in range(50):\n            x = [rng.uniform(-1.5, 1.5), rng.uniform(-1.5, 1.5)]\n            assert chain_rule_holds(G, F, x, m, p, tol=1e-4) is True\n\n\ndef test_composition_order_matters():\n    # G after F is not F after G\n    F = lambda v: [v[0] + 1.0, v[1]]\n    G = lambda v: [v[0] * v[1], v[0]]\n    x = [2.0, 3.0]\n    gf = numeric_jacobian_of_composition(G, F, x, 2)\n    fg = numeric_jacobian_of_composition(F, G, x, 2)\n    assert any(abs(gf[i][j] - fg[i][j]) > 1e-3 for i in range(2) for j in range(2))\n    # and the chain rule holds for each separately\n    assert chain_rule_holds(G, F, x, 2, 2, tol=1e-4) is True\n    assert chain_rule_holds(F, G, x, 2, 2, tol=1e-4) is True\n", "mutants": ["def jacobian(F, x, m, h=1e-6):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    n = len(x)\n    out = [[0.0] * n for _ in range(m)]\n    for j in range(n):\n        up = list(x); up[j] += h\n        dn = list(x); dn[j] -= h\n        fu, fd = F(up), F(dn)\n        for i in range(m):\n            out[i][j] = (fu[i] - fd[i]) / (2 * h)\n    return out\n\n\ndef matmul(a, b):\n    if not a or not b or len(a[0]) != len(b):\n        raise ValueError(\"inner dimensions must agree\")\n    return [[sum(a[i][k] * b[k][j] for k in range(len(b)))\n             for j in range(len(b[0]))] for i in range(len(a))]\n\n\ndef chain_jacobian(JG, JF):\n    \"\"\"Bug: multiplies in the wrong order, which is the classic chain-rule error.\"\"\"\n    return matmul(JF, JG)\n\n\ndef numeric_jacobian_of_composition(G, F, x, p, h=1e-6):\n    return jacobian(lambda v: G(F(v)), x, p, h)\n\n\ndef chain_rule_holds(G, F, x, m, p, tol=1e-5):\n    jf = jacobian(F, x, m)\n    jg = jacobian(G, F(x), p)\n    try:\n        product = chain_jacobian(jg, jf)\n    except ValueError:\n        return False\n    direct = numeric_jacobian_of_composition(G, F, x, p)\n    if len(product) != len(direct) or len(product[0]) != len(direct[0]):\n        return False\n    for i in range(len(direct)):\n        for j in range(len(direct[0])):\n            if abs(product[i][j] - direct[i][j]) > tol:\n                return False\n    return True\n", "def jacobian(F, x, m, h=1e-6):\n    \"\"\"Bug: evaluates F at the base point rather than the perturbed one for\n    the lower term, halving every derivative.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    n = len(x)\n    out = [[0.0] * n for _ in range(m)]\n    base = F(x)\n    for j in range(n):\n        up = list(x); up[j] += h\n        fu = F(up)\n        for i in range(m):\n            out[i][j] = (fu[i] - base[i]) / (2 * h)\n    return out\n\n\ndef matmul(a, b):\n    if not a or not b or len(a[0]) != len(b):\n        raise ValueError(\"inner dimensions must agree\")\n    return [[sum(a[i][k] * b[k][j] for k in range(len(b)))\n             for j in range(len(b[0]))] for i in range(len(a))]\n\n\ndef chain_jacobian(JG, JF):\n    return matmul(JG, JF)\n\n\ndef numeric_jacobian_of_composition(G, F, x, p, h=1e-6):\n    return jacobian(lambda v: G(F(v)), x, p, h)\n\n\ndef chain_rule_holds(G, F, x, m, p, tol=1e-5):\n    jf = jacobian(F, x, m)\n    jg = jacobian(G, F(x), p)\n    product = chain_jacobian(jg, jf)\n    direct = numeric_jacobian_of_composition(G, F, x, p)\n    for i in range(p):\n        for j in range(len(x)):\n            if abs(product[i][j] - direct[i][j]) > tol:\n                return False\n    return True\n"], "hints": ["The chain rule multiplies the OUTER Jacobian on the left: `J_G` times `J_F`, evaluated at the right points.", "A central difference spans `2h` from `x-h` to `x+h`. Using the base point in place of `x-h` halves the span but not the divisor."], "level": "core", "title": "The Jacobian and the chain rule"}, "m32-ex4-hessian": {"starter": "def hessian(f, x, h=1e-4):\n    \"\"\"Matrix of second partial derivatives.\"\"\"\n    return []\n\n\ndef is_symmetric(m, tol=1e-6):\n    \"\"\"True when the matrix equals its transpose.\"\"\"\n    return False\n\n\ndef eigenvalues_2x2_sym(m):\n    \"\"\"Sorted eigenvalues of a symmetric 2x2.\"\"\"\n    return []\n\n\ndef quadratic_form(m, v):\n    \"\"\"v transpose M v.\"\"\"\n    return 0.0\n\n\ndef classify_critical_point(f, x):\n    \"\"\"Classify by the Hessian's eigenvalues.\"\"\"\n    return \"inconclusive\"\n", "solution": "from math import sqrt\n\n\ndef hessian(f, x, h=1e-4):\n    \"\"\"Matrix of second partial derivatives.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    n = len(x)\n    out = [[0.0] * n for _ in range(n)]\n    for i in range(n):\n        for j in range(n):\n            a = list(x); a[i] += h; a[j] += h\n            b = list(x); b[i] += h; b[j] -= h\n            c = list(x); c[i] -= h; c[j] += h\n            d = list(x); d[i] -= h; d[j] -= h\n            out[i][j] = (f(a) - f(b) - f(c) + f(d)) / (4 * h * h)\n    return out\n\n\ndef is_symmetric(m, tol=1e-6):\n    \"\"\"True when the matrix equals its transpose.\"\"\"\n    n = len(m)\n    return all(abs(m[i][j] - m[j][i]) < tol for i in range(n) for j in range(n))\n\n\ndef eigenvalues_2x2_sym(m):\n    \"\"\"Sorted eigenvalues of a symmetric 2x2.\"\"\"\n    if len(m) != 2:\n        raise ValueError(\"this helper is for 2x2 matrices\")\n    tr = m[0][0] + m[1][1]\n    det = m[0][0] * m[1][1] - m[0][1] * m[1][0]\n    disc = max(tr * tr - 4 * det, 0.0)\n    root = sqrt(disc)\n    return sorted([(tr - root) / 2, (tr + root) / 2])\n\n\ndef quadratic_form(m, v):\n    \"\"\"v transpose M v.\"\"\"\n    n = len(v)\n    return sum(v[i] * m[i][j] * v[j] for i in range(n) for j in range(n))\n\n\ndef classify_critical_point(f, x):\n    \"\"\"Classify by the Hessian's eigenvalues.\"\"\"\n    g = []\n    hh = 1e-6\n    for i in range(len(x)):\n        up = list(x); up[i] += hh\n        dn = list(x); dn[i] -= hh\n        g.append((f(up) - f(dn)) / (2 * hh))\n    if any(abs(v) > 1e-4 for v in g):\n        raise ValueError(\"the point is not critical\")\n    vals = eigenvalues_2x2_sym(hessian(f, x))\n    tol = 1e-4\n    if all(v > tol for v in vals):\n        return \"minimum\"\n    if all(v < -tol for v in vals):\n        return \"maximum\"\n    if any(v > tol for v in vals) and any(v < -tol for v in vals):\n        return \"saddle\"\n    return \"inconclusive\"\n", "tests": "def test_hessian_of_known_functions():\n    # f = x^2 + 3y^2 has Hessian [[2, 0], [0, 6]]\n    f = lambda v: v[0] ** 2 + 3 * v[1] ** 2\n    h = hessian(f, [1.0, 2.0])\n    assert abs(h[0][0] - 2.0) < 1e-3\n    assert abs(h[1][1] - 6.0) < 1e-3\n    assert abs(h[0][1]) < 1e-3\n    assert is_symmetric(h, tol=1e-3) is True\n    # f = x*y has Hessian [[0, 1], [1, 0]]\n    g = lambda v: v[0] * v[1]\n    hg = hessian(g, [3.0, -2.0])\n    assert abs(hg[0][1] - 1.0) < 1e-3 and abs(hg[1][0] - 1.0) < 1e-3\n    assert abs(hg[0][0]) < 1e-3\n\n\ndef test_classification_of_the_three_cases():\n    bowl = lambda v: v[0] ** 2 + v[1] ** 2\n    dome = lambda v: -(v[0] ** 2 + v[1] ** 2)\n    saddle = lambda v: v[0] ** 2 - v[1] ** 2\n    assert classify_critical_point(bowl, [0.0, 0.0]) == \"minimum\"\n    assert classify_critical_point(dome, [0.0, 0.0]) == \"maximum\"\n    assert classify_critical_point(saddle, [0.0, 0.0]) == \"saddle\"\n    # the monkey saddle has a vanishing Hessian: inconclusive\n    monkey = lambda v: v[0] ** 3 - 3 * v[0] * v[1] ** 2\n    assert classify_critical_point(monkey, [0.0, 0.0]) == \"inconclusive\"\n    try:\n        classify_critical_point(bowl, [1.0, 1.0])\n        assert False, \"a non-critical point must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_eigenvalues_and_the_quadratic_form():\n    # the quadratic form's sign matches the eigenvalue signs\n    import random\n    from math import cos, sin, pi\n    rng = random.Random(1857)\n    pos = [[2.0, 0.0], [0.0, 3.0]]\n    neg = [[-2.0, 0.0], [0.0, -5.0]]\n    mix = [[1.0, 0.0], [0.0, -1.0]]\n    assert eigenvalues_2x2_sym(pos) == [2.0, 3.0]\n    assert eigenvalues_2x2_sym(neg) == [-5.0, -2.0]\n    assert eigenvalues_2x2_sym(mix) == [-1.0, 1.0]\n    for _ in range(300):\n        t = rng.uniform(0, 2 * pi)\n        v = [cos(t), sin(t)]\n        assert quadratic_form(pos, v) > 0\n        assert quadratic_form(neg, v) < 0\n    # the mixed one takes both signs\n    assert quadratic_form(mix, [1.0, 0.0]) > 0\n    assert quadratic_form(mix, [0.0, 1.0]) < 0\n", "mutants": ["from math import sqrt\n\n\ndef hessian(f, x, h=1e-4):\n    \"\"\"Bug: divides by h^2 instead of 4 h^2, inflating every entry.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    n = len(x)\n    out = [[0.0] * n for _ in range(n)]\n    for i in range(n):\n        for j in range(n):\n            a = list(x); a[i] += h; a[j] += h\n            b = list(x); b[i] += h; b[j] -= h\n            c = list(x); c[i] -= h; c[j] += h\n            d = list(x); d[i] -= h; d[j] -= h\n            out[i][j] = (f(a) - f(b) - f(c) + f(d)) / (h * h)\n    return out\n\n\ndef is_symmetric(m, tol=1e-6):\n    n = len(m)\n    return all(abs(m[i][j] - m[j][i]) < tol for i in range(n) for j in range(n))\n\n\ndef eigenvalues_2x2_sym(m):\n    if len(m) != 2:\n        raise ValueError(\"this helper is for 2x2 matrices\")\n    tr = m[0][0] + m[1][1]\n    det = m[0][0] * m[1][1] - m[0][1] * m[1][0]\n    disc = max(tr * tr - 4 * det, 0.0)\n    root = sqrt(disc)\n    return sorted([(tr - root) / 2, (tr + root) / 2])\n\n\ndef quadratic_form(m, v):\n    n = len(v)\n    return sum(v[i] * m[i][j] * v[j] for i in range(n) for j in range(n))\n\n\ndef classify_critical_point(f, x):\n    g = []\n    hh = 1e-6\n    for i in range(len(x)):\n        up = list(x); up[i] += hh\n        dn = list(x); dn[i] -= hh\n        g.append((f(up) - f(dn)) / (2 * hh))\n    if any(abs(v) > 1e-4 for v in g):\n        raise ValueError(\"the point is not critical\")\n    vals = eigenvalues_2x2_sym(hessian(f, x))\n    tol = 1e-4\n    if all(v > tol for v in vals):\n        return \"minimum\"\n    if all(v < -tol for v in vals):\n        return \"maximum\"\n    if any(v > tol for v in vals) and any(v < -tol for v in vals):\n        return \"saddle\"\n    return \"inconclusive\"\n", "from math import sqrt\n\n\ndef hessian(f, x, h=1e-4):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    n = len(x)\n    out = [[0.0] * n for _ in range(n)]\n    for i in range(n):\n        for j in range(n):\n            a = list(x); a[i] += h; a[j] += h\n            b = list(x); b[i] += h; b[j] -= h\n            c = list(x); c[i] -= h; c[j] += h\n            d = list(x); d[i] -= h; d[j] -= h\n            out[i][j] = (f(a) - f(b) - f(c) + f(d)) / (4 * h * h)\n    return out\n\n\ndef is_symmetric(m, tol=1e-6):\n    n = len(m)\n    return all(abs(m[i][j] - m[j][i]) < tol for i in range(n) for j in range(n))\n\n\ndef eigenvalues_2x2_sym(m):\n    if len(m) != 2:\n        raise ValueError(\"this helper is for 2x2 matrices\")\n    tr = m[0][0] + m[1][1]\n    det = m[0][0] * m[1][1] - m[0][1] * m[1][0]\n    disc = max(tr * tr - 4 * det, 0.0)\n    root = sqrt(disc)\n    return sorted([(tr - root) / 2, (tr + root) / 2])\n\n\ndef quadratic_form(m, v):\n    n = len(v)\n    return sum(v[i] * m[i][j] * v[j] for i in range(n) for j in range(n))\n\n\ndef classify_critical_point(f, x):\n    \"\"\"Bug: classifies by the TRACE rather than by the individual eigenvalues,\n    so a saddle with a positive trace is called a minimum.\"\"\"\n    g = []\n    hh = 1e-6\n    for i in range(len(x)):\n        up = list(x); up[i] += hh\n        dn = list(x); dn[i] -= hh\n        g.append((f(up) - f(dn)) / (2 * hh))\n    if any(abs(v) > 1e-4 for v in g):\n        raise ValueError(\"the point is not critical\")\n    vals = eigenvalues_2x2_sym(hessian(f, x))\n    total = sum(vals)\n    if total > 1e-4:\n        return \"minimum\"\n    if total < -1e-4:\n        return \"maximum\"\n    return \"inconclusive\"\n"], "hints": ["The mixed second partial uses four function evaluations spanning `2h` in each direction, so the denominator is `4h^2`.", "A saddle needs eigenvalues of *both* signs. Looking only at the sum hides that \u2014 a saddle can have a positive trace."], "level": "core", "title": "The Hessian, critical points and saddles"}, "m32-ex5-lagrange-and-integrals": {"starter": "def lagrange_residual(grad_f, grad_g, lam):\n    \"\"\"grad_f - lam * grad_g.\"\"\"\n    return []\n\n\ndef solve_lagrange_circle(a, b):\n    \"\"\"Maximise a x + b y on the unit circle.\"\"\"\n    return (0.0, 0.0, 0.0, 0.0)\n\n\ndef double_integral(f, x0, x1, y0, y1, n=200):\n    \"\"\"Integral over a rectangle.\"\"\"\n    return 0.0\n\n\ndef polar_integral(f_polar, r_max, n=400):\n    \"\"\"Integral over a disc, in polar coordinates.\"\"\"\n    return 0.0\n\n\ndef gaussian_1d(limit, n=20000):\n    \"\"\"Integral of exp(-x^2) over [-limit, limit].\"\"\"\n    return 0.0\n\n\ndef gaussian_via_polar(r_max, n=20000):\n    \"\"\"The same value, obtained by squaring and going polar.\"\"\"\n    return 0.0\n", "solution": "from math import sqrt, exp, pi, cos, sin\n\n\ndef lagrange_residual(grad_f, grad_g, lam):\n    \"\"\"grad_f - lam * grad_g.\"\"\"\n    if len(grad_f) != len(grad_g):\n        raise ValueError(\"the gradients must have the same length\")\n    return [a - lam * b for a, b in zip(grad_f, grad_g)]\n\n\ndef solve_lagrange_circle(a, b):\n    \"\"\"Maximise a x + b y on the unit circle.\"\"\"\n    norm = sqrt(a * a + b * b)\n    if norm < 1e-15:\n        raise ValueError(\"the objective must be non-trivial\")\n    # grad f = (a, b), grad g = (2x, 2y); parallel means (x, y) = (a, b)/norm\n    x, y = a / norm, b / norm\n    lam = norm / 2\n    return (x, y, lam, a * x + b * y)\n\n\ndef _simpson(f, a, b, n):\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef double_integral(f, x0, x1, y0, y1, n=200):\n    \"\"\"Integral over a rectangle.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return _simpson(lambda x: _simpson(lambda y: f(x, y), y0, y1, n), x0, x1, n)\n\n\ndef polar_integral(f_polar, r_max, n=400):\n    \"\"\"Integral over a disc, in polar coordinates.\"\"\"\n    if r_max <= 0 or n <= 0:\n        raise ValueError(\"r_max and n must be positive\")\n    return _simpson(\n        lambda th: _simpson(lambda r: f_polar(r, th) * r, 0.0, r_max, n),\n        0.0, 2 * pi, n)\n\n\ndef gaussian_1d(limit, n=20000):\n    \"\"\"Integral of exp(-x^2) over [-limit, limit].\"\"\"\n    return _simpson(lambda x: exp(-x * x), -limit, limit, n)\n\n\ndef gaussian_via_polar(r_max, n=20000):\n    \"\"\"The same value, obtained by squaring and going polar.\"\"\"\n    radial = _simpson(lambda r: exp(-r * r) * r, 0.0, r_max, n)\n    return sqrt(2 * pi * radial)\n", "tests": "def test_lagrange_on_the_circle():\n    from math import sqrt\n    # maximise x + y on the unit circle: the answer is (1,1)/sqrt(2), value sqrt(2)\n    x, y, lam, value = solve_lagrange_circle(1.0, 1.0)\n    assert abs(x - 1 / sqrt(2)) < 1e-12 and abs(y - 1 / sqrt(2)) < 1e-12\n    assert abs(value - sqrt(2)) < 1e-12\n    assert abs(x * x + y * y - 1.0) < 1e-12, \"the point must lie on the constraint\"\n    # the gradients really are parallel there\n    res = lagrange_residual([1.0, 1.0], [2 * x, 2 * y], lam)\n    assert all(abs(v) < 1e-12 for v in res)\n    # no point on the circle does better\n    from math import cos, sin, pi\n    for k in range(3600):\n        t = 2 * pi * k / 3600\n        assert cos(t) + sin(t) <= value + 1e-12\n    try:\n        solve_lagrange_circle(0.0, 0.0)\n        assert False, \"a zero objective must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_double_integrals():\n    # integral of x*y over [0,1]x[0,2] is (1/2)(2) = 1\n    assert abs(double_integral(lambda x, y: x * y, 0, 1, 0, 2) - 1.0) < 1e-6\n    # a constant integrates to the area\n    assert abs(double_integral(lambda x, y: 3.0, 0, 2, 0, 5) - 30.0) < 1e-6\n    # Fubini: the order does not matter\n    f = lambda x, y: x ** 2 + y\n    a = double_integral(f, 0, 1, 0, 2)\n    b = double_integral(lambda y, x: f(x, y), 0, 2, 0, 1)\n    assert abs(a - b) < 1e-6\n    # the area of a disc of radius 2, via polar coordinates\n    assert abs(polar_integral(lambda r, th: 1.0, 2.0) - 4 * 3.141592653589793) < 1e-4\n\n\ndef test_the_gaussian_integral():\n    from math import sqrt, pi\n    direct = gaussian_1d(8.0)\n    polar = gaussian_via_polar(12.0)\n    assert abs(direct - sqrt(pi)) < 1e-8\n    assert abs(polar - sqrt(pi)) < 1e-8\n    assert abs(direct - polar) < 1e-7\n    # the polar route via the full disc integral agrees too\n    disc = polar_integral(lambda r, th: 2.718281828459045 ** (-r * r), 12.0)\n    assert abs(disc - pi) < 1e-5\n    assert abs(sqrt(disc) - direct) < 1e-5\n    try:\n        polar_integral(lambda r, th: 1.0, -1.0)\n        assert False, \"a negative radius must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt, exp, pi\n\n\ndef lagrange_residual(grad_f, grad_g, lam):\n    \"\"\"Bug: adds instead of subtracting, so parallel gradients do not cancel.\"\"\"\n    if len(grad_f) != len(grad_g):\n        raise ValueError(\"the gradients must have the same length\")\n    return [a + lam * b for a, b in zip(grad_f, grad_g)]\n\n\ndef solve_lagrange_circle(a, b):\n    norm = sqrt(a * a + b * b)\n    if norm < 1e-15:\n        raise ValueError(\"the objective must be non-trivial\")\n    x, y = a / norm, b / norm\n    lam = norm / 2\n    return (x, y, lam, a * x + b * y)\n\n\ndef _simpson(f, a, b, n):\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef double_integral(f, x0, x1, y0, y1, n=200):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return _simpson(lambda x: _simpson(lambda y: f(x, y), y0, y1, n), x0, x1, n)\n\n\ndef polar_integral(f_polar, r_max, n=400):\n    if r_max <= 0 or n <= 0:\n        raise ValueError(\"r_max and n must be positive\")\n    return _simpson(\n        lambda th: _simpson(lambda r: f_polar(r, th) * r, 0.0, r_max, n),\n        0.0, 2 * pi, n)\n\n\ndef gaussian_1d(limit, n=20000):\n    return _simpson(lambda x: exp(-x * x), -limit, limit, n)\n\n\ndef gaussian_via_polar(r_max, n=20000):\n    radial = _simpson(lambda r: exp(-r * r) * r, 0.0, r_max, n)\n    return sqrt(2 * pi * radial)\n", "from math import sqrt, exp, pi\n\n\ndef lagrange_residual(grad_f, grad_g, lam):\n    if len(grad_f) != len(grad_g):\n        raise ValueError(\"the gradients must have the same length\")\n    return [a - lam * b for a, b in zip(grad_f, grad_g)]\n\n\ndef solve_lagrange_circle(a, b):\n    norm = sqrt(a * a + b * b)\n    if norm < 1e-15:\n        raise ValueError(\"the objective must be non-trivial\")\n    x, y = a / norm, b / norm\n    lam = norm / 2\n    return (x, y, lam, a * x + b * y)\n\n\ndef _simpson(f, a, b, n):\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef double_integral(f, x0, x1, y0, y1, n=200):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return _simpson(lambda x: _simpson(lambda y: f(x, y), y0, y1, n), x0, x1, n)\n\n\ndef polar_integral(f_polar, r_max, n=400):\n    \"\"\"Bug: omits the Jacobian factor r, so areas are wrong.\"\"\"\n    if r_max <= 0 or n <= 0:\n        raise ValueError(\"r_max and n must be positive\")\n    return _simpson(\n        lambda th: _simpson(lambda r: f_polar(r, th), 0.0, r_max, n),\n        0.0, 2 * pi, n)\n\n\ndef gaussian_1d(limit, n=20000):\n    return _simpson(lambda x: exp(-x * x), -limit, limit, n)\n\n\ndef gaussian_via_polar(r_max, n=20000):\n    \"\"\"Bug: same omission, so the Gaussian comes out wrong.\"\"\"\n    radial = _simpson(lambda r: exp(-r * r), 0.0, r_max, n)\n    return sqrt(2 * pi * radial)\n"], "hints": ["At a constrained optimum the gradients are parallel, so `grad_f - lam * grad_g` must be the zero vector.", "Changing to polar coordinates multiplies by the Jacobian determinant, which for `(r, theta)` is exactly `r`."], "level": "boss", "title": "Lagrange multipliers, double integrals and the Gaussian"}}, "demos": {"m32-gradients-two-ways": {"code": "import random\nfrom math import exp, sin, cos, sqrt, tanh\n\n\ndef numeric_gradient(f, x, h=1e-6):\n    \"\"\"Central differences. Knows no calculus.\"\"\"\n    out = []\n    for i in range(len(x)):\n        up = list(x); up[i] += h\n        dn = list(x); dn[i] -= h\n        out.append((f(up) - f(dn)) / (2 * h))\n    return out\n\n\nCASES = [\n    (\"x^2 + y^2\", lambda v: v[0] ** 2 + v[1] ** 2,\n     lambda v: [2 * v[0], 2 * v[1]]),\n    (\"x^2 y + y^3\", lambda v: v[0] ** 2 * v[1] + v[1] ** 3,\n     lambda v: [2 * v[0] * v[1], v[0] ** 2 + 3 * v[1] ** 2]),\n    (\"sin(x y)\", lambda v: sin(v[0] * v[1]),\n     lambda v: [v[1] * cos(v[0] * v[1]), v[0] * cos(v[0] * v[1])]),\n    (\"e^(x+2y)\", lambda v: exp(v[0] + 2 * v[1]),\n     lambda v: [exp(v[0] + 2 * v[1]), 2 * exp(v[0] + 2 * v[1])]),\n    (\"x/y\", lambda v: v[0] / v[1],\n     lambda v: [1 / v[1], -v[0] / (v[1] ** 2)]),\n]\n\nrng = random.Random(1740)\nprint(f\"{'function':>14} {'worst gradient gap':>22}\")\nfor name, f, grad in CASES:\n    worst = 0.0\n    for _ in range(200):\n        x = [rng.uniform(-2, 2), rng.uniform(0.5, 3)]\n        a = grad(x)\n        b = numeric_gradient(f, x)\n        worst = max(worst, max(abs(p - q) for p, q in zip(a, b)))\n    print(f\"{name:>14} {worst:>22.3e}\")\n    assert worst < 1e-6, f\"the analytic gradient must match finite differences for {name}\"\n\n# Tara's hill: the gradient beats every other direction.\nhill = lambda v: -(v[0] ** 2 + 2 * v[1] ** 2) + 3 * v[0] * v[1]\ndhill = lambda v: [-2 * v[0] + 3 * v[1], -4 * v[1] + 3 * v[0]]\npoint = [0.7, -0.4]\ng = dhill(point)\ngnorm = sqrt(g[0] ** 2 + g[1] ** 2)\nbest_dir = [g[0] / gnorm, g[1] / gnorm]\nprint()\nprint(\"gradient at (0.7, -0.4):\", [round(v, 6) for v in g], \" magnitude\", round(gnorm, 6))\nworst_excess = 0.0\nfor k in range(3600):\n    t = 2 * 3.141592653589793 * k / 3600\n    u = [cos(t), sin(t)]\n    slope = g[0] * u[0] + g[1] * u[1]\n    worst_excess = max(worst_excess, slope - gnorm)\n    assert slope <= gnorm + 1e-12, \"no direction beats the gradient\"\nprint(\"tested 3600 directions; none exceeded the gradient's own slope\")\nassert abs(worst_excess) < 1e-12\n# and the perpendicular direction has zero slope\nperp = [-best_dir[1], best_dir[0]]\nassert abs(g[0] * perp[0] + g[1] * perp[1]) < 1e-12\n\n# --- a two-layer network: hand-written backward pass versus finite differences ---\ndef forward(params, x):\n    \"\"\"y = w2 . tanh(W1 x + b1) + b2, a scalar output.\"\"\"\n    w1 = [[params[0], params[1]], [params[2], params[3]]]\n    b1 = [params[4], params[5]]\n    w2 = [params[6], params[7]]\n    b2 = params[8]\n    z = [sum(w1[i][j] * x[j] for j in range(2)) + b1[i] for i in range(2)]\n    a = [tanh(v) for v in z]\n    return sum(w2[i] * a[i] for i in range(2)) + b2\n\n\ndef backward(params, x):\n    \"\"\"Reverse mode by hand: multiply the Jacobians from the output back.\"\"\"\n    w1 = [[params[0], params[1]], [params[2], params[3]]]\n    b1 = [params[4], params[5]]\n    w2 = [params[6], params[7]]\n    z = [sum(w1[i][j] * x[j] for j in range(2)) + b1[i] for i in range(2)]\n    a = [tanh(v) for v in z]\n    d_out = 1.0\n    d_w2 = [d_out * a[i] for i in range(2)]\n    d_b2 = d_out\n    d_a = [d_out * w2[i] for i in range(2)]\n    d_z = [d_a[i] * (1 - a[i] ** 2) for i in range(2)]      # tanh'\n    d_w1 = [[d_z[i] * x[j] for j in range(2)] for i in range(2)]\n    d_b1 = [d_z[i] for i in range(2)]\n    return [d_w1[0][0], d_w1[0][1], d_w1[1][0], d_w1[1][1],\n            d_b1[0], d_b1[1], d_w2[0], d_w2[1], d_b2]\n\n\nprint()\nworst = 0.0\nfor _ in range(300):\n    params = [rng.uniform(-1.5, 1.5) for _ in range(9)]\n    x = [rng.uniform(-2, 2), rng.uniform(-2, 2)]\n    analytic = backward(params, x)\n    numeric = numeric_gradient(lambda p: forward(p, x), params, h=1e-6)\n    worst = max(worst, max(abs(p - q) for p, q in zip(analytic, numeric)))\n\nprint(\"gradient check on a 2-layer network, 300 random parameter settings\")\nprint(\"  largest disagreement between backprop and finite differences:\", f\"{worst:.3e}\")\nassert worst < 1e-6, \"the backward pass must match the numerical gradient\"\n", "mutants": ["import random\nfrom math import tanh\n\n\ndef numeric_gradient(f, x, h=1e-6):\n    out = []\n    for i in range(len(x)):\n        up = list(x); up[i] += h\n        dn = list(x); dn[i] -= h\n        out.append((f(up) - f(dn)) / (2 * h))\n    return out\n\n\ndef forward(params, x):\n    w1 = [[params[0], params[1]], [params[2], params[3]]]\n    b1 = [params[4], params[5]]\n    w2 = [params[6], params[7]]\n    b2 = params[8]\n    z = [sum(w1[i][j] * x[j] for j in range(2)) + b1[i] for i in range(2)]\n    a = [tanh(v) for v in z]\n    return sum(w2[i] * a[i] for i in range(2)) + b2\n\n\ndef backward(params, x):\n    \"\"\"Bug: forgets the tanh derivative factor, dropping one Jacobian\n    from the chain. The numbers still look plausible.\"\"\"\n    w1 = [[params[0], params[1]], [params[2], params[3]]]\n    b1 = [params[4], params[5]]\n    w2 = [params[6], params[7]]\n    z = [sum(w1[i][j] * x[j] for j in range(2)) + b1[i] for i in range(2)]\n    a = [tanh(v) for v in z]\n    d_out = 1.0\n    d_w2 = [d_out * a[i] for i in range(2)]\n    d_b2 = d_out\n    d_a = [d_out * w2[i] for i in range(2)]\n    d_z = [d_a[i] for i in range(2)]\n    d_w1 = [[d_z[i] * x[j] for j in range(2)] for i in range(2)]\n    d_b1 = [d_z[i] for i in range(2)]\n    return [d_w1[0][0], d_w1[0][1], d_w1[1][0], d_w1[1][1],\n            d_b1[0], d_b1[1], d_w2[0], d_w2[1], d_b2]\n\n\nrng = random.Random(1740)\nworst = 0.0\nfor _ in range(300):\n    params = [rng.uniform(-1.5, 1.5) for _ in range(9)]\n    x = [rng.uniform(-2, 2), rng.uniform(-2, 2)]\n    analytic = backward(params, x)\n    numeric = numeric_gradient(lambda p: forward(p, x), params, h=1e-6)\n    worst = max(worst, max(abs(p - q) for p, q in zip(analytic, numeric)))\n\nprint(\"gradient check on a 2-layer network, 300 random parameter settings\")\nprint(\"  largest disagreement between backprop and finite differences:\", f\"{worst:.3e}\")\nassert worst < 1e-6, \"the backward pass must match the numerical gradient\"\n"]}, "m32-saddles-and-gaussian": {"code": "import random\nfrom math import sqrt, exp, pi\n\n\ndef jacobi_eigen(a, sweeps=60):\n    n = len(a)\n    m = [row[:] for row in a]\n    for _ in range(sweeps):\n        if sum(m[i][j] ** 2 for i in range(n) for j in range(n) if i != j) < 1e-24:\n            break\n        for p in range(n - 1):\n            for r in range(p + 1, n):\n                if abs(m[p][r]) < 1e-18:\n                    continue\n                theta = (m[r][r] - m[p][p]) / (2 * m[p][r])\n                t = (1 if theta >= 0 else -1) / (abs(theta) + sqrt(theta * theta + 1))\n                c = 1 / sqrt(t * t + 1)\n                s = t * c\n                for k in range(n):\n                    a1, a2 = m[k][p], m[k][r]\n                    m[k][p] = c * a1 - s * a2\n                    m[k][r] = s * a1 + c * a2\n                for k in range(n):\n                    a1, a2 = m[p][k], m[r][k]\n                    m[p][k] = c * a1 - s * a2\n                    m[r][k] = s * a1 + c * a2\n    return [m[i][i] for i in range(n)]\n\n\ndef classify(hessian):\n    vals = jacobi_eigen(hessian)\n    if all(v > 1e-9 for v in vals):\n        return \"minimum\"\n    if all(v < -1e-9 for v in vals):\n        return \"maximum\"\n    if any(v > 1e-9 for v in vals) and any(v < -1e-9 for v in vals):\n        return \"saddle\"\n    return \"degenerate\"\n\n\nrng = random.Random(1857)\nprint(\"classifying random symmetric Hessians\")\nprint(f\"{'n':>4} {'minima':>9} {'maxima':>9} {'saddles':>9} {'min fraction':>14} {'1/2^n':>10}\")\nfractions = []\nfor n in (1, 2, 3, 5, 8):\n    counts = {\"minimum\": 0, \"maximum\": 0, \"saddle\": 0, \"degenerate\": 0}\n    trials = 2000\n    for _ in range(trials):\n        b = [[rng.gauss(0, 1) for _ in range(n)] for _ in range(n)]\n        h = [[(b[i][j] + b[j][i]) / 2 for j in range(n)] for i in range(n)]\n        counts[classify(h)] += 1\n    frac = counts[\"minimum\"] / trials\n    fractions.append((n, frac))\n    print(f\"{n:>4} {counts['minimum']:>9} {counts['maximum']:>9} {counts['saddle']:>9} \"\n          f\"{frac:>14.4f} {0.5 ** n:>10.4f}\")\n\nprint()\nprint(\"predicted: minima become rare as the dimension grows; saddles dominate\")\nfor (n1, f1), (n2, f2) in zip(fractions, fractions[1:]):\n    assert f2 < f1 + 1e-9, \"the minimum fraction must not increase with dimension\"\nassert fractions[0][1] > 0.4, \"in one dimension about half of critical points are minima\"\nassert fractions[-1][1] < 0.02, \"in eight dimensions minima are rare\"\n\n# --- forward mode versus reverse mode: counting evaluations ---\nprint()\nprint(\"gradient of a scalar function of n inputs\")\nprint(f\"{'n':>8} {'forward-mode passes':>22} {'reverse-mode passes':>22}\")\nfor n in (2, 10, 100, 1000, 1000000):\n    print(f\"{n:>8} {n:>22} {1:>22}\")\nassert 1000000 > 1, \"reverse mode is independent of the input count\"\n\n# A central-difference gradient needs 2n evaluations, which is the same problem.\ndef count_numeric_evals(n):\n    return 2 * n\n\nfor n in (10, 1000):\n    assert count_numeric_evals(n) == 2 * n\nprint()\nprint(\"a finite-difference gradient also costs 2n evaluations, which is why\")\nprint(\"nobody trains a million-parameter model with numerical gradients\")\n\n# --- the Gaussian integral ---\ndef simpson(f, a, b, n=20000):\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ngauss = lambda x: exp(-x * x)\none_d = simpson(gauss, -8.0, 8.0)\nprint()\nprint(\"integral of e^(-x^2) over the line\")\nprint(\"  predicted sqrt(pi) =\", round(sqrt(pi), 12))\nprint(\"  measured by Simpson =\", round(one_d, 12))\nassert abs(one_d - sqrt(pi)) < 1e-9\n\n# The polar route: the same answer via the double integral.\n# I^2 = int_0^{2pi} int_0^inf e^{-r^2} r dr dtheta = 2 pi * 1/2 = pi\nradial = simpson(lambda r: exp(-r * r) * r, 0.0, 12.0)\ni_squared = 2 * pi * radial\nprint()\nprint(\"  radial integral of e^(-r^2) r dr =\", round(radial, 12), \" predicted 0.5\")\nprint(\"  so I^2 = 2 pi * that =\", round(i_squared, 12), \" predicted pi =\", round(pi, 12))\nassert abs(radial - 0.5) < 1e-9, \"the Jacobian factor r makes this elementary\"\nassert abs(i_squared - pi) < 1e-8\nassert abs(sqrt(i_squared) - one_d) < 1e-8, \"both routes give the same integral\"\n\n# Without the Jacobian factor r, the radial integral is a different number.\nno_jacobian = simpson(lambda r: exp(-r * r), 0.0, 12.0)\nprint(\"  without the factor r it would be\", round(no_jacobian, 9), \"- a different problem\")\nassert abs(no_jacobian - sqrt(pi) / 2) < 1e-9\nassert abs(no_jacobian - radial) > 0.3\n", "mutants": ["import random\nfrom math import sqrt, exp, pi\n\n\ndef simpson(f, a, b, n=20000):\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\n# Bug: omits the Jacobian factor r when changing to polar coordinates.\nradial = simpson(lambda r: exp(-r * r), 0.0, 12.0)\ni_squared = 2 * pi * radial\nprint(\"  radial integral =\", round(radial, 12))\nprint(\"  so I^2 =\", round(i_squared, 12), \" predicted pi =\", round(pi, 12))\nassert abs(i_squared - pi) < 1e-8, \"the polar route must give pi\"\n"]}}, "cards": [{"q": "Why do two numbers determine infinitely many directional slopes?", "a": "Because the directional derivative is the dot product of the gradient with the unit direction, so one vector fixes them all."}, {"q": "In which direction does the gradient point, and what is its magnitude?", "a": "Steepest ascent, with magnitude equal to that steepest slope. Perpendicular to it, the slope is zero."}, {"q": "Does having all partial derivatives imply differentiability?", "a": "No. A function can have both partials at a point and not even be continuous there."}, {"q": "What is the multivariate chain rule in one line?", "a": "The Jacobian of a composition is the product of the Jacobians, evaluated at the right points."}, {"q": "Why is reverse-mode differentiation cheap for a scalar loss?", "a": "Because bracketing the Jacobian product from the output backwards keeps every intermediate a vector, so one pass gives all the partial derivatives."}, {"q": "How does the Hessian classify a critical point?", "a": "All eigenvalues positive is a minimum, all negative a maximum, mixed signs a saddle, any zero inconclusive."}, {"q": "Why are saddles the dominant critical point in high dimensions?", "a": "A minimum needs every one of n eigenvalues to be positive, which becomes exponentially unlikely as n grows."}, {"q": "State the Lagrange condition and its intuition.", "a": "grad f = lambda grad g at the optimum. If the objective's gradient had any component along the constraint surface you could slide that way and improve."}, {"q": "What must you multiply by when changing variables in a multiple integral?", "a": "The absolute value of the Jacobian determinant, the local volume scale factor. For polar coordinates it is r."}, {"q": "How is the Gaussian integral evaluated, and why?", "a": "Square it to get a double integral, switch to polar coordinates, and the Jacobian factor r makes the integrand elementary. The one-dimensional problem has no elementary antiderivative."}], "title": "Multivariable calculus"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

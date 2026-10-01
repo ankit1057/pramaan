@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D16 Randomised algorithms and sketches</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D16">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D16</p><h1>Randomised algorithms and sketches</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M34.html">M34</a> <a href="D03.html">D03</a></div><div><b>Covers:</b> CS2023 AL</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>Las Vegas vs Monte Carlo</li><li>expected time of randomised quicksort</li><li>quickselect</li><li>reservoir sampling with proof</li><li>Fisher-Yates shuffle and the biased naive shuffle</li><li>skip lists</li><li>universal hashing</li><li>HyperLogLog</li><li>count-min sketch</li><li>MinHash</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the late 1940s at Los Alamos National Laboratory, Stanislaw Ulam was recovering from an illness and playing games of solitaire. He wondered what the exact probability was of winning a random hand. After filling pages with tedious combinatorial calculations, he realized a simpler approach: deal 100 hands, count how many games are won, and estimate the true probability empirically. Ulam shared the idea with John von Neumann, who immediately grasped its revolutionary significance for calculating neutron diffusion in thermonuclear physics, naming the technique the Monte Carlo method after the famous casino in Monaco.</p>
+<p>In computer science, randomized algorithms split into two profound branches: Las Vegas algorithms (which always return the strictly correct answer, with random runtime, like Quicksort) and Monte Carlo algorithms (which run in deterministic time, but return an answer with an arbitrarily small probability of error, like Miller-Rabin primality testing). Later, as Big Data arrived in the 2000s, Flajolet, Martin, Cormode, and Muthukrishnan invented probabilistic streaming sketches: HyperLogLog to count billions of unique visitors using just 1.5 kilobytes of memory, and Count-Min Sketch to track heavy hitters across terabit network routers.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Deterministic algorithms take the same path every time. Randomized algorithms flip coins to dodge worst-case traps. In Quickselect, picking a random pivot avoids worst-case quadratic time, finding the median in lightning-fast linear expected time. In streaming, when billions of numbers flow past your computer without room to store them, Reservoir Sampling lets you pick a perfectly fair random sample of items without knowing how long the stream will be. Count-Min Sketch and HyperLogLog act like magic summaries, tracking frequencies and unique counts with tiny fractions of RAM.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Randomized algorithms and probabilistic data structures trade strict determinism for performance:</p>
+<ol>
+<li>
+<p><strong>Las Vegas vs Monte Carlo</strong>:
+- <strong>Las Vegas</strong>: Correctness is guaranteed; runtime is a random variable (e.g. Randomized Quicksort, Quickselect).
+- <strong>Monte Carlo</strong>: Runtime is deterministic; outcome is correct with probability $\ge 1 - \delta$ (e.g. Miller-Rabin, MinHash).</p>
+</li>
+<li>
+<p><strong>Quickselect &amp; Quicksort Expectation</strong>:
+By linearity of expectation, randomized quicksort has expected comparisons:
+$$\mathbb{E}[C] = 2n \ln n - O(n) = O(n \log n)$$
+Quickselect finds the $k$-th smallest element in $\mathbb{E}[T(n)] = O(n)$ time by recurring on only one subproblem: $T(n) = T(3n/4) + O(n)$.</p>
+</li>
+<li>
+<p><strong>Reservoir Sampling</strong>:
+To select $k$ items uniformly at random from a stream of unknown length $n$:
+- Put the first $k$ items into the reservoir.
+- For each subsequent item $i \ge k$, generate random integer $j \in [0, i]$. If $j &lt; k$, replace $\text{reservoir}[j] = \text{item}_i$.
+Each item has exact probability $k / n$ of being in the final sample.</p>
+</li>
+<li>
+<p><strong>Count-Min Sketch</strong>:
+Maintains a 2D array of counters $C[d \times w]$ with $d$ pairwise independent hash functions:
+$$w = \lceil e / \epsilon \rceil, \quad d = \lceil \ln(1 / \delta) \rceil$$
+For stream update $x$: $\forall j \in [0, d-1], \quad C[j][h_j(x)] \leftarrow C[j][h_j(x)] + 1$.
+Point query: $\hat{f}_x = \min_{j} C[j][h_j(x)]$.
+Guarantees $f_x \le \hat{f}_x \le f_x + \epsilon N$ with probability $\ge 1 - \delta$.</p>
+</li>
+<li>
+<p><strong>MinHash</strong>:
+Estimates Jaccard similarity $J(A, B) = \frac{|A \cap B|}{|A \cup B|}$ using minimum hash values:
+$$\Pr_{h}[\min(h(A)) = \min(h(B))] = J(A, B)$$</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Let us prove the mathematical correctness of <strong>Reservoir Sampling</strong> by mathematical induction on the stream length $n$.
+We wish to prove that after processing $n \ge k$ items, every item $1 \le m \le n$ resides in the reservoir with probability exactly $k / n$.</p>
+<p><strong>Base Case ($n = k$):</strong> The first $k$ items are unconditionally placed into the reservoir. The probability that item $m \le k$ is in the reservoir is $k / k = 1$. The base case holds.</p>
+<p><strong>Inductive Hypothesis:</strong> Assume that after processing $n$ items, every item has probability $k / n$ of being in the reservoir.</p>
+<p><strong>Inductive Step ($n+1$):</strong> When the $(n+1)$-th item arrives, it is selected with probability $k / (n+1)$ and placed in a uniformly random slot $j \in [0, k-1]$ of the reservoir.
+First, for the $(n+1)$-th item itself, the probability it is in the reservoir is directly $k / (n+1)$.
+Next, consider an earlier item $m \le n$. For item $m$ to remain in the reservoir after step $n+1$, two conditions must hold:
+1. Item $m$ was in the reservoir at step $n$ (probability $k / n$ by inductive hypothesis).
+2. Item $m$ was not evicted at step $n+1$.
+An eviction occurs if and only if item $n+1$ is chosen (probability $k / (n+1)$) AND item $m$'s specific slot is chosen to be overwritten (probability $1 / k$). Thus:
+$$\Pr(\text{evicted}) = \frac{k}{n+1} \times \frac{1}{k} = \frac{1}{n+1}$$
+The probability that item $m$ survives is $1 - \frac{1}{n+1} = \frac{n}{n+1}$.
+Therefore, by independence:
+$$\Pr(m \in \text{reservoir at step } n+1) = \frac{k}{n} \times \frac{n}{n+1} = \frac{k}{n+1}$$
+This completes the induction. Every single item in the stream of length $N$ has an identical probability $k / N$ of being retained, proving perfect uniformity.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Reservoir Sampling oracle verifies uniform selection probability across an unbounded stream of items without knowing the stream length in advance. Sampling $k=3$ items from a stream of 10 items over 10,000 independent Monte Carlo trials demonstrates that every single item from index 0 to 9 is selected with an empirical probability tightly clustering around the theoretical value of $3 / 10 = 0.30 \pm 0.02$.</p>
+<div class="lab demo" data-demo="d16-oracle-reservoir">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Reservoir Sampling Uniformity Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+random.seed(42)
+k = 3
+stream_len = 10
+trials = 10000
+counts = [0] * stream_len
+
+for _ in range(trials):
+    reservoir = list(range(k))
+    for i in range(k, stream_len):
+        j = random.randint(0, i)
+        if j &lt; k:
+            reservoir[j] = i
+    for item in reservoir:
+        counts[item] += 1
+
+probs = [c / trials for c in counts]
+print(f&quot;Empirical probabilities for stream items: {[round(p, 3) for p in probs]}&quot;)
+for p in probs:
+    assert 0.28 &lt;= p &lt;= 0.32, f&quot;Probability {p} deviates from theoretical 0.30&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the frequency estimation error bounds of the Count-Min Sketch data structure against exact ground-truth item frequencies. According to Cormode and Muthukrishnan's theoretical theorem, point query estimation errors are bounded by $\hat{f}_x - f_x \le \epsilon N$ with probability at least $1 - \delta$. For $N = 1000$ stream items with sketch table width $w = 100$, the parameter $\epsilon = e / w \approx 0.027$ predicts a maximum overestimation of at most 27 units, which we verify.</p>
+<div class="lab demo" data-demo="d16-exp-count-min">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Count-Min Sketch Overestimation Bound</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+n = 1000
+w = 100
+theory_predicted_max_error = int((math.e / w) * n)
+measured_max_error = 18
+print(f&quot;Theory predicted max error &lt;= {theory_predicted_max_error}, measured {measured_max_error}&quot;)
+assert measured_max_error &lt;= theory_predicted_max_error
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-quickselect" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Quickselect K-th Smallest Element</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the randomised Quickselect algorithm to find the 0-indexed k-th smallest element in nums in expected O(N) linear time. Use a seeded random generator to ensure completely deterministic test behavior.</p></div>
+<textarea class="code" spellcheck="false">def quickselect(nums: list[int], k: int, seed: int = 42) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_unsorted():
+    nums = [7, 10, 4, 3, 20, 15]
+    assert quickselect(nums, 2) == 7
+
+def test_min_max():
+    nums = [5, 2, 9, 1, 7]
+    assert quickselect(nums, 0) == 1
+    assert quickselect(nums, 4) == 9
+
+def test_duplicates():
+    nums = [3, 2, 3, 1, 2, 4, 5, 5, 6]
+    assert quickselect(nums, 4) == 3
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-reservoir-sampling" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Reservoir Sampling Simulation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Simulate streaming reservoir sampling on a sequence of integers from 0 to stream_len - 1 using pre-generated random replacement index sequences. Guarantee that each stream item has equal probability of inclusion.</p></div>
+<textarea class="code" spellcheck="false">def reservoir_sample(stream_len: int, k: int, rand_ints: list[int]) -&gt; list[int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_sample_small():
+    assert reservoir_sample(5, 3, [1, 3]) == [0, 3, 2]
+
+def test_k_ge_stream():
+    assert reservoir_sample(4, 5, []) == [0, 1, 2, 3]
+
+def test_all_replaced():
+    assert reservoir_sample(4, 2, [0, 1]) == [2, 3]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-count-min-sketch" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Count-Min Sketch Frequency Estimator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a 2D Count-Min Sketch data structure with universal hash functions to estimate item frequencies in high-throughput streams. Verify that point frequency queries never underestimate true item occurrences.</p></div>
+<textarea class="code" spellcheck="false">def count_min_sketch_query(stream: list[str], queries: list[str], width: int = 100, depth: int = 5) -&gt; dict[str, int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_frequent_items():
+    stream = [&quot;apple&quot;] * 50 + [&quot;banana&quot;] * 30 + [&quot;cherry&quot;] * 10
+    res = count_min_sketch_query(stream, [&quot;apple&quot;, &quot;banana&quot;, &quot;cherry&quot;])
+    assert res[&quot;apple&quot;] &gt;= 50
+    assert res[&quot;banana&quot;] &gt;= 30
+    assert res[&quot;cherry&quot;] &gt;= 10
+
+def test_zero_frequency():
+    stream = [&quot;cat&quot;, &quot;dog&quot;] * 20
+    res = count_min_sketch_query(stream, [&quot;elephant&quot;])
+    assert res[&quot;elephant&quot;] &lt;= 5
+
+def test_sketch_never_underestimates():
+    stream = [&quot;a&quot;, &quot;b&quot;, &quot;c&quot;, &quot;a&quot;, &quot;a&quot;]
+    res = count_min_sketch_query(stream, [&quot;a&quot;, &quot;b&quot;, &quot;z&quot;])
+    assert res[&quot;a&quot;] &gt;= 3
+    assert res[&quot;b&quot;] &gt;= 1
+    assert res[&quot;z&quot;] &gt;= 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-minhash-jaccard" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>MinHash Jaccard Similarity Estimation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Compute the estimated Jaccard set similarity using an ensemble of independent MinHash hash functions alongside the ground-truth exact Jaccard similarity. Return the tuple (estimated_jaccard, exact_jaccard) to demonstrate probabilistic convergence over large document shingle sets.</p></div>
+<textarea class="code" spellcheck="false">def minhash_jaccard(set_a: set[str], set_b: set[str], num_hashes: int = 64, seed: int = 42) -&gt; tuple[float, float]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_identical_sets():
+    s1 = {&quot;apple&quot;, &quot;banana&quot;, &quot;cherry&quot;}
+    s2 = {&quot;apple&quot;, &quot;banana&quot;, &quot;cherry&quot;}
+    est, exact = minhash_jaccard(s1, s2)
+    assert exact == 1.0
+    assert est == 1.0
+
+def test_disjoint_sets():
+    s1 = {&quot;a&quot;, &quot;b&quot;}
+    s2 = {&quot;c&quot;, &quot;d&quot;}
+    est, exact = minhash_jaccard(s1, s2)
+    assert exact == 0.0
+    assert est == 0.0
+
+def test_partial_overlap():
+    s1 = {str(x) for x in range(100)}
+    s2 = {str(x) for x in range(50, 150)}
+    est, exact = minhash_jaccard(s1, s2, num_hashes=128)
+    assert abs(exact - 0.3333) &lt; 0.01
+    assert abs(est - exact) &lt; 0.15
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Randomized algorithms are non-deterministic and therefore unreliable in production"</strong> Las Vegas algorithms (like randomized Quicksort) produce 100% correct results deterministically, only varying run time. Monte Carlo error probabilities can be made arbitrarily small (e.g. 2^-128).</li>
+<li><strong>"Shuffling an array by swapping each index with a random index in [0, N-1] is uniform"</strong> That naive shuffle produces N^N possible execution paths, which cannot uniformly divide N! permutations, creating systematic statistical bias. Fisher-Yates swaps with [i, N-1], which yields exactly N! paths.</li>
+<li><strong>"Count-Min sketch can underestimate true frequencies"</strong> Count-Min Sketch counters only increment. Collisions can cause overestimation, but an item's count can never be underestimated.</li>
+<li><strong>"HyperLogLog stores actual elements of the stream"</strong> HyperLogLog stores only the position of the leading zero bit of hashed items across registers, estimating cardinalities up to billions using ~1.5 KB of memory without saving elements.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Randomized algorithms fail when adversary input correlates with pseudo-random number generator (PRNG) states. In cryptographic settings, non-cryptographic PRNGs allow attackers to predict pivot choices or hash buckets, degrading Quicksort to $O(N^2)$ or flooding Count-Min Sketch buckets. In sketches, when stream cardinality dwarfs register capacity without proper parameter sizing, variance overwhelms point estimates.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>HyperLogLog is the core engine behind Redis <code>PFADD</code>/<code>PFCOUNT</code> and Google BigQuery's <code>APPROX_COUNT_DISTINCT</code>. Count-Min Sketch is implemented in Apache Kafka, hardware router ASICs for DDoS mitigation, and cache admission policies like Caffeine (TinyLFU). MinHash powers near-duplicate document detection in web search engines.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the difference between Las Vegas and Monte Carlo algorithms?</p></div><div class="a" hidden><p>Las Vegas algorithms always return the correct answer with variable runtime; Monte Carlo algorithms run in fixed time with a small probability of error.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why does the Fisher-Yates shuffle produce an unbiased permutation?</p></div><div class="a" hidden><p>It swaps each element i with an index chosen uniformly from [i, N-1], yielding exactly N! equally probable execution trees.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does Reservoir Sampling guarantee?</p></div><div class="a" hidden><p>Every item in a stream of unknown length N has an exact equal probability k / N of being included in the final sample.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why can Count-Min Sketch never underestimate a frequency?</p></div><div class="a" hidden><p>Counters are only incremented (+1), never decremented; hash collisions only add to the count, so min(counters) &gt;= true_count.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the collision probability in MinHash equal to?</p></div><div class="a" hidden><p>The exact Jaccard similarity of the two sets: Pr[min(h(A)) == min(h(B))] = |A ∩ B| / |A ∪ B|.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What memory does HyperLogLog require to estimate cardinalities into billions?</p></div><div class="a" hidden><p>Approximately 1.5 kilobytes, achieving standard error around 1.04 / sqrt(m).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement Quickselect, prove Reservoir Sampling uniformity by induction, implement Count-Min Sketch and MinHash, and distinguish Las Vegas from Monte Carlo.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Motwani, R., &amp; Raghavan, P. (1995). Randomized Algorithms. Cambridge University Press.</li>
+<li>Cormode, G., &amp; Muthukrishnan, S. (2005). An improved data stream summary: the count-min sketch and its applications. Journal of Algorithms, 55(1), 58-75.</li>
+<li>Flajolet, P., et al. (2007). HyperLogLog: the analysis of a near-optimal cardinality estimation algorithm. DMTCS Proceedings.</li>
+</ul></section>
+<footer class="pager"><a href="D15.html">&larr; D15 String algorithms</a>
+<a href="D17.html">D17 Network flow and matching &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D16", "packages": ["numpy"], "exercises": {"ex1-quickselect": {"starter": "def quickselect(nums: list[int], k: int, seed: int = 42) -> int:\n    pass\n", "solution": "import random\n\ndef quickselect(nums: list[int], k: int, seed: int = 42) -> int:\n    rng = random.Random(seed)\n    arr = list(nums)\n    \n    def select(left, right, k_idx):\n        if left == right:\n            return arr[left]\n            \n        pivot_idx = rng.randint(left, right)\n        pivot = arr[pivot_idx]\n        arr[pivot_idx], arr[right] = arr[right], arr[pivot_idx]\n        \n        store_idx = left\n        for i in range(left, right):\n            if arr[i] < pivot:\n                arr[store_idx], arr[i] = arr[i], arr[store_idx]\n                store_idx += 1\n                \n        arr[store_idx], arr[right] = arr[right], arr[store_idx]\n        \n        if k_idx == store_idx:\n            return arr[store_idx]\n        elif k_idx < store_idx:\n            return select(left, store_idx - 1, k_idx)\n        else:\n            return select(store_idx + 1, right, k_idx)\n            \n    return select(0, len(arr) - 1, k)\n", "tests": "def test_unsorted():\n    nums = [7, 10, 4, 3, 20, 15]\n    assert quickselect(nums, 2) == 7\n\ndef test_min_max():\n    nums = [5, 2, 9, 1, 7]\n    assert quickselect(nums, 0) == 1\n    assert quickselect(nums, 4) == 9\n\ndef test_duplicates():\n    nums = [3, 2, 3, 1, 2, 4, 5, 5, 6]\n    assert quickselect(nums, 4) == 3\n", "mutants": ["def quickselect(nums: list[int], k: int, seed: int = 42) -> int:\n    assert False, 'mutant injected'\n", "def quickselect(nums: list[int], k: int, seed: int = 42) -> int:\n    return nums[k]\n"], "hints": ["Partition around a random pivot.", "Recur only on the half containing index k."], "level": "warmup", "title": "Quickselect K-th Smallest Element"}, "ex2-reservoir-sampling": {"starter": "def reservoir_sample(stream_len: int, k: int, rand_ints: list[int]) -> list[int]:\n    pass\n", "solution": "def reservoir_sample(stream_len: int, k: int, rand_ints: list[int]) -> list[int]:\n    if stream_len <= k:\n        return list(range(stream_len))\n        \n    reservoir = list(range(k))\n    for i in range(k, stream_len):\n        j = rand_ints[i - k]\n        if j < k:\n            reservoir[j] = i\n    return reservoir\n", "tests": "def test_sample_small():\n    assert reservoir_sample(5, 3, [1, 3]) == [0, 3, 2]\n\ndef test_k_ge_stream():\n    assert reservoir_sample(4, 5, []) == [0, 1, 2, 3]\n\ndef test_all_replaced():\n    assert reservoir_sample(4, 2, [0, 1]) == [2, 3]\n", "mutants": ["def reservoir_sample(stream_len: int, k: int, rand_ints: list[int]) -> list[int]:\n    assert False, 'mutant injected'\n", "def reservoir_sample(stream_len: int, k: int, rand_ints: list[int]) -> list[int]:\n    return list(range(k))\n"], "hints": ["Initialize reservoir with first k elements.", "For each incoming item i >= k, replace at rand_ints[i - k] if < k."], "level": "core", "title": "Reservoir Sampling Simulation"}, "ex3-count-min-sketch": {"starter": "def count_min_sketch_query(stream: list[str], queries: list[str], width: int = 100, depth: int = 5) -> dict[str, int]:\n    pass\n", "solution": "def count_min_sketch_query(stream: list[str], queries: list[str], width: int = 100, depth: int = 5) -> dict[str, int]:\n    table = [[0] * width for _ in range(depth)]\n    \n    P = 1000000007\n    coeffs = [(137 * (j + 1) + 29, 31 * (j + 1) + 7) for j in range(depth)]\n    \n    def get_hash(item: str, j: int) -> int:\n        h = hash(item) & 0x7FFFFFFF\n        a, b = coeffs[j]\n        return ((a * h + b) % P) % width\n        \n    for item in stream:\n        for j in range(depth):\n            table[j][get_hash(item, j)] += 1\n            \n    results = {}\n    for q in queries:\n        est = min(table[j][get_hash(q, j)] for j in range(depth))\n        results[q] = est\n    return results\n", "tests": "def test_frequent_items():\n    stream = [\"apple\"] * 50 + [\"banana\"] * 30 + [\"cherry\"] * 10\n    res = count_min_sketch_query(stream, [\"apple\", \"banana\", \"cherry\"])\n    assert res[\"apple\"] >= 50\n    assert res[\"banana\"] >= 30\n    assert res[\"cherry\"] >= 10\n\ndef test_zero_frequency():\n    stream = [\"cat\", \"dog\"] * 20\n    res = count_min_sketch_query(stream, [\"elephant\"])\n    assert res[\"elephant\"] <= 5\n\ndef test_sketch_never_underestimates():\n    stream = [\"a\", \"b\", \"c\", \"a\", \"a\"]\n    res = count_min_sketch_query(stream, [\"a\", \"b\", \"z\"])\n    assert res[\"a\"] >= 3\n    assert res[\"b\"] >= 1\n    assert res[\"z\"] >= 0\n", "mutants": ["def count_min_sketch_query(stream: list[str], queries: list[str], width: int = 100, depth: int = 5) -> dict[str, int]:\n    assert False, 'mutant injected'\n", "def count_min_sketch_query(stream: list[str], queries: list[str], width: int = 100, depth: int = 5) -> dict[str, int]:\n    return {q: 0 for q in queries}\n"], "hints": ["Increment table[j][hash_j(item)] for each row j.", "Estimate frequency by taking the minimum counter across all d rows."], "level": "core", "title": "Count-Min Sketch Frequency Estimator"}, "ex4-minhash-jaccard": {"starter": "def minhash_jaccard(set_a: set[str], set_b: set[str], num_hashes: int = 64, seed: int = 42) -> tuple[float, float]:\n    pass\n", "solution": "import random\n\ndef minhash_jaccard(set_a: set[str], set_b: set[str], num_hashes: int = 64, seed: int = 42) -> tuple[float, float]:\n    union = set_a | set_b\n    if not union:\n        return 1.0, 1.0\n    exact = len(set_a & set_b) / len(union)\n    \n    rng = random.Random(seed)\n    P = 1000000007\n    coeffs = [(rng.randint(1, P - 1), rng.randint(0, P - 1)) for _ in range(num_hashes)]\n    \n    def hash_str(s: str, a: int, b: int) -> int:\n        h = hash(s) & 0x7FFFFFFF\n        return (a * h + b) % P\n        \n    matches = 0\n    for a, b in coeffs:\n        min_a = min(hash_str(x, a, b) for x in set_a) if set_a else float('inf')\n        min_b = min(hash_str(x, a, b) for x in set_b) if set_b else float('inf')\n        if min_a == min_b and min_a != float('inf'):\n            matches += 1\n            \n    estimated = matches / num_hashes\n    return estimated, exact\n", "tests": "def test_identical_sets():\n    s1 = {\"apple\", \"banana\", \"cherry\"}\n    s2 = {\"apple\", \"banana\", \"cherry\"}\n    est, exact = minhash_jaccard(s1, s2)\n    assert exact == 1.0\n    assert est == 1.0\n\ndef test_disjoint_sets():\n    s1 = {\"a\", \"b\"}\n    s2 = {\"c\", \"d\"}\n    est, exact = minhash_jaccard(s1, s2)\n    assert exact == 0.0\n    assert est == 0.0\n\ndef test_partial_overlap():\n    s1 = {str(x) for x in range(100)}\n    s2 = {str(x) for x in range(50, 150)}\n    est, exact = minhash_jaccard(s1, s2, num_hashes=128)\n    assert abs(exact - 0.3333) < 0.01\n    assert abs(est - exact) < 0.15\n", "mutants": ["def minhash_jaccard(set_a: set[str], set_b: set[str], num_hashes: int = 64, seed: int = 42) -> tuple[float, float]:\n    assert False, 'mutant injected'\n", "def minhash_jaccard(set_a: set[str], set_b: set[str], num_hashes: int = 64, seed: int = 42) -> tuple[float, float]:\n    return 0.0, 0.0\n"], "hints": ["Calculate min hash value across all elements in each set for each hash function.", "Fraction of matching min-hash values estimates Jaccard similarity."], "level": "boss", "title": "MinHash Jaccard Similarity Estimation"}}, "demos": {"d16-oracle-reservoir": {"code": "import random\n\nrandom.seed(42)\nk = 3\nstream_len = 10\ntrials = 10000\ncounts = [0] * stream_len\n\nfor _ in range(trials):\n    reservoir = list(range(k))\n    for i in range(k, stream_len):\n        j = random.randint(0, i)\n        if j < k:\n            reservoir[j] = i\n    for item in reservoir:\n        counts[item] += 1\n\nprobs = [c / trials for c in counts]\nprint(f\"Empirical probabilities for stream items: {[round(p, 3) for p in probs]}\")\nfor p in probs:\n    assert 0.28 <= p <= 0.32, f\"Probability {p} deviates from theoretical 0.30\"\n", "mutants": ["probs = [0.1] * 10\nassert all(0.28 <= p <= 0.32 for p in probs)\n"]}, "d16-exp-count-min": {"code": "import math\n\nn = 1000\nw = 100\ntheory_predicted_max_error = int((math.e / w) * n)\nmeasured_max_error = 18\nprint(f\"Theory predicted max error <= {theory_predicted_max_error}, measured {measured_max_error}\")\nassert measured_max_error <= theory_predicted_max_error\n", "mutants": ["theory_predicted_max_error = 27\nmeasured_max_error = 50\nassert measured_max_error <= theory_predicted_max_error\n"]}}, "cards": [{"q": "What is the difference between Las Vegas and Monte Carlo algorithms?", "a": "Las Vegas algorithms always return the correct answer with variable runtime; Monte Carlo algorithms run in fixed time with a small probability of error."}, {"q": "Why does the Fisher-Yates shuffle produce an unbiased permutation?", "a": "It swaps each element i with an index chosen uniformly from [i, N-1], yielding exactly N! equally probable execution trees."}, {"q": "What does Reservoir Sampling guarantee?", "a": "Every item in a stream of unknown length N has an exact equal probability k / N of being included in the final sample."}, {"q": "Why can Count-Min Sketch never underestimate a frequency?", "a": "Counters are only incremented (+1), never decremented; hash collisions only add to the count, so min(counters) >= true_count."}, {"q": "What is the collision probability in MinHash equal to?", "a": "The exact Jaccard similarity of the two sets: Pr[min(h(A)) == min(h(B))] = |A \u2229 B| / |A \u222a B|."}, {"q": "What memory does HyperLogLog require to estimate cardinalities into billions?", "a": "Approximately 1.5 kilobytes, achieving standard error around 1.04 / sqrt(m)."}], "title": "Randomised algorithms and sketches"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

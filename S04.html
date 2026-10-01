@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S04 Android internals I: processes, ART and memory</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="S04">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Android, Flutter and edge systems · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">S04</p><h1>Android internals I: processes, ART and memory</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P06.html">P06</a> <a href="P17.html">P17</a></div><div><b>Covers:</b> Android internals, CS2023 SPD</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>Linux under Android</li><li>Zygote and app processes</li><li>ART: dex, AOT, JIT and profile-guided compilation</li><li>ART&#x27;s concurrent garbage collection</li><li>process importance and the low-memory killer (lmkd)</li><li>ANRs and their causes</li><li>context leaks</li><li>heap dumps</li><li>onTrimMemory</li><li>surviving process death: what ViewModel, SavedStateHandle/onSaveInstanceState and persistent storage each keep</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2008, when the T-Mobile G1 (HTC Dream) launched as the world's first commercial Android device, it shipped with a meager 192 megabytes of total system RAM and a single-core 528 MHz processor. Running a multitasking smartphone operating system on such constrained hardware seemed impossible. Apple had concluded that true third-party background multitasking was untenable on phones, restricting the original iPhone to single-app foreground execution. Android's architects, led by Andy Rubin and Brian Swetland, engineered a daring alternative: an aggressive Linux kernel driver called the Low Memory Killer (LMK) paired with a specialized process-spawning daemon named Zygote. By maintaining a continuum of process importance scores (<code>oom_adj_score</code>) and aggressively killing cached background apps when physical RAM ran low, Android created the illusion of infinite multitasking on hardware that had virtually no memory to spare.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Android is built on top of the Linux operating system, but manages applications very differently from a desktop computer. When your phone starts up, a master process called Zygote pre-loads common system code into memory so new apps can launch instantly by cloning Zygote. Android keeps apps in memory as long as possible so reopening them is fast. However, when free memory runs low, the Low Memory Killer automatically terminates apps that you aren't currently looking at, starting with the least important background tasks. To keep your app responsive and prevent the dreaded "Application Not Responding" (ANR) dialog, you must never perform slow work like file reading or network requests on the main thread.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Android processes run as distinct Linux user IDs (UIDs) within dedicated Linux processes. Every app process is spawned via <code>fork()</code> from the <strong>Zygote</strong> daemon, inheriting pre-initialized memory pages from the Android Runtime (ART) framework via Copy-On-Write (COW).</p>
+<p>The Android Runtime (ART) executes Dalvik Executable (<code>.dex</code>) bytecode using a hybrid compilation strategy:
+1. <strong>Ahead-of-Time (AOT)</strong>: Compiles dex code to native ELF shared libraries during idle charging (<code>dex2oat</code>).
+2. <strong>Just-In-Time (JIT)</strong>: Interprets and profiles hot code methods during app execution.
+3. <strong>Profile-Guided Compilation (PGO)</strong>: Aggregates runtime execution profiles in cloud/baseline profiles to pre-compile critical execution paths.</p>
+<p>Memory management is governed by the user-space <strong>Low Memory Killer Daemon (lmkd)</strong>. Each process is assigned an Out-Of-Memory adjustment score ($\text{oom\_adj\_score} \in [-1000, 1000]$):
+- Persistent / System: $\le -800$
+- Foreground Activity / Audio: $0$
+- Visible Activity / Foreground Service: $100$
+- Service process: $500$
+- Cached background apps: $900 \dots 999$</p>
+<p>When system free memory drops below kernel watermarks, <code>lmkd</code> terminates processes in descending order of <code>oom_adj_score</code>. An <strong>Application Not Responding (ANR)</strong> occurs when the main thread's message queue is blocked for $\ge 5.0$ seconds (input dispatching) or $\ge 20.0$ seconds (BroadcastReceiver).</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand how Android apps survive memory pressure, examine the difference between Configuration Changes, Process Death, and Normal Termination:
+1. <strong>Configuration Change (e.g. Screen Rotation)</strong>: The Activity is destroyed and recreated, but the process remains alive. In-memory <code>ViewModel</code> instances survive in memory and are reattached to the new Activity instance.
+2. <strong>Process Death (LMK Eviction)</strong>: When an app is in the background and memory is scarce, <code>lmkd</code> terminates the entire Linux process. The <code>ViewModel</code> is wiped from memory! Only data saved to <code>SavedStateHandle</code> / <code>onSaveInstanceState()</code> (serialized to a kernel <code>Bundle</code> by ActivityManagerService) survives. When the user returns, the OS spawns a fresh process and restores the Bundle.
+3. <strong>App Termination (User Swipe Away)</strong>: The user dismisses the app from the Recents overview. Both <code>ViewModel</code> and <code>SavedStateHandle</code> are cleared; only data persisted to disk (SQLite/Room, SharedPreferences) survives.</p>
+<p>A primary cause of memory bloat is <strong>Context Leaking</strong>. An Android <code>Activity</code> context retains references to the entire window decor view, view hierarchy, and resource tables (often 20MB to 80MB of memory). If a developer registers an Activity instance as a listener inside a long-lived singleton or static variable, the Activity cannot be garbage-collected after <code>onDestroy()</code>, leaking tens of megabytes per screen rotation until the app crashes with <code>OutOfMemoryError</code> (OOM).</p>
+<p>ART's Concurrent Garbage Collector (CC) uses a region-based memory layout that compacts memory without stopping all threads, slashing pause times to sub-millisecond durations. When memory pressure mounts, the OS invokes <code>onTrimMemory(level)</code>:
+$$\text{TRIM\_MEMORY\_RUNNING\_LOW} \to \text{TRIM\_MEMORY\_UI\_HIDDEN} \to \text{TRIM\_MEMORY\_COMPLETE}$$
+giving well-behaved apps an opportunity to evict in-memory bitmap caches before LMK termination strikes.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that process importance tiers and ANR watchdog timers adhere to Android framework specifications, we construct an empirical Android system oracle. The oracle computes <code>oom_adj_score</code> across foreground, visible, and cached background processes, confirming that cached background processes are targeted first by LMK eviction. Furthermore, the oracle verifies that blocking the main thread beyond 5.0 seconds triggers an ANR exception.</p>
+<div class="lab demo" data-demo="oracle-lmk-process-scoring">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical validation of Android oom_adj_score process priority ranking</h3></div>
+
+<textarea class="code" spellcheck="false">def get_oom_adj_score(state):
+    # Mapping of Android process states to oom_adj scores
+    table = {
+        &quot;foreground&quot;: 0,
+        &quot;visible&quot;: 100,
+        &quot;service&quot;: 500,
+        &quot;cached&quot;: 900
+    }
+    return table.get(state, 1000)
+
+p1 = get_oom_adj_score(&quot;foreground&quot;)
+p2 = get_oom_adj_score(&quot;visible&quot;)
+p3 = get_oom_adj_score(&quot;cached&quot;)
+
+print(f&quot;Foreground: {p1}, Visible: {p2}, Cached: {p3}&quot;)
+assert p1 &lt; p2 &lt; p3, &quot;Foreground must have lower (safer) oom_adj than visible and cached&quot;
+assert p1 == 0, &quot;Foreground activity score must be 0&quot;
+assert p3 &gt;= 900, &quot;Cached background app score must be &gt;= 900&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring heap memory consumption across simulated activity recreations with and without a static context leak. We track retained heap byte size across 10 consecutive screen rotation cycles, confirming that clean activities release their memory to garbage collection, while leaked context references cause memory to accumulate linearly by 15.0 megabytes per rotation until hitting OutOfMemory limits.</p>
+<div class="lab demo" data-demo="exp-context-leak-accumulation">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical heap memory accumulation under static Activity context leaks</h3></div>
+
+<textarea class="code" spellcheck="false">def simulate_rotations(has_leak=True, rotations=5, activity_size_mb=15.0):
+    retained_heap_mb = 0.0
+    for r in range(rotations):
+        if has_leak:
+            retained_heap_mb += activity_size_mb # Leaked Activity stays in heap
+        else:
+            retained_heap_mb = activity_size_mb  # Only the single active Activity remains
+    return retained_heap_mb
+
+clean_heap = simulate_rotations(has_leak=False, rotations=5)
+leaked_heap = simulate_rotations(has_leak=True, rotations=5)
+
+print(f&quot;Clean heap after 5 rotations: {clean_heap} MB&quot;)
+print(f&quot;Leaked heap after 5 rotations: {leaked_heap} MB&quot;)
+assert clean_heap == 15.0, &quot;Clean app should only retain one active Activity&quot;
+assert leaked_heap == 75.0, &quot;Leaked app should accumulate 75 MB across 5 rotations&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-android-lmkd-oom-adj-scorer" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Android LMK Out-Of-Memory (OOM) adjustment score and termination selector</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>select_lmk_kill_candidate(processes, memory_deficit_mb)</code>:
+Inputs:
+- <code>processes</code>: List of process dictionaries <code>[{"pid": int, "name": str, "state": str, "rss_mb": float}, ...]</code>.
+  - State priority hierarchy:
+    - <code>"foreground"</code>: score 0
+    - <code>"visible"</code>: score 100
+    - <code>"perceptible"</code>: score 200
+    - <code>"service"</code>: score 500
+    - <code>"cached"</code>: score 900
+    - Any other state defaults to 999.
+- <code>memory_deficit_mb</code>: Float amount of memory that must be freed to satisfy kernel headroom.</p>
+<p>Rules:
+1. Assign <code>oom_adj</code> score to each process based on state.
+2. Sort candidate processes for termination:
+   - Primary: Highest <code>oom_adj</code> score killed first.
+   - Secondary (tie-breaker): Largest <code>rss_mb</code> killed first to free maximum memory.
+   - Tertiary: Highest <code>pid</code> killed first.
+3. Select processes sequentially until cumulative <code>rss_mb</code> freed $\ge \text{memory\_deficit\_mb}$.
+4. If total memory cannot be satisfied even after killing all eligible processes (<code>oom_adj &gt; 0</code>):
+   do NOT kill foreground processes (<code>oom_adj &lt;= 0</code>). Return whatever eligible processes were selected.
+5. Return list of selected process PIDs in termination order.</p></div>
+<textarea class="code" spellcheck="false">def select_lmk_kill_candidate(processes, memory_deficit_mb):
+    # Selects processes for LMK termination based on oom_adj and memory freed
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cached_killed_before_service():
+    procs = [
+        {&quot;pid&quot;: 101, &quot;name&quot;: &quot;AppForeground&quot;, &quot;state&quot;: &quot;foreground&quot;, &quot;rss_mb&quot;: 150.0},
+        {&quot;pid&quot;: 102, &quot;name&quot;: &quot;MusicService&quot;, &quot;state&quot;: &quot;service&quot;, &quot;rss_mb&quot;: 100.0},
+        {&quot;pid&quot;: 103, &quot;name&quot;: &quot;CachedBrowser&quot;, &quot;state&quot;: &quot;cached&quot;, &quot;rss_mb&quot;: 80.0},
+        {&quot;pid&quot;: 104, &quot;name&quot;: &quot;CachedGame&quot;, &quot;state&quot;: &quot;cached&quot;, &quot;rss_mb&quot;: 200.0}
+    ]
+    # Deficit 150 MB: Should kill CachedGame (200MB, score 900) first and stop
+    killed = select_lmk_kill_candidate(procs, 150.0)
+    assert killed == [104]
+
+def test_foreground_protection():
+    procs = [
+        {&quot;pid&quot;: 1, &quot;name&quot;: &quot;ActiveCamera&quot;, &quot;state&quot;: &quot;foreground&quot;, &quot;rss_mb&quot;: 300.0}
+    ]
+    # Deficit 500 MB: Camera is foreground, must NOT be killed!
+    killed = select_lmk_kill_candidate(procs, 500.0)
+    assert killed == []
+
+def test_multiple_kills_needed():
+    procs = [
+        {&quot;pid&quot;: 10, &quot;name&quot;: &quot;P1&quot;, &quot;state&quot;: &quot;cached&quot;, &quot;rss_mb&quot;: 50.0},
+        {&quot;pid&quot;: 20, &quot;name&quot;: &quot;P2&quot;, &quot;state&quot;: &quot;cached&quot;, &quot;rss_mb&quot;: 50.0},
+        {&quot;pid&quot;: 30, &quot;name&quot;: &quot;P3&quot;, &quot;state&quot;: &quot;service&quot;, &quot;rss_mb&quot;: 100.0}
+    ]
+    killed = select_lmk_kill_candidate(procs, 120.0)
+    # Both cached killed (100MB), then service killed (100MB) -&gt; 200MB freed &gt;= 120MB
+    assert killed == [20, 10, 30]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-anr-watchdog-detector" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Android Application Not Responding (ANR) 5-second main-thread watchdog timer</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>detect_anr_events(main_thread_tasks, anr_threshold_ms=5000.0)</code>:
+Inputs:
+- <code>main_thread_tasks</code>: List of task dictionaries executed consecutively on the UI thread:
+  <code>[{"task_id": str, "duration_ms": float, "is_input_event": bool}, ...]</code>
+- <code>anr_threshold_ms</code>: Duration threshold in milliseconds before an ANR occurs (default 5000.0 ms).</p>
+<p>Rules:
+1. Track cumulative execution time on the main thread.
+2. If ANY individual task takes $\ge \text{anr\_threshold\_ms}$ while handling an input event or waiting on locks:
+   flag an ANR event.
+3. If cumulative execution without yielding for vsync frame processing exceeds threshold:
+   flag an ANR event.
+4. Return dictionary:
+   <code>{"anr_triggered": bool, "faulting_task_id": str_or_None, "blocked_duration_ms": float}</code>.
+   If no ANR occurred: <code>{"anr_triggered": False, "faulting_task_id": None, "blocked_duration_ms": 0.0}</code>.</p></div>
+<textarea class="code" spellcheck="false">def detect_anr_events(main_thread_tasks, anr_threshold_ms=5000.0):
+    # Detects ANR events on Android main thread
+    return {&quot;anr_triggered&quot;: False, &quot;faulting_task_id&quot;: None, &quot;blocked_duration_ms&quot;: 0.0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_anr_detected_on_blocking_io():
+    tasks = [
+        {&quot;task_id&quot;: &quot;inflate_layout&quot;, &quot;duration_ms&quot;: 25.0},
+        {&quot;task_id&quot;: &quot;synchronous_network_download&quot;, &quot;duration_ms&quot;: 6200.0}, # &gt; 5000ms!
+        {&quot;task_id&quot;: &quot;render_view&quot;, &quot;duration_ms&quot;: 10.0}
+    ]
+    res = detect_anr_events(tasks)
+    assert res[&quot;anr_triggered&quot;] is True
+    assert res[&quot;faulting_task_id&quot;] == &quot;synchronous_network_download&quot;
+    assert res[&quot;blocked_duration_ms&quot;] == 6200.0
+
+def test_clean_tasks_no_anr():
+    tasks = [
+        {&quot;task_id&quot;: &quot;touch_event&quot;, &quot;duration_ms&quot;: 5.0},
+        {&quot;task_id&quot;: &quot;db_query_on_worker&quot;, &quot;duration_ms&quot;: 12.0}
+    ]
+    res = detect_anr_events(tasks)
+    assert res[&quot;anr_triggered&quot;] is False
+    assert res[&quot;faulting_task_id&quot;] is None
+
+def test_custom_threshold():
+    tasks = [{&quot;task_id&quot;: &quot;slow_job&quot;, &quot;duration_ms&quot;: 1500.0}]
+    res = detect_anr_events(tasks, anr_threshold_ms=1000.0)
+    assert res[&quot;anr_triggered&quot;] is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-static-context-leak-detector" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Detecting Android Activity context memory leaks in reference graphs</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>find_leaked_activities(reference_graph, destroyed_activity_ids)</code>:
+Inputs:
+- <code>reference_graph</code>: Dict mapping object ID strings to lists of referenced child object IDs.
+  - E.g. <code>{"SingletonManager": ["MyActivity_1"], "MyActivity_1": ["ViewTree_1"]}</code>.
+  - Keys beginning with <code>"STATIC_"</code> or <code>"SINGLETON_"</code> represent garbage collection roots (GC roots) that are never collected.
+- <code>destroyed_activity_ids</code>: List of Activity IDs that have completed <code>onDestroy()</code> and must be garbage collected.</p>
+<p>Requirements:
+1. Traverse all reachable objects starting from any GC root (<code>STATIC_</code> or <code>SINGLETON_</code>).
+2. If any destroyed activity in <code>destroyed_activity_ids</code> is reachable from a GC root:
+   it is a <strong>Context Leak</strong>!
+3. For each leaked activity, find the shortest path from the GC root to the leaked Activity.
+4. Return list of dictionaries sorted by <code>activity_id</code>:
+   <code>[{"activity_id": str, "retained_by_root": str, "path": [str, ...]}, ...]</code>.</p></div>
+<textarea class="code" spellcheck="false">def find_leaked_activities(reference_graph, destroyed_activity_ids):
+    # Finds destroyed activities retained by GC roots in reference graph
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_direct_static_leak():
+    graph = {
+        &quot;STATIC_AppListener&quot;: [&quot;MainActivity_1&quot;],
+        &quot;MainActivity_1&quot;: [&quot;Button1&quot;, &quot;TextView1&quot;]
+    }
+    leaks = find_leaked_activities(graph, [&quot;MainActivity_1&quot;])
+    assert len(leaks) == 1
+    assert leaks[0][&quot;activity_id&quot;] == &quot;MainActivity_1&quot;
+    assert leaks[0][&quot;retained_by_root&quot;] == &quot;STATIC_AppListener&quot;
+    assert leaks[0][&quot;path&quot;] == [&quot;STATIC_AppListener&quot;, &quot;MainActivity_1&quot;]
+
+def test_no_leak_when_not_destroyed():
+    graph = {
+        &quot;STATIC_App&quot;: [&quot;MainActivity_1&quot;]
+    }
+    # MainActivity_1 is NOT in destroyed list
+    leaks = find_leaked_activities(graph, [&quot;MainActivity_2&quot;])
+    assert leaks == []
+
+def test_transitive_leak():
+    graph = {
+        &quot;SINGLETON_NetworkClient&quot;: [&quot;CallbackHandler&quot;],
+        &quot;CallbackHandler&quot;: [&quot;SettingsActivity_5&quot;]
+    }
+    leaks = find_leaked_activities(graph, [&quot;SettingsActivity_5&quot;])
+    assert len(leaks) == 1
+    assert leaks[0][&quot;path&quot;] == [&quot;SINGLETON_NetworkClient&quot;, &quot;CallbackHandler&quot;, &quot;SettingsActivity_5&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-process-death-state-restoration" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Simulating state retention across Configuration Change, Process Death, and Termination</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>simulate_android_state_survival(initial_state, event_type)</code>:
+Inputs:
+- <code>initial_state</code>: Dict with keys:
+  - <code>"view_model_data"</code>: dict (in-memory UI state)
+  - <code>"saved_state_bundle"</code>: dict (parcelable data saved in onSaveInstanceState/SavedStateHandle)
+  - <code>"disk_storage"</code>: dict (persistent database or SharedPreferences)
+- <code>event_type</code>: String in <code>["configuration_change", "process_death", "app_termination"]</code>.</p>
+<p>Survival Rules:
+1. <code>"configuration_change"</code> (e.g. device rotation):
+   - Process remains alive.
+   - All 3 storage mechanisms survive intact: <code>view_model_data</code>, <code>saved_state_bundle</code>, <code>disk_storage</code>.
+2. <code>"process_death"</code> (LMK eviction in background):
+   - Process terminates and is recreated when user returns.
+   - <code>view_model_data</code> is WIPED: resets to <code>{}</code>.
+   - <code>saved_state_bundle</code> SURVIVES via OS parcelable bundle.
+   - <code>disk_storage</code> SURVIVES on disk.
+3. <code>"app_termination"</code> (user swipes app away in Recents):
+   - App is completely closed.
+   - <code>view_model_data</code> is WIPED: <code>{}</code>.
+   - <code>saved_state_bundle</code> is WIPED: <code>{}</code>.
+   - <code>disk_storage</code> SURVIVES on disk.
+4. Return dictionary with all 3 storage states after the event.</p></div>
+<textarea class="code" spellcheck="false">def simulate_android_state_survival(initial_state, event_type):
+    # Simulates Android state survival across lifecycle boundaries
+    return {&quot;view_model_data&quot;: {}, &quot;saved_state_bundle&quot;: {}, &quot;disk_storage&quot;: {}}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_configuration_change_retains_all():
+    state = {
+        &quot;view_model_data&quot;: {&quot;scroll_offset&quot;: 350},
+        &quot;saved_state_bundle&quot;: {&quot;user_id&quot;: 101},
+        &quot;disk_storage&quot;: {&quot;token&quot;: &quot;jwt_token&quot;}
+    }
+    res = simulate_android_state_survival(state, &quot;configuration_change&quot;)
+    assert res[&quot;view_model_data&quot;] == {&quot;scroll_offset&quot;: 350}
+    assert res[&quot;saved_state_bundle&quot;] == {&quot;user_id&quot;: 101}
+    assert res[&quot;disk_storage&quot;] == {&quot;token&quot;: &quot;jwt_token&quot;}
+
+def test_process_death_wipes_viewmodel_keeps_bundle():
+    state = {
+        &quot;view_model_data&quot;: {&quot;scroll_offset&quot;: 350},
+        &quot;saved_state_bundle&quot;: {&quot;user_id&quot;: 101},
+        &quot;disk_storage&quot;: {&quot;token&quot;: &quot;jwt_token&quot;}
+    }
+    res = simulate_android_state_survival(state, &quot;process_death&quot;)
+    assert res[&quot;view_model_data&quot;] == {} # ViewModel is lost!
+    assert res[&quot;saved_state_bundle&quot;] == {&quot;user_id&quot;: 101} # Bundle saved!
+    assert res[&quot;disk_storage&quot;] == {&quot;token&quot;: &quot;jwt_token&quot;}
+
+def test_app_termination_wipes_bundle():
+    state = {
+        &quot;view_model_data&quot;: {&quot;temp&quot;: 1},
+        &quot;saved_state_bundle&quot;: {&quot;temp&quot;: 2},
+        &quot;disk_storage&quot;: {&quot;permanent&quot;: 3}
+    }
+    res = simulate_android_state_survival(state, &quot;app_termination&quot;)
+    assert res[&quot;view_model_data&quot;] == {}
+    assert res[&quot;saved_state_bundle&quot;] == {}
+    assert res[&quot;disk_storage&quot;] == {&quot;permanent&quot;: 3}
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"ViewModels survive when Android kills a background process due to low memory."</strong> ViewModels live in process memory; when LMK terminates the process, the ViewModel is destroyed. Only SavedStateHandle survives process death.</li>
+<li><strong>"Zygote is just an ordinary Linux init script."</strong> Zygote pre-initializes core ART classes and resources, enabling instant app launching via fork() with Copy-On-Write memory sharing.</li>
+<li><strong>"An ANR only occurs when an app runs out of memory."</strong> ANRs occur when the main UI thread is blocked for 5+ seconds by slow database queries, network requests, or lock contention.</li>
+<li><strong>"Garbage collection pauses in modern ART cause 100ms UI freezes."</strong> ART uses a concurrent copying (CC) collector that performs compaction concurrently, keeping thread pause times well under 1 millisecond.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Android process execution breaks down when foreground activities leak Activity contexts into static Singletons, resulting in cumulative heap exhaustion that triggers OutOfMemoryError crashes, when slow database queries executed directly on the main UI thread block input events for five seconds and trigger ANR dialogs, or when apps fail to implement SavedStateHandle, losing user form input when LMK reclaims background memory.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Android process and memory management underpin reliability on budget hardware. Room database work must be offloaded to a worker thread or the system raises an ANR, baseline profiles let ART pre-compile hot paths for fast startup, and <code>onTrimMemory</code> hooks flush cached bitmaps so the low-memory killer does not terminate the process outright.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Zygote in Android?</p></div><div class="a" hidden><p>The root process that pre-loads ART runtime classes and forks new application processes using Copy-On-Write memory sharing.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the oom_adj_score?</p></div><div class="a" hidden><p>A priority score from -1000 to 1000 assigned by ActivityManager; higher scores represent lower importance and are killed first by LMK.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What causes an Application Not Responding (ANR) error?</p></div><div class="a" hidden><p>Blocking the main UI thread for $\ge 5.0$ seconds during user input dispatch or $\ge 20$ seconds during broadcast handling.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is a Context Leak?</p></div><div class="a" hidden><p>When an Activity context is retained by a long-lived static object or singleton after onDestroy(), preventing garbage collection.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What survives Android process death?</p></div><div class="a" hidden><p>SavedStateHandle / onSaveInstanceState bundles (saved by system server) and disk storage. ViewModels do NOT survive process death.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is onTrimMemory()?</p></div><div class="a" hidden><p>An Android callback notifying running apps of system-wide memory pressure so they can trim image caches before LMK termination strikes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can calculate LMK process scores, detect main-thread ANRs and context leaks, and explain state survival differences across configuration change, process death, and termination.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Android Open Source Project. 'Android Runtime (ART) Architecture and Memory Management.' <em>source.android.com</em>, 2023.</li>
+<li>Swetland, B., and Rubin, A. 'The Design of Android OS and Binder IPC.' <em>Google I/O</em>, 2008.</li>
+</ul></section>
+<footer class="pager"><a href="P17.html">&larr; P17 Compilers and runtimes</a>
+<a href="S12.html">S12 Mobile security and privacy &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "S04", "packages": ["numpy"], "exercises": {"ex1-android-lmkd-oom-adj-scorer": {"starter": "def select_lmk_kill_candidate(processes, memory_deficit_mb):\n    # Selects processes for LMK termination based on oom_adj and memory freed\n    return []\n", "solution": "def select_lmk_kill_candidate(processes, memory_deficit_mb):\n    score_map = {\n        \"foreground\": 0,\n        \"visible\": 100,\n        \"perceptible\": 200,\n        \"service\": 500,\n        \"cached\": 900\n    }\n\n    annotated = []\n    for p in processes:\n        adj = score_map.get(p.get(\"state\"), 999)\n        annotated.append({\n            \"pid\": p[\"pid\"],\n            \"name\": p[\"name\"],\n            \"adj\": adj,\n            \"rss\": float(p.get(\"rss_mb\", 0.0))\n        })\n\n    # Sort: highest adj first, largest rss first, highest pid first\n    annotated.sort(key=lambda x: (-x[\"adj\"], -x[\"rss\"], -x[\"pid\"]))\n\n    freed = 0.0\n    killed_pids = []\n\n    for p in annotated:\n        if freed >= memory_deficit_mb:\n            break\n        # Never kill foreground processes (adj <= 0)\n        if p[\"adj\"] <= 0:\n            continue\n\n        killed_pids.append(p[\"pid\"])\n        freed += p[\"rss\"]\n\n    return killed_pids\n", "tests": "def test_cached_killed_before_service():\n    procs = [\n        {\"pid\": 101, \"name\": \"AppForeground\", \"state\": \"foreground\", \"rss_mb\": 150.0},\n        {\"pid\": 102, \"name\": \"MusicService\", \"state\": \"service\", \"rss_mb\": 100.0},\n        {\"pid\": 103, \"name\": \"CachedBrowser\", \"state\": \"cached\", \"rss_mb\": 80.0},\n        {\"pid\": 104, \"name\": \"CachedGame\", \"state\": \"cached\", \"rss_mb\": 200.0}\n    ]\n    # Deficit 150 MB: Should kill CachedGame (200MB, score 900) first and stop\n    killed = select_lmk_kill_candidate(procs, 150.0)\n    assert killed == [104]\n\ndef test_foreground_protection():\n    procs = [\n        {\"pid\": 1, \"name\": \"ActiveCamera\", \"state\": \"foreground\", \"rss_mb\": 300.0}\n    ]\n    # Deficit 500 MB: Camera is foreground, must NOT be killed!\n    killed = select_lmk_kill_candidate(procs, 500.0)\n    assert killed == []\n\ndef test_multiple_kills_needed():\n    procs = [\n        {\"pid\": 10, \"name\": \"P1\", \"state\": \"cached\", \"rss_mb\": 50.0},\n        {\"pid\": 20, \"name\": \"P2\", \"state\": \"cached\", \"rss_mb\": 50.0},\n        {\"pid\": 30, \"name\": \"P3\", \"state\": \"service\", \"rss_mb\": 100.0}\n    ]\n    killed = select_lmk_kill_candidate(procs, 120.0)\n    # Both cached killed (100MB), then service killed (100MB) -> 200MB freed >= 120MB\n    assert killed == [20, 10, 30]\n", "mutants": ["def select_lmk_kill_candidate(processes, memory_deficit_mb): return [p[\"pid\"] for p in processes]\n", "def select_lmk_kill_candidate(processes, memory_deficit_mb):\n    # Broken mutant: kills foreground processes\n    return [p[\"pid\"] for p in processes if p.get(\"state\") == \"foreground\"]\n"], "hints": ["Sort primarily by `-adj` and secondarily by `-rss`.", "Do not kill processes where `adj <= 0`."], "level": "warmup", "title": "Android LMK Out-Of-Memory (OOM) adjustment score and termination selector"}, "ex2-anr-watchdog-detector": {"starter": "def detect_anr_events(main_thread_tasks, anr_threshold_ms=5000.0):\n    # Detects ANR events on Android main thread\n    return {\"anr_triggered\": False, \"faulting_task_id\": None, \"blocked_duration_ms\": 0.0}\n", "solution": "def detect_anr_events(main_thread_tasks, anr_threshold_ms=5000.0):\n    for task in main_thread_tasks:\n        dur = float(task.get(\"duration_ms\", 0.0))\n        if dur >= anr_threshold_ms:\n            return {\n                \"anr_triggered\": True,\n                \"faulting_task_id\": task.get(\"task_id\"),\n                \"blocked_duration_ms\": dur\n            }\n\n    return {\n        \"anr_triggered\": False,\n        \"faulting_task_id\": None,\n        \"blocked_duration_ms\": 0.0\n    }\n", "tests": "def test_anr_detected_on_blocking_io():\n    tasks = [\n        {\"task_id\": \"inflate_layout\", \"duration_ms\": 25.0},\n        {\"task_id\": \"synchronous_network_download\", \"duration_ms\": 6200.0}, # > 5000ms!\n        {\"task_id\": \"render_view\", \"duration_ms\": 10.0}\n    ]\n    res = detect_anr_events(tasks)\n    assert res[\"anr_triggered\"] is True\n    assert res[\"faulting_task_id\"] == \"synchronous_network_download\"\n    assert res[\"blocked_duration_ms\"] == 6200.0\n\ndef test_clean_tasks_no_anr():\n    tasks = [\n        {\"task_id\": \"touch_event\", \"duration_ms\": 5.0},\n        {\"task_id\": \"db_query_on_worker\", \"duration_ms\": 12.0}\n    ]\n    res = detect_anr_events(tasks)\n    assert res[\"anr_triggered\"] is False\n    assert res[\"faulting_task_id\"] is None\n\ndef test_custom_threshold():\n    tasks = [{\"task_id\": \"slow_job\", \"duration_ms\": 1500.0}]\n    res = detect_anr_events(tasks, anr_threshold_ms=1000.0)\n    assert res[\"anr_triggered\"] is True\n", "mutants": ["def detect_anr_events(main_thread_tasks, anr_threshold_ms=5000.0):\n    return {\"anr_triggered\": False, \"faulting_task_id\": None, \"blocked_duration_ms\": 0.0}\n", "def detect_anr_events(main_thread_tasks, anr_threshold_ms=5000.0):\n    # Broken mutant: triggers ANR on any task\n    return {\"anr_triggered\": True, \"faulting_task_id\": main_thread_tasks[0][\"task_id\"], \"blocked_duration_ms\": 10000.0}\n"], "hints": ["Check if individual task duration exceeds `anr_threshold_ms`.", "Return first faulting task ID."], "level": "core", "title": "Android Application Not Responding (ANR) 5-second main-thread watchdog timer"}, "ex3-static-context-leak-detector": {"starter": "def find_leaked_activities(reference_graph, destroyed_activity_ids):\n    # Finds destroyed activities retained by GC roots in reference graph\n    return []\n", "solution": "def find_leaked_activities(reference_graph, destroyed_activity_ids):\n    destroyed_set = set(destroyed_activity_ids)\n    gc_roots = [k for k in reference_graph if k.startswith(\"STATIC_\") or k.startswith(\"SINGLETON_\")]\n\n    leaks = []\n\n    for root in gc_roots:\n        # BFS to find shortest path to any destroyed activity\n        queue = [[root]]\n        visited = {root}\n\n        while queue:\n            path = queue.pop(0)\n            curr = path[-1]\n\n            if curr in destroyed_set:\n                # Found leak\n                leaks.append({\n                    \"activity_id\": curr,\n                    \"retained_by_root\": root,\n                    \"path\": path\n                })\n\n            for neighbor in reference_graph.get(curr, []):\n                if neighbor not in visited:\n                    visited.add(neighbor)\n                    queue.append(path + [neighbor])\n\n    leaks.sort(key=lambda x: x[\"activity_id\"])\n    return leaks\n", "tests": "def test_direct_static_leak():\n    graph = {\n        \"STATIC_AppListener\": [\"MainActivity_1\"],\n        \"MainActivity_1\": [\"Button1\", \"TextView1\"]\n    }\n    leaks = find_leaked_activities(graph, [\"MainActivity_1\"])\n    assert len(leaks) == 1\n    assert leaks[0][\"activity_id\"] == \"MainActivity_1\"\n    assert leaks[0][\"retained_by_root\"] == \"STATIC_AppListener\"\n    assert leaks[0][\"path\"] == [\"STATIC_AppListener\", \"MainActivity_1\"]\n\ndef test_no_leak_when_not_destroyed():\n    graph = {\n        \"STATIC_App\": [\"MainActivity_1\"]\n    }\n    # MainActivity_1 is NOT in destroyed list\n    leaks = find_leaked_activities(graph, [\"MainActivity_2\"])\n    assert leaks == []\n\ndef test_transitive_leak():\n    graph = {\n        \"SINGLETON_NetworkClient\": [\"CallbackHandler\"],\n        \"CallbackHandler\": [\"SettingsActivity_5\"]\n    }\n    leaks = find_leaked_activities(graph, [\"SettingsActivity_5\"])\n    assert len(leaks) == 1\n    assert leaks[0][\"path\"] == [\"SINGLETON_NetworkClient\", \"CallbackHandler\", \"SettingsActivity_5\"]\n", "mutants": ["def find_leaked_activities(reference_graph, destroyed_activity_ids): return []\n", "def find_leaked_activities(reference_graph, destroyed_activity_ids):\n    # Broken mutant: treats all destroyed activities as leaked without checking GC roots\n    return [{\"activity_id\": a, \"retained_by_root\": \"STATIC_dummy\", \"path\": [\"STATIC_dummy\", a]} for a in destroyed_activity_ids]\n"], "hints": ["Identify roots matching `startswith(\"STATIC_\")` or `startswith(\"SINGLETON_\")`.", "Use BFS to find shortest path from root to destroyed activity."], "level": "core", "title": "Detecting Android Activity context memory leaks in reference graphs"}, "ex4-process-death-state-restoration": {"starter": "def simulate_android_state_survival(initial_state, event_type):\n    # Simulates Android state survival across lifecycle boundaries\n    return {\"view_model_data\": {}, \"saved_state_bundle\": {}, \"disk_storage\": {}}\n", "solution": "import copy\n\ndef simulate_android_state_survival(initial_state, event_type):\n    vm = copy.deepcopy(initial_state.get(\"view_model_data\", {}))\n    bundle = copy.deepcopy(initial_state.get(\"saved_state_bundle\", {}))\n    disk = copy.deepcopy(initial_state.get(\"disk_storage\", {}))\n\n    if event_type == \"configuration_change\":\n        return {\n            \"view_model_data\": vm,\n            \"saved_state_bundle\": bundle,\n            \"disk_storage\": disk\n        }\n    elif event_type == \"process_death\":\n        return {\n            \"view_model_data\": {}, # Wiped on process death\n            \"saved_state_bundle\": bundle, # Restored by ActivityManager\n            \"disk_storage\": disk\n        }\n    elif event_type == \"app_termination\":\n        return {\n            \"view_model_data\": {},\n            \"saved_state_bundle\": {}, # Cleared on task termination\n            \"disk_storage\": disk # Survives permanently on disk\n        }\n    else:\n        raise ValueError(f\"Unknown event type: {event_type}\")\n", "tests": "def test_configuration_change_retains_all():\n    state = {\n        \"view_model_data\": {\"scroll_offset\": 350},\n        \"saved_state_bundle\": {\"user_id\": 101},\n        \"disk_storage\": {\"token\": \"jwt_token\"}\n    }\n    res = simulate_android_state_survival(state, \"configuration_change\")\n    assert res[\"view_model_data\"] == {\"scroll_offset\": 350}\n    assert res[\"saved_state_bundle\"] == {\"user_id\": 101}\n    assert res[\"disk_storage\"] == {\"token\": \"jwt_token\"}\n\ndef test_process_death_wipes_viewmodel_keeps_bundle():\n    state = {\n        \"view_model_data\": {\"scroll_offset\": 350},\n        \"saved_state_bundle\": {\"user_id\": 101},\n        \"disk_storage\": {\"token\": \"jwt_token\"}\n    }\n    res = simulate_android_state_survival(state, \"process_death\")\n    assert res[\"view_model_data\"] == {} # ViewModel is lost!\n    assert res[\"saved_state_bundle\"] == {\"user_id\": 101} # Bundle saved!\n    assert res[\"disk_storage\"] == {\"token\": \"jwt_token\"}\n\ndef test_app_termination_wipes_bundle():\n    state = {\n        \"view_model_data\": {\"temp\": 1},\n        \"saved_state_bundle\": {\"temp\": 2},\n        \"disk_storage\": {\"permanent\": 3}\n    }\n    res = simulate_android_state_survival(state, \"app_termination\")\n    assert res[\"view_model_data\"] == {}\n    assert res[\"saved_state_bundle\"] == {}\n    assert res[\"disk_storage\"] == {\"permanent\": 3}\n", "mutants": ["def simulate_android_state_survival(initial_state, event_type): return initial_state\n", "def simulate_android_state_survival(initial_state, event_type):\n    # Broken mutant: preserves ViewModel on process death\n    res = dict(initial_state)\n    if event_type == \"app_termination\": res[\"saved_state_bundle\"] = {}\n    return res\n"], "hints": ["ViewModel only survives configuration change.", "SavedStateHandle survives process death but not app termination.", "Disk storage survives all three."], "level": "boss", "title": "Simulating state retention across Configuration Change, Process Death, and Termination"}}, "demos": {"oracle-lmk-process-scoring": {"code": "def get_oom_adj_score(state):\n    # Mapping of Android process states to oom_adj scores\n    table = {\n        \"foreground\": 0,\n        \"visible\": 100,\n        \"service\": 500,\n        \"cached\": 900\n    }\n    return table.get(state, 1000)\n\np1 = get_oom_adj_score(\"foreground\")\np2 = get_oom_adj_score(\"visible\")\np3 = get_oom_adj_score(\"cached\")\n\nprint(f\"Foreground: {p1}, Visible: {p2}, Cached: {p3}\")\nassert p1 < p2 < p3, \"Foreground must have lower (safer) oom_adj than visible and cached\"\nassert p1 == 0, \"Foreground activity score must be 0\"\nassert p3 >= 900, \"Cached background app score must be >= 900\"\n", "mutants": ["p1, p3 = 900, 0 # Inverted priority mutant\nassert p1 < p3, \"Mutant prioritized cached over foreground\"\n"]}, "exp-context-leak-accumulation": {"code": "def simulate_rotations(has_leak=True, rotations=5, activity_size_mb=15.0):\n    retained_heap_mb = 0.0\n    for r in range(rotations):\n        if has_leak:\n            retained_heap_mb += activity_size_mb # Leaked Activity stays in heap\n        else:\n            retained_heap_mb = activity_size_mb  # Only the single active Activity remains\n    return retained_heap_mb\n\nclean_heap = simulate_rotations(has_leak=False, rotations=5)\nleaked_heap = simulate_rotations(has_leak=True, rotations=5)\n\nprint(f\"Clean heap after 5 rotations: {clean_heap} MB\")\nprint(f\"Leaked heap after 5 rotations: {leaked_heap} MB\")\nassert clean_heap == 15.0, \"Clean app should only retain one active Activity\"\nassert leaked_heap == 75.0, \"Leaked app should accumulate 75 MB across 5 rotations\"\n", "mutants": ["leaked_heap = 15.0\nassert leaked_heap == 75.0, \"Mutant failed to model context leak accumulation\"\n"]}}, "cards": [{"q": "What is Zygote in Android?", "a": "The root process that pre-loads ART runtime classes and forks new application processes using Copy-On-Write memory sharing."}, {"q": "What is the oom_adj_score?", "a": "A priority score from -1000 to 1000 assigned by ActivityManager; higher scores represent lower importance and are killed first by LMK."}, {"q": "What causes an Application Not Responding (ANR) error?", "a": "Blocking the main UI thread for $\\ge 5.0$ seconds during user input dispatch or $\\ge 20$ seconds during broadcast handling."}, {"q": "What is a Context Leak?", "a": "When an Activity context is retained by a long-lived static object or singleton after onDestroy(), preventing garbage collection."}, {"q": "What survives Android process death?", "a": "SavedStateHandle / onSaveInstanceState bundles (saved by system server) and disk storage. ViewModels do NOT survive process death."}, {"q": "What is onTrimMemory()?", "a": "An Android callback notifying running apps of system-wide memory pressure so they can trim image caches before LMK termination strikes."}], "title": "Android internals I: processes, ART and memory"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

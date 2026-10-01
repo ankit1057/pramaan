@@ -1,0 +1,660 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M22 Limits, continuity and derivatives</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M22">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~4h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M22</p><h1>Limits, continuity and derivatives</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M15.html">M15</a> <a href="M16.html">M16</a></div><div><b>Covers:</b> NCERT 11: Limits and Derivatives, NCERT 12: Continuity and Differentiability</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>limits intuitively and limit laws</li><li>standard limits sin(x)/x and (e^x-1)/x with proofs</li><li>continuity</li><li>the derivative as the limit of a difference quotient</li><li>sum, product, quotient and chain rules with proofs</li><li>derivatives of trigonometric, exponential, logarithmic and inverse trigonometric functions</li><li>implicit, logarithmic and parametric differentiation</li><li>second derivatives</li><li>differentiable implies continuous but not conversely (abs(x) at 0)</li><li>Rolle&#x27;s theorem and the Mean Value Theorem</li><li>logarithms as the inverse of b^x: the laws of logarithms and change of base</li><li>the exponential series for e^x (e as the sum of 1/n!) and the logarithmic series for log(1+x)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Priya is on a train and wants to know how fast it is going. The speedometer is in the engine, three carriages away.</p>
+<p>She has a watch and the kilometre stones by the track.</p>
+<p>She times one hour: sixty kilometres. "Sixty an hour," she says. But in that hour the train stopped at two stations, so sixty is not the speed <em>now</em>.</p>
+<p>She times one minute: one and a half kilometres. Ninety an hour. Better.</p>
+<p>One second: twenty-five metres. Still ninety.</p>
+<p>She keeps shrinking the window. A tenth of a second. A hundredth. The numbers settle down and stop moving around: ninety, ninety, ninety.</p>
+<p>Then her little brother asks the awkward question. "What about <em>no</em> seconds at all? How far does it go in zero time?"</p>
+<p>Zero metres in zero seconds. Zero divided by zero. That is not ninety; it is not anything.</p>
+<p>Here is the surprise, and it is the hinge of all of calculus. The question "how fast <em>right now</em>" has no answer by direct measurement — the measurement is meaningless at an instant. But the <em>trend</em> of the answers as the window shrinks is perfectly definite. Speed at an instant is not a measurement; it is the number the measurements are heading towards. Naming that number carefully is what a limit is, and the whole of differentiation is the care taken in naming it.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>limit</strong> answers: what value is $f(x)$ heading towards as $x$ approaches $a$? Crucially, it does not ask what $f(a)$ <em>is</em>. The function might be undefined there, as $\frac{0}{0}$ is — and that is exactly the interesting case.</p>
+<p>A function is <strong>continuous</strong> at a point when the value it is heading towards is also the value it has: no jump, no hole, no spike.</p>
+<p>The <strong>derivative</strong> is the limit of Priya's shrinking windows:</p>
+<p>$$f&#x27;(x) = \lim_{h\to0}\frac{f(x+h)-f(x)}{h}$$</p>
+<p>It is the instantaneous rate of change, and geometrically the slope of the tangent line.</p>
+<p>Then the rules — sum, product, quotient, chain — let you differentiate anything built from the standard functions without ever going back to the limit. The chain rule is the one that matters most: it is what makes backpropagation possible, and it is the engine of M32.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Limits</h2>
+<p>$\lim_{x\to a} f(x) = L$ means: for every $\varepsilon&gt;0$ there is a $\delta&gt;0$ such that $0&lt;|x-a|&lt;\delta$ implies $|f(x)-L|&lt;\varepsilon$. The condition $0&lt;|x-a|$ excludes $x=a$ itself, which is the formal statement of "we do not care what happens at $a$".</p>
+<p><strong>One-sided limits</strong> $\lim_{x\to a^-}$ and $\lim_{x\to a^+}$ approach from below and above. The two-sided limit exists exactly when both exist and are equal.</p>
+<p><strong>Limit laws.</strong> If $\lim f$ and $\lim g$ both exist,</p>
+<p>$$\lim(f\pm g) = \lim f \pm \lim g, \quad \lim(fg) = \lim f\cdot\lim g, \quad \lim\frac{f}{g} = \frac{\lim f}{\lim g}\ (\lim g\neq0)$$</p>
+<p><strong>Standard limits:</strong></p>
+<p>$$\lim_{x\to0}\frac{\sin x}{x}=1, \qquad \lim_{x\to0}\frac{e^x-1}{x}=1, \qquad \lim_{x\to0}\frac{\log(1+x)}{x}=1, \qquad \lim_{x\to0}\frac{(1+x)^n-1}{x}=n$$</p>
+<p>The first holds <strong>only in radians</strong>.</p>
+<h2>Continuity</h2>
+<p>$f$ is <strong>continuous at $a$</strong> when all three hold: $f(a)$ exists, $\lim_{x\to a}f(x)$ exists, and they are equal. Failure of any one gives a <strong>discontinuity</strong>: <em>removable</em> (a hole), <em>jump</em> (one-sided limits differ), or <em>infinite</em> (a vertical asymptote).</p>
+<p>Sums, products, quotients (where the denominator is non-zero) and compositions of continuous functions are continuous. Polynomials are continuous everywhere; rational functions wherever the denominator is non-zero; $\sin$, $\cos$, $e^x$ everywhere; $\log$ on $(0,\infty)$.</p>
+<h2>Derivatives</h2>
+<p>$$f&#x27;(x) = \lim_{h\to0}\frac{f(x+h)-f(x)}{h}$$</p>
+<p>when that limit exists. Geometrically it is the slope of the tangent at $x$.</p>
+<p><strong>Rules:</strong></p>
+<p>$$(f\pm g)&#x27; = f&#x27;\pm g&#x27;, \qquad (fg)&#x27; = f&#x27;g+fg&#x27;, \qquad \left(\frac{f}{g}\right)&#x27; = \frac{f&#x27;g-fg&#x27;}{g^2}, \qquad (g\circ f)&#x27;(x) = g&#x27;(f(x))\,f&#x27;(x)$$</p>
+<p>The last is the <strong>chain rule</strong>.</p>
+<p><strong>Standard derivatives:</strong></p>
+<p>$$\frac{d}{dx}x^n = nx^{n-1},\quad \frac{d}{dx}\sin x = \cos x,\quad \frac{d}{dx}\cos x = -\sin x,\quad \frac{d}{dx}\tan x = \sec^2 x$$
+$$\frac{d}{dx}e^x = e^x,\quad \frac{d}{dx}\log x = \frac1x,\quad \frac{d}{dx}a^x = a^x\log a$$
+$$\frac{d}{dx}\sin^{-1}x = \frac{1}{\sqrt{1-x^2}},\quad \frac{d}{dx}\tan^{-1}x = \frac{1}{1+x^2}$$</p>
+<p><strong>Implicit differentiation</strong> differentiates both sides of a relation such as $x^2+y^2=25$ with respect to $x$, treating $y$ as a function of $x$, then solves for $\frac{dy}{dx}$.</p>
+<p><strong>Logarithmic differentiation</strong> takes logs first, which turns products into sums and exponents into multipliers; it is the tool for $y = x^x$.</p>
+<p><strong>Parametric differentiation:</strong> if $x=x(t)$ and $y=y(t)$ then $\frac{dy}{dx} = \frac{dy/dt}{dx/dt}$ where $\frac{dx}{dt}\neq0$.</p>
+<p>The <strong>second derivative</strong> $f&#x27;&#x27;$ is the derivative of $f&#x27;$; it measures how the slope itself changes, and its sign gives concavity.</p>
+<h2>Logarithms and series</h2>
+<p>$\log_b x$ is the inverse of $b^x$:</p>
+<p>$$\log(xy) = \log x+\log y,\quad \log\frac{x}{y} = \log x - \log y,\quad \log x^n = n\log x,\quad \log_b x = \frac{\log_a x}{\log_a b}$$</p>
+<p>The exponential and logarithmic series:</p>
+<p>$$e^x = \sum_{n=0}^{\infty}\frac{x^n}{n!} \quad\text{(all }x\text{)}, \qquad e = \sum_{n=0}^\infty \frac{1}{n!}, \qquad \log(1+x) = x - \frac{x^2}{2}+\frac{x^3}{3}-\dots \quad (|x|&lt;1)$$</p>
+<h2>Differentiability versus continuity</h2>
+<p><strong>Differentiable $\implies$ continuous, but not conversely.</strong> $|x|$ is continuous at 0 and not differentiable there: the left difference quotient tends to $-1$ and the right to $+1$.</p>
+<p><strong>Rolle's theorem.</strong> If $f$ is continuous on $[a,b]$, differentiable on $(a,b)$ and $f(a)=f(b)$, then $f&#x27;(c)=0$ for some $c$ in $(a,b)$.</p>
+<p><strong>Mean Value Theorem.</strong> Under the same smoothness assumptions,</p>
+<p>$$f&#x27;(c) = \frac{f(b)-f(a)}{b-a} \quad\text{for some } c\in(a,b)$$</p>
+<p>Somewhere in the interval the instantaneous rate equals the average rate — if the train averaged ninety, at some instant it was doing exactly ninety.</p>
+<h2>A pinch of history</h2>
+<p>Newton (from 1665, published later) and Leibniz (published 1684) developed calculus independently, and their priority dispute poisoned English and Continental mathematics for a century. Leibniz's notation, $\frac{dy}{dx}$ and $\int$, is the one that survived because it is better.</p>
+<p>Both worked with "infinitesimals" — quantities smaller than any positive number yet not zero — and Bishop Berkeley attacked this in <em>The Analyst</em> (1734), calling them "ghosts of departed quantities". The objection was fair: the logic was genuinely unsound. The repair took a century and a half, through Cauchy's <em>Cours d'Analyse</em> (1821) and finally Weierstrass's $\varepsilon$-$\delta$ definition, which replaces infinitesimals with the careful quantifier statement above. The intuition came first; the rigour came much later, and that is the ordinary order of events in mathematics.</p>
+<p>In India, the Kerala school had reached several key results centuries earlier. Madhava (c. 1400) obtained power series for sine, cosine and arctangent, and the <em>Yuktibhasa</em> contains what amounts to term-by-term integration and a statement of the derivative of sine; Bhaskara II (1150) had earlier stated a form of Rolle's theorem and computed instantaneous velocity of planets.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: $\lim_{x\to0}\frac{\sin x}{x}=1$</strong>, by the squeeze theorem.</p>
+<ol>
+<li>For $0&lt;x&lt;\frac{\pi}{2}$, compare three areas in the unit circle: the triangle with vertices at the origin, $(1,0)$ and the point at angle $x$; the circular sector of angle $x$; and the right triangle out to the tangent line.</li>
+<li>Their areas are $\frac{\sin x}{2}$, $\frac{x}{2}$ and $\frac{\tan x}{2}$ respectively, and they nest: $\sin x &lt; x &lt; \tan x$.</li>
+<li>Divide through by $\sin x$ (positive here): $1 &lt; \frac{x}{\sin x} &lt; \frac{1}{\cos x}$.</li>
+<li>Invert: $\cos x &lt; \frac{\sin x}{x} &lt; 1$.</li>
+<li>As $x\to0^+$, $\cos x\to1$, so the squeeze forces $\frac{\sin x}{x}\to1$. The function is even, so the left limit agrees.</li>
+</ol>
+<p><strong>The non-obvious step is 2</strong> — the sector's area being $\frac{x}{2}$ requires $x$ in <strong>radians</strong>. In degrees the limit is $\frac{\pi}{180}$ and every derivative formula for trigonometric functions changes. This is the real reason radians are not optional.</p>
+<p><strong>Result 2: differentiable implies continuous.</strong></p>
+<ol>
+<li>Suppose $f&#x27;(a)$ exists. Write, for $x\neq a$, $f(x)-f(a) = \frac{f(x)-f(a)}{x-a}\cdot(x-a)$.</li>
+<li>As $x\to a$ the first factor tends to $f&#x27;(a)$, a finite number, and the second tends to 0.</li>
+<li>By the product law the whole thing tends to $f&#x27;(a)\cdot 0 = 0$.</li>
+<li>So $\lim_{x\to a}f(x) = f(a)$, which is continuity.</li>
+<li>The converse fails: $|x|$ at 0 has left difference quotient $-1$ and right $+1$, so no limit, yet it is continuous.</li>
+</ol>
+<p><strong>Result 3: the product rule</strong>, by adding and subtracting a term.</p>
+<ol>
+<li>$\frac{f(x+h)g(x+h)-f(x)g(x)}{h}$.</li>
+<li><strong>The trick:</strong> add and subtract $f(x+h)g(x)$ in the numerator.</li>
+<li>Regroup as $f(x+h)\frac{g(x+h)-g(x)}{h} + g(x)\frac{f(x+h)-f(x)}{h}$.</li>
+<li>As $h\to0$: $f(x+h)\to f(x)$ by continuity (which Result 2 gives us), the first quotient tends to $g&#x27;(x)$, and the second to $f&#x27;(x)$.</li>
+<li>The limit is $f(x)g&#x27;(x)+g(x)f&#x27;(x)$.</li>
+</ol>
+<p>Step 2 is the entire proof. Note that it needs $f$ continuous at $x$, which we get free from differentiability — the results stack.</p>
+<p><strong>Result 4: the chain rule, informally but honestly.</strong> If $u = f(x)$ and $y = g(u)$, then</p>
+<p>$$\frac{\Delta y}{\Delta x} = \frac{\Delta y}{\Delta u}\cdot\frac{\Delta u}{\Delta x}$$</p>
+<p>and letting $\Delta x\to0$ gives $\frac{dy}{dx} = g&#x27;(f(x))f&#x27;(x)$. The gap in this argument is that $\Delta u$ may be zero for some $x$, making the division illegal; a rigorous proof handles that case separately. The cancellation picture is nonetheless the right intuition, and it is why Leibniz notation makes the chain rule look obvious.</p>
+<p><strong>Result 5: the Mean Value Theorem from Rolle's.</strong> Define $h(x) = f(x) - \left[f(a)+\frac{f(b)-f(a)}{b-a}(x-a)\right]$ — the function minus the straight chord. Then $h(a)=h(b)=0$, so Rolle gives $h&#x27;(c)=0$ for some $c$, which rearranges to $f&#x27;(c) = \frac{f(b)-f(a)}{b-a}$.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes derivatives two genuinely independent ways.</p>
+<p>The first is <strong>symbolic</strong>: apply the rules — power, product, quotient, chain — to build the derivative formula, then evaluate it.</p>
+<p>The second is <strong>numerical</strong>: never use a rule at all, just evaluate $f$ at nearby points and form the central difference $\frac{f(x+h)-f(x-h)}{2h}$ with a small $h$.</p>
+<p>One route knows calculus and no arithmetic; the other knows arithmetic and no calculus. If a rule had a wrong sign — and the quotient rule's minus sign is the classic place — they would disagree. The mutant below writes the quotient rule with a plus.</p>
+<div class="lab demo" data-demo="m22-derivative-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>The rules against a numerical difference quotient</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import sin, cos, tan, exp, log, sqrt, pi
+
+
+def numeric_derivative(f, x, h=1e-5):
+    &quot;&quot;&quot;Central difference. Knows no calculus at all.&quot;&quot;&quot;
+    return (f(x + h) - f(x - h)) / (2 * h)
+
+
+# Each entry: a function, its symbolic derivative, and a safe sample range.
+CASES = [
+    (&quot;x^3&quot;, lambda x: x ** 3, lambda x: 3 * x ** 2, (-3, 3)),
+    (&quot;sin x&quot;, sin, cos, (-3, 3)),
+    (&quot;cos x&quot;, cos, lambda x: -sin(x), (-3, 3)),
+    (&quot;e^x&quot;, exp, exp, (-2, 2)),
+    (&quot;log x&quot;, log, lambda x: 1 / x, (0.3, 5)),
+    # product rule: (x^2 sin x)&#x27; = 2x sin x + x^2 cos x
+    (&quot;x^2 sin x&quot;, lambda x: x * x * sin(x),
+     lambda x: 2 * x * sin(x) + x * x * cos(x), (-3, 3)),
+    # quotient rule: (sin x / x)&#x27; = (x cos x - sin x) / x^2
+    (&quot;sin x / x&quot;, lambda x: sin(x) / x,
+     lambda x: (x * cos(x) - sin(x)) / (x * x), (0.5, 4)),
+    # chain rule: (sin(x^2))&#x27; = cos(x^2) * 2x
+    (&quot;sin(x^2)&quot;, lambda x: sin(x * x),
+     lambda x: cos(x * x) * 2 * x, (-2, 2)),
+    # chain + product: (e^(sin x))&#x27; = e^(sin x) cos x
+    (&quot;e^(sin x)&quot;, lambda x: exp(sin(x)),
+     lambda x: exp(sin(x)) * cos(x), (-3, 3)),
+    (&quot;tan x&quot;, tan, lambda x: 1 / (cos(x) ** 2), (-1.2, 1.2)),
+]
+
+rng = random.Random(1684)
+print(f&quot;{&#x27;function&#x27;:&gt;12} {&#x27;worst relative gap&#x27;:&gt;22}&quot;)
+for name, f, df, (lo, hi) in CASES:
+    worst = 0.0
+    for _ in range(200):
+        x = rng.uniform(lo, hi)
+        symbolic = df(x)
+        numeric = numeric_derivative(f, x)
+        scale = max(abs(symbolic), 1.0)
+        worst = max(worst, abs(symbolic - numeric) / scale)
+    print(f&quot;{name:&gt;12} {worst:&gt;22.3e}&quot;)
+    assert worst &lt; 1e-7, f&quot;the rules and the difference quotient must agree for {name}&quot;
+
+print()
+print(&quot;standard limits, approached numerically&quot;)
+for h in (1e-3, 1e-5, 1e-7):
+    print(f&quot;  h={h:&lt;8} sin(h)/h = {sin(h) / h:.12f}   (e^h - 1)/h = {(exp(h) - 1) / h:.9f}&quot;)
+assert abs(sin(1e-7) / 1e-7 - 1) &lt; 1e-12, &quot;sin x / x must tend to 1&quot;
+assert abs((exp(1e-7) - 1) / 1e-7 - 1) &lt; 1e-6, &quot;(e^x - 1)/x must tend to 1&quot;
+assert abs(log(1 + 1e-7) / 1e-7 - 1) &lt; 1e-6, &quot;log(1+x)/x must tend to 1&quot;
+
+# Differentiable implies continuous, but not conversely: |x| at 0.
+left = (abs(0 - 1e-6) - abs(0.0)) / (-1e-6)
+right = (abs(0 + 1e-6) - abs(0.0)) / (1e-6)
+print()
+print(&quot;|x| at 0: left difference quotient&quot;, round(left, 6), &quot; right&quot;, round(right, 6))
+assert abs(left + 1) &lt; 1e-9 and abs(right - 1) &lt; 1e-9
+assert left != right, &quot;the one-sided slopes differ, so |x| is not differentiable at 0&quot;
+assert abs(abs(1e-9) - abs(0.0)) &lt; 1e-8, &quot;but it is continuous there&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory predicts something sharp about <em>how</em> the difference quotient approaches the derivative. The forward difference $\frac{f(x+h)-f(x)}{h}$ has error proportional to $h$ — first order. The central difference $\frac{f(x+h)-f(x-h)}{2h}$ has error proportional to $h^2$ — second order, because the odd-order Taylor terms cancel. So halving $h$ should halve the forward error and quarter the central one.</p>
+<p>But theory also predicts this stops working. Making $h$ too small subtracts two nearly equal numbers, and catastrophic cancellation — the hazard of M13 — destroys the result. There is therefore an <strong>optimal $h$</strong>, and going below it makes the answer worse. We measure both halves of that prediction.</p>
+<div class="lab demo" data-demo="m22-step-size-tradeoff">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Truncation versus rounding: the best h is not the smallest</h3></div>
+
+<textarea class="code" spellcheck="false">from math import sin, cos
+
+F = sin
+DF = cos
+X = 1.0
+TRUE = DF(X)
+
+
+def forward(h):
+    return (F(X + h) - F(X)) / h
+
+
+def central(h):
+    return (F(X + h) - F(X - h)) / (2 * h)
+
+
+print(f&quot;{&#x27;h&#x27;:&gt;10} {&#x27;forward error&#x27;:&gt;16} {&#x27;central error&#x27;:&gt;16}&quot;)
+rows = []
+h = 1e-1
+for _ in range(12):
+    ef = abs(forward(h) - TRUE)
+    ec = abs(central(h) - TRUE)
+    rows.append((h, ef, ec))
+    print(f&quot;{h:&gt;10.0e} {ef:&gt;16.3e} {ec:&gt;16.3e}&quot;)
+    h /= 10
+
+# In the well-behaved region the orders are 1 and 2.
+h1, ef1, ec1 = rows[0]        # h = 1e-1
+h2, ef2, ec2 = rows[1]        # h = 1e-2
+print()
+print(&quot;predicted: forward error falls like h (10x), central like h^2 (100x)&quot;)
+print(f&quot;measured : forward ratio {ef1 / ef2:.1f}, central ratio {ec1 / ec2:.1f}&quot;)
+assert 8 &lt; ef1 / ef2 &lt; 12, &quot;the forward difference must be first order&quot;
+assert 80 &lt; ec1 / ec2 &lt; 120, &quot;the central difference must be second order&quot;
+
+# The central difference beats the forward one everywhere sensible.
+for h, ef, ec in rows[:6]:
+    assert ec &lt; ef, &quot;the central difference must be more accurate&quot;
+
+# And the prediction that too-small h makes things WORSE.
+best_h, best_err = min(((h, ec) for h, _, ec in rows), key=lambda t: t[1])
+smallest_h, _, smallest_err = rows[-1]
+print()
+print(f&quot;predicted: an optimal h exists; below it, cancellation takes over&quot;)
+print(f&quot;measured : best central error {best_err:.3e} at h = {best_h:.0e}&quot;)
+print(f&quot;measured : error at the smallest h = {smallest_h:.0e} is {smallest_err:.3e}&quot;)
+assert best_h &gt; smallest_h, &quot;the best step is NOT the smallest one&quot;
+assert smallest_err &gt; best_err * 100, &quot;shrinking h too far must hurt badly&quot;
+
+# The Mean Value Theorem, measured: the average rate is attained somewhere.
+a, b = 0.5, 2.0
+average = (F(b) - F(a)) / (b - a)
+hits = [a + (b - a) * k / 20000 for k in range(20001)]
+closest = min(hits, key=lambda c: abs(DF(c) - average))
+print()
+print(&quot;Mean Value Theorem on sin over [0.5, 2.0]&quot;)
+print(f&quot;  average rate of change : {average:.9f}&quot;)
+print(f&quot;  instantaneous rate at c={closest:.6f}: {DF(closest):.9f}&quot;)
+assert abs(DF(closest) - average) &lt; 1e-4, &quot;some interior point must match the average rate&quot;
+assert a &lt; closest &lt; b
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the table shows the theory and its limit in one picture. Down to about $h = 10^{-5}$ the central difference improves exactly as predicted, quartering with each tenfold shrink. Below that it gets <em>worse</em>, and by $h=10^{-12}$ it is useless — not because the calculus is wrong but because $f(x+h)$ and $f(x-h)$ agree in their leading digits and the subtraction keeps only noise. The total error is roughly truncation ($\propto h^2$) plus rounding ($\propto \varepsilon/h$), and minimising that sum gives an optimal $h$ near $\varepsilon^{1/3} \approx 6\times10^{-6}$ for the central difference. This is the standard reason numerical differentiation is avoided in favour of automatic differentiation, which applies the chain rule exactly and has no step size at all.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m22-ex1-limits" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Limits, one-sided and two-sided</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>limit_numeric(f, a, side, steps=25)</code> estimating the limit of <code>f</code> at <code>a</code> by evaluating at points approaching <code>a</code> from the given side (<code>"left"</code>, <code>"right"</code> or <code>"both"</code>), halving the distance each step from an initial offset of 1.0 (25 halvings, which stops before floating-point cancellation destroys quotients such as (e^h - 1)/h) and returning the last value that evaluated without error; return <code>None</code> when the two sides disagree by more than 1e-6 for <code>side="both"</code>. Write <code>is_continuous_at(f, a, tol=1e-6)</code> returning <code>True</code> when <code>f(a)</code> is defined and matches the two-sided limit. Raise <code>ValueError</code> for an unknown side.</p></div>
+<textarea class="code" spellcheck="false">def limit_numeric(f, a, side, steps=25):
+    &quot;&quot;&quot;Estimate a limit numerically.&quot;&quot;&quot;
+    return None
+
+
+def is_continuous_at(f, a, tol=1e-6):
+    &quot;&quot;&quot;True when the value equals the limit.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_ordinary_limits():
+    # a polynomial: the limit is just the value
+    assert abs(limit_numeric(lambda x: x * x + 1, 2.0, &quot;both&quot;) - 5.0) &lt; 1e-6
+    # the removable hole at x = 1 in (x^2 - 1)/(x - 1), whose limit is 2
+    f = lambda x: (x * x - 1) / (x - 1)
+    assert abs(limit_numeric(f, 1.0, &quot;both&quot;) - 2.0) &lt; 1e-6
+    assert is_continuous_at(f, 1.0) is False        # undefined at 1
+    assert is_continuous_at(f, 3.0) is True
+
+
+def test_one_sided_limits_and_jumps():
+    from math import copysign
+    # the signum function jumps at 0
+    sgn = lambda x: copysign(1.0, x) if x != 0 else 0.0
+    assert abs(limit_numeric(sgn, 0.0, &quot;left&quot;) + 1.0) &lt; 1e-9
+    assert abs(limit_numeric(sgn, 0.0, &quot;right&quot;) - 1.0) &lt; 1e-9
+    assert limit_numeric(sgn, 0.0, &quot;both&quot;) is None   # the sides disagree
+    assert is_continuous_at(sgn, 0.0) is False
+    assert is_continuous_at(sgn, 2.0) is True
+    # Defined at the point, limit exists, and the two DISAGREE: a removable
+    # discontinuity with the value filled in wrongly.
+    patched = lambda x: 5.0 if x == 2.0 else x
+    assert abs(limit_numeric(patched, 2.0, &quot;both&quot;) - 2.0) &lt; 1e-6
+    assert patched(2.0) == 5.0
+    assert is_continuous_at(patched, 2.0) is False
+
+
+def test_standard_limits_and_errors():
+    from math import sin, exp, log
+    assert abs(limit_numeric(lambda x: sin(x) / x, 0.0, &quot;both&quot;) - 1.0) &lt; 1e-6
+    assert abs(limit_numeric(lambda x: (exp(x) - 1) / x, 0.0, &quot;both&quot;) - 1.0) &lt; 1e-6
+    assert abs(limit_numeric(lambda x: log(1 + x) / x, 0.0, &quot;both&quot;) - 1.0) &lt; 1e-6
+    # continuity of ordinary functions
+    assert is_continuous_at(sin, 1.0) is True
+    try:
+        limit_numeric(sin, 0.0, &quot;sideways&quot;)
+        assert False, &quot;an unknown side must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m22-ex2-difference-quotient" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Derivatives from the definition</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>forward_difference(f, x, h)</code> and <code>central_difference(f, x, h)</code>. Write <code>derivative_at(f, x)</code> estimating the derivative using the central difference with <code>h = 1e-5 * max(1, abs(x))</code>, which scales the step to the size of the input. Write <code>is_differentiable_at(f, x, tol=1e-4)</code> returning <code>True</code> when the one-sided difference quotients agree within the tolerance at a step of 1e-6. The tolerance is looser than you might expect because the two one-sided quotients of even a smooth function differ by a term of order h. Raise <code>ValueError</code> for a non-positive <code>h</code>.</p></div>
+<textarea class="code" spellcheck="false">def forward_difference(f, x, h):
+    &quot;&quot;&quot;(f(x+h) - f(x)) / h.&quot;&quot;&quot;
+    return 0.0
+
+
+def central_difference(f, x, h):
+    &quot;&quot;&quot;(f(x+h) - f(x-h)) / (2h).&quot;&quot;&quot;
+    return 0.0
+
+
+def derivative_at(f, x):
+    &quot;&quot;&quot;Best-effort numerical derivative.&quot;&quot;&quot;
+    return 0.0
+
+
+def is_differentiable_at(f, x, tol=1e-4):
+    &quot;&quot;&quot;True when the one-sided slopes agree.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_derivatives_of_standard_functions():
+    from math import sin, cos, exp, log
+    checks = [
+        (lambda x: x ** 3, lambda x: 3 * x * x, 2.0),
+        (sin, cos, 1.0),
+        (cos, lambda x: -sin(x), 0.7),
+        (exp, exp, 1.5),
+        (log, lambda x: 1 / x, 3.0),
+    ]
+    for f, df, x in checks:
+        assert abs(derivative_at(f, x) - df(x)) &lt; 1e-6, (x, df(x))
+
+
+def test_central_beats_forward():
+    from math import sin, cos
+    x = 1.0
+    true = cos(x)
+    for h in (1e-2, 1e-3, 1e-4):
+        ef = abs(forward_difference(sin, x, h) - true)
+        ec = abs(central_difference(sin, x, h) - true)
+        assert ec &lt; ef, f&quot;central must be more accurate at h={h}&quot;
+    # second order: shrinking h tenfold cuts the central error about 100x
+    e1 = abs(central_difference(sin, x, 1e-2) - true)
+    e2 = abs(central_difference(sin, x, 1e-3) - true)
+    assert 80 &lt; e1 / e2 &lt; 120
+
+
+def test_differentiability_and_errors():
+    # |x| is not differentiable at 0 but is everywhere else
+    assert is_differentiable_at(abs, 0.0) is False
+    assert is_differentiable_at(abs, 2.0) is True
+    assert is_differentiable_at(lambda x: x * x, 0.0) is True
+    # the slope of |x| away from zero is plus or minus one
+    assert abs(derivative_at(abs, 3.0) - 1.0) &lt; 1e-6
+    assert abs(derivative_at(abs, -3.0) + 1.0) &lt; 1e-6
+    try:
+        central_difference(abs, 1.0, 0.0)
+        assert False, &quot;h = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m22-ex3-rules" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>The sum, product, quotient and chain rules</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Represent a differentiable function as a pair of callables <code>(f, df)</code>. Write <code>d_sum(u, v)</code>, <code>d_product(u, v)</code>, <code>d_quotient(u, v)</code> and <code>d_chain(outer, inner)</code> returning a new <code>(f, df)</code> pair implementing each rule. Write <code>d_power(n)</code> returning the pair for <code>x**n</code>. Write <code>evaluate(pair, x)</code> returning <code>(value, derivative)</code>. <code>d_quotient</code> must produce a derivative that raises <code>ZeroDivisionError</code> naturally where the denominator vanishes.</p></div>
+<textarea class="code" spellcheck="false">def d_sum(u, v):
+    &quot;&quot;&quot;Pair for u + v.&quot;&quot;&quot;
+    return (lambda x: 0.0, lambda x: 0.0)
+
+
+def d_product(u, v):
+    &quot;&quot;&quot;Pair for u * v.&quot;&quot;&quot;
+    return (lambda x: 0.0, lambda x: 0.0)
+
+
+def d_quotient(u, v):
+    &quot;&quot;&quot;Pair for u / v.&quot;&quot;&quot;
+    return (lambda x: 0.0, lambda x: 0.0)
+
+
+def d_chain(outer, inner):
+    &quot;&quot;&quot;Pair for outer(inner(x)).&quot;&quot;&quot;
+    return (lambda x: 0.0, lambda x: 0.0)
+
+
+def d_power(n):
+    &quot;&quot;&quot;Pair for x**n.&quot;&quot;&quot;
+    return (lambda x: 0.0, lambda x: 0.0)
+
+
+def evaluate(pair, x):
+    &quot;&quot;&quot;Return (value, derivative) at x.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def _numeric(f, x, h=1e-6):
+    return (f(x + h) - f(x - h)) / (2 * h)
+
+
+def test_sum_and_product_rules():
+    from math import sin, cos
+    sq = d_power(2)
+    sine = (sin, cos)
+    s = d_sum(sq, sine)
+    p = d_product(sq, sine)
+    for x in (0.5, 1.0, 2.0, -1.5):
+        assert abs(evaluate(s, x)[1] - _numeric(s[0], x)) &lt; 1e-5
+        assert abs(evaluate(p, x)[1] - _numeric(p[0], x)) &lt; 1e-5
+    # hand-checked: (x^2 sin x)&#x27; at x = 0 is 0
+    assert abs(evaluate(p, 0.0)[1]) &lt; 1e-12
+
+
+def test_quotient_and_chain_rules():
+    from math import sin, cos, exp
+    sine = (sin, cos)
+    sq = d_power(2)
+    q = d_quotient(sine, sq)                 # sin(x) / x^2
+    for x in (0.7, 1.3, 2.5):
+        assert abs(evaluate(q, x)[1] - _numeric(q[0], x)) &lt; 1e-5
+    # chain rule: sin(x^2)
+    c = d_chain(sine, sq)
+    for x in (0.4, 1.1, -1.7):
+        assert abs(evaluate(c, x)[1] - _numeric(c[0], x)) &lt; 1e-4
+    # hand-checked: d/dx sin(x^2) = 2x cos(x^2); at x=1 that is 2 cos 1
+    assert abs(evaluate(c, 1.0)[1] - 2 * cos(1.0)) &lt; 1e-12
+    # chain rule order matters: sin(x^2) is not (sin x)^2
+    other = d_chain(sq, sine)
+    assert abs(evaluate(c, 1.0)[1] - evaluate(other, 1.0)[1]) &gt; 0.1
+
+
+def test_powers_and_composition_depth():
+    from math import exp
+    cube = d_power(3)
+    assert evaluate(cube, 2.0) == (8.0, 12.0)
+    assert evaluate(d_power(1), 5.0) == (5.0, 1.0)
+    # e^(x^3): chain rule twice over
+    e = (exp, exp)
+    deep = d_chain(e, cube)
+    for x in (0.3, 0.8, 1.1):
+        assert abs(evaluate(deep, x)[1] - _numeric(deep[0], x)) &lt; 1e-4
+    # the quotient&#x27;s derivative blows up where the denominator vanishes
+    q = d_quotient((lambda x: 1.0, lambda x: 0.0), d_power(1))
+    try:
+        evaluate(q, 0.0)
+        assert False, &quot;dividing by zero must raise&quot;
+    except ZeroDivisionError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m22-ex4-implicit-parametric" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Implicit, logarithmic and parametric differentiation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>implicit_circle_slope(x, y)</code> returning <code>dy/dx</code> for <code>x**2 + y**2 = r**2</code>, which is <code>-x/y</code>, raising <code>ValueError</code> when <code>y</code> is zero. Write <code>log_diff_x_to_x(x)</code> returning the derivative of <code>x**x</code>, which is <code>x**x * (1 + log(x))</code>, raising <code>ValueError</code> for non-positive <code>x</code>. Write <code>parametric_slope(dxdt, dydt)</code> returning <code>dydt/dxdt</code>, raising <code>ValueError</code> when <code>dxdt</code> is zero. Write <code>second_derivative(f, x, h=1e-4)</code> using the standard three-point formula <code>(f(x+h) - 2f(x) + f(x-h)) / h**2</code>.</p></div>
+<textarea class="code" spellcheck="false">def implicit_circle_slope(x, y):
+    &quot;&quot;&quot;dy/dx on the circle x^2 + y^2 = r^2.&quot;&quot;&quot;
+    return 0.0
+
+
+def log_diff_x_to_x(x):
+    &quot;&quot;&quot;Derivative of x**x.&quot;&quot;&quot;
+    return 0.0
+
+
+def parametric_slope(dxdt, dydt):
+    &quot;&quot;&quot;dy/dx from parametric derivatives.&quot;&quot;&quot;
+    return 0.0
+
+
+def second_derivative(f, x, h=1e-4):
+    &quot;&quot;&quot;Numerical second derivative.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_implicit_circle():
+    from math import sqrt, cos, sin, pi
+    # on the unit circle at 45 degrees the slope is -1
+    s = 1 / sqrt(2)
+    assert abs(implicit_circle_slope(s, s) + 1.0) &lt; 1e-12
+    # the slope is zero at the top of the circle
+    assert abs(implicit_circle_slope(0.0, 1.0)) &lt; 1e-12
+    # check against a numerical derivative of the explicit upper branch
+    upper = lambda x: sqrt(1 - x * x)
+    for x in (0.2, 0.5, 0.8):
+        y = upper(x)
+        numeric = (upper(x + 1e-6) - upper(x - 1e-6)) / 2e-6
+        assert abs(implicit_circle_slope(x, y) - numeric) &lt; 1e-5
+    try:
+        implicit_circle_slope(1.0, 0.0)
+        assert False, &quot;y = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_logarithmic_differentiation():
+    f = lambda x: x ** x
+    for x in (0.5, 1.0, 1.5, 2.0, 3.0):
+        numeric = (f(x + 1e-6) - f(x - 1e-6)) / 2e-6
+        assert abs(log_diff_x_to_x(x) - numeric) &lt; 1e-4, x
+    # at x = 1 the derivative is 1 * (1 + 0) = 1
+    assert abs(log_diff_x_to_x(1.0) - 1.0) &lt; 1e-12
+    try:
+        log_diff_x_to_x(0.0)
+        assert False, &quot;non-positive x must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_parametric_and_second_derivative():
+    from math import sin, cos
+    # the circle parametrised: x = cos t, y = sin t, so dy/dx = -cot t
+    t = 0.7
+    slope = parametric_slope(-sin(t), cos(t))
+    assert abs(slope - (-cos(t) / sin(t))) &lt; 1e-12
+    # it agrees with the implicit result at the same point
+    assert abs(slope - implicit_circle_slope(cos(t), sin(t))) &lt; 1e-9
+    # second derivatives of known functions
+    assert abs(second_derivative(lambda x: x ** 3, 2.0) - 12.0) &lt; 1e-4
+    assert abs(second_derivative(sin, 1.0) + sin(1.0)) &lt; 1e-4
+    assert abs(second_derivative(lambda x: 5 * x + 2, 3.0)) &lt; 1e-4
+    try:
+        parametric_slope(0.0, 1.0)
+        assert False, &quot;dx/dt = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m22-ex5-mvt" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Rolle, the Mean Value Theorem and the step-size trade-off</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>find_rolle_point(f, a, b, steps=200000)</code> returning a point in <code>(a, b)</code> where the numerical derivative is closest to zero, raising <code>ValueError</code> when <code>f(a)</code> and <code>f(b)</code> differ by more than 1e-9. Write <code>find_mvt_point(f, a, b, steps=200000)</code> returning a point where the derivative is closest to the average rate of change. Write <code>best_step(f, df, x, candidates)</code> returning the <code>h</code> from the candidate list minimising the central-difference error, and <code>error_at(f, df, x, h)</code> returning that error. Raise <code>ValueError</code> when <code>a &gt;= b</code> or the candidate list is empty.</p></div>
+<textarea class="code" spellcheck="false">def find_rolle_point(f, a, b, steps=200000):
+    &quot;&quot;&quot;A point where the derivative vanishes.&quot;&quot;&quot;
+    return 0.0
+
+
+def find_mvt_point(f, a, b, steps=200000):
+    &quot;&quot;&quot;A point where the derivative equals the average rate.&quot;&quot;&quot;
+    return 0.0
+
+
+def error_at(f, df, x, h):
+    &quot;&quot;&quot;Central-difference error at step h.&quot;&quot;&quot;
+    return 0.0
+
+
+def best_step(f, df, x, candidates):
+    &quot;&quot;&quot;The candidate h with the smallest error.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_rolle_on_a_symmetric_function():
+    from math import sin, pi
+    # x^2 - 1 on [-1, 1]: equal endpoints, derivative zero at 0
+    c = find_rolle_point(lambda x: x * x - 1, -1.0, 1.0, steps=20000)
+    assert abs(c) &lt; 1e-3
+    # sin on [0, pi]: equal endpoints, derivative zero at pi/2
+    c = find_rolle_point(sin, 0.0, pi, steps=20000)
+    assert abs(c - pi / 2) &lt; 1e-3
+    try:
+        find_rolle_point(lambda x: x, 0.0, 1.0, steps=1000)
+        assert False, &quot;unequal endpoints must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_mean_value_theorem():
+    from math import sin, cos
+    # x^2 on [0, 2]: average rate 2, derivative 2x, so c = 1
+    c = find_mvt_point(lambda x: x * x, 0.0, 2.0, steps=20000)
+    assert abs(c - 1.0) &lt; 1e-3
+    # a general check: the derivative at c really matches the average rate
+    for f, a, b in ((sin, 0.5, 2.0), (lambda x: x ** 3, -1.0, 2.0)):
+        c = find_mvt_point(f, a, b, steps=20000)
+        average = (f(b) - f(a)) / (b - a)
+        slope = (f(c + 1e-6) - f(c - 1e-6)) / 2e-6
+        assert abs(slope - average) &lt; 1e-3
+        assert a &lt; c &lt; b
+
+
+def test_step_size_has_an_interior_optimum():
+    from math import sin, cos
+    candidates = [10.0 ** -k for k in range(1, 13)]
+    h = best_step(sin, cos, 1.0, candidates)
+    # the best step is neither the largest nor the smallest offered
+    assert h != candidates[0]
+    assert h != candidates[-1]
+    assert 1e-7 &lt;= h &lt;= 1e-3
+    # going far below the optimum makes the error much worse
+    assert error_at(sin, cos, 1.0, 1e-12) &gt; error_at(sin, cos, 1.0, h) * 100
+    # and so does going far above it
+    assert error_at(sin, cos, 1.0, 1e-1) &gt; error_at(sin, cos, 1.0, h) * 100
+    try:
+        best_step(sin, cos, 1.0, [])
+        assert False, &quot;an empty candidate list must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"$\lim_{x\to a}f(x)$ means $f(a)$."</strong> It means what $f$ is heading towards near $a$, deliberately ignoring $a$ itself. When the two coincide the function is continuous — that is the <em>definition</em> of continuity, not a triviality.</li>
+<li><strong>"$\frac00$ is 1, or 0, or undefined-so-the-limit-does-not-exist."</strong> $\frac00$ is an <em>indeterminate form</em>: the limit may be any number or may not exist, and which it is depends entirely on the functions. $\frac{\sin x}{x}\to1$ and $\frac{x^2}{x}\to0$ are both $\frac00$.</li>
+<li><strong>"Continuous means differentiable."</strong> $|x|$ refutes it at a single point; the Weierstrass function is continuous everywhere and differentiable nowhere. The implication runs one way only.</li>
+<li><strong>"$(fg)&#x27; = f&#x27;g&#x27;$."</strong> The product rule is $f&#x27;g+fg&#x27;$. The termwise version is the most common error in all of calculus.</li>
+<li><strong>"The chain rule is a formality."</strong> It is the whole mechanism of backpropagation. Forgetting the inner derivative is what makes a hand-written gradient silently wrong.</li>
+<li><strong>"Degrees and radians are interchangeable units."</strong> $\frac{d}{dx}\sin x = \cos x$ is true only in radians. In degrees it is $\frac{\pi}{180}\cos x$, and every formula downstream changes.</li>
+<li><strong>"A smaller step always gives a better numerical derivative."</strong> Below about $10^{-6}$ for a central difference, cancellation dominates and accuracy collapses. The experiment measured exactly this.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>The limit laws require the individual limits to exist. Writing $\lim(f+g) = \lim f + \lim g$ when both sides are infinite, or when one limit does not exist, produces nonsense: $\lim_{x\to0}\left(\frac1x - \frac1x\right) = 0$ although neither term has a limit.</p>
+<p>Differentiability is a strong condition. Corners ($|x|$), cusps ($x^{2/3}$) and vertical tangents ($x^{1/3}$) all break it, and the Weierstrass function shows that continuity bounds nothing at all about smoothness.</p>
+<p>Numerical differentiation is fundamentally limited, as measured above: the best achievable accuracy for a central difference is about $\varepsilon^{2/3}\approx10^{-11}$ relative, never machine precision. Automatic differentiation sidesteps this entirely by applying the chain rule symbolically at each elementary operation, which is why every deep-learning framework uses it rather than finite differences.</p>
+<p>The informal chain-rule argument in Result 4 divides by $\Delta u$, which can be zero; a correct proof handles that case separately. And the Mean Value Theorem needs <em>both</em> hypotheses — continuity on the closed interval and differentiability on the open one. Dropping either breaks it, and it fails outright for complex-valued or vector-valued functions, where only an inequality survives.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Derivatives are rates, and rates are everywhere in systems work: a gradient of latency against load, the slope of a memory curve, the velocity of a fling gesture computed from a difference quotient over the last few touch samples (and smoothed, precisely because raw differences are noisy — the step-size trade-off in disguise).</p>
+<p>The chain rule is the single most consequential item here. Backpropagation is the chain rule applied to a composition thousands of layers deep, and automatic differentiation is its mechanisation; understanding why frameworks do not use finite differences requires exactly the experiment above. Continuity is the mathematical content of "no jank": an animation interpolator must be continuous to look smooth, and continuous in its <em>derivative</em> to feel smooth, which is why cubic easing beats linear. And the Mean Value Theorem is the formal version of an argument you make all the time — if the average over the window was X, some instant hit X.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does a limit deliberately ignore, and why does that matter?</p></div><div class="a" hidden><p>The value at the point itself. That is what lets a limit describe 0/0 cases, where the function is undefined exactly where you care.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Give the three conditions for continuity at a point.</p></div><div class="a" hidden><p>f(a) exists, the limit as x approaches a exists, and the two are equal.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why is sin(x)/x -&gt; 1 true only in radians?</p></div><div class="a" hidden><p>Because the proof compares the sector's area to two triangles, and the sector area is x/2 only when x is measured in radians.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>State the product and quotient rules.</p></div><div class="a" hidden><p>(fg)' = f'g + fg', and (f/g)' = (f'g - fg')/g^2. The quotient's minus sign is the usual casualty.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why does differentiability imply continuity but not conversely?</p></div><div class="a" hidden><p>Because f(x)-f(a) is the difference quotient times (x-a), which tends to a finite number times zero. The converse fails at a corner such as |x| at 0.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the chain rule and why does it matter beyond calculus?</p></div><div class="a" hidden><p>(g(f(x)))' = g'(f(x)) f'(x). It is the mechanism of backpropagation through a composition of layers.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>What is the order of accuracy of the forward and central difference quotients?</p></div><div class="a" hidden><p>First order in h for forward, second order for central, because the odd Taylor terms cancel in the symmetric version.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Why is the smallest step size not the best for numerical differentiation?</p></div><div class="a" hidden><p>Truncation error shrinks with h but rounding error grows as h shrinks, since you subtract nearly equal numbers. The sum has an interior minimum.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>State the Mean Value Theorem in plain words.</p></div><div class="a" hidden><p>If a journey averaged a certain speed, at some instant it was travelling at exactly that speed.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>How do you differentiate x to the power x?</p></div><div class="a" hidden><p>Logarithmic differentiation: take logs to get log y = x log x, differentiate implicitly, and obtain x^x (1 + log x).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why "speed right now" cannot be measured but can be defined, you can prove sin(x)/x tends to 1 by the squeeze and say exactly where radians enter, you can derive the product rule by the add-and-subtract trick, you can state why differentiability implies continuity and give the standard counterexample to the converse, you pass the boss exercise without hints, and you can explain why a deep-learning framework uses automatic differentiation rather than finite differences.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 11, chapter on Limits and Derivatives, and Class 12, chapter on Continuity and Differentiability.</li>
+<li>Michael Spivak, <em>Calculus</em>, 4th edition, Publish or Perish.</li>
+<li>Augustin-Louis Cauchy, <em>Cours d'Analyse</em>, 1821.</li>
+<li>Nicholas J. Higham, <em>Accuracy and Stability of Numerical Algorithms</em>, SIAM (on the step-size trade-off).</li>
+<li>Baydin, Pearlmutter, Radul and Siskind, "Automatic Differentiation in Machine Learning: a Survey", <em>JMLR</em>, 2018.</li>
+</ul></section>
+<footer class="pager"><a href="M21.html">&larr; M21 Lines, conics, vectors and 3D geometry</a>
+<a href="M23.html">M23 Applications of derivatives &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M22", "packages": [], "exercises": {"m22-ex1-limits": {"starter": "def limit_numeric(f, a, side, steps=25):\n    \"\"\"Estimate a limit numerically.\"\"\"\n    return None\n\n\ndef is_continuous_at(f, a, tol=1e-6):\n    \"\"\"True when the value equals the limit.\"\"\"\n    return False\n", "solution": "def _approach(f, a, direction, steps):\n    offset = 1.0\n    last = None\n    for _ in range(steps):\n        x = a + direction * offset\n        try:\n            value = f(x)\n        except Exception:\n            offset /= 2\n            continue\n        if value == value and abs(value) != float(\"inf\"):\n            last = value\n        offset /= 2\n    return last\n\n\ndef limit_numeric(f, a, side, steps=25):\n    \"\"\"Estimate a limit numerically.\"\"\"\n    if side == \"left\":\n        return _approach(f, a, -1.0, steps)\n    if side == \"right\":\n        return _approach(f, a, 1.0, steps)\n    if side != \"both\":\n        raise ValueError(\"side must be left, right or both\")\n    lo = _approach(f, a, -1.0, steps)\n    hi = _approach(f, a, 1.0, steps)\n    if lo is None or hi is None:\n        return None\n    if abs(lo - hi) > 1e-6:\n        return None\n    return (lo + hi) / 2\n\n\ndef is_continuous_at(f, a, tol=1e-6):\n    \"\"\"True when the value equals the limit.\"\"\"\n    try:\n        value = f(a)\n    except Exception:\n        return False\n    if value != value:\n        return False\n    lim = limit_numeric(f, a, \"both\")\n    if lim is None:\n        return False\n    return abs(value - lim) < tol\n", "tests": "def test_ordinary_limits():\n    # a polynomial: the limit is just the value\n    assert abs(limit_numeric(lambda x: x * x + 1, 2.0, \"both\") - 5.0) < 1e-6\n    # the removable hole at x = 1 in (x^2 - 1)/(x - 1), whose limit is 2\n    f = lambda x: (x * x - 1) / (x - 1)\n    assert abs(limit_numeric(f, 1.0, \"both\") - 2.0) < 1e-6\n    assert is_continuous_at(f, 1.0) is False        # undefined at 1\n    assert is_continuous_at(f, 3.0) is True\n\n\ndef test_one_sided_limits_and_jumps():\n    from math import copysign\n    # the signum function jumps at 0\n    sgn = lambda x: copysign(1.0, x) if x != 0 else 0.0\n    assert abs(limit_numeric(sgn, 0.0, \"left\") + 1.0) < 1e-9\n    assert abs(limit_numeric(sgn, 0.0, \"right\") - 1.0) < 1e-9\n    assert limit_numeric(sgn, 0.0, \"both\") is None   # the sides disagree\n    assert is_continuous_at(sgn, 0.0) is False\n    assert is_continuous_at(sgn, 2.0) is True\n    # Defined at the point, limit exists, and the two DISAGREE: a removable\n    # discontinuity with the value filled in wrongly.\n    patched = lambda x: 5.0 if x == 2.0 else x\n    assert abs(limit_numeric(patched, 2.0, \"both\") - 2.0) < 1e-6\n    assert patched(2.0) == 5.0\n    assert is_continuous_at(patched, 2.0) is False\n\n\ndef test_standard_limits_and_errors():\n    from math import sin, exp, log\n    assert abs(limit_numeric(lambda x: sin(x) / x, 0.0, \"both\") - 1.0) < 1e-6\n    assert abs(limit_numeric(lambda x: (exp(x) - 1) / x, 0.0, \"both\") - 1.0) < 1e-6\n    assert abs(limit_numeric(lambda x: log(1 + x) / x, 0.0, \"both\") - 1.0) < 1e-6\n    # continuity of ordinary functions\n    assert is_continuous_at(sin, 1.0) is True\n    try:\n        limit_numeric(sin, 0.0, \"sideways\")\n        assert False, \"an unknown side must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _approach(f, a, direction, steps):\n    offset = 1.0\n    last = None\n    for _ in range(steps):\n        x = a + direction * offset\n        try:\n            value = f(x)\n        except Exception:\n            offset /= 2\n            continue\n        if value == value and abs(value) != float(\"inf\"):\n            last = value\n        offset /= 2\n    return last\n\n\ndef limit_numeric(f, a, side, steps=25):\n    \"\"\"Bug: for 'both' it returns the left limit without comparing the sides.\"\"\"\n    if side == \"left\":\n        return _approach(f, a, -1.0, steps)\n    if side == \"right\":\n        return _approach(f, a, 1.0, steps)\n    if side != \"both\":\n        raise ValueError(\"side must be left, right or both\")\n    return _approach(f, a, -1.0, steps)\n\n\ndef is_continuous_at(f, a, tol=1e-6):\n    try:\n        value = f(a)\n    except Exception:\n        return False\n    if value != value:\n        return False\n    lim = limit_numeric(f, a, \"both\")\n    if lim is None:\n        return False\n    return abs(value - lim) < tol\n", "def _approach(f, a, direction, steps):\n    offset = 1.0\n    last = None\n    for _ in range(steps):\n        x = a + direction * offset\n        try:\n            value = f(x)\n        except Exception:\n            offset /= 2\n            continue\n        if value == value and abs(value) != float(\"inf\"):\n            last = value\n        offset /= 2\n    return last\n\n\ndef limit_numeric(f, a, side, steps=25):\n    if side == \"left\":\n        return _approach(f, a, -1.0, steps)\n    if side == \"right\":\n        return _approach(f, a, 1.0, steps)\n    if side != \"both\":\n        raise ValueError(\"side must be left, right or both\")\n    lo = _approach(f, a, -1.0, steps)\n    hi = _approach(f, a, 1.0, steps)\n    if lo is None or hi is None:\n        return None\n    if abs(lo - hi) > 1e-6:\n        return None\n    return (lo + hi) / 2\n\n\ndef is_continuous_at(f, a, tol=1e-6):\n    \"\"\"Bug: checks only that the limit exists, never comparing it to f(a).\"\"\"\n    try:\n        f(a)\n    except Exception:\n        return False\n    return limit_numeric(f, a, \"both\") is not None\n"], "hints": ["Approach from each side separately. A two-sided limit exists only when both sides agree.", "Continuity needs three things: the value exists, the limit exists, and they are equal. Checking only the limit misses a removable hole."], "level": "warmup", "title": "Limits, one-sided and two-sided"}, "m22-ex2-difference-quotient": {"starter": "def forward_difference(f, x, h):\n    \"\"\"(f(x+h) - f(x)) / h.\"\"\"\n    return 0.0\n\n\ndef central_difference(f, x, h):\n    \"\"\"(f(x+h) - f(x-h)) / (2h).\"\"\"\n    return 0.0\n\n\ndef derivative_at(f, x):\n    \"\"\"Best-effort numerical derivative.\"\"\"\n    return 0.0\n\n\ndef is_differentiable_at(f, x, tol=1e-4):\n    \"\"\"True when the one-sided slopes agree.\"\"\"\n    return False\n", "solution": "def forward_difference(f, x, h):\n    \"\"\"(f(x+h) - f(x)) / h.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - f(x)) / h\n\n\ndef central_difference(f, x, h):\n    \"\"\"(f(x+h) - f(x-h)) / (2h).\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\ndef derivative_at(f, x):\n    \"\"\"Best-effort numerical derivative.\"\"\"\n    h = 1e-5 * max(1.0, abs(x))\n    return central_difference(f, x, h)\n\n\ndef is_differentiable_at(f, x, tol=1e-4):\n    \"\"\"True when the one-sided slopes agree.\"\"\"\n    h = 1e-6\n    left = (f(x) - f(x - h)) / h\n    right = (f(x + h) - f(x)) / h\n    return abs(left - right) < tol\n", "tests": "def test_derivatives_of_standard_functions():\n    from math import sin, cos, exp, log\n    checks = [\n        (lambda x: x ** 3, lambda x: 3 * x * x, 2.0),\n        (sin, cos, 1.0),\n        (cos, lambda x: -sin(x), 0.7),\n        (exp, exp, 1.5),\n        (log, lambda x: 1 / x, 3.0),\n    ]\n    for f, df, x in checks:\n        assert abs(derivative_at(f, x) - df(x)) < 1e-6, (x, df(x))\n\n\ndef test_central_beats_forward():\n    from math import sin, cos\n    x = 1.0\n    true = cos(x)\n    for h in (1e-2, 1e-3, 1e-4):\n        ef = abs(forward_difference(sin, x, h) - true)\n        ec = abs(central_difference(sin, x, h) - true)\n        assert ec < ef, f\"central must be more accurate at h={h}\"\n    # second order: shrinking h tenfold cuts the central error about 100x\n    e1 = abs(central_difference(sin, x, 1e-2) - true)\n    e2 = abs(central_difference(sin, x, 1e-3) - true)\n    assert 80 < e1 / e2 < 120\n\n\ndef test_differentiability_and_errors():\n    # |x| is not differentiable at 0 but is everywhere else\n    assert is_differentiable_at(abs, 0.0) is False\n    assert is_differentiable_at(abs, 2.0) is True\n    assert is_differentiable_at(lambda x: x * x, 0.0) is True\n    # the slope of |x| away from zero is plus or minus one\n    assert abs(derivative_at(abs, 3.0) - 1.0) < 1e-6\n    assert abs(derivative_at(abs, -3.0) + 1.0) < 1e-6\n    try:\n        central_difference(abs, 1.0, 0.0)\n        assert False, \"h = 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def forward_difference(f, x, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - f(x)) / h\n\n\ndef central_difference(f, x, h):\n    \"\"\"Bug: divides by h instead of 2h.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - f(x - h)) / h\n\n\ndef derivative_at(f, x):\n    h = 1e-5 * max(1.0, abs(x))\n    return central_difference(f, x, h)\n\n\ndef is_differentiable_at(f, x, tol=1e-4):\n    h = 1e-6\n    left = (f(x) - f(x - h)) / h\n    right = (f(x + h) - f(x)) / h\n    return abs(left - right) < tol\n", "def forward_difference(f, x, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - f(x)) / h\n\n\ndef central_difference(f, x, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\ndef derivative_at(f, x):\n    \"\"\"Bug: uses the forward difference, which is only first order.\"\"\"\n    h = 1e-5 * max(1.0, abs(x))\n    return forward_difference(f, x, h)\n\n\ndef is_differentiable_at(f, x, tol=1e-4):\n    \"\"\"Bug: compares the function values rather than the slopes,\n    so it reports continuity as differentiability.\"\"\"\n    h = 1e-6\n    return abs(f(x + h) - f(x - h)) < tol\n"], "hints": ["The central difference spans `2h` in total, from `x-h` to `x+h`, so the denominator is `2*h`.", "Differentiability needs the one-sided *slopes* to agree. `|x|` is continuous at 0, so comparing values will not detect the corner."], "level": "core", "title": "Derivatives from the definition"}, "m22-ex3-rules": {"starter": "def d_sum(u, v):\n    \"\"\"Pair for u + v.\"\"\"\n    return (lambda x: 0.0, lambda x: 0.0)\n\n\ndef d_product(u, v):\n    \"\"\"Pair for u * v.\"\"\"\n    return (lambda x: 0.0, lambda x: 0.0)\n\n\ndef d_quotient(u, v):\n    \"\"\"Pair for u / v.\"\"\"\n    return (lambda x: 0.0, lambda x: 0.0)\n\n\ndef d_chain(outer, inner):\n    \"\"\"Pair for outer(inner(x)).\"\"\"\n    return (lambda x: 0.0, lambda x: 0.0)\n\n\ndef d_power(n):\n    \"\"\"Pair for x**n.\"\"\"\n    return (lambda x: 0.0, lambda x: 0.0)\n\n\ndef evaluate(pair, x):\n    \"\"\"Return (value, derivative) at x.\"\"\"\n    return (0.0, 0.0)\n", "solution": "def d_sum(u, v):\n    \"\"\"Pair for u + v.\"\"\"\n    f = lambda x: u[0](x) + v[0](x)\n    df = lambda x: u[1](x) + v[1](x)\n    return (f, df)\n\n\ndef d_product(u, v):\n    \"\"\"Pair for u * v.\"\"\"\n    f = lambda x: u[0](x) * v[0](x)\n    df = lambda x: u[1](x) * v[0](x) + u[0](x) * v[1](x)\n    return (f, df)\n\n\ndef d_quotient(u, v):\n    \"\"\"Pair for u / v.\"\"\"\n    f = lambda x: u[0](x) / v[0](x)\n    df = lambda x: (u[1](x) * v[0](x) - u[0](x) * v[1](x)) / (v[0](x) ** 2)\n    return (f, df)\n\n\ndef d_chain(outer, inner):\n    \"\"\"Pair for outer(inner(x)).\"\"\"\n    f = lambda x: outer[0](inner[0](x))\n    df = lambda x: outer[1](inner[0](x)) * inner[1](x)\n    return (f, df)\n\n\ndef d_power(n):\n    \"\"\"Pair for x**n.\"\"\"\n    f = lambda x: x ** n\n    df = lambda x: n * x ** (n - 1)\n    return (f, df)\n\n\ndef evaluate(pair, x):\n    \"\"\"Return (value, derivative) at x.\"\"\"\n    return (pair[0](x), pair[1](x))\n", "tests": "def _numeric(f, x, h=1e-6):\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\ndef test_sum_and_product_rules():\n    from math import sin, cos\n    sq = d_power(2)\n    sine = (sin, cos)\n    s = d_sum(sq, sine)\n    p = d_product(sq, sine)\n    for x in (0.5, 1.0, 2.0, -1.5):\n        assert abs(evaluate(s, x)[1] - _numeric(s[0], x)) < 1e-5\n        assert abs(evaluate(p, x)[1] - _numeric(p[0], x)) < 1e-5\n    # hand-checked: (x^2 sin x)' at x = 0 is 0\n    assert abs(evaluate(p, 0.0)[1]) < 1e-12\n\n\ndef test_quotient_and_chain_rules():\n    from math import sin, cos, exp\n    sine = (sin, cos)\n    sq = d_power(2)\n    q = d_quotient(sine, sq)                 # sin(x) / x^2\n    for x in (0.7, 1.3, 2.5):\n        assert abs(evaluate(q, x)[1] - _numeric(q[0], x)) < 1e-5\n    # chain rule: sin(x^2)\n    c = d_chain(sine, sq)\n    for x in (0.4, 1.1, -1.7):\n        assert abs(evaluate(c, x)[1] - _numeric(c[0], x)) < 1e-4\n    # hand-checked: d/dx sin(x^2) = 2x cos(x^2); at x=1 that is 2 cos 1\n    assert abs(evaluate(c, 1.0)[1] - 2 * cos(1.0)) < 1e-12\n    # chain rule order matters: sin(x^2) is not (sin x)^2\n    other = d_chain(sq, sine)\n    assert abs(evaluate(c, 1.0)[1] - evaluate(other, 1.0)[1]) > 0.1\n\n\ndef test_powers_and_composition_depth():\n    from math import exp\n    cube = d_power(3)\n    assert evaluate(cube, 2.0) == (8.0, 12.0)\n    assert evaluate(d_power(1), 5.0) == (5.0, 1.0)\n    # e^(x^3): chain rule twice over\n    e = (exp, exp)\n    deep = d_chain(e, cube)\n    for x in (0.3, 0.8, 1.1):\n        assert abs(evaluate(deep, x)[1] - _numeric(deep[0], x)) < 1e-4\n    # the quotient's derivative blows up where the denominator vanishes\n    q = d_quotient((lambda x: 1.0, lambda x: 0.0), d_power(1))\n    try:\n        evaluate(q, 0.0)\n        assert False, \"dividing by zero must raise\"\n    except ZeroDivisionError:\n        pass\n", "mutants": ["def d_sum(u, v):\n    f = lambda x: u[0](x) + v[0](x)\n    df = lambda x: u[1](x) + v[1](x)\n    return (f, df)\n\n\ndef d_product(u, v):\n    \"\"\"Bug: differentiates termwise, the classic wrong product rule.\"\"\"\n    f = lambda x: u[0](x) * v[0](x)\n    df = lambda x: u[1](x) * v[1](x)\n    return (f, df)\n\n\ndef d_quotient(u, v):\n    f = lambda x: u[0](x) / v[0](x)\n    df = lambda x: (u[1](x) * v[0](x) - u[0](x) * v[1](x)) / (v[0](x) ** 2)\n    return (f, df)\n\n\ndef d_chain(outer, inner):\n    f = lambda x: outer[0](inner[0](x))\n    df = lambda x: outer[1](inner[0](x)) * inner[1](x)\n    return (f, df)\n\n\ndef d_power(n):\n    f = lambda x: x ** n\n    df = lambda x: n * x ** (n - 1)\n    return (f, df)\n\n\ndef evaluate(pair, x):\n    return (pair[0](x), pair[1](x))\n", "def d_sum(u, v):\n    f = lambda x: u[0](x) + v[0](x)\n    df = lambda x: u[1](x) + v[1](x)\n    return (f, df)\n\n\ndef d_product(u, v):\n    f = lambda x: u[0](x) * v[0](x)\n    df = lambda x: u[1](x) * v[0](x) + u[0](x) * v[1](x)\n    return (f, df)\n\n\ndef d_quotient(u, v):\n    \"\"\"Bug: a plus instead of a minus in the numerator.\"\"\"\n    f = lambda x: u[0](x) / v[0](x)\n    df = lambda x: (u[1](x) * v[0](x) + u[0](x) * v[1](x)) / (v[0](x) ** 2)\n    return (f, df)\n\n\ndef d_chain(outer, inner):\n    \"\"\"Bug: forgets to multiply by the inner derivative.\"\"\"\n    f = lambda x: outer[0](inner[0](x))\n    df = lambda x: outer[1](inner[0](x))\n    return (f, df)\n\n\ndef d_power(n):\n    f = lambda x: x ** n\n    df = lambda x: n * x ** (n - 1)\n    return (f, df)\n\n\ndef evaluate(pair, x):\n    return (pair[0](x), pair[1](x))\n"], "hints": ["The product rule is `u' v + u v'`, not `u' v'`. Differentiating termwise is the classic error.", "The chain rule multiplies by the derivative of the inner function. Forgetting that factor is what makes `sin(x^2)` come out wrong."], "level": "core", "title": "The sum, product, quotient and chain rules"}, "m22-ex4-implicit-parametric": {"starter": "def implicit_circle_slope(x, y):\n    \"\"\"dy/dx on the circle x^2 + y^2 = r^2.\"\"\"\n    return 0.0\n\n\ndef log_diff_x_to_x(x):\n    \"\"\"Derivative of x**x.\"\"\"\n    return 0.0\n\n\ndef parametric_slope(dxdt, dydt):\n    \"\"\"dy/dx from parametric derivatives.\"\"\"\n    return 0.0\n\n\ndef second_derivative(f, x, h=1e-4):\n    \"\"\"Numerical second derivative.\"\"\"\n    return 0.0\n", "solution": "from math import log\n\n\ndef implicit_circle_slope(x, y):\n    \"\"\"dy/dx on the circle x^2 + y^2 = r^2.\"\"\"\n    if y == 0:\n        raise ValueError(\"the tangent is vertical where y = 0\")\n    return -x / y\n\n\ndef log_diff_x_to_x(x):\n    \"\"\"Derivative of x**x.\"\"\"\n    if x <= 0:\n        raise ValueError(\"x**x needs a positive x for this formula\")\n    return (x ** x) * (1 + log(x))\n\n\ndef parametric_slope(dxdt, dydt):\n    \"\"\"dy/dx from parametric derivatives.\"\"\"\n    if dxdt == 0:\n        raise ValueError(\"dx/dt must not be zero\")\n    return dydt / dxdt\n\n\ndef second_derivative(f, x, h=1e-4):\n    \"\"\"Numerical second derivative.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - 2 * f(x) + f(x - h)) / (h * h)\n", "tests": "def test_implicit_circle():\n    from math import sqrt, cos, sin, pi\n    # on the unit circle at 45 degrees the slope is -1\n    s = 1 / sqrt(2)\n    assert abs(implicit_circle_slope(s, s) + 1.0) < 1e-12\n    # the slope is zero at the top of the circle\n    assert abs(implicit_circle_slope(0.0, 1.0)) < 1e-12\n    # check against a numerical derivative of the explicit upper branch\n    upper = lambda x: sqrt(1 - x * x)\n    for x in (0.2, 0.5, 0.8):\n        y = upper(x)\n        numeric = (upper(x + 1e-6) - upper(x - 1e-6)) / 2e-6\n        assert abs(implicit_circle_slope(x, y) - numeric) < 1e-5\n    try:\n        implicit_circle_slope(1.0, 0.0)\n        assert False, \"y = 0 must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_logarithmic_differentiation():\n    f = lambda x: x ** x\n    for x in (0.5, 1.0, 1.5, 2.0, 3.0):\n        numeric = (f(x + 1e-6) - f(x - 1e-6)) / 2e-6\n        assert abs(log_diff_x_to_x(x) - numeric) < 1e-4, x\n    # at x = 1 the derivative is 1 * (1 + 0) = 1\n    assert abs(log_diff_x_to_x(1.0) - 1.0) < 1e-12\n    try:\n        log_diff_x_to_x(0.0)\n        assert False, \"non-positive x must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_parametric_and_second_derivative():\n    from math import sin, cos\n    # the circle parametrised: x = cos t, y = sin t, so dy/dx = -cot t\n    t = 0.7\n    slope = parametric_slope(-sin(t), cos(t))\n    assert abs(slope - (-cos(t) / sin(t))) < 1e-12\n    # it agrees with the implicit result at the same point\n    assert abs(slope - implicit_circle_slope(cos(t), sin(t))) < 1e-9\n    # second derivatives of known functions\n    assert abs(second_derivative(lambda x: x ** 3, 2.0) - 12.0) < 1e-4\n    assert abs(second_derivative(sin, 1.0) + sin(1.0)) < 1e-4\n    assert abs(second_derivative(lambda x: 5 * x + 2, 3.0)) < 1e-4\n    try:\n        parametric_slope(0.0, 1.0)\n        assert False, \"dx/dt = 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import log\n\n\ndef implicit_circle_slope(x, y):\n    \"\"\"Bug: drops the minus sign.\"\"\"\n    if y == 0:\n        raise ValueError(\"the tangent is vertical where y = 0\")\n    return x / y\n\n\ndef log_diff_x_to_x(x):\n    if x <= 0:\n        raise ValueError(\"x**x needs a positive x for this formula\")\n    return (x ** x) * (1 + log(x))\n\n\ndef parametric_slope(dxdt, dydt):\n    if dxdt == 0:\n        raise ValueError(\"dx/dt must not be zero\")\n    return dydt / dxdt\n\n\ndef second_derivative(f, x, h=1e-4):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - 2 * f(x) + f(x - h)) / (h * h)\n", "from math import log\n\n\ndef implicit_circle_slope(x, y):\n    if y == 0:\n        raise ValueError(\"the tangent is vertical where y = 0\")\n    return -x / y\n\n\ndef log_diff_x_to_x(x):\n    \"\"\"Bug: treats x**x like a power, giving x * x**(x-1).\"\"\"\n    if x <= 0:\n        raise ValueError(\"x**x needs a positive x for this formula\")\n    return x * (x ** (x - 1))\n\n\ndef parametric_slope(dxdt, dydt):\n    \"\"\"Bug: inverts the ratio.\"\"\"\n    if dxdt == 0:\n        raise ValueError(\"dx/dt must not be zero\")\n    return dxdt / dydt\n\n\ndef second_derivative(f, x, h=1e-4):\n    \"\"\"Bug: forgets the factor of 2 on the middle term.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return (f(x + h) - f(x) + f(x - h)) / (h * h)\n"], "hints": ["Differentiate `x^2 + y^2 = r^2` with respect to x, remembering that `y` depends on x, so `y^2` differentiates to `2y dy/dx`.", "`x**x` is neither a power nor an exponential, because the base and exponent both vary. Take logs first: `log y = x log x`."], "level": "core", "title": "Implicit, logarithmic and parametric differentiation"}, "m22-ex5-mvt": {"starter": "def find_rolle_point(f, a, b, steps=200000):\n    \"\"\"A point where the derivative vanishes.\"\"\"\n    return 0.0\n\n\ndef find_mvt_point(f, a, b, steps=200000):\n    \"\"\"A point where the derivative equals the average rate.\"\"\"\n    return 0.0\n\n\ndef error_at(f, df, x, h):\n    \"\"\"Central-difference error at step h.\"\"\"\n    return 0.0\n\n\ndef best_step(f, df, x, candidates):\n    \"\"\"The candidate h with the smallest error.\"\"\"\n    return 0.0\n", "solution": "def _slope(f, x, h=1e-6):\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\ndef find_rolle_point(f, a, b, steps=200000):\n    \"\"\"A point where the derivative vanishes.\"\"\"\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    if abs(f(a) - f(b)) > 1e-9:\n        raise ValueError(\"Rolle's theorem needs f(a) == f(b)\")\n    best, best_gap = None, None\n    for k in range(1, steps):\n        x = a + (b - a) * k / steps\n        gap = abs(_slope(f, x))\n        if best_gap is None or gap < best_gap:\n            best, best_gap = x, gap\n    return best\n\n\ndef find_mvt_point(f, a, b, steps=200000):\n    \"\"\"A point where the derivative equals the average rate.\"\"\"\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    average = (f(b) - f(a)) / (b - a)\n    best, best_gap = None, None\n    for k in range(1, steps):\n        x = a + (b - a) * k / steps\n        gap = abs(_slope(f, x) - average)\n        if best_gap is None or gap < best_gap:\n            best, best_gap = x, gap\n    return best\n\n\ndef error_at(f, df, x, h):\n    \"\"\"Central-difference error at step h.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return abs((f(x + h) - f(x - h)) / (2 * h) - df(x))\n\n\ndef best_step(f, df, x, candidates):\n    \"\"\"The candidate h with the smallest error.\"\"\"\n    if not candidates:\n        raise ValueError(\"candidates must not be empty\")\n    return min(candidates, key=lambda h: error_at(f, df, x, h))\n", "tests": "def test_rolle_on_a_symmetric_function():\n    from math import sin, pi\n    # x^2 - 1 on [-1, 1]: equal endpoints, derivative zero at 0\n    c = find_rolle_point(lambda x: x * x - 1, -1.0, 1.0, steps=20000)\n    assert abs(c) < 1e-3\n    # sin on [0, pi]: equal endpoints, derivative zero at pi/2\n    c = find_rolle_point(sin, 0.0, pi, steps=20000)\n    assert abs(c - pi / 2) < 1e-3\n    try:\n        find_rolle_point(lambda x: x, 0.0, 1.0, steps=1000)\n        assert False, \"unequal endpoints must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_mean_value_theorem():\n    from math import sin, cos\n    # x^2 on [0, 2]: average rate 2, derivative 2x, so c = 1\n    c = find_mvt_point(lambda x: x * x, 0.0, 2.0, steps=20000)\n    assert abs(c - 1.0) < 1e-3\n    # a general check: the derivative at c really matches the average rate\n    for f, a, b in ((sin, 0.5, 2.0), (lambda x: x ** 3, -1.0, 2.0)):\n        c = find_mvt_point(f, a, b, steps=20000)\n        average = (f(b) - f(a)) / (b - a)\n        slope = (f(c + 1e-6) - f(c - 1e-6)) / 2e-6\n        assert abs(slope - average) < 1e-3\n        assert a < c < b\n\n\ndef test_step_size_has_an_interior_optimum():\n    from math import sin, cos\n    candidates = [10.0 ** -k for k in range(1, 13)]\n    h = best_step(sin, cos, 1.0, candidates)\n    # the best step is neither the largest nor the smallest offered\n    assert h != candidates[0]\n    assert h != candidates[-1]\n    assert 1e-7 <= h <= 1e-3\n    # going far below the optimum makes the error much worse\n    assert error_at(sin, cos, 1.0, 1e-12) > error_at(sin, cos, 1.0, h) * 100\n    # and so does going far above it\n    assert error_at(sin, cos, 1.0, 1e-1) > error_at(sin, cos, 1.0, h) * 100\n    try:\n        best_step(sin, cos, 1.0, [])\n        assert False, \"an empty candidate list must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _slope(f, x, h=1e-6):\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\ndef find_rolle_point(f, a, b, steps=200000):\n    \"\"\"Bug: searches for the largest slope instead of the smallest.\"\"\"\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    if abs(f(a) - f(b)) > 1e-9:\n        raise ValueError(\"Rolle's theorem needs f(a) == f(b)\")\n    best, best_gap = None, None\n    for k in range(1, steps):\n        x = a + (b - a) * k / steps\n        gap = abs(_slope(f, x))\n        if best_gap is None or gap > best_gap:\n            best, best_gap = x, gap\n    return best\n\n\ndef find_mvt_point(f, a, b, steps=200000):\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    average = (f(b) - f(a)) / (b - a)\n    best, best_gap = None, None\n    for k in range(1, steps):\n        x = a + (b - a) * k / steps\n        gap = abs(_slope(f, x) - average)\n        if best_gap is None or gap < best_gap:\n            best, best_gap = x, gap\n    return best\n\n\ndef error_at(f, df, x, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return abs((f(x + h) - f(x - h)) / (2 * h) - df(x))\n\n\ndef best_step(f, df, x, candidates):\n    if not candidates:\n        raise ValueError(\"candidates must not be empty\")\n    return min(candidates, key=lambda h: error_at(f, df, x, h))\n", "def _slope(f, x, h=1e-6):\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\ndef find_rolle_point(f, a, b, steps=200000):\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    if abs(f(a) - f(b)) > 1e-9:\n        raise ValueError(\"Rolle's theorem needs f(a) == f(b)\")\n    best, best_gap = None, None\n    for k in range(1, steps):\n        x = a + (b - a) * k / steps\n        gap = abs(_slope(f, x))\n        if best_gap is None or gap < best_gap:\n            best, best_gap = x, gap\n    return best\n\n\ndef find_mvt_point(f, a, b, steps=200000):\n    \"\"\"Bug: uses the endpoint difference without dividing by the width,\n    so the 'average rate' is wrong unless b - a is 1.\"\"\"\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    average = f(b) - f(a)\n    best, best_gap = None, None\n    for k in range(1, steps):\n        x = a + (b - a) * k / steps\n        gap = abs(_slope(f, x) - average)\n        if best_gap is None or gap < best_gap:\n            best, best_gap = x, gap\n    return best\n\n\ndef error_at(f, df, x, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return abs((f(x + h) - f(x - h)) / (2 * h) - df(x))\n\n\ndef best_step(f, df, x, candidates):\n    \"\"\"Bug: picks the smallest h rather than the most accurate one.\"\"\"\n    if not candidates:\n        raise ValueError(\"candidates must not be empty\")\n    return min(candidates)\n"], "hints": ["Rolle's theorem is the special case of the MVT where the average rate happens to be zero.", "The best step size balances truncation error (which grows with h) against rounding error (which grows as h shrinks), so it sits strictly between the extremes."], "level": "boss", "title": "Rolle, the Mean Value Theorem and the step-size trade-off"}}, "demos": {"m22-derivative-two-ways": {"code": "import random\nfrom math import sin, cos, tan, exp, log, sqrt, pi\n\n\ndef numeric_derivative(f, x, h=1e-5):\n    \"\"\"Central difference. Knows no calculus at all.\"\"\"\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\n# Each entry: a function, its symbolic derivative, and a safe sample range.\nCASES = [\n    (\"x^3\", lambda x: x ** 3, lambda x: 3 * x ** 2, (-3, 3)),\n    (\"sin x\", sin, cos, (-3, 3)),\n    (\"cos x\", cos, lambda x: -sin(x), (-3, 3)),\n    (\"e^x\", exp, exp, (-2, 2)),\n    (\"log x\", log, lambda x: 1 / x, (0.3, 5)),\n    # product rule: (x^2 sin x)' = 2x sin x + x^2 cos x\n    (\"x^2 sin x\", lambda x: x * x * sin(x),\n     lambda x: 2 * x * sin(x) + x * x * cos(x), (-3, 3)),\n    # quotient rule: (sin x / x)' = (x cos x - sin x) / x^2\n    (\"sin x / x\", lambda x: sin(x) / x,\n     lambda x: (x * cos(x) - sin(x)) / (x * x), (0.5, 4)),\n    # chain rule: (sin(x^2))' = cos(x^2) * 2x\n    (\"sin(x^2)\", lambda x: sin(x * x),\n     lambda x: cos(x * x) * 2 * x, (-2, 2)),\n    # chain + product: (e^(sin x))' = e^(sin x) cos x\n    (\"e^(sin x)\", lambda x: exp(sin(x)),\n     lambda x: exp(sin(x)) * cos(x), (-3, 3)),\n    (\"tan x\", tan, lambda x: 1 / (cos(x) ** 2), (-1.2, 1.2)),\n]\n\nrng = random.Random(1684)\nprint(f\"{'function':>12} {'worst relative gap':>22}\")\nfor name, f, df, (lo, hi) in CASES:\n    worst = 0.0\n    for _ in range(200):\n        x = rng.uniform(lo, hi)\n        symbolic = df(x)\n        numeric = numeric_derivative(f, x)\n        scale = max(abs(symbolic), 1.0)\n        worst = max(worst, abs(symbolic - numeric) / scale)\n    print(f\"{name:>12} {worst:>22.3e}\")\n    assert worst < 1e-7, f\"the rules and the difference quotient must agree for {name}\"\n\nprint()\nprint(\"standard limits, approached numerically\")\nfor h in (1e-3, 1e-5, 1e-7):\n    print(f\"  h={h:<8} sin(h)/h = {sin(h) / h:.12f}   (e^h - 1)/h = {(exp(h) - 1) / h:.9f}\")\nassert abs(sin(1e-7) / 1e-7 - 1) < 1e-12, \"sin x / x must tend to 1\"\nassert abs((exp(1e-7) - 1) / 1e-7 - 1) < 1e-6, \"(e^x - 1)/x must tend to 1\"\nassert abs(log(1 + 1e-7) / 1e-7 - 1) < 1e-6, \"log(1+x)/x must tend to 1\"\n\n# Differentiable implies continuous, but not conversely: |x| at 0.\nleft = (abs(0 - 1e-6) - abs(0.0)) / (-1e-6)\nright = (abs(0 + 1e-6) - abs(0.0)) / (1e-6)\nprint()\nprint(\"|x| at 0: left difference quotient\", round(left, 6), \" right\", round(right, 6))\nassert abs(left + 1) < 1e-9 and abs(right - 1) < 1e-9\nassert left != right, \"the one-sided slopes differ, so |x| is not differentiable at 0\"\nassert abs(abs(1e-9) - abs(0.0)) < 1e-8, \"but it is continuous there\"\n", "mutants": ["import random\nfrom math import sin, cos\n\n\ndef numeric_derivative(f, x, h=1e-5):\n    return (f(x + h) - f(x - h)) / (2 * h)\n\n\nCASES = [\n    (\"sin x\", sin, cos, (-3, 3)),\n    # Bug: the quotient rule written with a plus instead of a minus.\n    (\"sin x / x\", lambda x: sin(x) / x,\n     lambda x: (x * cos(x) + sin(x)) / (x * x), (0.5, 4)),\n]\n\nrng = random.Random(1684)\nfor name, f, df, (lo, hi) in CASES:\n    worst = 0.0\n    for _ in range(200):\n        x = rng.uniform(lo, hi)\n        symbolic = df(x)\n        numeric = numeric_derivative(f, x)\n        worst = max(worst, abs(symbolic - numeric) / max(abs(symbolic), 1.0))\n    print(f\"{name:>12} {worst:>22.3e}\")\n    assert worst < 1e-7, f\"the rules and the difference quotient must agree for {name}\"\n"]}, "m22-step-size-tradeoff": {"code": "from math import sin, cos\n\nF = sin\nDF = cos\nX = 1.0\nTRUE = DF(X)\n\n\ndef forward(h):\n    return (F(X + h) - F(X)) / h\n\n\ndef central(h):\n    return (F(X + h) - F(X - h)) / (2 * h)\n\n\nprint(f\"{'h':>10} {'forward error':>16} {'central error':>16}\")\nrows = []\nh = 1e-1\nfor _ in range(12):\n    ef = abs(forward(h) - TRUE)\n    ec = abs(central(h) - TRUE)\n    rows.append((h, ef, ec))\n    print(f\"{h:>10.0e} {ef:>16.3e} {ec:>16.3e}\")\n    h /= 10\n\n# In the well-behaved region the orders are 1 and 2.\nh1, ef1, ec1 = rows[0]        # h = 1e-1\nh2, ef2, ec2 = rows[1]        # h = 1e-2\nprint()\nprint(\"predicted: forward error falls like h (10x), central like h^2 (100x)\")\nprint(f\"measured : forward ratio {ef1 / ef2:.1f}, central ratio {ec1 / ec2:.1f}\")\nassert 8 < ef1 / ef2 < 12, \"the forward difference must be first order\"\nassert 80 < ec1 / ec2 < 120, \"the central difference must be second order\"\n\n# The central difference beats the forward one everywhere sensible.\nfor h, ef, ec in rows[:6]:\n    assert ec < ef, \"the central difference must be more accurate\"\n\n# And the prediction that too-small h makes things WORSE.\nbest_h, best_err = min(((h, ec) for h, _, ec in rows), key=lambda t: t[1])\nsmallest_h, _, smallest_err = rows[-1]\nprint()\nprint(f\"predicted: an optimal h exists; below it, cancellation takes over\")\nprint(f\"measured : best central error {best_err:.3e} at h = {best_h:.0e}\")\nprint(f\"measured : error at the smallest h = {smallest_h:.0e} is {smallest_err:.3e}\")\nassert best_h > smallest_h, \"the best step is NOT the smallest one\"\nassert smallest_err > best_err * 100, \"shrinking h too far must hurt badly\"\n\n# The Mean Value Theorem, measured: the average rate is attained somewhere.\na, b = 0.5, 2.0\naverage = (F(b) - F(a)) / (b - a)\nhits = [a + (b - a) * k / 20000 for k in range(20001)]\nclosest = min(hits, key=lambda c: abs(DF(c) - average))\nprint()\nprint(\"Mean Value Theorem on sin over [0.5, 2.0]\")\nprint(f\"  average rate of change : {average:.9f}\")\nprint(f\"  instantaneous rate at c={closest:.6f}: {DF(closest):.9f}\")\nassert abs(DF(closest) - average) < 1e-4, \"some interior point must match the average rate\"\nassert a < closest < b\n", "mutants": ["from math import sin, cos\n\nF, DF, X = sin, cos, 1.0\nTRUE = DF(X)\n\n\ndef forward(h):\n    return (F(X + h) - F(X)) / h\n\n\ndef central(h):\n    return (F(X + h) - F(X - h)) / (2 * h)\n\n\nrows = []\nh = 1e-1\nfor _ in range(12):\n    rows.append((h, abs(forward(h) - TRUE), abs(central(h) - TRUE)))\n    print(f\"  h={h:.0e} forward={rows[-1][1]:.3e} central={rows[-1][2]:.3e}\")\n    h /= 10\n\nprint(\"predicted under the WRONG theory: smaller h is always better\")\nbest_h, best_err = min(((h, ec) for h, _, ec in rows), key=lambda t: t[1])\nsmallest_h = rows[-1][0]\n# Wrong theory: claims the smallest step gives the best answer.\nassert best_h == smallest_h, \"the smallest step must give the best answer\"\n", "from math import sin, cos\n\nF, DF, X = sin, cos, 1.0\nTRUE = DF(X)\n\n\ndef forward(h):\n    return (F(X + h) - F(X)) / h\n\n\ndef central(h):\n    \"\"\"Bug: divides by h instead of 2h, so the scale is wrong.\"\"\"\n    return (F(X + h) - F(X - h)) / h\n\n\nrows = []\nh = 1e-1\nfor _ in range(12):\n    rows.append((h, abs(forward(h) - TRUE), abs(central(h) - TRUE)))\n    h /= 10\n\nef1, ec1 = rows[0][1], rows[0][2]\nef2, ec2 = rows[1][1], rows[1][2]\nprint(f\"  forward ratio {ef1 / ef2:.1f}, central ratio {ec1 / ec2:.1f}\")\nassert 80 < ec1 / ec2 < 120, \"the central difference must be second order\"\n"]}}, "cards": [{"q": "What does a limit deliberately ignore, and why does that matter?", "a": "The value at the point itself. That is what lets a limit describe 0/0 cases, where the function is undefined exactly where you care."}, {"q": "Give the three conditions for continuity at a point.", "a": "f(a) exists, the limit as x approaches a exists, and the two are equal."}, {"q": "Why is sin(x)/x -> 1 true only in radians?", "a": "Because the proof compares the sector's area to two triangles, and the sector area is x/2 only when x is measured in radians."}, {"q": "State the product and quotient rules.", "a": "(fg)' = f'g + fg', and (f/g)' = (f'g - fg')/g^2. The quotient's minus sign is the usual casualty."}, {"q": "Why does differentiability imply continuity but not conversely?", "a": "Because f(x)-f(a) is the difference quotient times (x-a), which tends to a finite number times zero. The converse fails at a corner such as |x| at 0."}, {"q": "What is the chain rule and why does it matter beyond calculus?", "a": "(g(f(x)))' = g'(f(x)) f'(x). It is the mechanism of backpropagation through a composition of layers."}, {"q": "What is the order of accuracy of the forward and central difference quotients?", "a": "First order in h for forward, second order for central, because the odd Taylor terms cancel in the symmetric version."}, {"q": "Why is the smallest step size not the best for numerical differentiation?", "a": "Truncation error shrinks with h but rounding error grows as h shrinks, since you subtract nearly equal numbers. The sum has an interior minimum."}, {"q": "State the Mean Value Theorem in plain words.", "a": "If a journey averaged a certain speed, at some instant it was travelling at exactly that speed."}, {"q": "How do you differentiate x to the power x?", "a": "Logarithmic differentiation: take logs to get log y = x log x, differentiate implicitly, and obtain x^x (1 + log x)."}], "title": "Limits, continuity and derivatives"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V15 Program correctness: invariants and Hoare logic</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V15">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V15</p><h1>Program correctness: invariants and Hoare logic</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M17.html">M17</a> <a href="V12.html">V12</a></div><div><b>Covers:</b> formal methods, CS2023 FPL, CS2023 SE</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>preconditions and postconditions</li><li>Hoare triples</li><li>the assignment axiom and weakest preconditions</li><li>sequence and conditional rules</li><li>loop invariants and variants (termination)</li><li>a full correctness proof of binary search</li><li>design by contract</li><li>assertions as executable specifications</li><li>partial vs total correctness</li><li>refinement</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Deep inside the royal archives of a legendary mountain kingdom, master architects construct colossal stone aqueducts to carry alpine spring water across jagged chasms to the city below. When a junior apprentice builds a small wooden drainage ditch in his backyard, he tests it by splashing two buckets of water down the chute. If the grass stays dry, he calls his ditch a success.</p>
+<p>One autumn afternoon, the master architect takes the apprentice to the edge of the great chasm. Down below, roaring rapids and jagged boulders wait eight hundred feet down. The master points to the great stone aqueduct towering above them: "Tell me, apprentice, if we pour ten thousand gallons of melted snow through this stone archway tomorrow, how do we know it will not collapse into the canyon?"</p>
+<p>The apprentice smiles: "We can pour five buckets of water down the stones tonight and see if anything breaks!"</p>
+<p>The master architect shakes his head sternly: "Five buckets only tells you that five buckets did not break it today. When an archway supports the drinking water of fifty thousand citizens, you do not rely on hopeful tests. You prove that at every single stone block, the downward force of gravity is precisely countered by the upward compressive thrust of the arch. That unyielding mathematical truth is an invariant. If the invariant holds at block zero, and each block preserves the thrust to the next, the aqueduct will stand for a thousand years without a drop of water ever falling into the abyss."</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Testing can only prove the presence of bugs, never their absence. Program correctness uses formal logic to prove that an algorithm works for all possible inputs. Preconditions state what must be true before execution; postconditions state what must be true upon completion. A Hoare triple $\{P\}\; C \;\{Q\}$ proves that if precondition $P$ holds, command $C$ produces postcondition $Q$. In loops, loop invariants guarantee correctness across all iterations, while loop variants prove that the loop terminates.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $\sigma \in \Sigma$ be a program state mapping variable identifiers to domain values. A Hoare triple is denoted $\{P\}\; C \;\{Q\}$, where $P, Q: \Sigma \to \{\text{True}, \text{False}\}$ are first-order logical assertions.
+1. <strong>Partial Correctness:</strong> If $P(\sigma)$ holds and execution of $C$ terminates in state $\sigma&#x27;$, then $Q(\sigma&#x27;)$ holds: $\models_{\text{partial}} \{P\}\; C \;\{Q\}$.
+2. <strong>Total Correctness:</strong> $\{P\}\; C \;\{Q\}$ holds partially AND execution of $C$ is guaranteed to terminate: $[P]\; C \;[Q]$.
+3. <strong>Assignment Axiom:</strong> $\{Q[e / x]\}\; x := e \;\{Q\}$, where $Q[e / x]$ denotes syntactically substituting expression $e$ for all free occurrences of variable $x$ in $Q$.
+4. <strong>Weakest Precondition ($wp$):</strong> For any postcondition $Q$ and command $C$, $wp(C, Q)$ is the weakest predicate such that $\{wp(C, Q)\}\; C \;\{Q\}$.
+5. <strong>Loop Invariant Rule:</strong>
+$$\frac{\{I \land B\}\; C \;\{I\}}{\{I\}\; \mathbf{while}\; B\; \mathbf{do}\; C\; \mathbf{done}\; \{I \land \neg B\}}$$
+6. <strong>Termination via Variant:</strong> A loop terminates if there exists a well-founded variant function $V: \Sigma \to \mathbb{N}$ strictly decreasing on each iteration: $\forall \sigma, \{I \land B \land V = v_0\}\; C \;\{V &lt; v_0\}$.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why is formal program correctness indispensable when automated testing exists? Dijkstra famously formulated the fundamental limitation of empirical verification: "Program testing can be used to show the presence of bugs, but never to show their absence!" For an algorithm operating on a 64-bit integer, testing every possible input would require $2^{64} \approx 1.84 \times 10^{19}$ executions—over five hundred years of compute time on a billion-operation-per-second cluster.</p>
+<p>Hoare logic replaces infinite empirical sampling with finite mathematical induction:
+1. <strong>Initialization:</strong> The invariant $I$ is established by initialization code prior to loop entry: $\{P\}\; \text{init} \;\{I\}$.
+2. <strong>Maintenance:</strong> If the invariant holds and loop condition $B$ is satisfied, executing the loop body $C$ preserves $I$: $\{I \land B\}\; C \;\{I\}$.
+3. <strong>Exit:</strong> When the loop terminates ($\neg B$), the conjunction $I \land \neg B$ logically implies the postcondition $Q$: $(I \land \neg B) \implies Q$.</p>
+<p>Consider the famous bug in binary search: for over twenty years, textbooks implemented the midpoint calculation as <code>mid = (low + high) / 2</code>. When <code>low + high</code> exceeded $2^{31} - 1$, the integer arithmetic overflowed into a negative number, crashing Java runtimes worldwide. A rigorous Hoare correctness proof using bounded integer arithmetic exposes this overflow immediately as a violation of the precondition for array indexing.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The test oracle for program correctness evaluates whether executable specifications—preconditions, loop invariants, and postconditions—are maintained across concrete program states. In the demonstration below, we instrument an integer square root algorithm with formal Hoare invariants and variant tracking. A broken mutant that violates the monotonic variant decrease or fails to progress the search interval is caught immediately by the runtime assertion engine.</p>
+<div class="lab demo" data-demo="oracle-isqrt-invariants">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Hoare invariant and variant verification for integer square root</h3></div>
+
+<textarea class="code" spellcheck="false">def isqrt_hoare(n: int) -&gt; int:
+    # Precondition: n &gt;= 0
+    assert n &gt;= 0, &quot;Precondition violated: n must be non-negative&quot;
+    if n == 0:
+        return 0
+
+    # Invariant: r*r &lt;= n and (r &gt;= 0)
+    # Variant: high - low strictly decreases
+    low = 1
+    high = n
+    ans = 1
+
+    while low &lt;= high:
+        variant_before = high - low + 1
+        assert variant_before &gt; 0, &quot;Variant must be positive before step&quot;
+
+        mid = low + (high - low) // 2
+        # Check loop invariant
+        assert low &gt;= 1 and high &lt;= n, &quot;Loop bounds invariant violated&quot;
+
+        if mid * mid &lt;= n:
+            ans = mid
+            low = mid + 1
+        else:
+            high = mid - 1
+
+        variant_after = high - low + 1
+        assert variant_after &lt; variant_before, &quot;Termination variant failed to strictly decrease!&quot;
+
+    # Postcondition: ans*ans &lt;= n &lt; (ans + 1)*(ans + 1)
+    assert ans * ans &lt;= n &lt; (ans + 1) * (ans + 1), &quot;Postcondition violated!&quot;
+    return ans
+
+# Verify oracle on representative range
+for val in [0, 1, 2, 3, 4, 15, 16, 25, 100, 999, 10000]:
+    r = isqrt_hoare(val)
+print(&quot;Integer square root invariant oracle verified successfully!&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct a rigorous empirical verification experiment comparing unverified baseline search algorithms against contract-instrumented implementations. We inject deliberate boundary faults—such as subtle off-by-one errors and integer overflows—into binary search routines, measuring whether executable contract assertions catch the failure prior to state corruption or infinite cycling during real program execution. The empirical harness records assertion catches and confirms total termination guarantees across comprehensive test sets.</p>
+<div class="lab demo" data-demo="exp-binary-search-contracts">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Binary search contract verification and variant audit</h3></div>
+
+<textarea class="code" spellcheck="false">def verified_binary_search(arr: list[int], target: int) -&gt; int:
+    # Precondition: array is sorted
+    for i in range(len(arr) - 1):
+        assert arr[i] &lt;= arr[i+1], &quot;Array must be sorted&quot;
+
+    low = 0
+    high = len(arr) - 1
+    steps = 0
+    max_steps = len(arr).bit_length() + 2
+
+    while low &lt;= high:
+        steps += 1
+        assert steps &lt;= max_steps, &quot;Variant bound exceeded: infinite loop detected&quot;
+        
+        # Invariant: if target is in arr, target must be in arr[low..high]
+        mid = low + (high - low) // 2
+        val = arr[mid]
+
+        if val == target:
+            # Postcondition: returned index matches target
+            assert arr[mid] == target
+            return mid
+        elif val &lt; target:
+            low = mid + 1
+        else:
+            high = mid - 1
+
+    # Postcondition: target not found, assert target not in arr
+    assert target not in arr, &quot;Failed to find existing target!&quot;
+    return -1
+
+# Run verification suite
+data = [10, 20, 30, 40, 50, 60, 70]
+assert verified_binary_search(data, 40) == 3
+assert verified_binary_search(data, 10) == 0
+assert verified_binary_search(data, 70) == 6
+assert verified_binary_search(data, 99) == -1
+print(&quot;Verified binary search passed all contract assertions!&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-design-by-contract" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Design-by-contract decorator with pre- and post-conditions</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a contract verification decorator <code>contract(pre=None, post=None)</code> that wraps a function and validates assertions at runtime.
+Rules:
+1. <code>pre(args, kwargs)</code>: If provided (not None), it is called with <code>(args, kwargs)</code> before the wrapped function executes. If it returns False or raises an exception, raise <code>ValueError("Precondition failed")</code>.
+2. <code>post(result, args, kwargs)</code>: If provided (not None), it is called with <code>(result, args, kwargs)</code> after execution. If it returns False or raises an exception, raise <code>ValueError("Postcondition failed")</code>.
+3. If neither is provided, execute the function normally.
+4. Preserve the wrapped function's return value.</p></div>
+<textarea class="code" spellcheck="false">def contract(pre=None, post=None):
+    # Runtime contract decorator
+    def decorator(fn):
+        def wrapper(*args, **kwargs):
+            return fn(*args, **kwargs)
+        return wrapper
+    return decorator
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_contract_clean():
+    @contract(
+        pre=lambda args, kw: args[0] &gt; 0,
+        post=lambda res, args, kw: res &gt; args[0]
+    )
+    def double(x):
+        return x * 2
+
+    assert double(5) == 10
+
+def test_contract_pre_violation():
+    @contract(pre=lambda args, kw: args[0] &gt;= 0)
+    def square(x):
+        return x * x
+
+    try:
+        square(-3)
+        assert False, &quot;Should raise ValueError for precondition&quot;
+    except ValueError as e:
+        assert &quot;Precondition&quot; in str(e)
+
+def test_contract_post_violation():
+    @contract(post=lambda res, args, kw: res % 2 == 0)
+    def broken_even():
+        return 7
+
+    try:
+        broken_even()
+        assert False, &quot;Should raise ValueError for postcondition&quot;
+    except ValueError as e:
+        assert &quot;Postcondition&quot; in str(e)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-loop-invariant-verifier" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Executable loop invariant and variant verifier</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>verify_loop(initial_state, cond_fn, body_fn, inv_fn, var_fn, max_steps=1000)</code> to simulate a while-loop while verifying Hoare logic correctness:
+Inputs:
+- <code>initial_state</code>: Dictionary of variables representing state $\sigma_0$.
+- <code>cond_fn(state)</code>: Returns boolean <code>True</code> if loop condition $B$ holds.
+- <code>body_fn(state)</code>: Pure function returning new state dictionary after executing body $C$.
+- <code>inv_fn(state)</code>: Returns boolean <code>True</code> if loop invariant $I$ holds.
+- <code>var_fn(state)</code>: Returns integer variant $V(\sigma) \ge 0$.</p>
+<p>Requirements:
+1. Check that $I(\sigma_0)$ holds initially. Raise <code>ValueError("Invariant failed at initialization")</code> if false.
+2. While <code>cond_fn(state)</code> is True:
+   - Check that <code>var_fn(state) &gt;= 0</code>. Raise <code>ValueError("Variant negative before step")</code> if false.
+   - Record variant $v_{\text{prev}} = \text{var_fn}(\text{state})$.
+   - Advance state: $\text{state}&#x27; = \text{body\_fn}(\text{state})$.
+   - Check that $I(\text{state}&#x27;)$ holds. Raise <code>ValueError("Invariant violated during maintenance")</code> if false.
+   - Check that $\text{var_fn}(\text{state}&#x27;) &lt; v_{\text{prev}}$. Raise <code>ValueError("Variant failed to strictly decrease")</code> if false.
+   - Guard against infinite loops: if steps exceed <code>max_steps</code>, raise <code>TimeoutError("Max loop steps exceeded")</code>.
+3. Upon loop termination, return dictionary:
+   <code>{'final_state': state, 'steps': steps, 'invariant_holds': True}</code>.</p></div>
+<textarea class="code" spellcheck="false">def verify_loop(initial_state, cond_fn, body_fn, inv_fn, var_fn, max_steps=1000):
+    # Verifies loop invariants and termination variants
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_sum_loop_clean():
+    # Computes sum(1..n)
+    init = {&#x27;i&#x27;: 1, &#x27;n&#x27;: 5, &#x27;total&#x27;: 0}
+    cond = lambda s: s[&#x27;i&#x27;] &lt;= s[&#x27;n&#x27;]
+    body = lambda s: {&#x27;i&#x27;: s[&#x27;i&#x27;] + 1, &#x27;n&#x27;: s[&#x27;n&#x27;], &#x27;total&#x27;: s[&#x27;total&#x27;] + s[&#x27;i&#x27;]}
+    # Invariant: total == sum(1..i-1)
+    inv = lambda s: s[&#x27;total&#x27;] == (s[&#x27;i&#x27;] - 1) * s[&#x27;i&#x27;] // 2
+    # Variant: n - i + 1
+    var = lambda s: s[&#x27;n&#x27;] - s[&#x27;i&#x27;] + 1
+
+    res = verify_loop(init, cond, body, inv, var)
+    assert res[&#x27;final_state&#x27;][&#x27;total&#x27;] == 15
+    assert res[&#x27;steps&#x27;] == 5
+    assert res[&#x27;invariant_holds&#x27;] is True
+
+def test_invariant_init_failure():
+    init = {&#x27;x&#x27;: -5}
+    try:
+        verify_loop(init, lambda s: s[&#x27;x&#x27;] &gt; 0, lambda s: s, lambda s: s[&#x27;x&#x27;] &gt;= 0, lambda s: s[&#x27;x&#x27;])
+        assert False, &quot;Should raise ValueError for init invariant failure&quot;
+    except ValueError as e:
+        assert &quot;initialization&quot; in str(e)
+
+def test_variant_non_decrease():
+    # Broken body that does not increment i
+    init = {&#x27;i&#x27;: 0, &#x27;n&#x27;: 3}
+    cond = lambda s: s[&#x27;i&#x27;] &lt; s[&#x27;n&#x27;]
+    body = lambda s: {&#x27;i&#x27;: s[&#x27;i&#x27;], &#x27;n&#x27;: s[&#x27;n&#x27;]} # Stalls
+    inv = lambda s: True
+    var = lambda s: s[&#x27;n&#x27;] - s[&#x27;i&#x27;]
+
+    try:
+        verify_loop(init, cond, body, inv, var)
+        assert False, &quot;Should raise ValueError for variant non-decrease&quot;
+    except ValueError as e:
+        assert &quot;decrease&quot; in str(e)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-weakest-precondition-calc" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Weakest precondition calculator for straight-line assignments</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>calculate_wp_assignments(statements, postcondition_expr)</code> to compute the weakest precondition $wp(S_1; S_2; \dots; S_n, Q)$ using backward substitution.
+Inputs:
+- <code>statements</code>: List of string assignment statements of the form <code>'var = expr'</code>, e.g. <code>['x = x + 1', 'y = x * 2']</code>.
+- <code>postcondition_expr</code>: String mathematical expression involving variables, e.g. <code>'y &gt; 10'</code>.</p>
+<p>Rules:
+1. Apply the assignment axiom backwards from the last statement to the first:
+   $$wp(x := e, Q) = Q[e / x]$$
+2. In each substitution step, replace whole identifier tokens of the assigned variable with <code>(expr)</code>.
+3. Return the fully expanded string representing the weakest precondition.
+Raise <code>ValueError</code> if any statement is not a valid assignment of the form <code>'var = expr'</code>.</p></div>
+<textarea class="code" spellcheck="false">def calculate_wp_assignments(statements, postcondition_expr):
+    # Computes weakest precondition via backward substitution
+    return &quot;&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_single_assignment():
+    stmts = [&#x27;x = x + 1&#x27;]
+    res = calculate_wp_assignments(stmts, &#x27;x &gt; 5&#x27;)
+    assert &#x27;(x + 1) &gt; 5&#x27; == res
+
+def test_sequence_backward():
+    stmts = [&#x27;x = a + b&#x27;, &#x27;y = x * 2&#x27;]
+    res = calculate_wp_assignments(stmts, &#x27;y &gt; 10&#x27;)
+    # Step 1: y -&gt; (x * 2) &gt; 10
+    # Step 2: x -&gt; ((a + b) * 2) &gt; 10
+    assert &#x27;((a + b) * 2) &gt; 10&#x27; == res
+
+def test_invalid_statement():
+    try:
+        calculate_wp_assignments([&#x27;x + 1&#x27;], &#x27;x &gt; 0&#x27;)
+        assert False, &quot;Should raise ValueError on invalid statement&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-hoare-triples-checker" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Hoare triple verification engine with concrete state testing</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>verify_hoare_triple(pre_fn, code_fn, post_fn, test_states)</code> to verify whether a Hoare triple $\{P\}\; C \;\{Q\}$ holds across a test suite of concrete program states.
+Inputs:
+- <code>pre_fn(state)</code>: Evaluates precondition $P(\sigma) \in \{\text{True}, \text{False}\}$.
+- <code>code_fn(state)</code>: Executes program $C$ and returns updated state $\sigma&#x27;$.
+- <code>post_fn(state, initial_state)</code>: Evaluates postcondition $Q(\sigma&#x27;, \sigma) \in \{\text{True}, \text{False}\}$.
+- <code>test_states</code>: List of dictionary states.</p>
+<p>Requirements:
+1. For each state $\sigma$ in <code>test_states</code>:
+   - If $P(\sigma)$ is False, this state is outside the precondition domain; ignore it (vacuously true).
+   - If $P(\sigma)$ is True:
+     - Execute $\sigma&#x27; = \text{code_fn}(\text{dict}(\sigma))$.
+     - Check $Q(\sigma&#x27;, \sigma)$. If False, a violation is detected!
+     - Immediately return:
+       <code>{'valid': False, 'violating_state': sigma, 'resulting_state': sigma_prime}</code>.
+2. If all precondition-satisfying states satisfy the postcondition, return:
+   <code>{'valid': True, 'tested_cases': count_active, 'violating_state': None, 'resulting_state': None}</code>.
+Raise <code>ValueError</code> if <code>test_states</code> contains zero states where $P(\sigma)$ is True (cannot verify with zero valid test inputs).</p></div>
+<textarea class="code" spellcheck="false">def verify_hoare_triple(pre_fn, code_fn, post_fn, test_states):
+    # Concrete Hoare triple verification engine
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_hoare_valid():
+    # Program: x = x + 1; Pre: x &gt;= 0; Post: x &gt; init[&#x27;x&#x27;]
+    pre = lambda s: s[&#x27;x&#x27;] &gt;= 0
+    code = lambda s: {&#x27;x&#x27;: s[&#x27;x&#x27;] + 1}
+    post = lambda s, init: s[&#x27;x&#x27;] == init[&#x27;x&#x27;] + 1
+    states = [{&#x27;x&#x27;: -1}, {&#x27;x&#x27;: 0}, {&#x27;x&#x27;: 5}, {&#x27;x&#x27;: 100}]
+
+    res = verify_hoare_triple(pre, code, post, states)
+    assert res[&#x27;valid&#x27;] is True
+    assert res[&#x27;tested_cases&#x27;] == 3  # -1 was ignored by precondition
+
+def test_hoare_violation():
+    # Program: x = x - 1; Pre: x &gt;= 0; Post: x &gt;= init[&#x27;x&#x27;]
+    pre = lambda s: s[&#x27;x&#x27;] &gt;= 0
+    code = lambda s: {&#x27;x&#x27;: s[&#x27;x&#x27;] - 1}
+    post = lambda s, init: s[&#x27;x&#x27;] &gt;= init[&#x27;x&#x27;]
+    states = [{&#x27;x&#x27;: 10}]
+
+    res = verify_hoare_triple(pre, code, post, states)
+    assert res[&#x27;valid&#x27;] is False
+    assert res[&#x27;violating_state&#x27;] == {&#x27;x&#x27;: 10}
+    assert res[&#x27;resulting_state&#x27;] == {&#x27;x&#x27;: 9}
+
+def test_hoare_empty_active():
+    pre = lambda s: s[&#x27;x&#x27;] &gt; 100
+    states = [{&#x27;x&#x27;: 1}, {&#x27;x&#x27;: 2}]
+    try:
+        verify_hoare_triple(pre, lambda s: s, lambda s, init: True, states)
+        assert False, &quot;Should raise ValueError when no states satisfy precondition&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"If a program passes 10,000 randomized tests, it is mathematically proven correct."</strong> Testing only probes sampled points; formal verification proves invariants hold across the entire infinite domain.</li>
+<li><strong>"Loop invariants change on every iteration."</strong> The state variables change, but the invariant assertion remains identically True before and after each iteration.</li>
+<li><strong>"Total correctness is just another name for partial correctness."</strong> Partial correctness only promises: <em>if</em> the loop terminates, the result is correct; total correctness additionally guarantees that it <em>will</em> terminate.</li>
+<li><strong>"Assertions slow down production software and should always be stripped."</strong> Safety-critical systems retain executable invariants in production (Fail-Stop) to prevent silent data corruption.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Hoare logic breaks down in the presence of unconstrained pointer aliasing, concurrency races, shared mutable heap structures, and hardware non-determinism, where local state transformations produce nonlocal ripple effects across unmanaged memory. In these complex environments, Separation Logic, concurrent separation logic (CSL), and automated SMT theorem provers are strictly required.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>In an offline sync engine, invariants ensure that database foreign keys and transaction logs stay monotonically ordered across local commits. In aerospace and in cryptographic libraries such as OpenSSL or Rust's core, loop invariants and formal proofs prevent buffer overflows and arithmetic vulnerabilities before the code ever ships.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is a Hoare triple?</p></div><div class="a" hidden><p>A formal specification $\{P\}\; C \;\{Q\}$ asserting that if precondition $P$ holds, executing $C$ leads to postcondition $Q$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the difference between partial and total correctness?</p></div><div class="a" hidden><p>Partial correctness proves correctness if execution terminates; total correctness additionally proves that execution terminates.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is a loop invariant?</p></div><div class="a" hidden><p>A logical assertion that holds before loop entry and is preserved after every iteration of the loop body.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is a loop variant?</p></div><div class="a" hidden><p>An integer expression that strictly decreases with every loop iteration and is bounded below, proving termination.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the assignment axiom in Hoare logic?</p></div><div class="a" hidden><p>$\{Q[e/x]\}\; x := e \;\{Q\}$: the precondition is formed by substituting $e$ for $x$ in postcondition $Q$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is Weakest Precondition (wp)?</p></div><div class="a" hidden><p>The most general predicate $P$ such that executing command $C$ is guaranteed to terminate in a state satisfying postcondition $Q$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can state and prove the loop invariant of binary search, calculate weakest preconditions using backward substitution, and construct total correctness proofs.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Hoare, C. A. R. 'An Axiomatic Basis for Computer Programming.' <em>Communications of the ACM</em>, 12(10), 1969.</li>
+<li>Dijkstra, E. W. <em>A Discipline of Programming</em>. Prentice-Hall, 1976.</li>
+</ul></section>
+<footer class="pager"><a href="V10.html">&larr; V10 Benchmarking and performance measurement</a>
+<a href="D13.html">D13 Dynamic programming II &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V15", "packages": ["numpy"], "exercises": {"ex1-design-by-contract": {"starter": "def contract(pre=None, post=None):\n    # Runtime contract decorator\n    def decorator(fn):\n        def wrapper(*args, **kwargs):\n            return fn(*args, **kwargs)\n        return wrapper\n    return decorator\n", "solution": "from functools import wraps\n\ndef contract(pre=None, post=None):\n    def decorator(fn):\n        @wraps(fn)\n        def wrapper(*args, **kwargs):\n            if pre is not None:\n                passed = False\n                try:\n                    passed = bool(pre(args, kwargs))\n                except Exception:\n                    passed = False\n                if not passed:\n                    raise ValueError(\"Precondition failed\")\n\n            result = fn(*args, **kwargs)\n\n            if post is not None:\n                passed = False\n                try:\n                    passed = bool(post(result, args, kwargs))\n                except Exception:\n                    passed = False\n                if not passed:\n                    raise ValueError(\"Postcondition failed\")\n\n            return result\n        return wrapper\n    return decorator\n", "tests": "def test_contract_clean():\n    @contract(\n        pre=lambda args, kw: args[0] > 0,\n        post=lambda res, args, kw: res > args[0]\n    )\n    def double(x):\n        return x * 2\n\n    assert double(5) == 10\n\ndef test_contract_pre_violation():\n    @contract(pre=lambda args, kw: args[0] >= 0)\n    def square(x):\n        return x * x\n\n    try:\n        square(-3)\n        assert False, \"Should raise ValueError for precondition\"\n    except ValueError as e:\n        assert \"Precondition\" in str(e)\n\ndef test_contract_post_violation():\n    @contract(post=lambda res, args, kw: res % 2 == 0)\n    def broken_even():\n        return 7\n\n    try:\n        broken_even()\n        assert False, \"Should raise ValueError for postcondition\"\n    except ValueError as e:\n        assert \"Postcondition\" in str(e)\n", "mutants": ["def contract(pre=None, post=None):\n    # Ignores postconditions completely\n    def decorator(fn):\n        def wrapper(*args, **kwargs):\n            if pre and not pre(args, kwargs): raise ValueError(\"Precondition failed\")\n            return fn(*args, **kwargs)\n        return wrapper\n    return decorator\n", "def contract(pre=None, post=None):\n    # Never checks preconditions\n    def decorator(fn):\n        def wrapper(*args, **kwargs):\n            res = fn(*args, **kwargs)\n            if post and not post(res, args, kwargs): raise ValueError(\"Postcondition failed\")\n            return res\n        return wrapper\n    return decorator\n"], "hints": ["Execute `pre(args, kwargs)` before calling `fn`, and `post(result, args, kwargs)` after.", "Raise `ValueError` with clear messages on violation."], "level": "warmup", "title": "Design-by-contract decorator with pre- and post-conditions"}, "ex2-loop-invariant-verifier": {"starter": "def verify_loop(initial_state, cond_fn, body_fn, inv_fn, var_fn, max_steps=1000):\n    # Verifies loop invariants and termination variants\n    return {}\n", "solution": "def verify_loop(initial_state, cond_fn, body_fn, inv_fn, var_fn, max_steps=1000):\n    state = dict(initial_state)\n\n    if not inv_fn(state):\n        raise ValueError(\"Invariant failed at initialization\")\n\n    steps = 0\n    while cond_fn(state):\n        steps += 1\n        if steps > max_steps:\n            raise TimeoutError(\"Max loop steps exceeded\")\n\n        v_prev = var_fn(state)\n        if v_prev < 0:\n            raise ValueError(\"Variant negative before step\")\n\n        state = body_fn(state)\n\n        if not inv_fn(state):\n            raise ValueError(\"Invariant violated during maintenance\")\n\n        v_curr = var_fn(state)\n        if v_curr >= v_prev:\n            raise ValueError(\"Variant failed to strictly decrease\")\n\n    return {\n        'final_state': state,\n        'steps': steps,\n        'invariant_holds': True\n    }\n", "tests": "def test_sum_loop_clean():\n    # Computes sum(1..n)\n    init = {'i': 1, 'n': 5, 'total': 0}\n    cond = lambda s: s['i'] <= s['n']\n    body = lambda s: {'i': s['i'] + 1, 'n': s['n'], 'total': s['total'] + s['i']}\n    # Invariant: total == sum(1..i-1)\n    inv = lambda s: s['total'] == (s['i'] - 1) * s['i'] // 2\n    # Variant: n - i + 1\n    var = lambda s: s['n'] - s['i'] + 1\n\n    res = verify_loop(init, cond, body, inv, var)\n    assert res['final_state']['total'] == 15\n    assert res['steps'] == 5\n    assert res['invariant_holds'] is True\n\ndef test_invariant_init_failure():\n    init = {'x': -5}\n    try:\n        verify_loop(init, lambda s: s['x'] > 0, lambda s: s, lambda s: s['x'] >= 0, lambda s: s['x'])\n        assert False, \"Should raise ValueError for init invariant failure\"\n    except ValueError as e:\n        assert \"initialization\" in str(e)\n\ndef test_variant_non_decrease():\n    # Broken body that does not increment i\n    init = {'i': 0, 'n': 3}\n    cond = lambda s: s['i'] < s['n']\n    body = lambda s: {'i': s['i'], 'n': s['n']} # Stalls\n    inv = lambda s: True\n    var = lambda s: s['n'] - s['i']\n\n    try:\n        verify_loop(init, cond, body, inv, var)\n        assert False, \"Should raise ValueError for variant non-decrease\"\n    except ValueError as e:\n        assert \"decrease\" in str(e)\n", "mutants": ["def verify_loop(initial_state, cond_fn, body_fn, inv_fn, var_fn, max_steps=1000):\n    \"\"\"Bug: never re-checks the invariant after the body runs, and never counts\n    the steps it took. The termination guard is kept, so this mutant isolates\n    exactly one defect instead of also hanging.\"\"\"\n    if not inv_fn(initial_state):\n        raise ValueError(\"Invariant failed at initialization\")\n    state = dict(initial_state)\n    steps = 0\n    while cond_fn(state):\n        steps += 1\n        if steps > max_steps:\n            raise TimeoutError(\"Max loop steps exceeded\")\n        state = body_fn(state)\n    return {'final_state': state, 'steps': 0, 'invariant_holds': True}\n", "def verify_loop(initial_state, cond_fn, body_fn, inv_fn, var_fn, max_steps=1000):\n    \"\"\"Bug: never checks that the variant strictly decreases, so a stalling\n    loop is not diagnosed - it just runs until the step guard fires.\"\"\"\n    if not inv_fn(initial_state):\n        raise ValueError(\"Invariant failed at initialization\")\n    state = dict(initial_state)\n    steps = 0\n    while cond_fn(state):\n        steps += 1\n        if steps > max_steps:\n            raise TimeoutError(\"Max loop steps exceeded\")\n        state = body_fn(state)\n        if not inv_fn(state):\n            raise ValueError(\"Invariant violated during maintenance\")\n    return {'final_state': state, 'steps': steps, 'invariant_holds': True}\n"], "hints": ["Check initial invariant before loop.", "Verify that the variant strictly decreases: v_curr < v_prev at each step."], "level": "core", "title": "Executable loop invariant and variant verifier"}, "ex3-weakest-precondition-calc": {"starter": "def calculate_wp_assignments(statements, postcondition_expr):\n    # Computes weakest precondition via backward substitution\n    return \"\"\n", "solution": "import re\n\ndef calculate_wp_assignments(statements, postcondition_expr):\n    curr = postcondition_expr.strip()\n\n    for stmt in reversed(statements):\n        if '=' not in stmt:\n            raise ValueError(f\"Invalid assignment statement: {stmt}\")\n        parts = stmt.split('=', 1)\n        var = parts[0].strip()\n        expr = parts[1].strip()\n\n        if not var.isidentifier():\n            raise ValueError(f\"Invalid variable name in assignment: {var}\")\n\n        # Replace word boundaries of var with (expr)\n        pattern = r'\\b' + re.escape(var) + r'\\b'\n        curr = re.sub(pattern, f\"({expr})\", curr)\n\n    return curr\n", "tests": "def test_single_assignment():\n    stmts = ['x = x + 1']\n    res = calculate_wp_assignments(stmts, 'x > 5')\n    assert '(x + 1) > 5' == res\n\ndef test_sequence_backward():\n    stmts = ['x = a + b', 'y = x * 2']\n    res = calculate_wp_assignments(stmts, 'y > 10')\n    # Step 1: y -> (x * 2) > 10\n    # Step 2: x -> ((a + b) * 2) > 10\n    assert '((a + b) * 2) > 10' == res\n\ndef test_invalid_statement():\n    try:\n        calculate_wp_assignments(['x + 1'], 'x > 0')\n        assert False, \"Should raise ValueError on invalid statement\"\n    except ValueError:\n        pass\n", "mutants": ["def calculate_wp_assignments(statements, postcondition_expr):\n    # Applies forward substitution instead of backward\n    if any('=' not in s for s in statements): raise ValueError()\n    return postcondition_expr\n", "def calculate_wp_assignments(statements, postcondition_expr):\n    # Forgets to wrap substituted expression in parentheses\n    if any('=' not in s for s in statements): raise ValueError()\n    import re\n    curr = postcondition_expr\n    for s in reversed(statements):\n        var, expr = s.split('=', 1)\n        curr = re.sub(r'\\b' + var.strip() + r'\\b', expr.strip(), curr)\n    return curr\n"], "hints": ["Reverse the list of statements using `reversed(statements)`.", "Wrap substituted expressions in parentheses: `f\"({expr})\"` to maintain precedence."], "level": "core", "title": "Weakest precondition calculator for straight-line assignments"}, "ex4-hoare-triples-checker": {"starter": "def verify_hoare_triple(pre_fn, code_fn, post_fn, test_states):\n    # Concrete Hoare triple verification engine\n    return {}\n", "solution": "def verify_hoare_triple(pre_fn, code_fn, post_fn, test_states):\n    active_count = 0\n\n    for state in test_states:\n        if pre_fn(state):\n            active_count += 1\n            init_copy = dict(state)\n            curr = dict(state)\n            res = code_fn(curr)\n            if not post_fn(res, init_copy):\n                return {\n                    'valid': False,\n                    'violating_state': init_copy,\n                    'resulting_state': res\n                }\n\n    if active_count == 0:\n        raise ValueError(\"No test states satisfied precondition\")\n\n    return {\n        'valid': True,\n        'tested_cases': active_count,\n        'violating_state': None,\n        'resulting_state': None\n    }\n", "tests": "def test_hoare_valid():\n    # Program: x = x + 1; Pre: x >= 0; Post: x > init['x']\n    pre = lambda s: s['x'] >= 0\n    code = lambda s: {'x': s['x'] + 1}\n    post = lambda s, init: s['x'] == init['x'] + 1\n    states = [{'x': -1}, {'x': 0}, {'x': 5}, {'x': 100}]\n\n    res = verify_hoare_triple(pre, code, post, states)\n    assert res['valid'] is True\n    assert res['tested_cases'] == 3  # -1 was ignored by precondition\n\ndef test_hoare_violation():\n    # Program: x = x - 1; Pre: x >= 0; Post: x >= init['x']\n    pre = lambda s: s['x'] >= 0\n    code = lambda s: {'x': s['x'] - 1}\n    post = lambda s, init: s['x'] >= init['x']\n    states = [{'x': 10}]\n\n    res = verify_hoare_triple(pre, code, post, states)\n    assert res['valid'] is False\n    assert res['violating_state'] == {'x': 10}\n    assert res['resulting_state'] == {'x': 9}\n\ndef test_hoare_empty_active():\n    pre = lambda s: s['x'] > 100\n    states = [{'x': 1}, {'x': 2}]\n    try:\n        verify_hoare_triple(pre, lambda s: s, lambda s, init: True, states)\n        assert False, \"Should raise ValueError when no states satisfy precondition\"\n    except ValueError:\n        pass\n", "mutants": ["def verify_hoare_triple(pre_fn, code_fn, post_fn, test_states):\n    # Always claims valid without checking postcondition\n    if not any(pre_fn(s) for s in test_states): raise ValueError()\n    return {'valid': True, 'tested_cases': len(test_states), 'violating_state': None, 'resulting_state': None}\n", "def verify_hoare_triple(pre_fn, code_fn, post_fn, test_states):\n    # Does not raise ValueError when active count is zero\n    return {'valid': True, 'tested_cases': 0, 'violating_state': None, 'resulting_state': None}\n"], "hints": ["Filter states using `if pre_fn(state):`.", "Count active cases and verify `active_count > 0`."], "level": "boss", "title": "Hoare triple verification engine with concrete state testing"}}, "demos": {"oracle-isqrt-invariants": {"code": "def isqrt_hoare(n: int) -> int:\n    # Precondition: n >= 0\n    assert n >= 0, \"Precondition violated: n must be non-negative\"\n    if n == 0:\n        return 0\n\n    # Invariant: r*r <= n and (r >= 0)\n    # Variant: high - low strictly decreases\n    low = 1\n    high = n\n    ans = 1\n\n    while low <= high:\n        variant_before = high - low + 1\n        assert variant_before > 0, \"Variant must be positive before step\"\n\n        mid = low + (high - low) // 2\n        # Check loop invariant\n        assert low >= 1 and high <= n, \"Loop bounds invariant violated\"\n\n        if mid * mid <= n:\n            ans = mid\n            low = mid + 1\n        else:\n            high = mid - 1\n\n        variant_after = high - low + 1\n        assert variant_after < variant_before, \"Termination variant failed to strictly decrease!\"\n\n    # Postcondition: ans*ans <= n < (ans + 1)*(ans + 1)\n    assert ans * ans <= n < (ans + 1) * (ans + 1), \"Postcondition violated!\"\n    return ans\n\n# Verify oracle on representative range\nfor val in [0, 1, 2, 3, 4, 15, 16, 25, 100, 999, 10000]:\n    r = isqrt_hoare(val)\nprint(\"Integer square root invariant oracle verified successfully!\")\n", "mutants": ["def isqrt_hoare(n: int) -> int:\n    assert n >= 0\n    # Mutant violates postcondition by always returning n\n    return n\n\nassert isqrt_hoare(16) == 4, \"Mutant failed to compute square root!\"\n"]}, "exp-binary-search-contracts": {"code": "def verified_binary_search(arr: list[int], target: int) -> int:\n    # Precondition: array is sorted\n    for i in range(len(arr) - 1):\n        assert arr[i] <= arr[i+1], \"Array must be sorted\"\n\n    low = 0\n    high = len(arr) - 1\n    steps = 0\n    max_steps = len(arr).bit_length() + 2\n\n    while low <= high:\n        steps += 1\n        assert steps <= max_steps, \"Variant bound exceeded: infinite loop detected\"\n        \n        # Invariant: if target is in arr, target must be in arr[low..high]\n        mid = low + (high - low) // 2\n        val = arr[mid]\n\n        if val == target:\n            # Postcondition: returned index matches target\n            assert arr[mid] == target\n            return mid\n        elif val < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n\n    # Postcondition: target not found, assert target not in arr\n    assert target not in arr, \"Failed to find existing target!\"\n    return -1\n\n# Run verification suite\ndata = [10, 20, 30, 40, 50, 60, 70]\nassert verified_binary_search(data, 40) == 3\nassert verified_binary_search(data, 10) == 0\nassert verified_binary_search(data, 70) == 6\nassert verified_binary_search(data, 99) == -1\nprint(\"Verified binary search passed all contract assertions!\")\n", "mutants": ["# Broken mutant: claims unsorted array passes precondition\ndata = [30, 10, 20]\nfor i in range(len(data) - 1):\n    assert data[i] <= data[i+1], \"Array must be sorted\"\n"]}}, "cards": [{"q": "What is a Hoare triple?", "a": "A formal specification $\\{P\\}\\; C \\;\\{Q\\}$ asserting that if precondition $P$ holds, executing $C$ leads to postcondition $Q$."}, {"q": "What is the difference between partial and total correctness?", "a": "Partial correctness proves correctness if execution terminates; total correctness additionally proves that execution terminates."}, {"q": "What is a loop invariant?", "a": "A logical assertion that holds before loop entry and is preserved after every iteration of the loop body."}, {"q": "What is a loop variant?", "a": "An integer expression that strictly decreases with every loop iteration and is bounded below, proving termination."}, {"q": "What is the assignment axiom in Hoare logic?", "a": "$\\{Q[e/x]\\}\\; x := e \\;\\{Q\\}$: the precondition is formed by substituting $e$ for $x$ in postcondition $Q$."}, {"q": "What is Weakest Precondition (wp)?", "a": "The most general predicate $P$ such that executing command $C$ is guaranteed to terminate in a state satisfying postcondition $Q$."}], "title": "Program correctness: invariants and Hoare logic"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

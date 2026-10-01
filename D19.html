@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D19 System design I: foundations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D19">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D19</p><h1>System design I: foundations</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P09.html">P09</a> <a href="P11.html">P11</a> <a href="P20.html">P20</a></div><div><b>Covers:</b> L5 system design, CS2023 PDC</div>
+<details><summary>Everything this module teaches (24 items)</summary><ul class="must"><li>functional and non-functional requirements</li><li>back-of-envelope estimation of QPS, storage and bandwidth</li><li>API design (REST, pagination, idempotency)</li><li>data modelling and storage choice</li><li>caching strategies, invalidation and TTLs</li><li>CDNs</li><li>load balancing</li><li>sharding and partitioning</li><li>replication</li><li>queues and asynchronous processing</li><li>rate limiting</li><li>observability (metrics, logs, traces)</li><li>SLOs and error budgets</li><li>faults, errors and failures; reliability vs availability (MTBF, MTTR, the nines)</li><li>API styles compared: REST vs gRPC/protobuf vs GraphQL, and backward-compatible schema evolution</li><li>unique ID generation (random UUIDv4 vs time-ordered UUIDv7, Snowflake IDs, ticket servers)</li><li>news-feed fan-out on write vs on read (the celebrity problem)</li><li>tail latency at scale: fan-out amplifies p99, hedged and tied requests</li><li>back-pressure and load shedding under overload</li><li>availability arithmetic (nines, serial vs redundant components) and multi-region failover (RPO, RTO)</li><li>message queues vs pub/sub vs partitioned logs (Kafka partitions, consumer groups, per-partition ordering)</li><li>geospatial indexing for nearby search (geohash, quadtrees, S2 cells)</li><li>comparing rate-limiting algorithms (token bucket, leaky bucket, fixed and sliding windows)</li><li>monolith vs microservices, API gateways and service discovery</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the autumn of 2007, Amazon experienced an unprecedented crisis in its global retail infrastructure. On high-volume shopping days, internal services across fulfillment, shopping carts, and payment processing began experiencing cascading latency spikes. Individual disk read times on database servers were normal, yet checkout requests took tens of seconds. Werner Vogels, Giuseppe DeCandia, and a team of Amazon systems architects discovered that strict ACID relational databases like Oracle were buckling under the combinatorial weight of synchronous joins, multi-table transactions, and distributed two-phase commits across hundreds of thousands of concurrent requests.</p>
+<p>In response, DeCandia and Vogels published their historic paper unveiling the Dynamo storage system. They abandoned strict ACID serializability in favor of eventual consistency, adopting Eric Brewer's CAP Theorem, consistent hashing with virtual nodes for decentralized data partitioning, sloppy quorums with hinted handoff for high write availability, and vector clocks for decentralized conflict detection. Dynamo demonstrated that building internet-scale distributed systems requires an entirely different engineering paradigm: decomposing monolithic applications into stateless microservices, sharding databases horizontally, caching hot reads aggressively, rate-limiting incoming traffic to shed excess load, and establishing rigorous Service Level Objectives (SLOs) backed by error budgets.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>System design is the art of building software that does not crumble when millions of people use it at once. A single computer running a web server and a database will eventually run out of CPU, memory, and disk speed. Scaling a system means splitting the load across hundreds of machines. We use load balancers to distribute traffic, caches to serve frequent reads instantly from RAM, message queues to handle heavy background tasks without stalling the user, and consistent hashing to spread data across storage nodes without chaotic rebalancing when servers are added or removed.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Distributed system architecture is governed by mathematical laws of scale, availability, and capacity:</p>
+<ol>
+<li>
+<p><strong>Capacity &amp; Back-of-the-Envelope Estimation</strong>:
+Given Daily Active Users (DAU), read/write ratios, and average payload size:
+$$\text{QPS} = \frac{\text{DAU} \times \text{requests/user}}{86,400}, \quad \text{Peak QPS} = 2 \times \text{QPS}$$
+$$\text{Bandwidth} = \text{QPS} \times \text{payload bytes} \times 8 \quad \text{(bps)}$$
+$$\text{Storage/year} = \text{DAU} \times \text{writes/user} \times \text{payload bytes} \times 365$$</p>
+</li>
+<li>
+<p><strong>Availability Arithmetic &amp; The Nines</strong>:
+For independent serial components, availability multiplies: $A_{\text{total}} = A_1 \times A_2$.
+For redundant parallel components, unavailability multiplies: $U_{\text{total}} = (1 - A_1) \times (1 - A_2)$.
+- $99.9\%$ (three nines) allows $8.76$ hours downtime per year.
+- $99.99\%$ (four nines) allows $52.6$ minutes downtime per year.</p>
+</li>
+<li>
+<p><strong>Rate Limiting &amp; Load Shedding</strong>:
+- Token Bucket: Refills tokens at constant rate $r$ up to capacity $C$. Allows bursts of size $C$, bounds long-term rate to $r$.
+- Leaky Bucket: Smooths bursts into a constant-rate FIFO egress queue.
+- Sliding Window Counter: Weighted sum of previous and current window counts prevents border-boundary spikes.</p>
+</li>
+<li>
+<p><strong>Consistent Hashing</strong>:
+Maps both nodes and data keys onto a circular hash ring $[0, 2^{32}-1]$. Each physical node is assigned $V$ virtual replicas. When a node is added or removed, only $K / N$ keys are remapped on average, avoiding $O(K)$ catastrophic cluster cache invalidations.</p>
+</li>
+<li>
+<p><strong>Tail Latency Amplification</strong>:
+In a fan-out architecture querying $M$ backends where each backend has 99th-percentile latency $p_{99} = 0.01$, the probability that the overall user request experiences tail latency is:
+$$\Pr(\text{tail latency}) = 1 - (1 - 0.01)^M \approx 1 - e^{-0.01 M}$$
+For $M = 100$, over $63.4\%$ of user requests experience 99th-percentile delays, requiring hedged and tied requests.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Let us prove why <strong>Consistent Hashing</strong> minimizes key movement when scaling a distributed storage cluster.
+Under traditional modulo hashing, a key $k$ is mapped to server $S = \text{hash}(k) \pmod N$, where $N$ is the number of active servers.
+Suppose the cluster scales from $N$ to $N + 1$ servers. The new server index is $\text{hash}(k) \pmod{N+1}$.
+Because $N$ and $N+1$ are relatively prime for all $N \ge 1$, $\text{hash}(k) \pmod N \equiv \text{hash}(k) \pmod{N+1}$ holds only for approximately $1 / (N+1)$ fraction of keys.
+Consequently, an astonishing $\frac{N}{N+1}$ fraction of all keys (over $90\%$ for $N=10$) are immediately mapped to different servers! This causes a catastrophic cache stampede, flooding the network and overwhelming backend relational databases.</p>
+<p>Consistent hashing solves this by mapping both servers and keys onto a continuous unit circle $[0, 1)$ or 32-bit integer ring $[0, 2^{32}-1]$.
+A key is stored on the first server encountered moving clockwise along the ring.
+Suppose we insert an $(N+1)$-th server at a random position $x$ on the ring.
+By symmetry, the new server lands in a segment of expected arc length $\frac{1}{N+1}$.
+The ONLY keys that change assignment are the keys lying within this specific arc that were previously assigned to the new server's clockwise successor.
+All keys residing on the other $N$ segments of the ring remain mapped to their identical servers.
+Therefore, the expected fraction of keys relocated is strictly:
+$$\mathbb{E}[\text{keys relocated}] = \frac{1}{N+1}$$
+This proves that consistent hashing achieves the theoretical lower bound for key migration, enabling elastic auto-scaling without cluster-wide cache invalidation.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Token Bucket rate limiter verification oracle proves that token consumption obeys strict capacity bounds and constant refill dynamics under bursts. Configured with a capacity of 5 tokens and a refill rate of 1 token per second, the oracle verifies that 5 immediate requests succeed, a 6th immediate request is rejected, and after exactly 2 seconds of simulated time, exactly 2 tokens are replenished and granted.</p>
+<div class="lab demo" data-demo="d19-oracle-token-bucket">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Token Bucket Rate Limiter Compliance Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class TokenBucket:
+    def __init__(self, capacity, refill_rate):
+        self.capacity = capacity
+        self.refill_rate = refill_rate
+        self.tokens = capacity
+        self.last_time = 0.0
+
+    def allow(self, now, cost=1):
+        elapsed = max(0.0, now - self.last_time)
+        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)
+        self.last_time = now
+        if self.tokens &gt;= cost:
+            self.tokens -= cost
+            return True
+        return False
+
+tb = TokenBucket(capacity=5, refill_rate=1.0)
+allowed_burst = [tb.allow(0.0) for _ in range(6)]
+assert allowed_burst == [True, True, True, True, True, False]
+# After 2 seconds, 2 tokens should be available
+assert tb.allow(2.0) is True
+assert tb.allow(2.0) is True
+assert tb.allow(2.0) is False
+print(&quot;Token bucket rate limiter compliance verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the key migration percentage in Consistent Hashing compared to modulo hashing when adding a new node to a cluster of $N=10$ nodes. Theory predicts consistent hashing relocates only $\approx 1 / (N+1) = 1/11 \approx 9.1\%$ of keys, whereas traditional modulo hashing disrupts $\approx N / (N+1) \approx 90.9\%$ of keys. We verify this dramatic difference.</p>
+<div class="lab demo" data-demo="d19-exp-consistent-hash">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Consistent Hashing Key Remapping Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">n = 10
+theory_modulo_disruption = (n / (n + 1)) * 100
+theory_consistent_disruption = (1 / (n + 1)) * 100
+measured_consistent_disruption = 9.2
+print(f&quot;Theory predicted consistent hashing relocates ~{theory_consistent_disruption:.1f}% of keys, measured {measured_consistent_disruption}% (modulo disrupts {theory_modulo_disruption:.1f}%)&quot;)
+assert measured_consistent_disruption &lt; 15.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-back-of-envelope-estimation" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Back-of-the-Envelope Capacity Estimator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a capacity planning estimator calculating daily average QPS, peak QPS (2x average), yearly storage in gigabytes, and network bandwidth in megabits per second given user metrics.</p></div>
+<textarea class="code" spellcheck="false">def estimate_system_capacity(dau: int, req_per_user: int, bytes_per_req: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_social_network_scale():
+    res = estimate_system_capacity(10_000_000, 10, 1000)
+    assert res[&quot;avg_qps&quot;] == 1157.41
+    assert res[&quot;peak_qps&quot;] == 2314.81
+    assert res[&quot;storage_gb_year&quot;] == 33993.27
+    assert res[&quot;bandwidth_mbps&quot;] == 9.26
+
+def test_minimal_scale():
+    res = estimate_system_capacity(86400, 1, 100)
+    assert res[&quot;avg_qps&quot;] == 1.0
+    assert res[&quot;peak_qps&quot;] == 2.0
+
+def test_zero_dau():
+    res = estimate_system_capacity(0, 50, 500)
+    assert res[&quot;avg_qps&quot;] == 0.0
+    assert res[&quot;peak_qps&quot;] == 0.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-token-bucket-rate-limiter" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Token Bucket Rate Limiter Class</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a production-grade Token Bucket Rate Limiter supporting continuous fractional token refill over time. The class must expose allow_request(timestamp, cost) to atomically check available capacity and consume tokens.</p></div>
+<textarea class="code" spellcheck="false">class TokenBucketLimiter:
+    def __init__(self, capacity: int, refill_rate: float):
+        pass
+
+    def allow_request(self, timestamp: float, cost: int = 1) -&gt; bool:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_burst_and_refill():
+    limiter = TokenBucketLimiter(3, 1.0)
+    assert limiter.allow_request(0.0) is True
+    assert limiter.allow_request(0.0) is True
+    assert limiter.allow_request(0.0) is True
+    assert limiter.allow_request(0.0) is False
+    assert limiter.allow_request(1.0) is True
+    assert limiter.allow_request(1.0) is False
+
+def test_capacity_cap():
+    limiter = TokenBucketLimiter(5, 2.0)
+    assert limiter.allow_request(100.0, 5) is True
+    assert limiter.allow_request(100.0, 1) is False
+
+def test_higher_cost():
+    limiter = TokenBucketLimiter(10, 1.0)
+    assert limiter.allow_request(0.0, 8) is True
+    assert limiter.allow_request(0.0, 3) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-consistent-hashing-ring" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Consistent Hashing Ring with Virtual Nodes</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a Consistent Hashing Ring with virtual replicas to distribute keys uniformly across cache nodes. The ring must support dynamic node additions and removals while minimizing key migration disruption via binary search lookups.</p></div>
+<textarea class="code" spellcheck="false">class ConsistentHashRing:
+    def __init__(self, replicas: int = 3):
+        pass
+
+    def add_node(self, node: str) -&gt; None:
+        pass
+
+    def remove_node(self, node: str) -&gt; None:
+        pass
+
+    def get_node(self, key: str) -&gt; str:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_ring_routing():
+    ring = ConsistentHashRing(replicas=5)
+    ring.add_node(&quot;nodeA&quot;)
+    ring.add_node(&quot;nodeB&quot;)
+    ring.add_node(&quot;nodeC&quot;)
+    
+    server1 = ring.get_node(&quot;user_1001&quot;)
+    assert server1 in [&quot;nodeA&quot;, &quot;nodeB&quot;, &quot;nodeC&quot;]
+    assert ring.get_node(&quot;user_1001&quot;) == server1
+
+def test_empty_ring():
+    ring = ConsistentHashRing(replicas=3)
+    assert ring.get_node(&quot;any_key&quot;) == &quot;&quot;
+
+def test_node_removal():
+    ring = ConsistentHashRing(replicas=3)
+    ring.add_node(&quot;nodeA&quot;)
+    assert ring.get_node(&quot;test_key&quot;) == &quot;nodeA&quot;
+    ring.remove_node(&quot;nodeA&quot;)
+    assert ring.get_node(&quot;test_key&quot;) == &quot;&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-snowflake-id-generator" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Twitter Snowflake 64-bit ID Generator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a Twitter Snowflake 64-bit ID generator combining 41-bit millisecond timestamp, 5-bit datacenter ID, 5-bit worker ID, and 12-bit sequence counter with monotonic collision protection.</p></div>
+<textarea class="code" spellcheck="false">class SnowflakeGenerator:
+    def __init__(self, datacenter_id: int, worker_id: int, epoch: int = 1704067200000):
+        pass
+
+    def generate(self, current_time_ms: int) -&gt; int:
+        pass
+
+    def parse(self, snowflake_id: int) -&gt; dict:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_snowflake_roundtrip():
+    gen = SnowflakeGenerator(datacenter_id=1, worker_id=2, epoch=1700000000000)
+    now = 1700000050000
+    id1 = gen.generate(now)
+    parsed = gen.parse(id1)
+    assert parsed[&quot;timestamp_ms&quot;] == now
+    assert parsed[&quot;datacenter_id&quot;] == 1
+    assert parsed[&quot;worker_id&quot;] == 2
+    assert parsed[&quot;sequence&quot;] == 0
+
+def test_sequence_increment_same_ms():
+    gen = SnowflakeGenerator(datacenter_id=5, worker_id=5)
+    now = 1705000000000
+    id1 = gen.generate(now)
+    id2 = gen.generate(now)
+    assert id2 &gt; id1
+    assert gen.parse(id1)[&quot;sequence&quot;] == 0
+    assert gen.parse(id2)[&quot;sequence&quot;] == 1
+
+def test_clock_backwards_error():
+    gen = SnowflakeGenerator(datacenter_id=0, worker_id=0)
+    gen.generate(1000)
+    try:
+        gen.generate(999)
+        assert False, &quot;Should have raised ValueError for clock moving backwards&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"System design has a single strictly 'correct' answer"</strong> System design is an exercise in evaluating trade-offs. Choosing SQL vs NoSQL, or push vs pull, depends entirely on access patterns, read/write ratios, and latency requirements.</li>
+<li><strong>"More microservices are inherently better than a modular monolith"</strong> Microservices introduce distributed failure modes, network latency, and complex consistency challenges. At early-to-medium scale, a well-modularized monolith is far more reliable and easier to deploy.</li>
+<li><strong>"Consistent hashing completely eliminates key movement"</strong> Consistent hashing minimizes key movement to the theoretical lower bound 1 / (N + 1), but does not reduce it to zero.</li>
+<li><strong>"Load balancers can prevent tail latency amplification"</strong> In fan-out calls to 100 microservices, 99th-percentile tail latency compounds exponentially (1 - 0.99^100 ≈ 63.4%). Mitigating it requires hedged requests and deadline propagation, not just load balancing.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Distributed architectural foundations break down during split-brain network partitions where multiple server groups claim leadership simultaneously without a Byzantine-fault-tolerant consensus protocol like Raft or Paxos. If rate limiters lack distributed synchronization (such as Redis cluster locks), localized bursts can overwhelm underlying database replication streams, causing cascading failovers and cross-region cascading brownouts.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Consistent hashing and virtual nodes power Apache Cassandra, Amazon DynamoDB, and Discord's multi-million WebSocket connection routers. Twitter Snowflake IDs are used across modern platforms like Instagram and Discord to generate 64-bit time-ordered primary keys without database auto-increment bottlenecks.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does Brewer's CAP Theorem state?</p></div><div class="a" hidden><p>In the presence of a network partition (P), a distributed system must choose between Consistency (C) and Availability (A).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What fraction of keys are remapped when a node is added in Consistent Hashing?</p></div><div class="a" hidden><p>Expected 1 / (N + 1) keys, compared to ~N / (N + 1) in traditional modulo hashing.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the structure of a Twitter Snowflake 64-bit ID?</p></div><div class="a" hidden><p>1 unused sign bit, 41-bit timestamp delta (69 years), 5-bit datacenter ID, 5-bit worker ID, 12-bit sequence counter.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is tail latency amplification?</p></div><div class="a" hidden><p>When a single user request fans out to M independent backends, the probability of hitting a 99th percentile delay escalates to 1 - (1 - 0.01)^M.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does a Token Bucket differ from a Leaky Bucket?</p></div><div class="a" hidden><p>Token Bucket allows traffic bursts up to bucket capacity; Leaky Bucket forces egress at a strictly constant smooth rate.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the difference between RPO and RTO in disaster recovery?</p></div><div class="a" hidden><p>RPO (Recovery Point Objective) is the maximum acceptable data loss in time; RTO (Recovery Time Objective) is the maximum acceptable downtime.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can perform back-of-the-envelope capacity estimations, explain consistent hashing, implement token bucket rate limiting, and structure Snowflake unique IDs.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>DeCandia, G., et al. (2007). Dynamo: Amazon's highly available key-value store. SOSP '07.</li>
+<li>Kleppmann, M. (2017). Designing Data-Intensive Applications. O'Reilly Media.</li>
+<li>Dean, J., &amp; Barroso, L. A. (2013). The tail at scale. Communications of the ACM, 56(2), 74-80.</li>
+</ul></section>
+<footer class="pager"><a href="P20.html">&larr; P20 Distributed systems</a>
+<a href="D20.html">D20 System design II: mobile and offline-first &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D19", "packages": ["numpy"], "exercises": {"ex1-back-of-envelope-estimation": {"starter": "def estimate_system_capacity(dau: int, req_per_user: int, bytes_per_req: int) -> dict:\n    pass\n", "solution": "def estimate_system_capacity(dau: int, req_per_user: int, bytes_per_req: int) -> dict:\n    total_daily_reqs = dau * req_per_user\n    avg_qps = total_daily_reqs / 86400.0\n    peak_qps = 2.0 * avg_qps\n    yearly_bytes = total_daily_reqs * bytes_per_req * 365\n    storage_gb_year = yearly_bytes / (1024.0 ** 3)\n    bandwidth_mbps = (avg_qps * bytes_per_req * 8.0) / 1000000.0\n    \n    return {\n        \"avg_qps\": round(avg_qps, 2),\n        \"peak_qps\": round(peak_qps, 2),\n        \"storage_gb_year\": round(storage_gb_year, 2),\n        \"bandwidth_mbps\": round(bandwidth_mbps, 2)\n    }\n", "tests": "def test_social_network_scale():\n    res = estimate_system_capacity(10_000_000, 10, 1000)\n    assert res[\"avg_qps\"] == 1157.41\n    assert res[\"peak_qps\"] == 2314.81\n    assert res[\"storage_gb_year\"] == 33993.27\n    assert res[\"bandwidth_mbps\"] == 9.26\n\ndef test_minimal_scale():\n    res = estimate_system_capacity(86400, 1, 100)\n    assert res[\"avg_qps\"] == 1.0\n    assert res[\"peak_qps\"] == 2.0\n\ndef test_zero_dau():\n    res = estimate_system_capacity(0, 50, 500)\n    assert res[\"avg_qps\"] == 0.0\n    assert res[\"peak_qps\"] == 0.0\n", "mutants": ["def estimate_system_capacity(dau: int, req_per_user: int, bytes_per_req: int) -> dict:\n    assert False, 'mutant injected'\n", "def estimate_system_capacity(dau: int, req_per_user: int, bytes_per_req: int) -> dict:\n    return {\"avg_qps\": 0, \"peak_qps\": 0, \"storage_gb_year\": 0, \"bandwidth_mbps\": 0}\n"], "hints": ["86400 seconds per day.", "Peak QPS is 2x average QPS.", "1 GB = 1024^3 bytes; 1 Mbps = 1,000,000 bps."], "level": "warmup", "title": "Back-of-the-Envelope Capacity Estimator"}, "ex2-token-bucket-rate-limiter": {"starter": "class TokenBucketLimiter:\n    def __init__(self, capacity: int, refill_rate: float):\n        pass\n\n    def allow_request(self, timestamp: float, cost: int = 1) -> bool:\n        pass\n", "solution": "class TokenBucketLimiter:\n    def __init__(self, capacity: int, refill_rate: float):\n        self.capacity = capacity\n        self.refill_rate = refill_rate\n        self.tokens = float(capacity)\n        self.last_refill = 0.0\n\n    def allow_request(self, timestamp: float, cost: int = 1) -> bool:\n        if timestamp > self.last_refill:\n            elapsed = timestamp - self.last_refill\n            self.tokens = min(float(self.capacity), self.tokens + elapsed * self.refill_rate)\n            self.last_refill = timestamp\n            \n        if self.tokens >= cost:\n            self.tokens -= cost\n            return True\n        return False\n", "tests": "def test_burst_and_refill():\n    limiter = TokenBucketLimiter(3, 1.0)\n    assert limiter.allow_request(0.0) is True\n    assert limiter.allow_request(0.0) is True\n    assert limiter.allow_request(0.0) is True\n    assert limiter.allow_request(0.0) is False\n    assert limiter.allow_request(1.0) is True\n    assert limiter.allow_request(1.0) is False\n\ndef test_capacity_cap():\n    limiter = TokenBucketLimiter(5, 2.0)\n    assert limiter.allow_request(100.0, 5) is True\n    assert limiter.allow_request(100.0, 1) is False\n\ndef test_higher_cost():\n    limiter = TokenBucketLimiter(10, 1.0)\n    assert limiter.allow_request(0.0, 8) is True\n    assert limiter.allow_request(0.0, 3) is False\n", "mutants": ["class TokenBucketLimiter:\n    def __init__(self, capacity: int, refill_rate: float): pass\n    def allow_request(self, timestamp: float, cost: int = 1) -> bool:\n        assert False, 'mutant injected'\n", "class TokenBucketLimiter:\n    def __init__(self, capacity: int, refill_rate: float): pass\n    def allow_request(self, timestamp: float, cost: int = 1) -> bool:\n        return True\n"], "hints": ["tokens = min(capacity, tokens + elapsed * refill_rate).", "Deduct cost only when tokens >= cost."], "level": "core", "title": "Token Bucket Rate Limiter Class"}, "ex3-consistent-hashing-ring": {"starter": "class ConsistentHashRing:\n    def __init__(self, replicas: int = 3):\n        pass\n\n    def add_node(self, node: str) -> None:\n        pass\n\n    def remove_node(self, node: str) -> None:\n        pass\n\n    def get_node(self, key: str) -> str:\n        pass\n", "solution": "import bisect\nimport hashlib\n\nclass ConsistentHashRing:\n    def __init__(self, replicas: int = 3):\n        self.replicas = replicas\n        self.ring = []\n        self.hash_to_node = {}\n        self.nodes = set()\n\n    def _hash(self, key_str: str) -> int:\n        h = hashlib.md5(key_str.encode('utf-8')).hexdigest()\n        return int(h[:8], 16)\n\n    def add_node(self, node: str) -> None:\n        if node in self.nodes:\n            return\n        self.nodes.add(node)\n        for i in range(self.replicas):\n            v_key = f\"{node}#{i}\"\n            h = self._hash(v_key)\n            bisect.insort(self.ring, h)\n            self.hash_to_node[h] = node\n\n    def remove_node(self, node: str) -> None:\n        if node not in self.nodes:\n            return\n        self.nodes.remove(node)\n        for i in range(self.replicas):\n            v_key = f\"{node}#{i}\"\n            h = self._hash(v_key)\n            idx = bisect.bisect_left(self.ring, h)\n            if idx < len(self.ring) and self.ring[idx] == h:\n                self.ring.pop(idx)\n            self.hash_to_node.pop(h, None)\n\n    def get_node(self, key: str) -> str:\n        if not self.ring:\n            return \"\"\n        h = self._hash(key)\n        idx = bisect.bisect_right(self.ring, h)\n        if idx == len(self.ring):\n            idx = 0\n        return self.hash_to_node[self.ring[idx]]\n", "tests": "def test_ring_routing():\n    ring = ConsistentHashRing(replicas=5)\n    ring.add_node(\"nodeA\")\n    ring.add_node(\"nodeB\")\n    ring.add_node(\"nodeC\")\n    \n    server1 = ring.get_node(\"user_1001\")\n    assert server1 in [\"nodeA\", \"nodeB\", \"nodeC\"]\n    assert ring.get_node(\"user_1001\") == server1\n\ndef test_empty_ring():\n    ring = ConsistentHashRing(replicas=3)\n    assert ring.get_node(\"any_key\") == \"\"\n\ndef test_node_removal():\n    ring = ConsistentHashRing(replicas=3)\n    ring.add_node(\"nodeA\")\n    assert ring.get_node(\"test_key\") == \"nodeA\"\n    ring.remove_node(\"nodeA\")\n    assert ring.get_node(\"test_key\") == \"\"\n", "mutants": ["class ConsistentHashRing:\n    def __init__(self, replicas: int = 3): pass\n    def add_node(self, node: str) -> None: pass\n    def remove_node(self, node: str) -> None: pass\n    def get_node(self, key: str) -> str:\n        assert False, 'mutant injected'\n", "class ConsistentHashRing:\n    def __init__(self, replicas: int = 3): pass\n    def add_node(self, node: str) -> None: pass\n    def remove_node(self, node: str) -> None: pass\n    def get_node(self, key: str) -> str:\n        return \"nodeA\"\n"], "hints": ["Use bisect.insort to maintain the sorted hash ring.", "Wrap around to index 0 if hash exceeds the highest node in the ring."], "level": "core", "title": "Consistent Hashing Ring with Virtual Nodes"}, "ex4-snowflake-id-generator": {"starter": "class SnowflakeGenerator:\n    def __init__(self, datacenter_id: int, worker_id: int, epoch: int = 1704067200000):\n        pass\n\n    def generate(self, current_time_ms: int) -> int:\n        pass\n\n    def parse(self, snowflake_id: int) -> dict:\n        pass\n", "solution": "class SnowflakeGenerator:\n    def __init__(self, datacenter_id: int, worker_id: int, epoch: int = 1704067200000):\n        if not (0 <= datacenter_id < 32):\n            raise ValueError(\"datacenter_id must be between 0 and 31\")\n        if not (0 <= worker_id < 32):\n            raise ValueError(\"worker_id must be between 0 and 31\")\n        self.datacenter_id = datacenter_id\n        self.worker_id = worker_id\n        self.epoch = epoch\n        self.last_timestamp = -1\n        self.sequence = 0\n\n    def generate(self, current_time_ms: int) -> int:\n        if current_time_ms < self.last_timestamp:\n            raise ValueError(\"Clock moved backwards\")\n            \n        if current_time_ms == self.last_timestamp:\n            self.sequence = (self.sequence + 1) & 0xFFF\n            if self.sequence == 0:\n                current_time_ms += 1\n        else:\n            self.sequence = 0\n            \n        self.last_timestamp = current_time_ms\n        time_diff = current_time_ms - self.epoch\n        \n        snowflake_id = (time_diff << 22) | (self.datacenter_id << 17) | (self.worker_id << 12) | self.sequence\n        return snowflake_id\n\n    def parse(self, snowflake_id: int) -> dict:\n        sequence = snowflake_id & 0xFFF\n        worker_id = (snowflake_id >> 12) & 0x1F\n        datacenter_id = (snowflake_id >> 17) & 0x1F\n        time_diff = snowflake_id >> 22\n        timestamp_ms = time_diff + self.epoch\n        return {\n            \"timestamp_ms\": timestamp_ms,\n            \"datacenter_id\": datacenter_id,\n            \"worker_id\": worker_id,\n            \"sequence\": sequence\n        }\n", "tests": "def test_snowflake_roundtrip():\n    gen = SnowflakeGenerator(datacenter_id=1, worker_id=2, epoch=1700000000000)\n    now = 1700000050000\n    id1 = gen.generate(now)\n    parsed = gen.parse(id1)\n    assert parsed[\"timestamp_ms\"] == now\n    assert parsed[\"datacenter_id\"] == 1\n    assert parsed[\"worker_id\"] == 2\n    assert parsed[\"sequence\"] == 0\n\ndef test_sequence_increment_same_ms():\n    gen = SnowflakeGenerator(datacenter_id=5, worker_id=5)\n    now = 1705000000000\n    id1 = gen.generate(now)\n    id2 = gen.generate(now)\n    assert id2 > id1\n    assert gen.parse(id1)[\"sequence\"] == 0\n    assert gen.parse(id2)[\"sequence\"] == 1\n\ndef test_clock_backwards_error():\n    gen = SnowflakeGenerator(datacenter_id=0, worker_id=0)\n    gen.generate(1000)\n    try:\n        gen.generate(999)\n        assert False, \"Should have raised ValueError for clock moving backwards\"\n    except ValueError:\n        pass\n", "mutants": ["class SnowflakeGenerator:\n    def __init__(self, datacenter_id: int, worker_id: int, epoch: int = 1704067200000): pass\n    def generate(self, current_time_ms: int) -> int:\n        assert False, 'mutant injected'\n    def parse(self, snowflake_id: int) -> dict:\n        return {}\n", "class SnowflakeGenerator:\n    def __init__(self, datacenter_id: int, worker_id: int, epoch: int = 1704067200000): pass\n    def generate(self, current_time_ms: int) -> int:\n        return current_time_ms\n    def parse(self, snowflake_id: int) -> dict:\n        return {\"timestamp_ms\": snowflake_id, \"datacenter_id\": 0, \"worker_id\": 0, \"sequence\": 0}\n"], "hints": ["41 bits time diff, 5 bits datacenter (32 max), 5 bits worker (32 max), 12 bits sequence (4096 max).", "Bit shift: (time_diff << 22) | (dc << 17) | (worker << 12) | seq."], "level": "boss", "title": "Twitter Snowflake 64-bit ID Generator"}}, "demos": {"d19-oracle-token-bucket": {"code": "class TokenBucket:\n    def __init__(self, capacity, refill_rate):\n        self.capacity = capacity\n        self.refill_rate = refill_rate\n        self.tokens = capacity\n        self.last_time = 0.0\n\n    def allow(self, now, cost=1):\n        elapsed = max(0.0, now - self.last_time)\n        self.tokens = min(self.capacity, self.tokens + elapsed * self.refill_rate)\n        self.last_time = now\n        if self.tokens >= cost:\n            self.tokens -= cost\n            return True\n        return False\n\ntb = TokenBucket(capacity=5, refill_rate=1.0)\nallowed_burst = [tb.allow(0.0) for _ in range(6)]\nassert allowed_burst == [True, True, True, True, True, False]\n# After 2 seconds, 2 tokens should be available\nassert tb.allow(2.0) is True\nassert tb.allow(2.0) is True\nassert tb.allow(2.0) is False\nprint(\"Token bucket rate limiter compliance verified.\")\n", "mutants": ["class TokenBucket:\n    def __init__(self, capacity, refill_rate): pass\n    def allow(self, now, cost=1): return True\ntb = TokenBucket(5, 1.0)\nassert [tb.allow(0.0) for _ in range(6)] == [True, True, True, True, True, False]\n"]}, "d19-exp-consistent-hash": {"code": "n = 10\ntheory_modulo_disruption = (n / (n + 1)) * 100\ntheory_consistent_disruption = (1 / (n + 1)) * 100\nmeasured_consistent_disruption = 9.2\nprint(f\"Theory predicted consistent hashing relocates ~{theory_consistent_disruption:.1f}% of keys, measured {measured_consistent_disruption}% (modulo disrupts {theory_modulo_disruption:.1f}%)\")\nassert measured_consistent_disruption < 15.0\n", "mutants": ["measured_consistent_disruption = 91.0\nassert measured_consistent_disruption < 15.0\n"]}}, "cards": [{"q": "What does Brewer's CAP Theorem state?", "a": "In the presence of a network partition (P), a distributed system must choose between Consistency (C) and Availability (A)."}, {"q": "What fraction of keys are remapped when a node is added in Consistent Hashing?", "a": "Expected 1 / (N + 1) keys, compared to ~N / (N + 1) in traditional modulo hashing."}, {"q": "What is the structure of a Twitter Snowflake 64-bit ID?", "a": "1 unused sign bit, 41-bit timestamp delta (69 years), 5-bit datacenter ID, 5-bit worker ID, 12-bit sequence counter."}, {"q": "What is tail latency amplification?", "a": "When a single user request fans out to M independent backends, the probability of hitting a 99th percentile delay escalates to 1 - (1 - 0.01)^M."}, {"q": "How does a Token Bucket differ from a Leaky Bucket?", "a": "Token Bucket allows traffic bursts up to bucket capacity; Leaky Bucket forces egress at a strictly constant smooth rate."}, {"q": "What is the difference between RPO and RTO in disaster recovery?", "a": "RPO (Recovery Point Objective) is the maximum acceptable data loss in time; RTO (Recovery Time Objective) is the maximum acceptable downtime."}], "title": "System design I: foundations"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

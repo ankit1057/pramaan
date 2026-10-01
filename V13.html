@@ -1,0 +1,329 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V13 Property-based testing and fuzzing</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V13">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V13</p><h1>Property-based testing and fuzzing</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V12.html">V12</a> <a href="P15.html">P15</a></div><div><b>Covers:</b> software testing theory, CS2023 SE</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>properties vs examples</li><li>generators for structured inputs</li><li>shrinking to a minimal counterexample</li><li>building a small property-testing engine by hand</li><li>algebraic properties (idempotence, commutativity, round-trip)</li><li>grammar-based fuzzing of parsers</li><li>coverage-guided fuzzing idea</li><li>differential fuzzing</li><li>seeds and reproducibility</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Imagine you build a clever wooden toy robot that sorts colored marbles into jars. To prove your invention works before showing it to the village, you test it with three specific marbles: a shiny red one, a smooth blue one, and a speckled green one. In all three tests, the robot gently nudges each marble into the correct jar. You wipe your hands proudly, convinced the machine is flawless!</p>
+<p>Then a mischievous six-year-old child runs into your workshop with a bulging burlap sack. She dumps out two hundred jagged, lopsided, dusty, giant, and microscopic glass pebbles onto your sorting table. Within four seconds, your robot jams, screeches, drops two marbles on the floor, and tips backward off the workbench.</p>
+<p>Testing three friendly examples only proved that your machine works on things you already imagined. Example-based tests confirm your existing thoughts, but bugs lurk in the dark corners you never dreamed of visiting. Property-based testing turns this upside down: instead of inventing ten friendly examples, you define the universal rules that must <em>always</em> hold true, and unleash a tireless mathematical engine to throw millions of bizarre, randomized inputs at your code until the brittle illusions shatter.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Example-based testing checks specific hand-picked inputs: <code>assert add(2, 2) == 4</code>. Property-based testing checks universal mathematical invariants across entire domains: $\forall a, b \in \mathbb{Z}, a + b = b + a$. When a randomized test fails on an enormous, complex input, shrinking automatically prunes unnecessary data using binary search until it finds the smallest minimal counterexample that still reproduces the failure.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $f: \mathcal{X} \to \mathcal{Y}$ be a program under test and $P: \mathcal{X} \times \mathcal{Y} \to \{\text{True}, \text{False}\}$ be a behavioral invariant predicate. Property-based testing samples random inputs $x_i \sim \mathcal{D}_{\mathcal{X}}$ under pseudo-random seed $s$. If $\exists x \in \mathcal{X}$ such that $P(x, f(x)) = \text{False}$, the system triggers shrinking. Shrinking constructs a sequence $x = x^{(0)} \succ x^{(1)} \succ \dots \succ x^*$ under a well-founded reduction order $\prec$ such that $\neg P(x^*)$ holds and no single-step reduction $x&#x27; \prec x^*$ reproduces the failure. Grammar-based fuzzing defines input structure through context-free productions $G = (V, \Sigma, R, S)$, while coverage-guided fuzzing instruments control-flow edges $e = (u, v)$ to maximize code exploration.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why does property-based testing find catastrophic bugs that unit tests miss for decades? Human developers suffer from confirmation bias: when writing an example test, the engineer selects an input that mirrors the mental model used to construct the implementation. Edge cases—such as integer overflows, empty collections, UTF-8 surrogate pairs, zero division, or deep recursion—reside in low-probability regions of input space that human intuition systematically ignores.</p>
+<p>Randomized generation paired with algebraic properties breaks this cognitive trap. Common algebraic invariants include:
+1. <strong>Round-trip (Invertibility):</strong> $g(f(x)) = x$ for parsers, serializers, compressors, and database transactions.
+2. <strong>Idempotence:</strong> $f(f(x)) = f(x)$ for formatting, sorting, normalization, and reconciliation routines.
+3. <strong>Commutativity and Associativity:</strong> $f(x, y) = f(y, x)$ and $f(f(x, y), z) = f(x, f(y, z))$ for aggregators, distributed merges, and vector operations.
+4. <strong>Metamorphic Invariants:</strong> $f(x \cup y) = f(x) \cup f(y)$ or $\text{len}(f(x)) = \text{len}(x)$.</p>
+<p>When an invariant fails on a test input containing ten thousand random operations, raw stack traces are incomprehensible. The shrinking theorem guarantees that if reduction steps preserve the failure predicate, delta debugging reduces an input of size $N$ to a 1-minimal counterexample in $O(N \log N)$ evaluations. This produces the exact atomic edge case (e.g. <code>[0, -1]</code>) required for immediate diagnosis.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The test oracle for property-based testing evaluates whether universal algebraic relationships hold across generated inputs without requiring manual expected outputs. In the demonstration below, we verify the fundamental round-trip encoding invariant $\text{decode}(\text{encode}(s)) = s$ for a run-length encoding algorithm. A broken mutant that fails on strings with identical adjacent symbols or repeated characters is caught instantly and flagged by the automated assertion verification engine.</p>
+<div class="lab demo" data-demo="oracle-rle-roundtrip">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Verify round-trip encoding invariant</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+def rle_encode(s: str) -&gt; list[tuple[str, int]]:
+    if not s:
+        return []
+    runs = []
+    curr = s[0]
+    count = 1
+    for ch in s[1:]:
+        if ch == curr:
+            count += 1
+        else:
+            runs.append((curr, count))
+            curr = ch
+            count = 1
+    runs.append((curr, count))
+    return runs
+
+def rle_decode(runs: list[tuple[str, int]]) -&gt; str:
+    return &quot;&quot;.join(ch * count for ch, count in runs)
+
+# Oracle: Verify round-trip property across 100 random strings
+rng = random.Random(42)
+chars = &quot;ABC&quot;
+for _ in range(100):
+    length = rng.randint(0, 30)
+    s = &quot;&quot;.join(rng.choice(chars) for _ in range(length))
+    assert rle_decode(rle_encode(s)) == s, f&quot;Round-trip failed on: {s}&quot;
+print(&quot;Round-trip oracle verified 100 random cases successfully!&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct a rigorous empirical experiment comparing brute-force randomized fuzzing with automated delta-debugging counterexample shrinking. When a randomized generator produces an enormous failing input of 64 integers, our shrinking engine systematically prunes non-essential elements to isolate the single pair that triggers the bug, recording the dramatic reduction ratio and total evaluation count required to find the minimal failure.</p>
+<div class="lab demo" data-demo="exp-delta-shrink">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Delta debugging counterexample shrinking</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+def buggy_sort_checker(lst: list[int]) -&gt; bool:
+    # Bug occurs only if a negative number is immediately followed by a zero
+    for i in range(len(lst) - 1):
+        if lst[i] &lt; 0 and lst[i+1] == 0:
+            return False
+    return True
+
+def shrink_list(lst: list[int], fail_predicate):
+    shrunk = list(lst)
+    improved = True
+    evals = 0
+    while improved:
+        improved = False
+        # Try removing single elements
+        for i in range(len(shrunk)):
+            evals += 1
+            candidate = shrunk[:i] + shrunk[i+1:]
+            if not fail_predicate(candidate):
+                shrunk = candidate
+                improved = True
+                break
+    return shrunk, evals
+
+rng = random.Random(1337)
+failing_sample = [rng.randint(-10, 10) for _ in range(64)]
+# Ensure failure condition is present
+failing_sample[20] = -5
+failing_sample[21] = 0
+
+assert not buggy_sort_checker(failing_sample)
+minimal, count = shrink_list(failing_sample, buggy_sort_checker)
+print(f&quot;Original size: {len(failing_sample)} -&gt; Minimal size: {len(minimal)} (Evaluations: {count})&quot;)
+print(f&quot;Minimal counterexample: {minimal}&quot;)
+assert minimal == [-5, 0], f&quot;Expected minimal [-5, 0], got {minimal}&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-algebraic-laws" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Verify algebraic properties of candidate operations</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>check_algebraic_laws(op, domain, identity=None)</code> that evaluates whether a binary operation <code>op(x, y)</code> satisfies mathematical laws over a provided list of domain values:
+1. <code>'commutative'</code>: $\forall x, y \in \text{domain}, op(x, y) == op(y, x)$
+2. <code>'associative'</code>: $\forall x, y, z \in \text{domain}, op(op(x, y), z) == op(x, op(y, z))$
+3. <code>'idempotent'</code>: $\forall x \in \text{domain}, op(x, x) == x$
+4. <code>'has_identity'</code>: If <code>identity</code> is provided (not None), $\forall x \in \text{domain}, op(x, \text{identity}) == x \text{ and } op(\text{identity}, x) == x$. If <code>identity is None</code>, return False for this key.</p>
+<p>Return a dictionary mapping these four string keys to boolean values (<code>True</code> or <code>False</code>).</p></div>
+<textarea class="code" spellcheck="false">def check_algebraic_laws(op, domain, identity=None):
+    # Evaluates algebraic properties of a binary operator over a discrete domain.
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_addition():
+    res = check_algebraic_laws(lambda x, y: x + y, [0, 1, 2, 3], identity=0)
+    assert res[&#x27;commutative&#x27;] is True
+    assert res[&#x27;associative&#x27;] is True
+    assert res[&#x27;idempotent&#x27;] is False
+    assert res[&#x27;has_identity&#x27;] is True
+
+def test_subtraction():
+    res = check_algebraic_laws(lambda x, y: x - y, [0, 1, 2, 3], identity=0)
+    assert res[&#x27;commutative&#x27;] is False
+    assert res[&#x27;associative&#x27;] is False
+    assert res[&#x27;idempotent&#x27;] is False
+    assert res[&#x27;has_identity&#x27;] is False
+
+def test_max_operator():
+    res = check_algebraic_laws(max, [1, 2, 3, 4], identity=None)
+    assert res[&#x27;commutative&#x27;] is True
+    assert res[&#x27;associative&#x27;] is True
+    assert res[&#x27;idempotent&#x27;] is True
+    assert res[&#x27;has_identity&#x27;] is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-delta-debugger" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Delta-debugging shrinker for sequence counterexamples</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>shrink_sequence(failing_seq, predicate)</code> which finds a 1-minimal sub-sequence that satisfies <code>predicate(candidate) == False</code>.
+<code>predicate(seq)</code> returns <code>True</code> if the sequence passes the test, and <code>False</code> if it fails (reproduces the bug).
+Your function must implement shrinking:
+1. Iteratively attempt to remove each element $i$ from the sequence. If <code>predicate(candidate) == False</code>, accept the shorter sequence and restart the search from the beginning of the new sequence.
+2. Terminate when no single element can be removed without making the sequence pass (<code>predicate == True</code>).
+3. Return the minimal failing list.
+Raise <code>ValueError</code> if the initial <code>failing_seq</code> does not trigger a failure (<code>predicate(failing_seq) == True</code>).</p></div>
+<textarea class="code" spellcheck="false">def shrink_sequence(failing_seq, predicate):
+    # Shrinks a failing sequence to a 1-minimal sub-sequence.
+    return list(failing_seq)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_shrink_basic():
+    # Fails if contains both 7 and 13
+    pred = lambda seq: not (7 in seq and 13 in seq)
+    initial = [1, 7, 2, 9, 13, 4, 5]
+    shrunk = shrink_sequence(initial, pred)
+    assert shrunk == [7, 13]
+
+def test_shrink_not_failing():
+    pred = lambda seq: True
+    try:
+        shrink_sequence([1, 2, 3], pred)
+        assert False, &quot;Should have raised ValueError&quot;
+    except ValueError:
+        pass
+
+def test_shrink_already_minimal():
+    pred = lambda seq: len(seq) &lt; 3
+    shrunk = shrink_sequence([10, 20, 30], pred)
+    assert shrunk == [10, 20, 30]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-grammar-fuzzing" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Context-free grammar string fuzzer</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>grammar_fuzz(grammar, start_symbol, rng, max_depth=5)</code> to generate pseudo-random strings from a context-free grammar.
+<code>grammar</code> is a dict mapping non-terminal string symbols to a list of production lists (e.g. <code>{'&lt;expr&gt;': [['&lt;term&gt;', '+', '&lt;term&gt;'], ['&lt;term&gt;']]}</code>).
+Rules:
+1. Maintain an expansion stack or recursive function. At each step, if depth exceeds <code>max_depth</code>, only select productions consisting entirely of terminal symbols (or non-terminals that can resolve in 0 steps, i.e. containing no non-terminals). If multiple terminal productions exist, choose uniformly using <code>rng.choice()</code>.
+2. For any symbol that is not a key in <code>grammar</code>, treat it as a terminal and append it directly to output.
+3. If depth $\le$ <code>max_depth</code>, choose uniformly among all productions for that symbol using <code>rng.choice()</code>.
+4. Return the joined string of terminal tokens separated by a single space (stripped of leading/trailing whitespace).
+Raise <code>ValueError</code> if <code>start_symbol</code> is not in <code>grammar</code>.</p></div>
+<textarea class="code" spellcheck="false">def grammar_fuzz(grammar, start_symbol, rng, max_depth=5):
+    # Generates structured string expressions from grammar.
+    return &quot;&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>import random
+
+def test_simple_grammar():
+    grammar = {
+        &#x27;&lt;start&gt;&#x27;: [[&#x27;&lt;noun&gt;&#x27;, &#x27;&lt;verb&gt;&#x27;]],
+        &#x27;&lt;noun&gt;&#x27;: [[&#x27;cat&#x27;], [&#x27;dog&#x27;]],
+        &#x27;&lt;verb&gt;&#x27;: [[&#x27;jumps&#x27;], [&#x27;runs&#x27;]]
+    }
+    rng = random.Random(42)
+    s = grammar_fuzz(grammar, &#x27;&lt;start&gt;&#x27;, rng, max_depth=2)
+    assert s in [&#x27;cat jumps&#x27;, &#x27;cat runs&#x27;, &#x27;dog jumps&#x27;, &#x27;dog runs&#x27;]
+
+def test_unknown_symbol():
+    grammar = {&#x27;&lt;start&gt;&#x27;: [[&#x27;x&#x27;]]}
+    rng = random.Random(42)
+    try:
+        grammar_fuzz(grammar, &#x27;&lt;missing&gt;&#x27;, rng)
+        assert False, &quot;Should raise ValueError&quot;
+    except ValueError:
+        pass
+
+def test_recursion_depth_cutoff():
+    grammar = {
+        &#x27;&lt;expr&gt;&#x27;: [[&#x27;&lt;expr&gt;&#x27;, &#x27;+&#x27;, &#x27;&lt;num&gt;&#x27;], [&#x27;&lt;num&gt;&#x27;]],
+        &#x27;&lt;num&gt;&#x27;: [[&#x27;1&#x27;], [&#x27;2&#x27;]]
+    }
+    rng = random.Random(10)
+    s = grammar_fuzz(grammar, &#x27;&lt;expr&gt;&#x27;, rng, max_depth=3)
+    assert isinstance(s, str)
+    assert len(s) &gt; 0
+    for tok in s.split():
+        assert tok in [&#x27;1&#x27;, &#x27;2&#x27;, &#x27;+&#x27;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-mini-quickcheck" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Mini-QuickCheck property-testing and shrinking engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Build <code>quickcheck(prop, generator, shrinker, max_trials=100, seed=42)</code>:
+1. Initialize <code>random.Random(seed)</code>.
+2. Run up to <code>max_trials</code> test iterations. In each iteration $t$:
+   - Generate sample $x = \text{generator}(rng)$.
+   - Evaluate $\text{prop}(x)$. If $\text{prop}(x) == \text{False}$, a bug is found!
+   - Invoke <code>shrinker(x, prop)</code> to find the minimal counterexample $x^*$.
+   - Immediately return a dictionary:
+     <code>{'status': 'FAIL', 'counterexample': x^*, 'failing_trial': t + 1, 'trials_run': t + 1}</code>.
+3. If all <code>max_trials</code> pass, return:
+   <code>{'status': 'PASS', 'counterexample': None, 'failing_trial': None, 'trials_run': max_trials}</code>.
+Raise <code>TypeError</code> if <code>prop</code> or <code>generator</code> or <code>shrinker</code> is not callable.</p></div>
+<textarea class="code" spellcheck="false">def quickcheck(prop, generator, shrinker, max_trials=100, seed=42):
+    # Executes randomized property testing with automated shrinking.
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>import random
+
+def test_quickcheck_pass():
+    gen = lambda rng: [rng.randint(-10, 10) for _ in range(5)]
+    shrink = lambda x, p: x
+    prop = lambda lst: sorted(lst) == sorted(sorted(lst))
+    res = quickcheck(prop, gen, shrink, max_trials=50, seed=123)
+    assert res[&#x27;status&#x27;] == &#x27;PASS&#x27;
+    assert res[&#x27;trials_run&#x27;] == 50
+    assert res[&#x27;counterexample&#x27;] is None
+
+def test_quickcheck_fail_and_shrink():
+    gen = lambda rng: [rng.randint(-20, 20) for _ in range(10)]
+    def shrink(lst, p):
+        curr = list(lst)
+        for i in range(len(curr)):
+            cand = curr[:i] + curr[i+1:]
+            if not p(cand):
+                curr = cand
+        return curr
+
+    prop = lambda lst: all(v &gt;= 0 for v in lst)
+    res = quickcheck(prop, gen, shrink, max_trials=50, seed=42)
+    assert res[&#x27;status&#x27;] == &#x27;FAIL&#x27;
+    assert res[&#x27;trials_run&#x27;] &gt;= 1
+    assert any(v &lt; 0 for v in res[&#x27;counterexample&#x27;])
+
+def test_quickcheck_callable_validation():
+    try:
+        quickcheck(&quot;not_callable&quot;, lambda rng: 1, lambda x, p: x)
+        assert False, &quot;Should raise TypeError&quot;
+    except TypeError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Property testing replaces unit testing entirely."</strong> Unit tests check specific known business edge cases; property tests explore wide state spaces. Both are complementary.</li>
+<li><strong>"Random testing without shrinking is just as effective."</strong> Without shrinking, a failure on a 500-line randomized input is incomprehensible noise; shrinking reveals the 2-element root cause.</li>
+<li><strong>"Coverage-guided fuzzers only find crashes and segfaults."</strong> By combining coverage fuzzing with differential testing or assertions, fuzzers detect logic errors and semantic discrepancies.</li>
+<li><strong>"Fuzzing is non-deterministic and impossible to reproduce in CI."</strong> By logging and providing the pseudo-random generator seed, any failing test run can be reproduced deterministically down to the exact bit.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Property-based testing and fuzzing break down when the input space has hyper-sparse valid constraints (such as cryptographic signatures, SHA256 checksums, or magic numbers) where unguided random mutation has a $2^{-128}$ probability of producing a valid payload. In these regimes, concolic execution, symbolic execution, or custom AST-aware generators are strictly necessary.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>In Flutter rendering and offline sync engines, property-based testing verifies round-trip JSON serialisation and CRDT commutativity over generated inputs. In ART runtime development, grammar-based fuzzers generate millions of valid DEX bytecodes to stress-test JIT compilers before an Android OS release ships.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is property-based testing?</p></div><div class="a" hidden><p>A testing methodology where universal algebraic invariants are checked across hundreds of automatically generated pseudo-random inputs.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is shrinking in QuickCheck?</p></div><div class="a" hidden><p>The automated process of iteratively simplifying a failing counterexample to find the minimal input that still reproduces the failure.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is a round-trip property?</p></div><div class="a" hidden><p>An invariant stating that encoding followed by decoding returns the original value: $\text{decode}(\text{encode}(x)) = x$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is coverage-guided fuzzing?</p></div><div class="a" hidden><p>A dynamic testing technique that instruments program branches and prioritizes mutant inputs that discover new control-flow edges.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is differential fuzzing?</p></div><div class="a" hidden><p>Providing identical fuzzed inputs to two independent implementations and flagging any divergence in their output behavior.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why are random seeds critical in fuzzing?</p></div><div class="a" hidden><p>They ensure that a random test run can be reproduced bit-for-bit in debugging and continuous integration.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement a property-testing engine with shrinking from scratch, express algebraic invariants for real codebases, and construct grammar-based fuzzers.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Claessen, K., and Hughes, J. 'QuickCheck: A Lightweight Tool for Random Testing of Haskell Programs.' <em>ACM SIGPLAN Notices</em>, 35(9), 2000.</li>
+<li>Zeller, A., and Hildebrandt, R. 'Simplifying and Isolating Failure-Inducing Inputs.' <em>IEEE TSE</em>, 28(2), 2002.</li>
+</ul></section>
+<footer class="pager"><a href="V17.html">&larr; V17 Claims and evidence: auditing what agents and people say</a>
+<a href="V09.html">V09 Designing experiments &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V13", "packages": ["numpy"], "exercises": {"ex1-algebraic-laws": {"starter": "def check_algebraic_laws(op, domain, identity=None):\n    # Evaluates algebraic properties of a binary operator over a discrete domain.\n    return {}\n", "solution": "def check_algebraic_laws(op, domain, identity=None):\n    comm = True\n    for x in domain:\n        for y in domain:\n            if op(x, y) != op(y, x):\n                comm = False\n                break\n        if not comm:\n            break\n\n    assoc = True\n    for x in domain:\n        for y in domain:\n            for z in domain:\n                if op(op(x, y), z) != op(x, op(y, z)):\n                    assoc = False\n                    break\n            if not assoc:\n                break\n        if not assoc:\n            break\n\n    idem = True\n    for x in domain:\n        if op(x, x) != x:\n            idem = False\n            break\n\n    has_id = False\n    if identity is not None:\n        has_id = True\n        for x in domain:\n            if op(x, identity) != x or op(identity, x) != x:\n                has_id = False\n                break\n\n    return {\n        'commutative': comm,\n        'associative': assoc,\n        'idempotent': idem,\n        'has_identity': has_id\n    }\n", "tests": "def test_addition():\n    res = check_algebraic_laws(lambda x, y: x + y, [0, 1, 2, 3], identity=0)\n    assert res['commutative'] is True\n    assert res['associative'] is True\n    assert res['idempotent'] is False\n    assert res['has_identity'] is True\n\ndef test_subtraction():\n    res = check_algebraic_laws(lambda x, y: x - y, [0, 1, 2, 3], identity=0)\n    assert res['commutative'] is False\n    assert res['associative'] is False\n    assert res['idempotent'] is False\n    assert res['has_identity'] is False\n\ndef test_max_operator():\n    res = check_algebraic_laws(max, [1, 2, 3, 4], identity=None)\n    assert res['commutative'] is True\n    assert res['associative'] is True\n    assert res['idempotent'] is True\n    assert res['has_identity'] is False\n", "mutants": ["def check_algebraic_laws(op, domain, identity=None):\n    # Ignores associativity and marks it always True\n    return {'commutative': True, 'associative': True, 'idempotent': False, 'has_identity': False}\n", "def check_algebraic_laws(op, domain, identity=None):\n    # Forgets to check left identity: op(identity, x) == x\n    return {'commutative': False, 'associative': False, 'idempotent': False, 'has_identity': identity is not None}\n"], "hints": ["Iterate over all pairs $(x, y)$ for commutativity, triples $(x, y, z)$ for associativity.", "Check both $op(x, id) == x$ and $op(id, x) == x$."], "level": "warmup", "title": "Verify algebraic properties of candidate operations"}, "ex2-delta-debugger": {"starter": "def shrink_sequence(failing_seq, predicate):\n    # Shrinks a failing sequence to a 1-minimal sub-sequence.\n    return list(failing_seq)\n", "solution": "def shrink_sequence(failing_seq, predicate):\n    if predicate(failing_seq):\n        raise ValueError(\"Initial sequence does not trigger failure\")\n\n    curr = list(failing_seq)\n    improved = True\n    while improved:\n        improved = False\n        for i in range(len(curr)):\n            candidate = curr[:i] + curr[i+1:]\n            if not predicate(candidate):\n                curr = candidate\n                improved = True\n                break\n    return curr\n", "tests": "def test_shrink_basic():\n    # Fails if contains both 7 and 13\n    pred = lambda seq: not (7 in seq and 13 in seq)\n    initial = [1, 7, 2, 9, 13, 4, 5]\n    shrunk = shrink_sequence(initial, pred)\n    assert shrunk == [7, 13]\n\ndef test_shrink_not_failing():\n    pred = lambda seq: True\n    try:\n        shrink_sequence([1, 2, 3], pred)\n        assert False, \"Should have raised ValueError\"\n    except ValueError:\n        pass\n\ndef test_shrink_already_minimal():\n    pred = lambda seq: len(seq) < 3\n    shrunk = shrink_sequence([10, 20, 30], pred)\n    assert shrunk == [10, 20, 30]\n", "mutants": ["def shrink_sequence(failing_seq, predicate):\n    # Returns original sequence without shrinking\n    if predicate(failing_seq): raise ValueError()\n    return list(failing_seq)\n", "def shrink_sequence(failing_seq, predicate):\n    # Does not raise ValueError on non-failing input\n    return []\n"], "hints": ["Check the initial sequence first; raise `ValueError` if `predicate(failing_seq)` is True.", "Use a `while improved:` loop that attempts removing item $i$ and breaks as soon as a failing candidate is found."], "level": "core", "title": "Delta-debugging shrinker for sequence counterexamples"}, "ex3-grammar-fuzzing": {"starter": "def grammar_fuzz(grammar, start_symbol, rng, max_depth=5):\n    # Generates structured string expressions from grammar.\n    return \"\"\n", "solution": "def grammar_fuzz(grammar, start_symbol, rng, max_depth=5):\n    if start_symbol not in grammar:\n        raise ValueError(f\"Unknown start symbol: {start_symbol}\")\n\n    def is_terminal_prod(prod):\n        return all(sym not in grammar for sym in prod)\n\n    def expand(symbol, depth):\n        if symbol not in grammar:\n            return [symbol]\n        prods = grammar[symbol]\n        if depth >= max_depth:\n            term_prods = [p for p in prods if is_terminal_prod(p)]\n            chosen = rng.choice(term_prods) if term_prods else rng.choice(prods)\n        else:\n            chosen = rng.choice(prods)\n\n        result = []\n        for sym in chosen:\n            result.extend(expand(sym, depth + 1))\n        return result\n\n    tokens = expand(start_symbol, 0)\n    return \" \".join(tokens).strip()\n", "tests": "import random\n\ndef test_simple_grammar():\n    grammar = {\n        '<start>': [['<noun>', '<verb>']],\n        '<noun>': [['cat'], ['dog']],\n        '<verb>': [['jumps'], ['runs']]\n    }\n    rng = random.Random(42)\n    s = grammar_fuzz(grammar, '<start>', rng, max_depth=2)\n    assert s in ['cat jumps', 'cat runs', 'dog jumps', 'dog runs']\n\ndef test_unknown_symbol():\n    grammar = {'<start>': [['x']]}\n    rng = random.Random(42)\n    try:\n        grammar_fuzz(grammar, '<missing>', rng)\n        assert False, \"Should raise ValueError\"\n    except ValueError:\n        pass\n\ndef test_recursion_depth_cutoff():\n    grammar = {\n        '<expr>': [['<expr>', '+', '<num>'], ['<num>']],\n        '<num>': [['1'], ['2']]\n    }\n    rng = random.Random(10)\n    s = grammar_fuzz(grammar, '<expr>', rng, max_depth=3)\n    assert isinstance(s, str)\n    assert len(s) > 0\n    for tok in s.split():\n        assert tok in ['1', '2', '+']\n", "mutants": ["def grammar_fuzz(grammar, start_symbol, rng, max_depth=5):\n    # Ignores grammar productions and returns empty string\n    if start_symbol not in grammar: raise ValueError()\n    return \"\"\n", "def grammar_fuzz(grammar, start_symbol, rng, max_depth=5):\n    # Ignores max_depth terminal restrictions completely\n    if start_symbol not in grammar: raise ValueError()\n    return \"cat jumps\"\n"], "hints": ["Identify terminal productions: those where `sym not in grammar` for every symbol.", "When depth reaches `max_depth`, filter to terminal productions before sampling."], "level": "core", "title": "Context-free grammar string fuzzer"}, "ex4-mini-quickcheck": {"starter": "def quickcheck(prop, generator, shrinker, max_trials=100, seed=42):\n    # Executes randomized property testing with automated shrinking.\n    return {}\n", "solution": "import random\n\ndef quickcheck(prop, generator, shrinker, max_trials=100, seed=42):\n    if not callable(prop) or not callable(generator) or not callable(shrinker):\n        raise TypeError(\"prop, generator, and shrinker must be callable\")\n\n    rng = random.Random(seed)\n    for t in range(max_trials):\n        x = generator(rng)\n        passed = False\n        try:\n            passed = bool(prop(x))\n        except Exception:\n            passed = False\n\n        if not passed:\n            minimal = shrinker(x, prop)\n            return {\n                'status': 'FAIL',\n                'counterexample': minimal,\n                'failing_trial': t + 1,\n                'trials_run': t + 1\n            }\n\n    return {\n        'status': 'PASS',\n        'counterexample': None,\n        'failing_trial': None,\n        'trials_run': max_trials\n    }\n", "tests": "import random\n\ndef test_quickcheck_pass():\n    gen = lambda rng: [rng.randint(-10, 10) for _ in range(5)]\n    shrink = lambda x, p: x\n    prop = lambda lst: sorted(lst) == sorted(sorted(lst))\n    res = quickcheck(prop, gen, shrink, max_trials=50, seed=123)\n    assert res['status'] == 'PASS'\n    assert res['trials_run'] == 50\n    assert res['counterexample'] is None\n\ndef test_quickcheck_fail_and_shrink():\n    gen = lambda rng: [rng.randint(-20, 20) for _ in range(10)]\n    def shrink(lst, p):\n        curr = list(lst)\n        for i in range(len(curr)):\n            cand = curr[:i] + curr[i+1:]\n            if not p(cand):\n                curr = cand\n        return curr\n\n    prop = lambda lst: all(v >= 0 for v in lst)\n    res = quickcheck(prop, gen, shrink, max_trials=50, seed=42)\n    assert res['status'] == 'FAIL'\n    assert res['trials_run'] >= 1\n    assert any(v < 0 for v in res['counterexample'])\n\ndef test_quickcheck_callable_validation():\n    try:\n        quickcheck(\"not_callable\", lambda rng: 1, lambda x, p: x)\n        assert False, \"Should raise TypeError\"\n    except TypeError:\n        pass\n", "mutants": ["def quickcheck(prop, generator, shrinker, max_trials=100, seed=42):\n    # Always claims PASS\n    if not callable(prop): raise TypeError()\n    return {'status': 'PASS', 'counterexample': None, 'failing_trial': None, 'trials_run': max_trials}\n", "def quickcheck(prop, generator, shrinker, max_trials=100, seed=42):\n    # Fails without running shrinker\n    if not callable(prop): raise TypeError()\n    return {'status': 'FAIL', 'counterexample': None, 'failing_trial': 1, 'trials_run': 1}\n"], "hints": ["Seed `random.Random(seed)` at the start.", "Catch exceptions during `prop(x)` and treat them as failures."], "level": "boss", "title": "Mini-QuickCheck property-testing and shrinking engine"}}, "demos": {"oracle-rle-roundtrip": {"code": "import random\n\ndef rle_encode(s: str) -> list[tuple[str, int]]:\n    if not s:\n        return []\n    runs = []\n    curr = s[0]\n    count = 1\n    for ch in s[1:]:\n        if ch == curr:\n            count += 1\n        else:\n            runs.append((curr, count))\n            curr = ch\n            count = 1\n    runs.append((curr, count))\n    return runs\n\ndef rle_decode(runs: list[tuple[str, int]]) -> str:\n    return \"\".join(ch * count for ch, count in runs)\n\n# Oracle: Verify round-trip property across 100 random strings\nrng = random.Random(42)\nchars = \"ABC\"\nfor _ in range(100):\n    length = rng.randint(0, 30)\n    s = \"\".join(rng.choice(chars) for _ in range(length))\n    assert rle_decode(rle_encode(s)) == s, f\"Round-trip failed on: {s}\"\nprint(\"Round-trip oracle verified 100 random cases successfully!\")\n", "mutants": ["import random\n\ndef rle_encode(s: str) -> list[tuple[str, int]]:\n    # Mutant: drops runs of length > 2\n    if not s: return []\n    runs = []\n    curr, count = s[0], 1\n    for ch in s[1:]:\n        if ch == curr: count += 1\n        else:\n            runs.append((curr, 1 if count > 2 else count))\n            curr, count = ch, 1\n    runs.append((curr, 1 if count > 2 else count))\n    return runs\n\ndef rle_decode(runs: list[tuple[str, int]]) -> str:\n    return \"\".join(ch * count for ch, count in runs)\n\nrng = random.Random(42)\nchars = \"ABC\"\nfor _ in range(100):\n    length = rng.randint(0, 30)\n    s = \"\".join(rng.choice(chars) for _ in range(length))\n    assert rle_decode(rle_encode(s)) == s, f\"Round-trip failed on: {s}\"\n"]}, "exp-delta-shrink": {"code": "import random\n\ndef buggy_sort_checker(lst: list[int]) -> bool:\n    # Bug occurs only if a negative number is immediately followed by a zero\n    for i in range(len(lst) - 1):\n        if lst[i] < 0 and lst[i+1] == 0:\n            return False\n    return True\n\ndef shrink_list(lst: list[int], fail_predicate):\n    shrunk = list(lst)\n    improved = True\n    evals = 0\n    while improved:\n        improved = False\n        # Try removing single elements\n        for i in range(len(shrunk)):\n            evals += 1\n            candidate = shrunk[:i] + shrunk[i+1:]\n            if not fail_predicate(candidate):\n                shrunk = candidate\n                improved = True\n                break\n    return shrunk, evals\n\nrng = random.Random(1337)\nfailing_sample = [rng.randint(-10, 10) for _ in range(64)]\n# Ensure failure condition is present\nfailing_sample[20] = -5\nfailing_sample[21] = 0\n\nassert not buggy_sort_checker(failing_sample)\nminimal, count = shrink_list(failing_sample, buggy_sort_checker)\nprint(f\"Original size: {len(failing_sample)} -> Minimal size: {len(minimal)} (Evaluations: {count})\")\nprint(f\"Minimal counterexample: {minimal}\")\nassert minimal == [-5, 0], f\"Expected minimal [-5, 0], got {minimal}\"\n", "mutants": ["import random\n\ndef buggy_sort_checker(lst: list[int]) -> bool:\n    for i in range(len(lst) - 1):\n        if lst[i] < 0 and lst[i+1] == 0: return False\n    return True\n\ndef shrink_list(lst: list[int], fail_predicate):\n    # Mutant: never shrinks anything, returns original list\n    return lst, 0\n\nrng = random.Random(1337)\nfailing_sample = [1, 2, 3, -5, 0, 4]\nminimal, count = shrink_list(failing_sample, buggy_sort_checker)\nassert minimal == [-5, 0], 'Mutant failed to shrink!'\n"]}}, "cards": [{"q": "What is property-based testing?", "a": "A testing methodology where universal algebraic invariants are checked across hundreds of automatically generated pseudo-random inputs."}, {"q": "What is shrinking in QuickCheck?", "a": "The automated process of iteratively simplifying a failing counterexample to find the minimal input that still reproduces the failure."}, {"q": "What is a round-trip property?", "a": "An invariant stating that encoding followed by decoding returns the original value: $\\text{decode}(\\text{encode}(x)) = x$."}, {"q": "What is coverage-guided fuzzing?", "a": "A dynamic testing technique that instruments program branches and prioritizes mutant inputs that discover new control-flow edges."}, {"q": "What is differential fuzzing?", "a": "Providing identical fuzzed inputs to two independent implementations and flagging any divergence in their output behavior."}, {"q": "Why are random seeds critical in fuzzing?", "a": "They ensure that a random test run can be reproduced bit-for-bit in debugging and continuous integration."}], "title": "Property-based testing and fuzzing"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

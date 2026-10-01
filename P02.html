@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P02 Programming fundamentals</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P02">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · Class 9-10 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P02</p><h1>Programming fundamentals</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P01.html">P01</a></div><div><b>Covers:</b> CS2023 SDF</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>values, variables and names</li><li>expressions</li><li>control flow</li><li>functions and parameters</li><li>scope</li><li>recursion and base cases</li><li>mutability and aliasing</li><li>lists, dicts and sets</li><li>iteration</li><li>reading error messages and tracebacks</li><li>a debugging method (hypothesis, bisect, minimal repro)</li><li>testing your own code</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>On the warm afternoon of September 9, 1947, operators working on the electromechanical Harvard Mark II computer at the Naval Proving Ground in Dahlgren, Virginia, encountered an inexplicable calculation fault. Relay number 70 in Panel F had failed to close properly, halting operations. Lieutenant Grace Murray Hopper and her engineering crew carefully inspected the physical relay contacts and discovered a two-inch moth trapped between the metal points. Using tweezers, they removed the insect, pasted it into their daily logbook with the handwritten note: "First actual case of bug being found," immortalizing the term 'debugging' in computer folklore.</p>
+<p>A decade later in 1957, John Backus and his team at IBM revolutionized computing by introducing Fortran. Before Fortran, programmers manually coded raw binary or assembly instructions, keeping mental track of machine registers and memory offsets. Fortran introduced variables, algebraic expressions, conditional branching, and subroutines. Suddenly, human intent could be expressed through structured syntax that an optimizing compiler translated into machine execution. Computer science discovered that programming is not about manipulating registers; it is about building reliable linguistic abstractions, managing scope and state mutability, and systematically hunting bugs using the scientific method.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Programming is the craft of giving a computer unambiguous instructions to solve problems. We store data in variables, calculate results using expressions, make decisions with conditionals (<code>if</code>/<code>else</code>), and repeat operations with loops. To avoid chaotic spaghetti code, we bundle related logic into functions that accept inputs (parameters) and produce outputs (return values). When software behaves unexpectedly, skilled engineers do not guess randomly; they isolate the defect through hypothesis testing, binary search bisection, and minimal reproducible examples.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The foundational semantics of programming languages and program execution are defined by:</p>
+<ol>
+<li>
+<p><strong>The Environment Model of Execution</strong>:
+Evaluation of an expression occurs within an environment consisting of a chain of lexical frames:
+$$\rho = \langle \text{Frame}_{\text{Local}}, \text{Frame}_{\text{Enclosing}}, \text{Frame}_{\text{Global}}, \text{Frame}_{\text{Builtin}} \rangle$$
+Variable lookup begins in the innermost frame and traverses outward along the static parent pointer (LEGB rule). Variable assignment binds a name in the current active frame unless explicit scope keywords (<code>global</code>, <code>nonlocal</code>) are declared.</p>
+</li>
+<li>
+<p><strong>Mutability, Identity, and Aliasing</strong>:
+- <strong>Identity ($a \text{ is } b$)</strong>: Verifies whether memory addresses match ($\text{id}(a) == \text{id}(b)$).
+- <strong>Equality ($a == b$)</strong>: Evaluates structural equivalence of values.
+- <strong>Aliasing</strong>: Occurs when multiple variable identifiers bind to the exact same heap reference. In-place mutation via one alias immediately reflects across all references:
+$$\text{If } y = x \text{ and } x.\text{append}(v), \text{ then } y \text{ observes } v.$$</p>
+</li>
+<li>
+<p><strong>Recursion &amp; Inductive Termination</strong>:
+A recursive function $f(n)$ is sound if:
+$$\forall n \in \text{Domain}, \quad \exists k \ge 0 \text{ s.t. } f^k(n) \in \text{Base Cases}$$
+Under well-founded induction, every step strictly reduces along a monotonic termination metric towards the base case without call stack exhaustion.</p>
+</li>
+<li>
+<p><strong>The Scientific Debugging Methodology</strong>:
+- <strong>Minimal Reproducible Example (MRE)</strong>: Strip unrelated dependencies until the failure isolate is minimal.
+- <strong>Git Bisect Bisection</strong>: Binary search over commit history in $O(\log N)$ steps to locate the introducing regression.
+- <strong>Falsifiable Hypotheses</strong>: Formulate a single causal hypothesis, run an isolating assertion, and verify that fixing the root cause does not perturb neighboring system invariants.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why software debugging must follow a disciplined scientific method rather than haphazard code tinkering requires analyzing the combinatorics of modern software systems. When an unexpected crash or state corruption occurs in production, an engineer faces thousands of interacting lines of code across asynchronous execution threads. Haphazard tinkering—randomly modifying conditional statements or inserting speculative null checks—often masks the underlying defect while introducing silent secondary regressions.</p>
+<p>The scientific debugging process operates on three immutable principles:
+1. <strong>Hypothesis Formulation</strong>: Never change a line of code without stating an explicit falsifiable prediction ("I hypothesize that passing an empty list causes a division by zero in the summary calculation").
+2. <strong>Binary Search Bisection</strong>: By systematically dividing the search space in half—whether via <code>git bisect</code> across a thousand git commits or by inspecting state midway through a multi-stage pipeline—an engineer isolates the exact defect location in $O(\log N)$ trials rather than linear $O(N)$ searches.
+3. <strong>Automated Regression Locking</strong>: Once the bug is isolated and resolved, the fix must be immediately accompanied by a deterministic unit test reproducing the exact failure mode. This guarantees that future architectural refactors will never reintroduce the defect.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The environment model and object aliasing verification oracle demonstrates how mutable state sharing causes unexpected side effects across variable aliases. The interactive oracle simulates memory references, verifies that shallow copies preserve inner object aliasing, and proves that deep cloning fully isolates data structures from unintended mutation across calling frames. By verifying object identity and value equality simultaneously, the demonstration proves why defensive copying is mandatory in robust software design.</p>
+<div class="lab demo" data-demo="p02-oracle-aliasing">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Variable Aliasing and Mutability Verification Oracle</h3></div>
+
+<textarea class="code" spellcheck="false"># Verify reference aliasing
+a = [1, 2, [3, 4]]
+b = a  # direct reference alias
+assert b is a
+b.append(5)
+assert len(a) == 4  # mutation reflected in a
+
+# Verify shallow copy vs deep isolation
+shallow = list(a)
+assert shallow is not a
+assert shallow[2] is a[2]  # inner list is still shared alias!
+
+shallow[2].append(99)
+assert 99 in a[2]  # mutating shallow copy&#x27;s inner object mutates original!
+
+# Deep manual isolation
+deep = [x if not isinstance(x, list) else list(x) for x in a]
+assert deep[2] is not a[2]
+deep[2].append(777)
+assert 777 not in a[2]
+
+print(&quot;Aliasing, shallow copy leakage, and deep isolation verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally measure the runtime call stack overhead of deep recursion versus an iterative accumulator loop. Python enforces a default recursion limit of 1000 frames to prevent C runtime call stack overflow. We verify that recursion depth exceeding this bound triggers a RecursionError, while an iterative loop scales to millions of iterations in constant stack space without exhausting operating system memory.</p>
+<div class="lab demo" data-demo="p02-exp-recursion-limit">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Recursion Call Stack Limit and Iteration Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">import sys
+
+def recursive_sum(n: int) -&gt; int:
+    if n &lt;= 0:
+        return 0
+    return n + recursive_sum(n - 1)
+
+def iterative_sum(n: int) -&gt; int:
+    total = 0
+    for i in range(1, n + 1):
+        total += i
+    return total
+
+# Iterative handles large scale
+assert iterative_sum(10000) == 50005000
+
+# Recursive triggers limit on deep calls
+limit = sys.getrecursionlimit()
+hit_recursion_error = False
+try:
+    recursive_sum(limit + 50)
+except RecursionError:
+    hit_recursion_error = True
+
+assert hit_recursion_error is True
+print(f&quot;Recursion call stack boundary verified at limit {limit}.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-aliasing-and-shallow-copy" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>2D Matrix Deep Clone and Isolation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the function clone_and_isolate_matrix(grid: list[list[int]]) -&gt; list[list[int]] that creates a completely independent deep copy of a 2D rectangular integer grid without importing the copy module, ensuring mutations to the clone do not affect the original.</p></div>
+<textarea class="code" spellcheck="false">def clone_and_isolate_matrix(grid: list[list[int]]) -&gt; list[list[int]]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_matrix_isolation():
+    original = [[1, 2], [3, 4]]
+    clone = clone_and_isolate_matrix(original)
+    
+    assert clone == original
+    assert clone is not original
+    assert clone[0] is not original[0]
+    
+    # Mutate clone, verify original is untouched
+    clone[0][0] = 999
+    assert original[0][0] == 1
+    assert clone[0][0] == 999
+
+def test_empty_matrix():
+    assert clone_and_isolate_matrix([]) == []
+    assert clone_and_isolate_matrix([[]]) == [[]]
+
+def test_rectangular_matrix():
+    original = [[1, 2, 3], [4, 5, 6]]
+    clone = clone_and_isolate_matrix(original)
+    clone[1].append(7)
+    assert len(original[1]) == 3
+    assert len(clone[1]) == 4
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-recursive-flatten" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Recursive Heterogeneous Structure Flattener</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement flatten_nested_structure(item) -&gt; list that recursively flattens arbitrary combinations of nested lists and tuples into a single 1D list, preserving element order while ignoring scalar non-collection types.</p></div>
+<textarea class="code" spellcheck="false">def flatten_nested_structure(item) -&gt; list:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_flatten_simple():
+    nested = [1, [2, 3], [4, [5, 6]]]
+    assert flatten_nested_structure(nested) == [1, 2, 3, 4, 5, 6]
+
+def test_flatten_mixed_tuples():
+    nested = (1, [2, (3, 4), 5], 6)
+    assert flatten_nested_structure(nested) == [1, 2, 3, 4, 5, 6]
+
+def test_flatten_empty():
+    assert flatten_nested_structure([]) == []
+    assert flatten_nested_structure([[], [(), []]]) == []
+    assert flatten_nested_structure(42) == [42]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-git-bisect-simulator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Automated Git Bisect Regression Finder</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement bisect_regression(commit_log: list[str], is_broken: callable) -&gt; str that performs binary search bisection over an ordered list of commits from oldest to newest to find the exact first commit that broke the test suite in O(log N) evaluations.</p></div>
+<textarea class="code" spellcheck="false">def bisect_regression(commit_log: list[str], is_broken: callable) -&gt; str:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bisect_middle_commit():
+    commits = [&quot;c1&quot;, &quot;c2&quot;, &quot;c3&quot;, &quot;c4&quot;, &quot;c5&quot;, &quot;c6&quot;, &quot;c7&quot;]
+    # c4 introduced the regression
+    def test_runner(c):
+        return commits.index(c) &gt;= 3
+    
+    assert bisect_regression(commits, test_runner) == &quot;c4&quot;
+
+def test_bisect_first_commit():
+    commits = [&quot;c1&quot;, &quot;c2&quot;, &quot;c3&quot;]
+    assert bisect_regression(commits, lambda c: True) == &quot;c1&quot;
+
+def test_bisect_last_commit():
+    commits = [&quot;c1&quot;, &quot;c2&quot;, &quot;c3&quot;, &quot;c4&quot;]
+    assert bisect_regression(commits, lambda c: c == &quot;c4&quot;) == &quot;c4&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-stack-frame-evaluator" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Lexical Scope Environment Evaluator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement evaluate_lexical_environment(instructions: list[dict]) -&gt; list that simulates an environment frame stack supporting nested block scopes, variable assignment, shadowing, and variable lookup according to lexical scope rules.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_lexical_environment(instructions: list[dict]) -&gt; list:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_lexical_scope_basic():
+    instructions = [
+        {&quot;op&quot;: &quot;ASSIGN&quot;, &quot;var&quot;: &quot;x&quot;, &quot;val&quot;: 10},
+        {&quot;op&quot;: &quot;LOOKUP&quot;, &quot;var&quot;: &quot;x&quot;},
+        {&quot;op&quot;: &quot;ENTER_SCOPE&quot;},
+        {&quot;op&quot;: &quot;ASSIGN&quot;, &quot;var&quot;: &quot;x&quot;, &quot;val&quot;: 20},  # shadows global x
+        {&quot;op&quot;: &quot;LOOKUP&quot;, &quot;var&quot;: &quot;x&quot;},
+        {&quot;op&quot;: &quot;EXIT_SCOPE&quot;},
+        {&quot;op&quot;: &quot;LOOKUP&quot;, &quot;var&quot;: &quot;x&quot;}               # restored to 10
+    ]
+    res = evaluate_lexical_environment(instructions)
+    assert res == [10, 20, 10]
+
+def test_lexical_scope_nested_lookup():
+    instructions = [
+        {&quot;op&quot;: &quot;ASSIGN&quot;, &quot;var&quot;: &quot;global_var&quot;, &quot;val&quot;: &quot;root&quot;},
+        {&quot;op&quot;: &quot;ENTER_SCOPE&quot;},
+        {&quot;op&quot;: &quot;ENTER_SCOPE&quot;},
+        {&quot;op&quot;: &quot;LOOKUP&quot;, &quot;var&quot;: &quot;global_var&quot;},      # found in ancestor frame
+        {&quot;op&quot;: &quot;LOOKUP&quot;, &quot;var&quot;: &quot;non_existent&quot;},    # not found -&gt; None
+        {&quot;op&quot;: &quot;EXIT_SCOPE&quot;},
+        {&quot;op&quot;: &quot;EXIT_SCOPE&quot;}
+    ]
+    res = evaluate_lexical_environment(instructions)
+    assert res == [&quot;root&quot;, None]
+
+def test_lexical_scope_empty():
+    assert evaluate_lexical_environment([]) == []
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Passing a variable into a function always creates a separate copy."</strong> In Python and many languages, arguments are passed by object reference (call-by-sharing). Mutating a passed mutable object (like a list or dict) modifies the caller's data.</li>
+<li><strong>"Using 'git bisect' requires testing every single intermediate commit."</strong> Git bisect performs binary search over commit history, requiring only ceil(log2(N)) tests to pinpoint the breaking commit across N historical revisions.</li>
+<li><strong>"Recursion is always faster and cleaner than iterative loops."</strong> Without compiler tail-call elimination, recursive functions allocate new call stack frames for every invocation, risking stack overflow and incurring memory overhead.</li>
+<li><strong>"A variable declared inside an 'if' block in Python is scoped only to that block."</strong> Python does not have block scope for 'if' or 'for' blocks; variables declared inside them belong to the enclosing function or global scope.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Programming models break down when programs encounter infinite recursion due to unhandled base cases, resulting in process termination via stack overflow. Furthermore, uncontrolled aliasing across concurrent threads or asynchronous callbacks leads to race conditions where shared state is mutated unexpectedly without synchronization locks, causing non-deterministic data corruption in production systems.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>The environment model and systematic debugging practices form the daily foundation of production software development. Engineers use <code>git bisect</code> to locate regressions in multi-million-line codebases, inspect Python traceback call frames during incident investigations, and enforce immutability patterns to prevent state aliasing bugs in distributed microservices.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the LEGB rule?</p></div><div class="a" hidden><p>Local, Enclosing, Global, Builtin: the hierarchical lookup order for variable identifiers in lexical scope.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the difference between identity and equality in Python?</p></div><div class="a" hidden><p>Identity (is) tests if two references point to the exact same memory address; equality (==) tests value equivalence.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is an aliasing bug?</p></div><div class="a" hidden><p>A bug caused when mutating a mutable object unexpectedly mutates another variable that references the exact same object in heap memory.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does 'git bisect' locate a bug?</p></div><div class="a" hidden><p>By executing binary search over commit history in O(log N) evaluations rather than testing all N commits sequentially.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is a minimal reproducible example (MRE)?</p></div><div class="a" hidden><p>The smallest possible self-contained code snippet that reliably reproduces a bug, stripping all extraneous logic.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What causes a RecursionError?</p></div><div class="a" hidden><p>Exceeding the maximum call stack limit when a recursive function fails to hit its base case or recurses too deeply.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain lexical environment scoping and variable aliasing, write correct recursive and iterative procedures, perform binary search debugging with git bisect, and implement scoped execution frames.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Hopper, G. M. (1947). First actual case of bug being found. Harvard Mark II Logbook.</li>
+<li>Backus, J. W., et al. (1957). The FORTRAN automatic coding system. Western Joint Computer Conference.</li>
+<li>Zeller, A. (2009). Why Programs Fail: A Guide to Systematic Debugging. Morgan Kaufmann.</li>
+</ul></section>
+<footer class="pager"><a href="P01.html">&larr; P01 Bits, bytes and number representations</a>
+<a href="M07.html">M07 Geometry II: Euclid, quadrilaterals, circles and similarity &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P02", "packages": ["numpy"], "exercises": {"ex1-aliasing-and-shallow-copy": {"starter": "def clone_and_isolate_matrix(grid: list[list[int]]) -> list[list[int]]:\n    pass\n", "solution": "def clone_and_isolate_matrix(grid: list[list[int]]) -> list[list[int]]:\n    return [list(row) for row in grid]\n", "tests": "def test_matrix_isolation():\n    original = [[1, 2], [3, 4]]\n    clone = clone_and_isolate_matrix(original)\n    \n    assert clone == original\n    assert clone is not original\n    assert clone[0] is not original[0]\n    \n    # Mutate clone, verify original is untouched\n    clone[0][0] = 999\n    assert original[0][0] == 1\n    assert clone[0][0] == 999\n\ndef test_empty_matrix():\n    assert clone_and_isolate_matrix([]) == []\n    assert clone_and_isolate_matrix([[]]) == [[]]\n\ndef test_rectangular_matrix():\n    original = [[1, 2, 3], [4, 5, 6]]\n    clone = clone_and_isolate_matrix(original)\n    clone[1].append(7)\n    assert len(original[1]) == 3\n    assert len(clone[1]) == 4\n", "mutants": ["def clone_and_isolate_matrix(grid: list[list[int]]) -> list[list[int]]:\n    assert False, 'mutant injected'\n", "def clone_and_isolate_matrix(grid: list[list[int]]) -> list[list[int]]:\n    return list(grid)  # shallow copy: inner rows are still aliased!\n"], "hints": ["List comprehension with list(row) creates new inner lists.", "Verify clone[0] is not original[0]."], "level": "warmup", "title": "2D Matrix Deep Clone and Isolation"}, "ex2-recursive-flatten": {"starter": "def flatten_nested_structure(item) -> list:\n    pass\n", "solution": "def flatten_nested_structure(item) -> list:\n    result = []\n    if isinstance(item, (list, tuple)):\n        for sub in item:\n            result.extend(flatten_nested_structure(sub))\n    else:\n        result.append(item)\n    return result\n", "tests": "def test_flatten_simple():\n    nested = [1, [2, 3], [4, [5, 6]]]\n    assert flatten_nested_structure(nested) == [1, 2, 3, 4, 5, 6]\n\ndef test_flatten_mixed_tuples():\n    nested = (1, [2, (3, 4), 5], 6)\n    assert flatten_nested_structure(nested) == [1, 2, 3, 4, 5, 6]\n\ndef test_flatten_empty():\n    assert flatten_nested_structure([]) == []\n    assert flatten_nested_structure([[], [(), []]]) == []\n    assert flatten_nested_structure(42) == [42]\n", "mutants": ["def flatten_nested_structure(item) -> list:\n    assert False, 'mutant injected'\n", "def flatten_nested_structure(item) -> list:\n    return [item]\n"], "hints": ["Use isinstance(item, (list, tuple)) for the recursive step.", "Base case returns [item]."], "level": "core", "title": "Recursive Heterogeneous Structure Flattener"}, "ex3-git-bisect-simulator": {"starter": "def bisect_regression(commit_log: list[str], is_broken: callable) -> str:\n    pass\n", "solution": "def bisect_regression(commit_log: list[str], is_broken: callable) -> str:\n    if not commit_log:\n        raise ValueError(\"Commit log cannot be empty\")\n    low = 0\n    high = len(commit_log) - 1\n    first_bad = commit_log[-1]\n    \n    while low <= high:\n        mid = (low + high) // 2\n        commit = commit_log[mid]\n        if is_broken(commit):\n            first_bad = commit\n            high = mid - 1  # search earlier commits\n        else:\n            low = mid + 1   # search later commits\n            \n    return first_bad\n", "tests": "def test_bisect_middle_commit():\n    commits = [\"c1\", \"c2\", \"c3\", \"c4\", \"c5\", \"c6\", \"c7\"]\n    # c4 introduced the regression\n    def test_runner(c):\n        return commits.index(c) >= 3\n    \n    assert bisect_regression(commits, test_runner) == \"c4\"\n\ndef test_bisect_first_commit():\n    commits = [\"c1\", \"c2\", \"c3\"]\n    assert bisect_regression(commits, lambda c: True) == \"c1\"\n\ndef test_bisect_last_commit():\n    commits = [\"c1\", \"c2\", \"c3\", \"c4\"]\n    assert bisect_regression(commits, lambda c: c == \"c4\") == \"c4\"\n", "mutants": ["def bisect_regression(commit_log: list[str], is_broken: callable) -> str:\n    assert False, 'mutant injected'\n", "def bisect_regression(commit_log: list[str], is_broken: callable) -> str:\n    return commit_log[0]  # always returns first commit\n"], "hints": ["Standard binary search over half-open search space.", "If is_broken(mid), record mid as potential first bad and search left (high = mid - 1)."], "level": "core", "title": "Automated Git Bisect Regression Finder"}, "ex4-stack-frame-evaluator": {"starter": "def evaluate_lexical_environment(instructions: list[dict]) -> list:\n    pass\n", "solution": "def evaluate_lexical_environment(instructions: list[dict]) -> list:\n    # Environment stack: list of dicts (frames)\n    stack = [{}]  # global frame\n    lookup_results = []\n    \n    for inst in instructions:\n        op = inst.get(\"op\")\n        if op == \"ENTER_SCOPE\":\n            stack.append({})\n        elif op == \"EXIT_SCOPE\":\n            if len(stack) > 1:\n                stack.pop()\n        elif op == \"ASSIGN\":\n            var = inst[\"var\"]\n            val = inst[\"val\"]\n            # Assign into current innermost frame\n            stack[-1][var] = val\n        elif op == \"LOOKUP\":\n            var = inst[\"var\"]\n            found = False\n            # Traverse frames from innermost to outermost (LEGB)\n            for frame in reversed(stack):\n                if var in frame:\n                    lookup_results.append(frame[var])\n                    found = True\n                    break\n            if not found:\n                lookup_results.append(None)\n                \n    return lookup_results\n", "tests": "def test_lexical_scope_basic():\n    instructions = [\n        {\"op\": \"ASSIGN\", \"var\": \"x\", \"val\": 10},\n        {\"op\": \"LOOKUP\", \"var\": \"x\"},\n        {\"op\": \"ENTER_SCOPE\"},\n        {\"op\": \"ASSIGN\", \"var\": \"x\", \"val\": 20},  # shadows global x\n        {\"op\": \"LOOKUP\", \"var\": \"x\"},\n        {\"op\": \"EXIT_SCOPE\"},\n        {\"op\": \"LOOKUP\", \"var\": \"x\"}               # restored to 10\n    ]\n    res = evaluate_lexical_environment(instructions)\n    assert res == [10, 20, 10]\n\ndef test_lexical_scope_nested_lookup():\n    instructions = [\n        {\"op\": \"ASSIGN\", \"var\": \"global_var\", \"val\": \"root\"},\n        {\"op\": \"ENTER_SCOPE\"},\n        {\"op\": \"ENTER_SCOPE\"},\n        {\"op\": \"LOOKUP\", \"var\": \"global_var\"},      # found in ancestor frame\n        {\"op\": \"LOOKUP\", \"var\": \"non_existent\"},    # not found -> None\n        {\"op\": \"EXIT_SCOPE\"},\n        {\"op\": \"EXIT_SCOPE\"}\n    ]\n    res = evaluate_lexical_environment(instructions)\n    assert res == [\"root\", None]\n\ndef test_lexical_scope_empty():\n    assert evaluate_lexical_environment([]) == []\n", "mutants": ["def evaluate_lexical_environment(instructions: list[dict]) -> list:\n    assert False, 'mutant injected'\n", "def evaluate_lexical_environment(instructions: list[dict]) -> list:\n    # Mutant: only inspects global frame\n    glob = {}\n    out = []\n    for inst in instructions:\n        if inst.get(\"op\") == \"ASSIGN\": glob[inst[\"var\"]] = inst[\"val\"]\n        elif inst.get(\"op\") == \"LOOKUP\": out.append(glob.get(inst[\"var\"], None))\n    return out\n"], "hints": ["Maintain a list of dictionaries representing active frames.", "Search from stack[-1] down to stack[0] on LOOKUP."], "level": "boss", "title": "Lexical Scope Environment Evaluator"}}, "demos": {"p02-oracle-aliasing": {"code": "# Verify reference aliasing\na = [1, 2, [3, 4]]\nb = a  # direct reference alias\nassert b is a\nb.append(5)\nassert len(a) == 4  # mutation reflected in a\n\n# Verify shallow copy vs deep isolation\nshallow = list(a)\nassert shallow is not a\nassert shallow[2] is a[2]  # inner list is still shared alias!\n\nshallow[2].append(99)\nassert 99 in a[2]  # mutating shallow copy's inner object mutates original!\n\n# Deep manual isolation\ndeep = [x if not isinstance(x, list) else list(x) for x in a]\nassert deep[2] is not a[2]\ndeep[2].append(777)\nassert 777 not in a[2]\n\nprint(\"Aliasing, shallow copy leakage, and deep isolation verified.\")\n", "mutants": ["a = [1, 2, [3, 4]]\nb = [1, 2, [3, 4]]  # fails reference identity\nassert b is a\n"]}, "p02-exp-recursion-limit": {"code": "import sys\n\ndef recursive_sum(n: int) -> int:\n    if n <= 0:\n        return 0\n    return n + recursive_sum(n - 1)\n\ndef iterative_sum(n: int) -> int:\n    total = 0\n    for i in range(1, n + 1):\n        total += i\n    return total\n\n# Iterative handles large scale\nassert iterative_sum(10000) == 50005000\n\n# Recursive triggers limit on deep calls\nlimit = sys.getrecursionlimit()\nhit_recursion_error = False\ntry:\n    recursive_sum(limit + 50)\nexcept RecursionError:\n    hit_recursion_error = True\n\nassert hit_recursion_error is True\nprint(f\"Recursion call stack boundary verified at limit {limit}.\")\n", "mutants": ["hit_recursion_error = False\nassert hit_recursion_error is True\n"]}}, "cards": [{"q": "What is the LEGB rule?", "a": "Local, Enclosing, Global, Builtin: the hierarchical lookup order for variable identifiers in lexical scope."}, {"q": "What is the difference between identity and equality in Python?", "a": "Identity (is) tests if two references point to the exact same memory address; equality (==) tests value equivalence."}, {"q": "What is an aliasing bug?", "a": "A bug caused when mutating a mutable object unexpectedly mutates another variable that references the exact same object in heap memory."}, {"q": "How does 'git bisect' locate a bug?", "a": "By executing binary search over commit history in O(log N) evaluations rather than testing all N commits sequentially."}, {"q": "What is a minimal reproducible example (MRE)?", "a": "The smallest possible self-contained code snippet that reliably reproduces a bug, stripping all extraneous logic."}, {"q": "What causes a RecursionError?", "a": "Exceeding the maximum call stack limit when a recursive function fails to hit its base case or recurses too deeply."}], "title": "Programming fundamentals"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

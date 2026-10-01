@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P13 Grammars, computability and undecidability</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P13">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P13</p><h1>Grammars, computability and undecidability</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P12.html">P12</a></div><div><b>Covers:</b> CS2023 AL</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>context-free grammars and BNF</li><li>derivations and parse trees</li><li>ambiguity</li><li>the Chomsky hierarchy</li><li>pushdown automata</li><li>Turing machines</li><li>the Church-Turing thesis</li><li>decidable vs recognisable</li><li>the halting problem by diagonalisation</li><li>reductions</li><li>Rice&#x27;s theorem</li><li>why perfect static analysis is impossible</li><li>the universal Turing machine</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1936, a 24-year-old Cambridge graduate student named Alan Mathison Turing published a paper that created theoretical computer science: "On Computable Numbers, with an Application to the Entscheidungsproblem." David Hilbert had challenged mathematicians in 1928 with the "decision problem"—demanding an algorithmic procedure to determine whether any given mathematical statement was logically provable from first axioms. Turing answered Hilbert by inventing a conceptual model of computation. He envisioned a human "computer" with a pencil, an eraser, and an infinite roll of paper tape divided into squares. Turing formalized what we now call the Turing Machine, proved that a single Universal Turing Machine could simulate any other machine if fed its encoded description, and proved via Cantor's diagonal argument that the Halting Problem is fundamentally undecidable: no general algorithm can ever decide whether an arbitrary program halts.</p>
+<p>Twenty years later in 1956, MIT linguist Noam Chomsky published "Three Models for the Description of Language," establishing the Chomsky hierarchy and bridging linguistics with computer science by classifying formal grammars into Regular, Context-Free, Context-Sensitive, and Recursively Enumerable systems. In 1953, Henry Gordon Rice established Rice's Theorem, demonstrating that every non-trivial semantic property of program behavior is undecidable. Today, every compiler writer and static analysis engineer (building Clang, ESLint, or Rust Analyzer) confronts Rice's theorem daily: it is mathematically impossible to build an automated tool that detects all bugs without either missing real defects (false negatives) or generating phantom warnings (false positives).</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>While regular expressions and finite automata can count simple patterns, they cannot match balanced nested structures (like math brackets or HTML tags) because they lack memory. Context-Free Grammars solve this by adding a stack memory. But when you need general computing—reading and writing arbitrary variables anywhere in memory—you need a Turing machine. Alan Turing proved that computing has absolute mathematical limits. There are simple, well-defined questions about computer code that no computer program can ever solve, the most famous being the Halting Problem: determining whether an arbitrary program will finish running or get stuck in an infinite loop forever.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal foundations of grammars, computability, and undecidability are defined across theoretical computer science:</p>
+<ol>
+<li>
+<p><strong>Context-Free Grammars (CFG) &amp; BNF</strong>:
+A CFG is a 4-tuple $G = (V, \Sigma, R, S)$ where:
+- $V$ is a finite set of non-terminal variables.
+- $\Sigma$ is a finite set of terminal symbols ($V \cap \Sigma = \emptyset$).
+- $R \subseteq V \times (V \cup \Sigma)^*$ is a finite set of production rules $A \to \alpha$.
+- $S \in V$ is the distinguished start symbol.
+A derivation applies productions $u A v \Rightarrow u \alpha v$. A grammar is ambiguous if some string $w \in L(G)$ has two or more distinct leftmost derivations or parse trees.</p>
+</li>
+<li>
+<p><strong>The Chomsky Hierarchy</strong>:
+- <strong>Type 3 (Regular)</strong>: $A \to aB \mid a$. Recognized by Finite Automata ($O(1)$ memory).
+- <strong>Type 2 (Context-Free)</strong>: $A \to \alpha$. Recognized by Pushdown Automata (single LIFO stack).
+- <strong>Type 1 (Context-Sensitive)</strong>: $\alpha A \beta \to \alpha \gamma \beta$ with $|\gamma| \ge |A|$. Recognized by Linear Bounded Automata.
+- <strong>Type 0 (Unrestricted / Recursively Enumerable)</strong>: $\alpha \to \beta$. Recognized by Turing Machines.</p>
+</li>
+<li>
+<p><strong>Pushdown Automata (PDA)</strong>:
+A non-deterministic PDA is a 7-tuple $M = (Q, \Sigma, \Gamma, \delta, q_0, Z_0, F)$ where $\Gamma$ is the stack alphabet and $\delta: Q \times (\Sigma \cup \{\epsilon\}) \times \Gamma \to \mathcal{P}(Q \times \Gamma^*)$. A language is context-free if and only if recognized by some PDA.</p>
+</li>
+<li>
+<p><strong>Turing Machines &amp; The Church-Turing Thesis</strong>:
+A deterministic Turing Machine is a 7-tuple $M = (Q, \Sigma, \Gamma, \delta, q_0, q_{acc}, q_{rej})$:
+- $\Gamma$ is the tape alphabet ($\Sigma \subset \Gamma, \sqcup \in \Gamma \setminus \Sigma$).
+- $\delta: Q \times \Gamma \to Q \times \Gamma \times \{L, R\}$ is the transition function.
+The Church-Turing Thesis posits that intuitive algorithmic computability is identical to Turing-machine computability.</p>
+</li>
+<li>
+<p><strong>Decidability vs Turing-Recognizability</strong>:
+- A language $L$ is <strong>decidable (recursive)</strong> if a TM halts on all inputs, accepting $w \in L$ and rejecting $w \notin L$.
+- A language $L$ is <strong>recognizable (recursively enumerable)</strong> if a TM halts and accepts on $w \in L$, but may loop infinitely on $w \notin L$.
+$L$ is decidable $\iff L$ and its complement $\overline{L}$ are both Turing-recognizable.</p>
+</li>
+<li>
+<p><strong>The Halting Problem &amp; Diagonalisation</strong>:
+The language $A_{TM} = \{\langle M, w \rangle \mid M \text{ accepts } w\}$ and $HALT_{TM} = \{\langle M, w \rangle \mid M \text{ halts on } w\}$ are undecidable.
+<em>Proof by Diagonalisation</em>: Suppose decider $H(\langle M, w \rangle)$ decides halting. Construct $D(\langle M \rangle)$: run $H(\langle M, \langle M \rangle \rangle)$; if $H$ says halts, $D$ enters an infinite loop; if $H$ says loops, $D$ halts. Feeding $D(\langle D \rangle)$ yields: $D$ halts iff $D$ loops, a contradiction.</p>
+</li>
+<li>
+<p><strong>Rice's Theorem</strong>:
+Let $P$ be a non-trivial property of Turing-recognizable languages (i.e., $\exists L_1, L_2$ such that $L_1 \in P$ and $L_2 \notin P$). Then the problem of deciding whether $L(M) \in P$ given $\langle M \rangle$ is undecidable.
+<em>Corollary</em>: Perfect static analysis is impossible. No static analyzer can decide whether a program will throw an unhandled null pointer exception, terminate, or leak memory for all inputs without false positives or false negatives.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding grammars, computability, and undecidability is vital for every software engineer because it establishes the boundaries of what software can and cannot compute. Novice developers often waste weeks trying to solve mathematically uncomputable problems—such as writing an automated unit test runner that guarantees whether arbitrary untrusted user scripts will finish executing, or designing an algorithm that checks whether two arbitrary microservice implementations will always produce identical output for all inputs. Rice's Theorem proves that any non-trivial semantic property of program execution is undecidable; acknowledging this allows engineers to employ sound heuristics, bounded timeouts, and static type systems rather than chasing impossible guarantees.</p>
+<p>Furthermore, context-free grammars and pushdown automata form the bedrock of compiler frontends, domain-specific languages (DSLs), and structured data serialization. Trying to parse HTML, JSON, or SQL using regular expressions fails because regular languages lack the stack memory required to match balanced brackets, nested expressions, and recursive control flow. By mastering CFGs, derivations, and ambiguity resolution, software engineers can design clean programming language syntax and construct parsers that produce unambiguous abstract syntax trees (ASTs).</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Context-Free Grammar parser and bracket validator oracle demonstrates how pushdown automata utilize stack memory to validate balanced nested syntax structures that regular automata cannot recognize. In programming language compilers and data format parsers, pushdown stack matching verifies balanced parenthesis, curly brackets, and nested operator hierarchies with linear time efficiency. The interactive oracle simulates a pushdown validator, evaluates nested structures, and asserts proper acceptance.</p>
+<div class="lab demo" data-demo="p13-oracle-cfg-parser">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Pushdown Automaton Bracket Grammar Validator Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class PushdownBracketValidator:
+    def __init__(self):
+        self.matching = {&#x27;)&#x27;: &#x27;(&#x27;, &#x27;}&#x27;: &#x27;{&#x27;, &#x27;]&#x27;: &#x27;[&#x27;}
+        self.openers = set(self.matching.values())
+
+    def validate(self, expression: str) -&gt; bool:
+        # Stack represents PDA LIFO stack alphabet
+        stack = []
+        for char in expression:
+            if char in self.openers:
+                stack.append(char)
+            elif char in self.matching:
+                if not stack or stack[-1] != self.matching[char]:
+                    return False
+                stack.pop()
+        # Accept iff stack is empty at end of input
+        return len(stack) == 0
+
+pda = PushdownBracketValidator()
+
+# Valid nested expressions
+assert pda.validate(&quot;()&quot;) is True
+assert pda.validate(&quot;{[()]}&quot;) is True
+assert pda.validate(&quot;a + (b * [c - {d / 2}])&quot;) is True
+
+# Invalid / unbalanced expressions
+assert pda.validate(&quot;(&quot;) is False
+assert pda.validate(&quot;([)]&quot;) is False
+assert pda.validate(&quot;}{&quot;) is False
+
+print(&quot;Pushdown automaton bracket grammar validator oracle verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally simulate a deterministic Turing Machine executing state transitions across an unbounded tape. The machine executes a binary incrementer on a multi-cell tape, tracking head position movements (Left, Right), state changes, and symbol overwrites. We verify that the Turing machine halts in exactly $N+2$ steps on an $N$-bit binary number, demonstrating the physical step-by-step nature of Alan Turing's foundational computing model.</p>
+<div class="lab demo" data-demo="p13-exp-turing-incrementer">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Turing Machine Binary Incrementer Execution Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def run_turing_incrementer(binary_str: str) -&gt; tuple[str, int]:
+    # Tape: infinite list of characters, initialized with binary_str
+    tape = list(binary_str)
+    head = len(tape) - 1  # start at least significant bit
+    state = &quot;carry&quot;
+    steps = 0
+    max_steps = 1000
+    
+    # Turing machine transitions for adding 1 to binary number
+    while state != &quot;halt&quot; and steps &lt; max_steps:
+        steps += 1
+        bit = tape[head] if head &gt;= 0 else &quot;0&quot;
+        
+        if state == &quot;carry&quot;:
+            if bit == &quot;1&quot;:
+                if head &gt;= 0:
+                    tape[head] = &quot;0&quot;
+                else:
+                    tape.insert(0, &quot;0&quot;)
+                head -= 1
+            else:  # bit == &#x27;0&#x27;
+                if head &gt;= 0:
+                    tape[head] = &quot;1&quot;
+                else:
+                    tape.insert(0, &quot;1&quot;)
+                state = &quot;halt&quot;
+                
+    return &quot;&quot;.join(tape), steps
+
+# Increment 5 (&quot;101&quot;) -&gt; 6 (&quot;110&quot;)
+res1, steps1 = run_turing_incrementer(&quot;101&quot;)
+assert res1 == &quot;110&quot;
+assert steps1 == 2
+
+# Increment 7 (&quot;111&quot;) -&gt; 8 (&quot;1000&quot;)
+res2, steps2 = run_turing_incrementer(&quot;111&quot;)
+assert res2 == &quot;1000&quot;
+assert steps2 == 4
+
+print(f&quot;Turing Machine incrementer verified: &#x27;111&#x27; + 1 = &#x27;{res2}&#x27; in {steps2} tape transitions.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-cfg-leftmost-derivation" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Context-Free Grammar Leftmost Derivation Generator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement derive_leftmost(grammar: dict[str, list[list[str]]], start_symbol: str, rule_choices: list[int]) -&gt; list[str] that executes a sequence of leftmost derivation rule substitutions, replacing the leftmost non-terminal symbol at each step.</p></div>
+<textarea class="code" spellcheck="false">def derive_leftmost(grammar: dict[str, list[list[str]]], start_symbol: str, rule_choices: list[int]) -&gt; list[str]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cfg_arithmetic_derivation():
+    # E -&gt; E + T (rule 0) | T (rule 1)
+    # T -&gt; id (rule 0)
+    grammar = {
+        &quot;E&quot;: [[&quot;E&quot;, &quot;+&quot;, &quot;T&quot;], [&quot;T&quot;]],
+        &quot;T&quot;: [[&quot;id&quot;]]
+    }
+    # Derive &quot;id + id&quot; leftmost:
+    # E -&gt; (rule 0) -&gt; E + T -&gt; (rule 1 on E) -&gt; T + T -&gt; (rule 0 on T) -&gt; id + T -&gt; (rule 0 on T) -&gt; id + id
+    res = derive_leftmost(grammar, &quot;E&quot;, [0, 1, 0, 0])
+    assert res == [&quot;id&quot;, &quot;+&quot;, &quot;id&quot;]
+
+def test_cfg_single_rule():
+    grammar = {&quot;S&quot;: [[&quot;a&quot;, &quot;S&quot;, &quot;b&quot;], [&quot;epsilon&quot;]]}
+    res = derive_leftmost(grammar, &quot;S&quot;, [0, 1])
+    assert res == [&quot;a&quot;, &quot;epsilon&quot;, &quot;b&quot;]
+
+def test_cfg_error_on_invalid_rule():
+    grammar = {&quot;S&quot;: [[&quot;a&quot;]]}
+    try:
+        derive_leftmost(grammar, &quot;S&quot;, [5])
+        assert False, &quot;Should raise IndexError&quot;
+    except IndexError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-pushdown-automaton-simulator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Deterministic Pushdown Automaton (DPDA) Simulator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_dpda(states: set[str], alphabet: set[str], stack_alphabet: set[str], transitions: dict, start_state: str, start_stack: str, accept_states: set[str], input_string: str) -&gt; bool recognizing context-free languages via stack transitions.</p></div>
+<textarea class="code" spellcheck="false">def simulate_dpda(states: set[str], alphabet: set[str], stack_alphabet: set[str], transitions: dict, start_state: str, start_stack: str, accept_states: set[str], input_string: str) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_dpda_an_bn():
+    # Recognizes L = {a^n b^n | n &gt;= 1}
+    # States: q0 (reading a), q1 (reading b), q2 (accept)
+    # Stack: Z0 (bottom), A
+    states = {&quot;q0&quot;, &quot;q1&quot;, &quot;q2&quot;}
+    alphabet = {&quot;a&quot;, &quot;b&quot;}
+    stack_alphabet = {&quot;Z0&quot;, &quot;A&quot;}
+    transitions = {
+        (&quot;q0&quot;, &quot;a&quot;, &quot;Z0&quot;): (&quot;q0&quot;, [&quot;A&quot;, &quot;Z0&quot;]),
+        (&quot;q0&quot;, &quot;a&quot;, &quot;A&quot;): (&quot;q0&quot;, [&quot;A&quot;, &quot;A&quot;]),
+        (&quot;q0&quot;, &quot;b&quot;, &quot;A&quot;): (&quot;q1&quot;, []),            # pop A
+        (&quot;q1&quot;, &quot;b&quot;, &quot;A&quot;): (&quot;q1&quot;, []),            # pop A
+        (&quot;q1&quot;, &quot;&quot;, &quot;Z0&quot;): (&quot;q2&quot;, [&quot;Z0&quot;])         # eps transition to accept on empty stack
+    }
+    
+    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, &quot;q0&quot;, &quot;Z0&quot;, {&quot;q2&quot;}, &quot;ab&quot;) is True
+    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, &quot;q0&quot;, &quot;Z0&quot;, {&quot;q2&quot;}, &quot;aaabbb&quot;) is True
+    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, &quot;q0&quot;, &quot;Z0&quot;, {&quot;q2&quot;}, &quot;aab&quot;) is False
+    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, &quot;q0&quot;, &quot;Z0&quot;, {&quot;q2&quot;}, &quot;abb&quot;) is False
+
+def test_dpda_reject_empty():
+    states = {&quot;q0&quot;, &quot;q1&quot;}
+    alphabet = {&quot;a&quot;}
+    stack_alphabet = {&quot;Z0&quot;}
+    transitions = {(&quot;q0&quot;, &quot;a&quot;, &quot;Z0&quot;): (&quot;q1&quot;, [&quot;Z0&quot;])}
+    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, &quot;q0&quot;, &quot;Z0&quot;, {&quot;q1&quot;}, &quot;&quot;) is False
+
+def test_dpda_reject_mismatched_order():
+    states = {&quot;q0&quot;, &quot;q1&quot;, &quot;q2&quot;}
+    alphabet = {&quot;a&quot;, &quot;b&quot;}
+    stack_alphabet = {&quot;Z0&quot;, &quot;A&quot;}
+    transitions = {
+        (&quot;q0&quot;, &quot;a&quot;, &quot;Z0&quot;): (&quot;q0&quot;, [&quot;A&quot;, &quot;Z0&quot;]),
+        (&quot;q0&quot;, &quot;b&quot;, &quot;A&quot;): (&quot;q1&quot;, [])
+    }
+    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, &quot;q0&quot;, &quot;Z0&quot;, {&quot;q1&quot;}, &quot;ba&quot;) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-turing-machine-tape-simulator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Universal Turing Machine Tape and Transition Simulator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_turing_machine(transitions: dict, start_state: str, accept_state: str, reject_state: str, blank: str, tape_input: str, max_steps: int = 1000) -&gt; dict simulating an infinite tape TM, returning halted state, final tape string, and steps.</p></div>
+<textarea class="code" spellcheck="false">def simulate_turing_machine(transitions: dict, start_state: str, accept_state: str, reject_state: str, blank: str, tape_input: str, max_steps: int = 1000) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_tm_unary_increment():
+    # Adds a &#x27;1&#x27; at the end of a unary number: &quot;11&quot; -&gt; &quot;111&quot;
+    # State q0 scans right to blank, writes &#x27;1&#x27;, moves to q_acc
+    transitions = {
+        (&quot;q0&quot;, &quot;1&quot;): (&quot;q0&quot;, &quot;1&quot;, &quot;R&quot;),
+        (&quot;q0&quot;, &quot;_&quot;): (&quot;q_acc&quot;, &quot;1&quot;, &quot;R&quot;)
+    }
+    res = simulate_turing_machine(transitions, &quot;q0&quot;, &quot;q_acc&quot;, &quot;q_rej&quot;, &quot;_&quot;, &quot;11&quot;)
+    assert res[&quot;accepted&quot;] is True
+    assert res[&quot;tape&quot;] == &quot;111&quot;
+
+def test_tm_palindrome_reject():
+    # Immediate rejection transition
+    transitions = {
+        (&quot;q0&quot;, &quot;0&quot;): (&quot;q_acc&quot;, &quot;0&quot;, &quot;R&quot;),
+        (&quot;q0&quot;, &quot;1&quot;): (&quot;q_rej&quot;, &quot;1&quot;, &quot;R&quot;)
+    }
+    res = simulate_turing_machine(transitions, &quot;q0&quot;, &quot;q_acc&quot;, &quot;q_rej&quot;, &quot;_&quot;, &quot;1&quot;)
+    assert res[&quot;accepted&quot;] is False
+    assert res[&quot;state&quot;] == &quot;q_rej&quot;
+
+def test_tm_step_limit():
+    # Infinite loop: q0 on &#x27;1&#x27; -&gt; q0, &#x27;1&#x27;, &#x27;R&#x27;
+    transitions = {
+        (&quot;q0&quot;, &quot;_&quot;): (&quot;q0&quot;, &quot;_&quot;, &quot;R&quot;)
+    }
+    res = simulate_turing_machine(transitions, &quot;q0&quot;, &quot;q_acc&quot;, &quot;q_rej&quot;, &quot;_&quot;, &quot;&quot;, max_steps=50)
+    assert res[&quot;steps&quot;] == 50
+    assert res[&quot;accepted&quot;] is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-diagonal-halting-refutation" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Halting Problem Diagonalisation Refutation Demonstrator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement refute_hypothetical_halting_solver(solver_callable) -&gt; dict that constructs an adversarial diagonal function D and mathematically demonstrates that the hypothetical solver fails to correctly predict the behavior of D(D).</p></div>
+<textarea class="code" spellcheck="false">def refute_hypothetical_halting_solver(solver_callable) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_refute_optimistic_solver():
+    # Solver that naively assumes all programs halt
+    optimistic_solver = lambda prog, inp: True
+    res = refute_hypothetical_halting_solver(optimistic_solver)
+    assert res[&quot;contradiction_verified&quot;] is True
+    assert res[&quot;solver_predicted_halt&quot;] is True
+    assert res[&quot;actual_adversary_behavior&quot;] == &quot;LOOP_FOREVER&quot;
+
+def test_refute_pessimistic_solver():
+    # Solver that naively assumes programs loop
+    pessimistic_solver = lambda prog, inp: False
+    res = refute_hypothetical_halting_solver(pessimistic_solver)
+    assert res[&quot;contradiction_verified&quot;] is True
+    assert res[&quot;solver_predicted_halt&quot;] is False
+    assert res[&quot;actual_adversary_behavior&quot;] == &quot;HALT&quot;
+
+def test_refute_heuristic_solver():
+    # Solver based on string length or heuristic
+    heuristic_solver = lambda prog, inp: len(prog) % 2 == 0
+    res = refute_hypothetical_halting_solver(heuristic_solver)
+    assert res[&quot;contradiction_verified&quot;] is True
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"A computer with more memory or faster CPU can solve problems a Turing machine cannot."</strong> The Church-Turing thesis establishes that any physically realizable computer is computationally equivalent to a Turing machine; more memory only affects space complexity, not computability.</li>
+<li><strong>"The Halting Problem is only unsolved because we have not discovered a clever enough algorithm yet."</strong> The Halting Problem is mathematically provably impossible; Alan Turing's diagonal proof shows that any purported halting solver leads to a direct logical self-contradiction.</li>
+<li><strong>"Rice's Theorem applies to syntactic properties of programs like line count or variable names."</strong> Rice's Theorem applies exclusively to semantic properties (what the program computes / its language), not syntactic properties (how the code is written or formatted).</li>
+<li><strong>"All context-free grammars can be parsed deterministically without backtracking."</strong> Only a subset of CFGs (LR(k) and LL(k) grammars) can be parsed deterministically; general CFGs can be inherently ambiguous and require general parsers like CYK or Earley ($O(n^3)$).</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Formal grammars and computability models break down when applied to interactive, real-time distributed systems where inputs arrive asynchronously from external environments rather than being pre-recorded on a finite static tape. In such systems, reactive behavior is modeled through process calculi (like Milner's pi-calculus) rather than traditional closed Turing machines.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Grammars and computability theory are applied daily by language designers creating Domain Specific Languages (DSLs like GraphQL, Terraform HCL), compiler engineers designing AST parsers with Bison/Tree-sitter, security researchers proving the limits of automated exploit detection, and static analysis architects configuring heuristic lint rules in SonarQube.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the Chomsky hierarchy of formal grammars?</p></div><div class="a" hidden><p>A four-level hierarchy: Type 3 (Regular, finite automata), Type 2 (Context-Free, pushdown automata), Type 1 (Context-Sensitive, LBA), and Type 0 (Unrestricted, Turing machines).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the Church-Turing thesis?</p></div><div class="a" hidden><p>The conjecture that any function that can be computed by an effective algorithmic procedure can be computed by a Turing machine.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the difference between decidable and Turing-recognizable languages?</p></div><div class="a" hidden><p>Decidable languages have a Turing machine that halts on every input (accept or reject); recognizable languages may run forever on strings not in the language.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does Alan Turing prove that the Halting Problem is undecidable?</p></div><div class="a" hidden><p>Via Cantor's diagonal argument, by constructing a program D that halts if and only if a hypothetical halting solver predicts that D loops.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What does Rice's Theorem state?</p></div><div class="a" hidden><p>Any non-trivial semantic property of the language recognized by a Turing machine is undecidable.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why is perfect static analysis impossible?</p></div><div class="a" hidden><p>By Rice's Theorem, no automated tool can decide semantic runtime properties (like null pointer dereferences or terminations) without false positives or false negatives.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can generate leftmost derivations for CFGs, simulate pushdown automata with stack transitions, execute Turing machines on infinite tapes, and explain the diagonal proof of the Halting Problem and Rice's theorem.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Turing, A. M. (1936). On Computable Numbers, with an Application to the Entscheidungsproblem. Proceedings of the London Mathematical Society, 42(1), 230-265.</li>
+<li>Chomsky, N. (1956). Three Models for the Description of Language. IRE Transactions on Information Theory, 2(3), 113-124.</li>
+<li>Rice, H. G. (1953). Classes of Recursively Enumerable Sets and Their Decision Problems. Transactions of the American Mathematical Society, 74(2), 358-366.</li>
+</ul></section>
+<footer class="pager"><a href="S09.html">&larr; S09 Mobile networking and reliability</a>
+<a href="P14.html">P14 Complexity: P, NP and intractability &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P13", "packages": ["numpy"], "exercises": {"ex1-cfg-leftmost-derivation": {"starter": "def derive_leftmost(grammar: dict[str, list[list[str]]], start_symbol: str, rule_choices: list[int]) -> list[str]:\n    pass\n", "solution": "def derive_leftmost(grammar: dict[str, list[list[str]]], start_symbol: str, rule_choices: list[int]) -> list[str]:\n    # Sentential form starts with [start_symbol]\n    form = [start_symbol]\n    \n    for rule_idx in rule_choices:\n        # Find the index of the leftmost non-terminal\n        nt_idx = -1\n        for i, sym in enumerate(form):\n            if sym in grammar:\n                nt_idx = i\n                break\n                \n        if nt_idx == -1:\n            raise ValueError(\"No non-terminal remaining in sentential form to expand\")\n            \n        nt = form[nt_idx]\n        productions = grammar[nt]\n        if rule_idx < 0 or rule_idx >= len(productions):\n            raise IndexError(f\"Rule index {rule_idx} out of range for non-terminal {nt}\")\n            \n        replacement = productions[rule_idx]\n        # Replace the non-terminal with the production symbols\n        form = form[:nt_idx] + replacement + form[nt_idx + 1:]\n        \n    return form\n", "tests": "def test_cfg_arithmetic_derivation():\n    # E -> E + T (rule 0) | T (rule 1)\n    # T -> id (rule 0)\n    grammar = {\n        \"E\": [[\"E\", \"+\", \"T\"], [\"T\"]],\n        \"T\": [[\"id\"]]\n    }\n    # Derive \"id + id\" leftmost:\n    # E -> (rule 0) -> E + T -> (rule 1 on E) -> T + T -> (rule 0 on T) -> id + T -> (rule 0 on T) -> id + id\n    res = derive_leftmost(grammar, \"E\", [0, 1, 0, 0])\n    assert res == [\"id\", \"+\", \"id\"]\n\ndef test_cfg_single_rule():\n    grammar = {\"S\": [[\"a\", \"S\", \"b\"], [\"epsilon\"]]}\n    res = derive_leftmost(grammar, \"S\", [0, 1])\n    assert res == [\"a\", \"epsilon\", \"b\"]\n\ndef test_cfg_error_on_invalid_rule():\n    grammar = {\"S\": [[\"a\"]]}\n    try:\n        derive_leftmost(grammar, \"S\", [5])\n        assert False, \"Should raise IndexError\"\n    except IndexError:\n        pass\n", "mutants": ["def derive_leftmost(grammar, start_symbol, rule_choices):\n    assert False, 'mutant injected'\n", "def derive_leftmost(grammar, start_symbol, rule_choices):\n    return []  # returns empty sentential form\n"], "hints": ["Find the first symbol in the sentential form that exists as a key in grammar.", "Replace it with the production at grammar[nt][rule_choice].", "Repeat for each choice in rule_choices."], "level": "warmup", "title": "Context-Free Grammar Leftmost Derivation Generator"}, "ex2-pushdown-automaton-simulator": {"starter": "def simulate_dpda(states: set[str], alphabet: set[str], stack_alphabet: set[str], transitions: dict, start_state: str, start_stack: str, accept_states: set[str], input_string: str) -> bool:\n    pass\n", "solution": "def simulate_dpda(states: set[str], alphabet: set[str], stack_alphabet: set[str], transitions: dict, start_state: str, start_stack: str, accept_states: set[str], input_string: str) -> bool:\n    # transitions key: (state, input_sym_or_eps, stack_top)\n    # value: (next_state, push_symbols_list)\n    curr_state = start_state\n    stack = [start_stack]\n    i = 0\n    n = len(input_string)\n    max_steps = 10000\n    steps = 0\n    \n    while steps < max_steps:\n        steps += 1\n        stack_top = stack[-1] if stack else None\n        \n        # Check epsilon transition first if available\n        eps_key = (curr_state, \"\", stack_top)\n        sym = input_string[i] if i < n else None\n        sym_key = (curr_state, sym, stack_top) if sym is not None else None\n        \n        if sym_key and sym_key in transitions:\n            # Consume symbol\n            nxt_state, push_syms = transitions[sym_key]\n            stack.pop()\n            for s in reversed(push_syms):\n                if s != \"\":\n                    stack.append(s)\n            curr_state = nxt_state\n            i += 1\n        elif eps_key in transitions:\n            # Epsilon transition (does not consume input symbol)\n            nxt_state, push_syms = transitions[eps_key]\n            stack.pop()\n            for s in reversed(push_syms):\n                if s != \"\":\n                    stack.append(s)\n            curr_state = nxt_state\n        else:\n            # No valid transition\n            break\n            \n    # Accepted if all input consumed and final state in accept_states\n    return i == n and curr_state in accept_states\n", "tests": "def test_dpda_an_bn():\n    # Recognizes L = {a^n b^n | n >= 1}\n    # States: q0 (reading a), q1 (reading b), q2 (accept)\n    # Stack: Z0 (bottom), A\n    states = {\"q0\", \"q1\", \"q2\"}\n    alphabet = {\"a\", \"b\"}\n    stack_alphabet = {\"Z0\", \"A\"}\n    transitions = {\n        (\"q0\", \"a\", \"Z0\"): (\"q0\", [\"A\", \"Z0\"]),\n        (\"q0\", \"a\", \"A\"): (\"q0\", [\"A\", \"A\"]),\n        (\"q0\", \"b\", \"A\"): (\"q1\", []),            # pop A\n        (\"q1\", \"b\", \"A\"): (\"q1\", []),            # pop A\n        (\"q1\", \"\", \"Z0\"): (\"q2\", [\"Z0\"])         # eps transition to accept on empty stack\n    }\n    \n    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, \"q0\", \"Z0\", {\"q2\"}, \"ab\") is True\n    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, \"q0\", \"Z0\", {\"q2\"}, \"aaabbb\") is True\n    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, \"q0\", \"Z0\", {\"q2\"}, \"aab\") is False\n    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, \"q0\", \"Z0\", {\"q2\"}, \"abb\") is False\n\ndef test_dpda_reject_empty():\n    states = {\"q0\", \"q1\"}\n    alphabet = {\"a\"}\n    stack_alphabet = {\"Z0\"}\n    transitions = {(\"q0\", \"a\", \"Z0\"): (\"q1\", [\"Z0\"])}\n    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, \"q0\", \"Z0\", {\"q1\"}, \"\") is False\n\ndef test_dpda_reject_mismatched_order():\n    states = {\"q0\", \"q1\", \"q2\"}\n    alphabet = {\"a\", \"b\"}\n    stack_alphabet = {\"Z0\", \"A\"}\n    transitions = {\n        (\"q0\", \"a\", \"Z0\"): (\"q0\", [\"A\", \"Z0\"]),\n        (\"q0\", \"b\", \"A\"): (\"q1\", [])\n    }\n    assert simulate_dpda(states, alphabet, stack_alphabet, transitions, \"q0\", \"Z0\", {\"q1\"}, \"ba\") is False\n", "mutants": ["def simulate_dpda(states, alphabet, stack_alphabet, transitions, start_state, start_stack, accept_states, input_string):\n    assert False, 'mutant injected'\n", "def simulate_dpda(states, alphabet, stack_alphabet, transitions, start_state, start_stack, accept_states, input_string):\n    return True  # mutant accepts without checking transitions\n"], "hints": ["Maintain a stack starting with start_stack.", "Lookup transitions by (state, symbol, stack_top) or (state, '', stack_top).", "Accept if entire input is consumed and in accept_states."], "level": "core", "title": "Deterministic Pushdown Automaton (DPDA) Simulator"}, "ex3-turing-machine-tape-simulator": {"starter": "def simulate_turing_machine(transitions: dict, start_state: str, accept_state: str, reject_state: str, blank: str, tape_input: str, max_steps: int = 1000) -> dict:\n    pass\n", "solution": "def simulate_turing_machine(transitions: dict, start_state: str, accept_state: str, reject_state: str, blank: str, tape_input: str, max_steps: int = 1000) -> dict:\n    # Tape modeled as a dict of position -> char\n    tape = {i: c for i, c in enumerate(tape_input)}\n    head = 0\n    state = start_state\n    steps = 0\n    \n    while steps < max_steps:\n        if state == accept_state:\n            break\n        if state == reject_state:\n            break\n            \n        steps += 1\n        sym = tape.get(head, blank)\n        key = (state, sym)\n        \n        if key not in transitions:\n            state = reject_state\n            break\n            \n        nxt_state, write_sym, direction = transitions[key]\n        tape[head] = write_sym\n        state = nxt_state\n        \n        if direction.upper() == 'R':\n            head += 1\n        elif direction.upper() == 'L':\n            head -= 1\n        else:\n            raise ValueError(f\"Invalid head movement direction: {direction}\")\n            \n    # Format tape output between min and max indices touched\n    if tape:\n        min_idx = min(tape.keys())\n        max_idx = max(tape.keys())\n        tape_str = \"\".join(tape.get(i, blank) for i in range(min_idx, max_idx + 1))\n    else:\n        tape_str = \"\"\n        \n    return {\n        \"state\": state,\n        \"accepted\": state == accept_state,\n        \"steps\": steps,\n        \"tape\": tape_str\n    }\n", "tests": "def test_tm_unary_increment():\n    # Adds a '1' at the end of a unary number: \"11\" -> \"111\"\n    # State q0 scans right to blank, writes '1', moves to q_acc\n    transitions = {\n        (\"q0\", \"1\"): (\"q0\", \"1\", \"R\"),\n        (\"q0\", \"_\"): (\"q_acc\", \"1\", \"R\")\n    }\n    res = simulate_turing_machine(transitions, \"q0\", \"q_acc\", \"q_rej\", \"_\", \"11\")\n    assert res[\"accepted\"] is True\n    assert res[\"tape\"] == \"111\"\n\ndef test_tm_palindrome_reject():\n    # Immediate rejection transition\n    transitions = {\n        (\"q0\", \"0\"): (\"q_acc\", \"0\", \"R\"),\n        (\"q0\", \"1\"): (\"q_rej\", \"1\", \"R\")\n    }\n    res = simulate_turing_machine(transitions, \"q0\", \"q_acc\", \"q_rej\", \"_\", \"1\")\n    assert res[\"accepted\"] is False\n    assert res[\"state\"] == \"q_rej\"\n\ndef test_tm_step_limit():\n    # Infinite loop: q0 on '1' -> q0, '1', 'R'\n    transitions = {\n        (\"q0\", \"_\"): (\"q0\", \"_\", \"R\")\n    }\n    res = simulate_turing_machine(transitions, \"q0\", \"q_acc\", \"q_rej\", \"_\", \"\", max_steps=50)\n    assert res[\"steps\"] == 50\n    assert res[\"accepted\"] is False\n", "mutants": ["def simulate_turing_machine(transitions, start_state, accept_state, reject_state, blank, tape_input, max_steps=1000):\n    assert False, 'mutant injected'\n", "def simulate_turing_machine(transitions, start_state, accept_state, reject_state, blank, tape_input, max_steps=1000):\n    return {\"state\": reject_state, \"accepted\": False, \"steps\": 0, \"tape\": \"\"}\n"], "hints": ["Use a dictionary for tape cells to represent an infinite tape in both directions.", "Lookup (state, current_symbol) in transitions.", "Update tape cell, transition state, and shift head Left or Right."], "level": "core", "title": "Universal Turing Machine Tape and Transition Simulator"}, "ex4-diagonal-halting-refutation": {"starter": "def refute_hypothetical_halting_solver(solver_callable) -> dict:\n    pass\n", "solution": "def refute_hypothetical_halting_solver(solver_callable) -> dict:\n    # solver_callable takes (program_source: str, input_val: str) -> bool\n    # returning True if program halts on input, False if it loops forever.\n    \n    # We construct the adversarial Diagonal program D:\n    # def D(p):\n    #     if solver(p, p):\n    #         loop_forever()\n    #     else:\n    #         halt()\n    \n    class DiagonalAdversary:\n        def __init__(self, solver):\n            self.solver = solver\n            \n        def execute(self, program_code: str):\n            prediction = self.solver(program_code, program_code)\n            if prediction is True:\n                # Solver predicted D halts on D -> D must loop/hang!\n                return \"LOOP_FOREVER\"\n            else:\n                # Solver predicted D loops on D -> D must halt!\n                return \"HALT\"\n\n    d_code = \"DIAGONAL_PROGRAM_SOURCE\"\n    adversary = DiagonalAdversary(solver_callable)\n    \n    # Test solver prediction on (d_code, d_code)\n    solver_prediction = solver_callable(d_code, d_code)\n    actual_behavior = adversary.execute(d_code)\n    \n    # Contradiction verification:\n    # If solver predicted True (halts), actual behavior is LOOP_FOREVER\n    # If solver predicted False (loops), actual behavior is HALT\n    contradiction_verified = (\n        (solver_prediction is True and actual_behavior == \"LOOP_FOREVER\") or\n        (solver_prediction is False and actual_behavior == \"HALT\")\n    )\n    \n    return {\n        \"solver_predicted_halt\": solver_prediction,\n        \"actual_adversary_behavior\": actual_behavior,\n        \"contradiction_verified\": contradiction_verified\n    }\n", "tests": "def test_refute_optimistic_solver():\n    # Solver that naively assumes all programs halt\n    optimistic_solver = lambda prog, inp: True\n    res = refute_hypothetical_halting_solver(optimistic_solver)\n    assert res[\"contradiction_verified\"] is True\n    assert res[\"solver_predicted_halt\"] is True\n    assert res[\"actual_adversary_behavior\"] == \"LOOP_FOREVER\"\n\ndef test_refute_pessimistic_solver():\n    # Solver that naively assumes programs loop\n    pessimistic_solver = lambda prog, inp: False\n    res = refute_hypothetical_halting_solver(pessimistic_solver)\n    assert res[\"contradiction_verified\"] is True\n    assert res[\"solver_predicted_halt\"] is False\n    assert res[\"actual_adversary_behavior\"] == \"HALT\"\n\ndef test_refute_heuristic_solver():\n    # Solver based on string length or heuristic\n    heuristic_solver = lambda prog, inp: len(prog) % 2 == 0\n    res = refute_hypothetical_halting_solver(heuristic_solver)\n    assert res[\"contradiction_verified\"] is True\n", "mutants": ["def refute_hypothetical_halting_solver(solver_callable):\n    assert False, 'mutant injected'\n", "def refute_hypothetical_halting_solver(solver_callable):\n    return {\"solver_predicted_halt\": True, \"actual_adversary_behavior\": \"HALT\", \"contradiction_verified\": False}\n"], "hints": ["Construct a diagonal program that inverts the solver's prediction.", "If solver says halts, diagonal program enters an infinite loop.", "If solver says loops, diagonal program halts immediately."], "level": "boss", "title": "Halting Problem Diagonalisation Refutation Demonstrator"}}, "demos": {"p13-oracle-cfg-parser": {"code": "class PushdownBracketValidator:\n    def __init__(self):\n        self.matching = {')': '(', '}': '{', ']': '['}\n        self.openers = set(self.matching.values())\n\n    def validate(self, expression: str) -> bool:\n        # Stack represents PDA LIFO stack alphabet\n        stack = []\n        for char in expression:\n            if char in self.openers:\n                stack.append(char)\n            elif char in self.matching:\n                if not stack or stack[-1] != self.matching[char]:\n                    return False\n                stack.pop()\n        # Accept iff stack is empty at end of input\n        return len(stack) == 0\n\npda = PushdownBracketValidator()\n\n# Valid nested expressions\nassert pda.validate(\"()\") is True\nassert pda.validate(\"{[()]}\") is True\nassert pda.validate(\"a + (b * [c - {d / 2}])\") is True\n\n# Invalid / unbalanced expressions\nassert pda.validate(\"(\") is False\nassert pda.validate(\"([)]\") is False\nassert pda.validate(\"}{\") is False\n\nprint(\"Pushdown automaton bracket grammar validator oracle verified.\")\n", "mutants": ["class PushdownBracketValidator:\n    def validate(self, expr): return True  # ignores stack matching\npda = PushdownBracketValidator()\nassert pda.validate(\"(\") is False\n"]}, "p13-exp-turing-incrementer": {"code": "def run_turing_incrementer(binary_str: str) -> tuple[str, int]:\n    # Tape: infinite list of characters, initialized with binary_str\n    tape = list(binary_str)\n    head = len(tape) - 1  # start at least significant bit\n    state = \"carry\"\n    steps = 0\n    max_steps = 1000\n    \n    # Turing machine transitions for adding 1 to binary number\n    while state != \"halt\" and steps < max_steps:\n        steps += 1\n        bit = tape[head] if head >= 0 else \"0\"\n        \n        if state == \"carry\":\n            if bit == \"1\":\n                if head >= 0:\n                    tape[head] = \"0\"\n                else:\n                    tape.insert(0, \"0\")\n                head -= 1\n            else:  # bit == '0'\n                if head >= 0:\n                    tape[head] = \"1\"\n                else:\n                    tape.insert(0, \"1\")\n                state = \"halt\"\n                \n    return \"\".join(tape), steps\n\n# Increment 5 (\"101\") -> 6 (\"110\")\nres1, steps1 = run_turing_incrementer(\"101\")\nassert res1 == \"110\"\nassert steps1 == 2\n\n# Increment 7 (\"111\") -> 8 (\"1000\")\nres2, steps2 = run_turing_incrementer(\"111\")\nassert res2 == \"1000\"\nassert steps2 == 4\n\nprint(f\"Turing Machine incrementer verified: '111' + 1 = '{res2}' in {steps2} tape transitions.\")\n", "mutants": ["def run_turing_incrementer(binary_str): return \"0\", 0\nres, _ = run_turing_incrementer(\"101\")\nassert res == \"110\"\n"]}}, "cards": [{"q": "What is the Chomsky hierarchy of formal grammars?", "a": "A four-level hierarchy: Type 3 (Regular, finite automata), Type 2 (Context-Free, pushdown automata), Type 1 (Context-Sensitive, LBA), and Type 0 (Unrestricted, Turing machines)."}, {"q": "What is the Church-Turing thesis?", "a": "The conjecture that any function that can be computed by an effective algorithmic procedure can be computed by a Turing machine."}, {"q": "What is the difference between decidable and Turing-recognizable languages?", "a": "Decidable languages have a Turing machine that halts on every input (accept or reject); recognizable languages may run forever on strings not in the language."}, {"q": "How does Alan Turing prove that the Halting Problem is undecidable?", "a": "Via Cantor's diagonal argument, by constructing a program D that halts if and only if a hypothetical halting solver predicts that D loops."}, {"q": "What does Rice's Theorem state?", "a": "Any non-trivial semantic property of the language recognized by a Turing machine is undecidable."}, {"q": "Why is perfect static analysis impossible?", "a": "By Rice's Theorem, no automated tool can decide semantic runtime properties (like null pointer dereferences or terminations) without false positives or false negatives."}], "title": "Grammars, computability and undecidability"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

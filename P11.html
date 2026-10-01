@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P11 Databases</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P11">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P11</p><h1>Databases</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M16.html">M16</a> <a href="P03.html">P03</a></div><div><b>Covers:</b> CS2023 DM</div>
+<details><summary>Everything this module teaches (14 items)</summary><ul class="must"><li>the relational model and keys</li><li>relational algebra</li><li>SQL: joins, grouping, subqueries, window functions</li><li>normalisation (1NF to BCNF)</li><li>B+tree indexes and query plans</li><li>transactions and ACID</li><li>isolation levels and their anomalies</li><li>two-phase locking and MVCC</li><li>SQLite journal modes and WAL</li><li>migrations</li><li>NoSQL trade-offs</li><li>modelling 1:1, 1:n and n:m relationships (ER diagrams, junction tables)</li><li>DBMS architecture: components, data independence and structured vs semi-structured (JSON) data</li><li>LSM trees vs B-trees (memtables, SSTables, compaction, write vs read amplification)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1970, an Oxford-educated mathematician working at IBM San Jose named Edgar F. Codd published an eight-page paper that transformed the software industry forever: "A Relational Model of Data for Large Shared Data Banks." Prior to Codd's breakthrough, databases were physical, hierarchical mazes built on CODASYL networks or tree structures (such as IBM's IMS). Application code was tightly coupled to physical disk pointers. If a database administrator reordered fields in a record or added a new disk index to speed up billing queries, every existing business program broke because pointers shifted by four bytes. Codd saw this as an engineering catastrophe. Drawing on first-order predicate logic and set theory, Codd proposed declaring data as mathematical relations (tables of n-tuples) and querying them through declarative relational algebra without knowing or caring how records were physically organized or indexed on spinning magnetic drums.</p>
+<p>Codd's IBM colleagues were initially skeptical, fearing relational models could never match the raw retrieval speeds of hand-tuned assembly pointer networks. But System R proved Codd right, inventing SQL (Structured English Query Language) and pioneering Write-Ahead Logging (WAL) and Two-Phase Locking. Concurrently, Michael Stonebraker's team at UC Berkeley built Ingres, proving that query optimizers could translate declarative relational algebra into hyper-efficient B-tree index traversals that routinely outperformed human-written pointer chasing.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A database is an engine engineered to store, retrieve, and safeguard structured information while guaranteeing correctness when hundreds of users modify the same data simultaneously. Instead of writing custom logic to search through files on disk, you describe what answers you need using declarative queries, and the database calculates the optimal way to find them. Furthermore, database transactions ensure that banking transfers, inventory deductions, and order placements are atomic: either every part of an operation succeeds, or nothing changes, even if the server suddenly loses electrical power halfway through.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Formally, a relational database is defined by relational algebra over relations $R \subseteq D_1 \times D_2 \times \dots \times D_k$, where each relation is a set of tuples whose components conform to named attributes within domain domains. Relational algebra defines fundamental closed operators:
+1. <strong>Selection</strong> ($\sigma_\varphi(R)$): Filters tuples satisfying propositional formula $\varphi$.
+2. <strong>Projection</strong> ($\pi_{A_1, \dots, A_m}(R)$): Restricts tuples to attributes $A_1, \dots, A_m$.
+3. <strong>Cartesian Product</strong> ($R \times S$) and <strong>Natural Join</strong> ($R \bowtie S$): Equi-joins relations on shared attribute names.
+4. <strong>Union</strong> ($R \cup S$), <strong>Difference</strong> ($R \setminus S$), and <strong>Rename</strong> ($\rho_{S(B_1, \dots, B_k)}(R)$).</p>
+<p>Modern database engines organize storage and concurrency across distinct architectural layers:
+- <strong>Storage Subsystems</strong>: B+ Trees (optimized for high fanout, range scans, and read-heavy workloads with $O(\log_B N)$ disk seeks) versus Log-Structured Merge (LSM) Trees (optimizing append writes via memory memtables flushed to immutable on-disk SSTables, utilizing Bloom filters and background leveled compaction).
+- <strong>Transaction Semantics (ACID)</strong>: Atomicity (all-or-nothing), Consistency (integrity constraints preserved), Isolation (concurrent execution equivalent to some serial order), Durability (committed state survives crashes via write-ahead logging or WAL).
+- <strong>Concurrency Control</strong>: Two-Phase Locking (2PL, providing strict serializability via growing and shrinking lock phases) and Multi-Version Concurrency Control (MVCC, where readers take non-blocking point-in-time snapshots while writers append new version tuples with transaction IDs).
+- <strong>Normalization Theory</strong>: Decomposing schemas to eliminate update, insertion, and deletion anomalies: First Normal Form (1NF, atomic values), 2NF (no partial functional dependencies on candidate keys), 3NF (no transitive dependencies on non-prime attributes), and Boyce-Codd Normal Form (BCNF, for every functional dependency $X \to Y$, $X$ must be a superkey).</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding relational algebra, storage engines, and transaction isolation levels is essential because modern distributed systems and web backends inevitably encounter concurrency anomalies and storage bottlenecks under production load. Many software engineers treat relational databases like PostgreSQL, MySQL, or SQLite as black boxes: they write an ORM query, see that it works in local development with ten rows, and ship it to production. However, when traffic spikes to thousands of concurrent users, naive queries without proper indexes trigger full table scans ($O(N)$ sequential page reads), locking tables and causing cascading connection pool exhaustion.</p>
+<p>Moreover, the difference between transactional isolation levels is not theoretical; it directly impacts financial accuracy and business integrity. Under the default Read Committed isolation level in PostgreSQL, non-repeatable reads and phantom reads are permitted. Two concurrent transactions can execute a classic write-skew anomaly: both check that an account has sufficient balance to deduct fifty dollars, both see fifty-five dollars, and both deduct fifty dollars simultaneously, causing the account balance to become negative ten dollars. Understanding Two-Phase Locking (2PL), serializability conflict graphs, and Multi-Version Concurrency Control (MVCC) enables engineers to choose appropriate isolation levels (Repeatable Read vs Serializable) or explicit row-level locks (<code>SELECT FOR UPDATE</code>) to prevent catastrophic race conditions.</p>
+<p>Finally, selecting the correct storage engine architecture—B+ Tree versus LSM Tree—dictates system throughput. A B+ Tree performs in-place page updates, causing significant write amplification (rewriting an entire 4KB or 16KB leaf page for a single 20-byte change). In contrast, an LSM tree transforms random writes into fast sequential append-only writes, trading read latency and background compaction I/O for massive ingestion throughput. Master engineers understand these tradeoffs to match database storage characteristics to their workload's read-to-write ratios.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Multi-Version Concurrency Control (MVCC) snapshot isolation oracle demonstrates how relational engines provide non-blocking reads while detecting concurrent write conflicts. The interactive oracle manages versioned records annotated with creation and deletion transaction timestamps ($xmin, xmax$). Readers observe consistent snapshots of data committed before their transaction started without acquiring read locks, while concurrent transactions attempting to modify the same record trigger first-committer-wins conflict detection.</p>
+<div class="lab demo" data-demo="p11-oracle-mvcc-snapshot">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>MVCC Snapshot Isolation and Conflict Detection Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class MVCCEngine:
+    def __init__(self):
+        # table maps primary_key -&gt; list of versions (xmin, xmax, value)
+        self.table = {}
+        self.next_tx_id = 1
+        
+    def begin_tx(self) -&gt; int:
+        tx_id = self.next_tx_id
+        self.next_tx_id += 1
+        return tx_id
+
+    def insert(self, tx_id: int, key: str, value: str):
+        if key not in self.table:
+            self.table[key] = []
+        self.table[key].append({&quot;xmin&quot;: tx_id, &quot;xmax&quot;: None, &quot;val&quot;: value})
+
+    def read(self, tx_id: int, key: str) -&gt; str:
+        # Reader only sees tuples created before tx_id (xmin &lt;= tx_id)
+        # and not deleted before tx_id (xmax is None or xmax &gt; tx_id)
+        if key not in self.table:
+            return None
+        for version in reversed(self.table[key]):
+            if version[&quot;xmin&quot;] &lt;= tx_id:
+                if version[&quot;xmax&quot;] is None or version[&quot;xmax&quot;] &gt; tx_id:
+                    return version[&quot;val&quot;]
+        return None
+
+    def update(self, tx_id: int, key: str, new_value: str) -&gt; bool:
+        # First-committer-wins: find active version
+        versions = self.table.get(key, [])
+        active = None
+        for v in versions:
+            if v[&quot;xmax&quot;] is None:
+                active = v
+                break
+        if not active:
+            return False
+        # If active version was created by a concurrent newer transaction, conflict!
+        if active[&quot;xmin&quot;] &gt; tx_id:
+            raise ValueError(f&quot;Write conflict: key {key} modified by concurrent tx&quot;)
+        active[&quot;xmax&quot;] = tx_id
+        self.table[key].append({&quot;xmin&quot;: tx_id, &quot;xmax&quot;: None, &quot;val&quot;: new_value})
+        return True
+
+db = MVCCEngine()
+t0 = db.begin_tx()
+db.insert(t0, &quot;balance&quot;, &quot;100&quot;)
+
+# Reader starts at t1
+t1 = db.begin_tx()
+assert db.read(t1, &quot;balance&quot;) == &quot;100&quot;
+
+# Writer updates balance at t2
+t2 = db.begin_tx()
+db.update(t2, &quot;balance&quot;, &quot;250&quot;)
+
+# Reader t1 still sees snapshot &quot;100&quot; (non-blocking read isolation)
+assert db.read(t1, &quot;balance&quot;) == &quot;100&quot;
+
+# New reader t3 sees committed update &quot;250&quot;
+t3 = db.begin_tx()
+assert db.read(t3, &quot;balance&quot;) == &quot;250&quot;
+
+print(&quot;MVCC snapshot isolation and non-blocking read oracle verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally analyze the mathematical relationship between B+ Tree fanout, index depth, and disk page access operations. For a database storing one billion records ($N = 10^9$), we compare a binary search tree (fanout $B=2$) requiring 30 disk seeks against a high-fanout B+ tree (page size 16KB, key size 16 bytes, fanout $B=500$) requiring at most 4 disk page lookups, demonstrating why database storage layers organize indexes around physical page blocks.</p>
+<div class="lab demo" data-demo="p11-exp-b-tree-fanout">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>B+ Tree Fanout vs Tree Height and I/O Seeks</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def calculate_tree_height(n_records: int, fanout: int) -&gt; int:
+    # Height h such that fanout^h &gt;= n_records -&gt; h = ceil(log_{fanout}(n_records))
+    if fanout &lt; 2:
+        raise ValueError(&quot;Fanout must be &gt;= 2&quot;)
+    return int(math.ceil(math.log(n_records, fanout)))
+
+# 1 Billion records
+N = 1_000_000_000
+
+# Binary Search Tree (fanout = 2)
+h_bst = calculate_tree_height(N, 2)
+assert h_bst == 30
+
+# Modest B-tree (fanout = 10)
+h_b10 = calculate_tree_height(N, 10)
+assert h_b10 == 9
+
+# Production B+ tree with 16KB page size (fanout = 500)
+h_b500 = calculate_tree_height(N, 500)
+assert h_b500 &lt;= 4
+
+# With top 3 levels cached in RAM, exactly 1 disk I/O fetches any leaf row
+print(f&quot;For {N:,} records: BST height = {h_bst} seeks, B+ tree (B=500) height = {h_b500} page fetches.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-relational-algebra-evaluator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Relational Algebra Engine: Selection, Projection, and Natural Join</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement select_tuples(rel: list[dict], predicate), project_tuples(rel: list[dict], attributes: list[str]), and natural_join(rel_a: list[dict], rel_b: list[dict]) -&gt; list[dict] to evaluate elementary relational algebra operations on sets of named attribute tuples.</p></div>
+<textarea class="code" spellcheck="false">def select_tuples(rel: list[dict], predicate) -&gt; list[dict]:
+    pass
+
+def project_tuples(rel: list[dict], attributes: list[str]) -&gt; list[dict]:
+    pass
+
+def natural_join(rel_a: list[dict], rel_b: list[dict]) -&gt; list[dict]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_selection():
+    users = [
+        {&quot;id&quot;: 1, &quot;name&quot;: &quot;Alice&quot;, &quot;age&quot;: 25},
+        {&quot;id&quot;: 2, &quot;name&quot;: &quot;Bob&quot;, &quot;age&quot;: 17},
+        {&quot;id&quot;: 3, &quot;name&quot;: &quot;Charlie&quot;, &quot;age&quot;: 30}
+    ]
+    adults = select_tuples(users, lambda u: u[&quot;age&quot;] &gt;= 18)
+    assert len(adults) == 2
+    assert {u[&quot;name&quot;] for u in adults} == {&quot;Alice&quot;, &quot;Charlie&quot;}
+
+def test_projection():
+    users = [
+        {&quot;id&quot;: 1, &quot;name&quot;: &quot;Alice&quot;, &quot;role&quot;: &quot;admin&quot;},
+        {&quot;id&quot;: 2, &quot;name&quot;: &quot;Bob&quot;, &quot;role&quot;: &quot;admin&quot;},
+        {&quot;id&quot;: 3, &quot;name&quot;: &quot;Charlie&quot;, &quot;role&quot;: &quot;user&quot;}
+    ]
+    roles = project_tuples(users, [&quot;role&quot;])
+    # Projection removes duplicate tuples
+    assert len(roles) == 2
+    assert {&quot;admin&quot;, &quot;user&quot;} == {r[&quot;role&quot;] for r in roles}
+
+def test_natural_join():
+    employees = [
+        {&quot;dept_id&quot;: 10, &quot;emp&quot;: &quot;Alice&quot;},
+        {&quot;dept_id&quot;: 20, &quot;emp&quot;: &quot;Bob&quot;}
+    ]
+    departments = [
+        {&quot;dept_id&quot;: 10, &quot;dept_name&quot;: &quot;Engineering&quot;},
+        {&quot;dept_id&quot;: 30, &quot;dept_name&quot;: &quot;Sales&quot;}
+    ]
+    joined = natural_join(employees, departments)
+    assert len(joined) == 1
+    assert joined[0] == {&quot;dept_id&quot;: 10, &quot;emp&quot;: &quot;Alice&quot;, &quot;dept_name&quot;: &quot;Engineering&quot;}
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-b-plus-tree-range-search" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>B+ Tree Leaf Node Range Query Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement BPlusTreeLeaf and BPlusIndex with insert(key: int, row_id: int) and range_search(low_key: int, high_key: int) -&gt; list[int] simulating a B+ tree index where leaves form a doubly/singly linked list for efficient range scans without traversing internal nodes.</p></div>
+<textarea class="code" spellcheck="false">class LeafNode:
+    def __init__(self, capacity: int):
+        pass
+
+class BPlusIndex:
+    def __init__(self, leaf_capacity: int = 3):
+        pass
+
+    def insert(self, key: int, row_id: int):
+        pass
+
+    def range_search(self, low_key: int, high_key: int) -&gt; list[int]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bplus_leaf_insertion_and_search():
+    index = BPlusIndex(leaf_capacity=3)
+    data = [(10, 101), (20, 102), (5, 100), (15, 103), (30, 104), (25, 105)]
+    for k, v in data:
+        index.insert(k, v)
+        
+    res = index.range_search(10, 25)
+    # Keys 10, 15, 20, 25 should return in sorted order: [101, 103, 102, 105]
+    assert res == [101, 103, 102, 105]
+
+def test_bplus_range_all_and_none():
+    index = BPlusIndex(leaf_capacity=2)
+    index.insert(1, 10)
+    index.insert(2, 20)
+    index.insert(3, 30)
+    
+    assert index.range_search(100, 200) == []
+    assert index.range_search(1, 3) == [10, 20, 30]
+
+def test_bplus_single_key_lookup():
+    index = BPlusIndex(leaf_capacity=3)
+    for i in range(1, 20):
+        index.insert(i, i * 10)
+    assert index.range_search(7, 7) == [70]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-transaction-conflict-serializability" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Transaction Schedule Conflict Serializability Detector</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement is_conflict_serializable(schedule: list[tuple[int, str, str]]) -&gt; bool that constructs a serialization precedence graph from transaction operations (tx_id, op_type 'R'/'W', item) and detects whether a cycle exists using topological sort.</p></div>
+<textarea class="code" spellcheck="false">def is_conflict_serializable(schedule: list[tuple[int, str, str]]) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_serializable_schedule():
+    # T1: R(A), W(A); T2: R(A), W(A)
+    # T1 precedes T2 on item A, acyclic graph T1 -&gt; T2
+    sched = [
+        (1, &#x27;R&#x27;, &#x27;A&#x27;),
+        (1, &#x27;W&#x27;, &#x27;A&#x27;),
+        (2, &#x27;R&#x27;, &#x27;A&#x27;),
+        (2, &#x27;W&#x27;, &#x27;A&#x27;)
+    ]
+    assert is_conflict_serializable(sched) is True
+
+def test_non_serializable_cycle():
+    # T1: R(A), W(B); T2: W(A), R(B)
+    # A: T1 reads A before T2 writes A -&gt; T1 -&gt; T2
+    # B: T1 writes B before T2 reads B -&gt; T1 -&gt; T2 ... wait:
+    # Let T2 write A before T1 reads A (T2 -&gt; T1) and T1 write B before T2 reads B (T1 -&gt; T2) -&gt; Cycle!
+    sched = [
+        (2, &#x27;W&#x27;, &#x27;A&#x27;),
+        (1, &#x27;R&#x27;, &#x27;A&#x27;),
+        (1, &#x27;W&#x27;, &#x27;B&#x27;),
+        (2, &#x27;R&#x27;, &#x27;B&#x27;)
+    ]
+    assert is_conflict_serializable(sched) is False
+
+def test_independent_items():
+    # T1 touches X, T2 touches Y -&gt; no conflicts
+    sched = [
+        (1, &#x27;W&#x27;, &#x27;X&#x27;),
+        (2, &#x27;W&#x27;, &#x27;Y&#x27;),
+        (1, &#x27;R&#x27;, &#x27;X&#x27;),
+        (2, &#x27;R&#x27;, &#x27;Y&#x27;)
+    ]
+    assert is_conflict_serializable(sched) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-lsm-tree-memtable-sstable" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>LSM-Tree Storage Engine with Memtable, SSTables, and Compaction</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement an LSMTreeEngine with put(key: str, value: str), get(key: str) -&gt; str, delete(key: str) using tombstone markers, and compact() merging multiple immutable SSTables into a compacted generation.</p></div>
+<textarea class="code" spellcheck="false">class LSMTreeEngine:
+    def __init__(self, memtable_threshold: int = 3):
+        pass
+
+    def put(self, key: str, value: str):
+        pass
+
+    def delete(self, key: str):
+        pass
+
+    def get(self, key: str) -&gt; str:
+        pass
+
+    def compact(self):
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_lsm_memtable_and_flush():
+    lsm = LSMTreeEngine(memtable_threshold=3)
+    lsm.put(&quot;k1&quot;, &quot;v1&quot;)
+    lsm.put(&quot;k2&quot;, &quot;v2&quot;)
+    assert lsm.get(&quot;k1&quot;) == &quot;v1&quot;
+    assert len(lsm.sstables) == 0
+    
+    # 3rd put triggers flush to sstable
+    lsm.put(&quot;k3&quot;, &quot;v3&quot;)
+    assert len(lsm.sstables) == 1
+    assert lsm.get(&quot;k2&quot;) == &quot;v2&quot;
+    assert lsm.get(&quot;k3&quot;) == &quot;v3&quot;
+
+def test_lsm_tombstone_deletion():
+    lsm = LSMTreeEngine(memtable_threshold=2)
+    lsm.put(&quot;user_1&quot;, &quot;active&quot;)
+    lsm.put(&quot;user_2&quot;, &quot;active&quot;)  # flushes user_1, user_2
+    
+    assert lsm.get(&quot;user_1&quot;) == &quot;active&quot;
+    lsm.delete(&quot;user_1&quot;)
+    assert lsm.get(&quot;user_1&quot;) is None
+    assert lsm.get(&quot;user_2&quot;) == &quot;active&quot;
+
+def test_lsm_compaction_removes_tombstones():
+    lsm = LSMTreeEngine(memtable_threshold=2)
+    lsm.put(&quot;a&quot;, &quot;1&quot;)
+    lsm.put(&quot;b&quot;, &quot;2&quot;)  # flushes {a: 1, b: 2}
+    lsm.delete(&quot;a&quot;)
+    lsm.put(&quot;c&quot;, &quot;3&quot;)  # flushes {a: TOMBSTONE, c: 3}
+    
+    assert len(lsm.sstables) == 2
+    lsm.compact()
+    assert len(lsm.sstables) == 1
+    assert lsm.get(&quot;a&quot;) is None
+    assert lsm.get(&quot;b&quot;) == &quot;2&quot;
+    assert lsm.get(&quot;c&quot;) == &quot;3&quot;
+    assert &quot;a&quot; not in lsm.sstables[0]
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"NoSQL databases are inherently faster than relational databases."</strong> NoSQL databases relax ACID guarantees or relational joins to achieve partition tolerance and horizontal scaling, but a properly indexed relational database routinely outperforms NoSQL systems on complex queries and relational lookups.</li>
+<li><strong>"Indexes on all columns always speed up database performance."</strong> Every secondary index adds write amplification: every INSERT, UPDATE, and DELETE must modify the table page plus every associated secondary B-tree index, degrading ingestion throughput.</li>
+<li><strong>"ACID Consistency means eventual consistency or CAP theorem consistency."</strong> ACID Consistency refers to application-defined domain integrity constraints (foreign keys, uniqueness, check constraints), whereas CAP Consistency refers to linearizability (single-copy consistency across replicas).</li>
+<li><strong>"Database normalisation to BCNF is always the best design for production."</strong> High normalisation reduces redundancy but requires numerous multi-table joins; analytical and high-throughput read workloads often employ deliberate denormalisation (star schemas, summary tables) to minimize join overhead.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Relational databases break down under extreme horizontal write scalability when distributed transactions across sharded nodes require two-phase commit (2PC), dramatically increasing latency and vulnerability to network partitions. Additionally, relational query planners can choose catastrophic execution plans when table statistics (histograms) become stale, transforming an index seek into an unexpected full-table sequential scan.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Database fundamentals are applied daily by systems architects designing database migration pipelines (Alembic/Flyway), tuning PostgreSQL autovacuum and WAL checkpoint settings, configuring read replicas with asynchronous streaming replication, and implementing outbox patterns with idempotent consumer tables to prevent duplicate message processing in microservices.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What did Edgar F. Codd's 1970 paper introduce to computer science?</p></div><div class="a" hidden><p>The relational model of data, abstracting physical disk representations into mathematical relations governed by first-order predicate logic.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What are the fundamental operators of relational algebra?</p></div><div class="a" hidden><p>Selection (sigma), Projection (pi), Cartesian Product (times), Natural Join (bowtie), Union (cup), Difference (setminus), and Rename (rho).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the four ACID properties guaranteed by database transactions?</p></div><div class="a" hidden><p>Atomicity (all-or-nothing), Consistency (integrity constraints preserved), Isolation (serializable execution), and Durability (committed changes survive crashes).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the primary difference between a B+ Tree and an LSM Tree?</p></div><div class="a" hidden><p>B+ Trees perform in-place updates optimizing for fast random reads and range queries; LSM Trees write append-only to memory memtables flushed to SSTables, optimizing write throughput.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the purpose of Two-Phase Locking (2PL)?</p></div><div class="a" hidden><p>To guarantee conflict serializability by ensuring a transaction cannot acquire any new locks once it releases its first lock (growing phase followed by shrinking phase).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What constitutes Boyce-Codd Normal Form (BCNF)?</p></div><div class="a" hidden><p>A schema is in BCNF if for every non-trivial functional dependency X -&gt; Y, X is a superkey of the relation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can evaluate relational algebra queries, traverse B+ tree range scans, detect transaction schedule conflict serializability cycles, and implement an LSM-tree with memtables and SSTable compaction.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Codd, E. F. (1970). A Relational Model of Data for Large Shared Data Banks. Communications of the ACM, 13(6), 377-387.</li>
+<li>Silberschatz, A., Korth, H. F., &amp; Sudarshan, S. (2019). Database System Concepts (7th ed.). McGraw-Hill.</li>
+<li>Kleppmann, M. (2017). Designing Data-Intensive Applications. O'Reilly Media.</li>
+</ul></section>
+<footer class="pager"><a href="P10.html">&larr; P10 Security and cryptography</a>
+<a href="P12.html">P12 Automata and regular languages &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P11", "packages": ["numpy"], "exercises": {"ex1-relational-algebra-evaluator": {"starter": "def select_tuples(rel: list[dict], predicate) -> list[dict]:\n    pass\n\ndef project_tuples(rel: list[dict], attributes: list[str]) -> list[dict]:\n    pass\n\ndef natural_join(rel_a: list[dict], rel_b: list[dict]) -> list[dict]:\n    pass\n", "solution": "def select_tuples(rel: list[dict], predicate) -> list[dict]:\n    return [tuple_dict for tuple_dict in rel if predicate(tuple_dict)]\n\ndef project_tuples(rel: list[dict], attributes: list[str]) -> list[dict]:\n    result = []\n    seen = set()\n    for row in rel:\n        proj = {k: row[k] for k in attributes if k in row}\n        # eliminate duplicate tuples in relation\n        frozen = tuple(sorted(proj.items()))\n        if frozen not in seen:\n            seen.add(frozen)\n            result.append(proj)\n    return result\n\ndef natural_join(rel_a: list[dict], rel_b: list[dict]) -> list[dict]:\n    if not rel_a or not rel_b:\n        return []\n    # Identify common attributes\n    common_keys = set(rel_a[0].keys()) & set(rel_b[0].keys())\n    \n    result = []\n    seen = set()\n    for row_a in rel_a:\n        for row_b in rel_b:\n            if all(row_a[k] == row_b[k] for k in common_keys):\n                merged = dict(row_a)\n                merged.update(row_b)\n                frozen = tuple(sorted(merged.items()))\n                if frozen not in seen:\n                    seen.add(frozen)\n                    result.append(merged)\n    return result\n", "tests": "def test_selection():\n    users = [\n        {\"id\": 1, \"name\": \"Alice\", \"age\": 25},\n        {\"id\": 2, \"name\": \"Bob\", \"age\": 17},\n        {\"id\": 3, \"name\": \"Charlie\", \"age\": 30}\n    ]\n    adults = select_tuples(users, lambda u: u[\"age\"] >= 18)\n    assert len(adults) == 2\n    assert {u[\"name\"] for u in adults} == {\"Alice\", \"Charlie\"}\n\ndef test_projection():\n    users = [\n        {\"id\": 1, \"name\": \"Alice\", \"role\": \"admin\"},\n        {\"id\": 2, \"name\": \"Bob\", \"role\": \"admin\"},\n        {\"id\": 3, \"name\": \"Charlie\", \"role\": \"user\"}\n    ]\n    roles = project_tuples(users, [\"role\"])\n    # Projection removes duplicate tuples\n    assert len(roles) == 2\n    assert {\"admin\", \"user\"} == {r[\"role\"] for r in roles}\n\ndef test_natural_join():\n    employees = [\n        {\"dept_id\": 10, \"emp\": \"Alice\"},\n        {\"dept_id\": 20, \"emp\": \"Bob\"}\n    ]\n    departments = [\n        {\"dept_id\": 10, \"dept_name\": \"Engineering\"},\n        {\"dept_id\": 30, \"dept_name\": \"Sales\"}\n    ]\n    joined = natural_join(employees, departments)\n    assert len(joined) == 1\n    assert joined[0] == {\"dept_id\": 10, \"emp\": \"Alice\", \"dept_name\": \"Engineering\"}\n", "mutants": ["def select_tuples(rel, predicate): assert False, 'mutant injected'\ndef project_tuples(rel, attributes): assert False, 'mutant injected'\ndef natural_join(rel_a, rel_b): assert False, 'mutant injected'\n", "def select_tuples(rel, predicate): return []\ndef project_tuples(rel, attributes): return rel\ndef natural_join(rel_a, rel_b): return []\n"], "hints": ["Selection filters rows matching predicate.", "Projection extracts specified keys and deduplicates.", "Natural join pairs rows matching on all shared attribute keys."], "level": "warmup", "title": "Relational Algebra Engine: Selection, Projection, and Natural Join"}, "ex2-b-plus-tree-range-search": {"starter": "class LeafNode:\n    def __init__(self, capacity: int):\n        pass\n\nclass BPlusIndex:\n    def __init__(self, leaf_capacity: int = 3):\n        pass\n\n    def insert(self, key: int, row_id: int):\n        pass\n\n    def range_search(self, low_key: int, high_key: int) -> list[int]:\n        pass\n", "solution": "class LeafNode:\n    def __init__(self, capacity: int):\n        self.capacity = capacity\n        self.keys = []\n        self.values = []\n        self.next = None\n\nclass BPlusIndex:\n    def __init__(self, leaf_capacity: int = 3):\n        self.leaf_capacity = leaf_capacity\n        self.head = LeafNode(leaf_capacity)\n\n    def insert(self, key: int, row_id: int):\n        # Find target leaf by scanning linked leaves\n        curr = self.head\n        while curr.next and curr.next.keys and curr.next.keys[0] <= key:\n            curr = curr.next\n            \n        # Insert key into curr in sorted order\n        idx = 0\n        while idx < len(curr.keys) and curr.keys[idx] < key:\n            idx += 1\n            \n        curr.keys.insert(idx, key)\n        curr.values.insert(idx, row_id)\n        \n        # Split leaf if over capacity\n        if len(curr.keys) > self.leaf_capacity:\n            mid = len(curr.keys) // 2\n            new_leaf = LeafNode(self.leaf_capacity)\n            new_leaf.keys = curr.keys[mid:]\n            new_leaf.values = curr.values[mid:]\n            new_leaf.next = curr.next\n            \n            curr.keys = curr.keys[:mid]\n            curr.values = curr.values[:mid]\n            curr.next = new_leaf\n\n    def range_search(self, low_key: int, high_key: int) -> list[int]:\n        result = []\n        curr = self.head\n        # Find first leaf that may contain low_key\n        while curr:\n            if curr.keys and curr.keys[-1] >= low_key:\n                break\n            if curr.next is None:\n                break\n            curr = curr.next\n            \n        # Scan along linked leaves until key > high_key\n        while curr:\n            for k, val in zip(curr.keys, curr.values):\n                if low_key <= k <= high_key:\n                    result.append(val)\n                elif k > high_key:\n                    return result\n            curr = curr.next\n        return result\n", "tests": "def test_bplus_leaf_insertion_and_search():\n    index = BPlusIndex(leaf_capacity=3)\n    data = [(10, 101), (20, 102), (5, 100), (15, 103), (30, 104), (25, 105)]\n    for k, v in data:\n        index.insert(k, v)\n        \n    res = index.range_search(10, 25)\n    # Keys 10, 15, 20, 25 should return in sorted order: [101, 103, 102, 105]\n    assert res == [101, 103, 102, 105]\n\ndef test_bplus_range_all_and_none():\n    index = BPlusIndex(leaf_capacity=2)\n    index.insert(1, 10)\n    index.insert(2, 20)\n    index.insert(3, 30)\n    \n    assert index.range_search(100, 200) == []\n    assert index.range_search(1, 3) == [10, 20, 30]\n\ndef test_bplus_single_key_lookup():\n    index = BPlusIndex(leaf_capacity=3)\n    for i in range(1, 20):\n        index.insert(i, i * 10)\n    assert index.range_search(7, 7) == [70]\n", "mutants": ["class LeafNode:\n    def __init__(self, capacity): pass\nclass BPlusIndex:\n    def __init__(self, leaf_capacity=3): pass\n    def insert(self, key, row_id): pass\n    def range_search(self, low_key, high_key): assert False, 'mutant injected'\n", "class LeafNode:\n    def __init__(self, capacity): pass\nclass BPlusIndex:\n    def __init__(self, leaf_capacity=3): pass\n    def insert(self, key, row_id): pass\n    def range_search(self, low_key, high_key): return []\n"], "hints": ["Maintain leaf nodes with sorted keys and values.", "Link split leaf nodes using .next pointers.", "Traverse leaves via .next pointer to perform fast sequential range scans."], "level": "core", "title": "B+ Tree Leaf Node Range Query Engine"}, "ex3-transaction-conflict-serializability": {"starter": "def is_conflict_serializable(schedule: list[tuple[int, str, str]]) -> bool:\n    pass\n", "solution": "def is_conflict_serializable(schedule: list[tuple[int, str, str]]) -> bool:\n    # A schedule consists of (tx_id, op, item) e.g. (1, 'R', 'A')\n    # Two operations conflict if they belong to different transactions,\n    # access the same data item, and at least one is a Write ('W').\n    \n    transactions = set(op[0] for op in schedule)\n    # Directed graph: Ti -> Tj means Ti preceded Tj in a conflicting operation\n    graph = {t: set() for t in transactions}\n    \n    n = len(schedule)\n    for i in range(n):\n        t1, op1, item1 = schedule[i]\n        for j in range(i + 1, n):\n            t2, op2, item2 = schedule[j]\n            if t1 != t2 and item1 == item2:\n                if op1 == 'W' or op2 == 'W':\n                    graph[t1].add(t2)\n                    \n    # Detect cycle via DFS graph coloring\n    # 0 = unvisited, 1 = visiting, 2 = visited\n    state = {t: 0 for t in transactions}\n    \n    def has_cycle(u):\n        state[u] = 1\n        for v in graph[u]:\n            if state[v] == 1:\n                return True\n            if state[v] == 0:\n                if has_cycle(v):\n                    return True\n        state[u] = 2\n        return False\n        \n    for t in transactions:\n        if state[t] == 0:\n            if has_cycle(t):\n                return False\n                \n    return True\n", "tests": "def test_serializable_schedule():\n    # T1: R(A), W(A); T2: R(A), W(A)\n    # T1 precedes T2 on item A, acyclic graph T1 -> T2\n    sched = [\n        (1, 'R', 'A'),\n        (1, 'W', 'A'),\n        (2, 'R', 'A'),\n        (2, 'W', 'A')\n    ]\n    assert is_conflict_serializable(sched) is True\n\ndef test_non_serializable_cycle():\n    # T1: R(A), W(B); T2: W(A), R(B)\n    # A: T1 reads A before T2 writes A -> T1 -> T2\n    # B: T1 writes B before T2 reads B -> T1 -> T2 ... wait:\n    # Let T2 write A before T1 reads A (T2 -> T1) and T1 write B before T2 reads B (T1 -> T2) -> Cycle!\n    sched = [\n        (2, 'W', 'A'),\n        (1, 'R', 'A'),\n        (1, 'W', 'B'),\n        (2, 'R', 'B')\n    ]\n    assert is_conflict_serializable(sched) is False\n\ndef test_independent_items():\n    # T1 touches X, T2 touches Y -> no conflicts\n    sched = [\n        (1, 'W', 'X'),\n        (2, 'W', 'Y'),\n        (1, 'R', 'X'),\n        (2, 'R', 'Y')\n    ]\n    assert is_conflict_serializable(sched) is True\n", "mutants": ["def is_conflict_serializable(schedule):\n    assert False, 'mutant injected'\n", "def is_conflict_serializable(schedule):\n    return True  # mutant ignores cycles and always claims serializable\n"], "hints": ["Find all pairs of operations (op1, op2) where t1 != t2, item1 == item2, and at least one is 'W'.", "Add directed edge t1 -> t2 in precedence graph.", "Check for cycles using DFS cycle detection."], "level": "core", "title": "Transaction Schedule Conflict Serializability Detector"}, "ex4-lsm-tree-memtable-sstable": {"starter": "class LSMTreeEngine:\n    def __init__(self, memtable_threshold: int = 3):\n        pass\n\n    def put(self, key: str, value: str):\n        pass\n\n    def delete(self, key: str):\n        pass\n\n    def get(self, key: str) -> str:\n        pass\n\n    def compact(self):\n        pass\n", "solution": "class LSMTreeEngine:\n    TOMBSTONE = \"__DELETED__\"\n    \n    def __init__(self, memtable_threshold: int = 3):\n        self.memtable_threshold = memtable_threshold\n        self.memtable = {}  # In-memory sorted buffer\n        self.sstables = []  # List of immutable SSTables: newest to oldest\n\n    def put(self, key: str, value: str):\n        self.memtable[key] = value\n        if len(self.memtable) >= self.memtable_threshold:\n            self._flush_memtable()\n\n    def delete(self, key: str):\n        self.put(key, self.TOMBSTONE)\n\n    def _flush_memtable(self):\n        if not self.memtable:\n            return\n        # Immutable SSTable sorted by key\n        sstable = dict(sorted(self.memtable.items()))\n        self.sstables.insert(0, sstable)  # newest at index 0\n        self.memtable = {}\n\n    def get(self, key: str) -> str:\n        # 1. Check in-memory memtable first\n        if key in self.memtable:\n            val = self.memtable[key]\n            return None if val == self.TOMBSTONE else val\n\n        # 2. Check SSTables from newest to oldest\n        for sstable in self.sstables:\n            if key in sstable:\n                val = sstable[key]\n                return None if val == self.TOMBSTONE else val\n\n        return None\n\n    def compact(self):\n        # Merge all SSTables into a single compacted SSTable\n        # Older values overridden by newer values\n        if not self.sstables:\n            return\n            \n        merged = {}\n        # Iterate from oldest to newest so newer keys overwrite older\n        for sstable in reversed(self.sstables):\n            merged.update(sstable)\n            \n        # Filter out tombstones during compaction\n        compacted = {k: v for k, v in merged.items() if v != self.TOMBSTONE}\n        self.sstables = [compacted]\n", "tests": "def test_lsm_memtable_and_flush():\n    lsm = LSMTreeEngine(memtable_threshold=3)\n    lsm.put(\"k1\", \"v1\")\n    lsm.put(\"k2\", \"v2\")\n    assert lsm.get(\"k1\") == \"v1\"\n    assert len(lsm.sstables) == 0\n    \n    # 3rd put triggers flush to sstable\n    lsm.put(\"k3\", \"v3\")\n    assert len(lsm.sstables) == 1\n    assert lsm.get(\"k2\") == \"v2\"\n    assert lsm.get(\"k3\") == \"v3\"\n\ndef test_lsm_tombstone_deletion():\n    lsm = LSMTreeEngine(memtable_threshold=2)\n    lsm.put(\"user_1\", \"active\")\n    lsm.put(\"user_2\", \"active\")  # flushes user_1, user_2\n    \n    assert lsm.get(\"user_1\") == \"active\"\n    lsm.delete(\"user_1\")\n    assert lsm.get(\"user_1\") is None\n    assert lsm.get(\"user_2\") == \"active\"\n\ndef test_lsm_compaction_removes_tombstones():\n    lsm = LSMTreeEngine(memtable_threshold=2)\n    lsm.put(\"a\", \"1\")\n    lsm.put(\"b\", \"2\")  # flushes {a: 1, b: 2}\n    lsm.delete(\"a\")\n    lsm.put(\"c\", \"3\")  # flushes {a: TOMBSTONE, c: 3}\n    \n    assert len(lsm.sstables) == 2\n    lsm.compact()\n    assert len(lsm.sstables) == 1\n    assert lsm.get(\"a\") is None\n    assert lsm.get(\"b\") == \"2\"\n    assert lsm.get(\"c\") == \"3\"\n    assert \"a\" not in lsm.sstables[0]\n", "mutants": ["class LSMTreeEngine:\n    def __init__(self, memtable_threshold=3): pass\n    def put(self, key, value): pass\n    def delete(self, key): pass\n    def get(self, key): assert False, 'mutant injected'\n    def compact(self): pass\n", "class LSMTreeEngine:\n    TOMBSTONE = \"__DELETED__\"\n    def __init__(self, memtable_threshold=3):\n        self.memtable_threshold = memtable_threshold\n        self.memtable = {}\n        self.sstables = []\n    def put(self, key, value):\n        self.memtable[key] = value  # Mutant: never flushes to sstables\n    def delete(self, key):\n        self.put(key, self.TOMBSTONE)\n    def get(self, key):\n        val = self.memtable.get(key)\n        return None if val == self.TOMBSTONE else val\n    def compact(self):\n        pass\n"], "hints": ["Use a dictionary for memtable and a list for sstables.", "Check memtable first, then SSTables from newest to oldest.", "During compaction, merge from oldest to newest and purge tombstones."], "level": "boss", "title": "LSM-Tree Storage Engine with Memtable, SSTables, and Compaction"}}, "demos": {"p11-oracle-mvcc-snapshot": {"code": "class MVCCEngine:\n    def __init__(self):\n        # table maps primary_key -> list of versions (xmin, xmax, value)\n        self.table = {}\n        self.next_tx_id = 1\n        \n    def begin_tx(self) -> int:\n        tx_id = self.next_tx_id\n        self.next_tx_id += 1\n        return tx_id\n\n    def insert(self, tx_id: int, key: str, value: str):\n        if key not in self.table:\n            self.table[key] = []\n        self.table[key].append({\"xmin\": tx_id, \"xmax\": None, \"val\": value})\n\n    def read(self, tx_id: int, key: str) -> str:\n        # Reader only sees tuples created before tx_id (xmin <= tx_id)\n        # and not deleted before tx_id (xmax is None or xmax > tx_id)\n        if key not in self.table:\n            return None\n        for version in reversed(self.table[key]):\n            if version[\"xmin\"] <= tx_id:\n                if version[\"xmax\"] is None or version[\"xmax\"] > tx_id:\n                    return version[\"val\"]\n        return None\n\n    def update(self, tx_id: int, key: str, new_value: str) -> bool:\n        # First-committer-wins: find active version\n        versions = self.table.get(key, [])\n        active = None\n        for v in versions:\n            if v[\"xmax\"] is None:\n                active = v\n                break\n        if not active:\n            return False\n        # If active version was created by a concurrent newer transaction, conflict!\n        if active[\"xmin\"] > tx_id:\n            raise ValueError(f\"Write conflict: key {key} modified by concurrent tx\")\n        active[\"xmax\"] = tx_id\n        self.table[key].append({\"xmin\": tx_id, \"xmax\": None, \"val\": new_value})\n        return True\n\ndb = MVCCEngine()\nt0 = db.begin_tx()\ndb.insert(t0, \"balance\", \"100\")\n\n# Reader starts at t1\nt1 = db.begin_tx()\nassert db.read(t1, \"balance\") == \"100\"\n\n# Writer updates balance at t2\nt2 = db.begin_tx()\ndb.update(t2, \"balance\", \"250\")\n\n# Reader t1 still sees snapshot \"100\" (non-blocking read isolation)\nassert db.read(t1, \"balance\") == \"100\"\n\n# New reader t3 sees committed update \"250\"\nt3 = db.begin_tx()\nassert db.read(t3, \"balance\") == \"250\"\n\nprint(\"MVCC snapshot isolation and non-blocking read oracle verified.\")\n", "mutants": ["class MVCCEngine:\n    def __init__(self): self.data = {}\n    def begin_tx(self): return 1\n    def insert(self, tx_id, key, val): self.data[key] = val\n    def read(self, tx_id, key): return self.data.get(key)\n    def update(self, tx_id, key, val): self.data[key] = val; return True\ndb = MVCCEngine(); t0 = db.begin_tx(); db.insert(t0, \"balance\", \"100\")\nt1 = db.begin_tx(); t2 = db.begin_tx(); db.update(t2, \"balance\", \"250\")\n# Mutant fails: t1 sees dirty update instead of snapshot\nassert db.read(t1, \"balance\") == \"100\"\n"]}, "p11-exp-b-tree-fanout": {"code": "import math\n\ndef calculate_tree_height(n_records: int, fanout: int) -> int:\n    # Height h such that fanout^h >= n_records -> h = ceil(log_{fanout}(n_records))\n    if fanout < 2:\n        raise ValueError(\"Fanout must be >= 2\")\n    return int(math.ceil(math.log(n_records, fanout)))\n\n# 1 Billion records\nN = 1_000_000_000\n\n# Binary Search Tree (fanout = 2)\nh_bst = calculate_tree_height(N, 2)\nassert h_bst == 30\n\n# Modest B-tree (fanout = 10)\nh_b10 = calculate_tree_height(N, 10)\nassert h_b10 == 9\n\n# Production B+ tree with 16KB page size (fanout = 500)\nh_b500 = calculate_tree_height(N, 500)\nassert h_b500 <= 4\n\n# With top 3 levels cached in RAM, exactly 1 disk I/O fetches any leaf row\nprint(f\"For {N:,} records: BST height = {h_bst} seeks, B+ tree (B=500) height = {h_b500} page fetches.\")\n", "mutants": ["def calculate_tree_height(n_records, fanout): return int(n_records / fanout)\nassert calculate_tree_height(1000000000, 500) <= 4\n"]}}, "cards": [{"q": "What did Edgar F. Codd's 1970 paper introduce to computer science?", "a": "The relational model of data, abstracting physical disk representations into mathematical relations governed by first-order predicate logic."}, {"q": "What are the fundamental operators of relational algebra?", "a": "Selection (sigma), Projection (pi), Cartesian Product (times), Natural Join (bowtie), Union (cup), Difference (setminus), and Rename (rho)."}, {"q": "What are the four ACID properties guaranteed by database transactions?", "a": "Atomicity (all-or-nothing), Consistency (integrity constraints preserved), Isolation (serializable execution), and Durability (committed changes survive crashes)."}, {"q": "What is the primary difference between a B+ Tree and an LSM Tree?", "a": "B+ Trees perform in-place updates optimizing for fast random reads and range queries; LSM Trees write append-only to memory memtables flushed to SSTables, optimizing write throughput."}, {"q": "What is the purpose of Two-Phase Locking (2PL)?", "a": "To guarantee conflict serializability by ensuring a transaction cannot acquire any new locks once it releases its first lock (growing phase followed by shrinking phase)."}, {"q": "What constitutes Boyce-Codd Normal Form (BCNF)?", "a": "A schema is in BCNF if for every non-trivial functional dependency X -> Y, X is a superkey of the relation."}], "title": "Databases"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P21 Parallel computing</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P21">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P21</p><h1>Parallel computing</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P08.html">P08</a> <a href="D01.html">D01</a></div><div><b>Covers:</b> CS2023 PDC</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>Amdahl&#x27;s law</li><li>Gustafson&#x27;s law</li><li>work and span</li><li>speedup and efficiency</li><li>data vs task parallelism</li><li>map, reduce and scan</li><li>the GPU model (SIMT, warps)</li><li>SIMD vectorisation</li><li>load balancing</li><li>thread pools</li><li>parallel prefix sum</li><li>memory-bandwidth limits</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1967, at the AFIPS Spring Joint Computer Conference, computer architect Gene Amdahl presented a sobering mathematical argument that shocked the high-performance computing community. Amdahl demonstrated that no matter how many parallel processors you throw at a computing task, the speedup is fundamentally strictly limited by the fraction of the algorithm that must run serially. If just five percent of an image processing pipeline or database query is inherently sequential, the absolute maximum theoretical speedup on an infinite number of parallel processor cores is a mere twenty times. For twenty-one years, "Amdahl's law" was viewed as a hard barrier to massively parallel supercomputing.</p>
+<p>That barrier was dramatically shattered in 1988 by John Gustafson and his research team at Sandia National Laboratories. Gustafson demonstrated a 1,024-fold speedup on a 1,024-processor nCUBE supercomputer by demonstrating that in real-world science and engineering, people do not run a fixed-size problem faster on larger supercomputers; instead, they scale the problem size to utilize the expanded hardware memory and computing power. This insight, formalized as Gustafson's law (scaled speedup), catalyzed the modern high-performance computing revolution. In 1990, Guy Blelloch published <em>Vector Models for Data-Parallel Computing</em>, establishing work-efficient parallel prefix sums (scans) as foundational primitives. In the 2000s, CPU clock frequency scaling hit the thermal "power wall," forcing hardware manufacturers to transition from faster single cores to multicore processors with SIMD vector extensions, while NVIDIA pioneered the Single Instruction, Multiple Threads (SIMT) GPU architecture. Today, parallel computing powers everything from mobile Flutter rasterizers rendering 120fps UI frames across multi-core ARM SoCs to massive clusters training trillion-parameter transformer foundation models.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Parallel computing is the practice of splitting a large computational problem into smaller independent subproblems that execute simultaneously across multiple processing units, such as CPU cores, SIMD vector registers, or thousands of GPU threads. Rather than executing instructions one after another in serial order, parallel systems exploit data parallelism (applying the exact same operation to millions of array elements at once) or task parallelism (executing different functions concurrently). Fundamental physical and mathematical laws govern parallel speedup: Amdahl's law demonstrates that sequential bottlenecks limit speedup for fixed-size problems, while Gustafson's law shows that scaling problem size unlocks linear speedup. At the hardware level, performance is often constrained not by raw arithmetic capability, but by memory bandwidth—the rate at which data can be transported from RAM to processing units.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematical and architectural foundations of parallel computing are governed by the following core models and theorems:</p>
+<ol>
+<li>
+<p><strong>Amdahl's Law (Fixed-Size Speedup)</strong>:
+Let a program have a serial execution time normalized to $T_1 = 1$. Let $s \in [0, 1]$ be the strictly sequential fraction of execution time, and $p = 1 - s$ be the fraction that can be perfectly parallelized across $P$ processors. The total execution time on $P$ processors is:
+$$T_P = s + \frac{1 - s}{P}$$
+The speedup $S(P)$ is defined as:
+$$S(P) = \frac{T_1}{T_P} = \frac{1}{s + \frac{1 - s}{P}}$$
+As $P \to \infty$, the asymptotic upper bound on speedup is strictly bounded by:
+$$\lim_{P \to \infty} S(P) = \frac{1}{s}$$</p>
+</li>
+<li>
+<p><strong>Gustafson's Law (Scaled Speedup)</strong>:
+Assuming the parallel problem size scales linearly with the number of processors $P$ such that the parallel execution time on $P$ processors is normalized to $s + p = 1$. The serial execution time required to solve the scaled problem on a single processor is $T_1 = s + P \cdot p = s + P(1 - s)$. The scaled speedup is:
+$$S_{\text{scaled}}(P) = \frac{T_1}{T_P} = s + P(1 - s) = P - s(P - 1)$$
+Gustafson's law proves that speedup can scale linearly with processor count $P$ if the problem size is expanded proportionally.</p>
+</li>
+<li>
+<p><strong>Work, Span, and the DAG Model of Parallel Computation</strong>:
+A parallel computation is modeled as a Directed Acyclic Graph (DAG) $G = (V, E)$, where each vertex $v \in V$ represents a sequential strand of instructions, and edges $(u, v) \in E$ represent dependency constraints.
+- <strong>Work</strong> ($T_1$): Total time to execute all vertices sequentially on a single processor:
+$$T_1 = \sum_{v \in V} \text{cost}(v)$$
+- <strong>Span</strong> ($T_\infty$, also called Critical Path Length): The longest directed path of dependency constraints from entry to exit:
+$$T_\infty = \max_{\text{path } \pi} \sum_{v \in \pi} \text{cost}(v)$$
+- <strong>Parallelism</strong>: The maximum theoretical speedup on an infinite number of processors:
+$$\mathcal{P} = \frac{T_1}{T_\infty}$$
+- <strong>Brent's Theorem</strong>: On any greedy scheduler with $P$ processors, execution time $T_P$ satisfies:
+$$\frac{T_1}{P} \le T_P \le \frac{T_1 - T_\infty}{P} + T_\infty$$</p>
+</li>
+<li>
+<p><strong>Parallel Prefix Scan (Blelloch Algorithm)</strong>:
+Given an array $[x_0, x_1, \dots, x_{n-1}]$ and associative operator $\oplus$, compute $[0, x_0, x_0 \oplus x_1, \dots, \bigoplus_{i=0}^{n-2} x_i]$.
+Blelloch's work-efficient algorithm executes in two binary tree phases:
+- <strong>Up-Sweep (Reduce)</strong>: Computes partial sums along a balanced tree in $O(n)$ work and $O(\log n)$ span.
+- <strong>Down-Sweep</strong>: Propagates prefix sums down the tree by replacing root with 0 and swapping left/right branch values in $O(n)$ work and $O(\log n)$ span.
+Total work is $O(n)$ (work-efficient) with critical path span $O(\log n)$.</p>
+</li>
+<li>
+<p><strong>Roofline Model and Memory Bandwidth Limits</strong>:
+The attainable floating-point performance of a parallel algorithm is bounded by:
+$$\text{Attainable Performance (GFLOPS)} = \min\left(\text{Peak Compute GFLOPS}, \text{Operational Intensity} \times \text{Peak Memory Bandwidth (GB/s)}\right)$$
+where Operational Intensity is measured in $\text{FLOPs} / \text{byte}$ transferred from main memory.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>For over four decades following the invention of the integrated circuit, Moore's Law and Dennard scaling delivered exponential increases in single-threaded CPU clock frequency. Software engineers could write strictly sequential code and rely on hardware manufacturers to double its performance every eighteen months without modifying a single line of software. In 2004, this free lunch ended abruptly: physical transistor gate leakage and thermal limits (the "power wall") prevented clock speeds from exceeding 4 GHz to 5 GHz. The computing industry pivoted entirely to multicore, vectorized, and heterogeneous parallel architectures.</p>
+<p>Writing parallel software, however, is fundamentally more difficult than writing serial software. In sequential code, instructions have a deterministic total order. In parallel systems, execution order across cores is non-deterministic. Without a deep understanding of work, span, and critical path analysis, naive attempts to parallelize programs often result in software that is actually slower than the original single-threaded version due to thread synchronization overhead, lock contention, cache invalidation, and false sharing.</p>
+<p>Furthermore, parallel programming primitives govern the architecture of modern AI and graphics systems. Deep neural network training is fundamentally large-scale matrix multiplication mapped across tens of thousands of GPU tensor cores executing SIMT warps. Mobile UI engines like Flutter rely on worker thread pools and raster threads to compile shaders and paint visual scenes at 120fps without blocking the UI isolate. Understanding Amdahl's law, work-stealing schedulers, parallel prefix scans, and memory bandwidth limits is essential for any engineer building high-performance systems.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates Amdahl's law versus Gustafson's law across expanding processor core counts. The oracle computes theoretical speedup and parallel efficiency for both fixed-size workloads and scaled workloads, verifying that as processor counts scale toward infinity, Amdahl's fixed-size speedup strictly asymptotes to $1/s$ while Gustafson's scaled speedup scales linearly with available processors. This clarifies why data size scaling is essential for massive high-performance parallelism.</p>
+<div class="lab demo" data-demo="p21-oracle-amdahl-gustafson">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Amdahl&#x27;s Law vs Gustafson&#x27;s Scaled Speedup Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def amdahl_speedup(s: float, p: int) -&gt; float:
+    # s is sequential fraction (0 &lt;= s &lt;= 1)
+    if not (0 &lt;= s &lt;= 1): raise ValueError(&quot;s must be in [0, 1]&quot;)
+    if p &lt; 1: raise ValueError(&quot;processors must be &gt;= 1&quot;)
+    return 1.0 / (s + (1.0 - s) / p)
+
+def gustafson_speedup(s: float, p: int) -&gt; float:
+    if not (0 &lt;= s &lt;= 1): raise ValueError(&quot;s must be in [0, 1]&quot;)
+    if p &lt; 1: raise ValueError(&quot;processors must be &gt;= 1&quot;)
+    return s + p * (1.0 - s)
+
+def parallel_efficiency(speedup: float, p: int) -&gt; float:
+    return speedup / p
+
+# Benchmark with s = 0.05 (5% serial, 95% parallelizable)
+s = 0.05
+cores = [1, 2, 4, 8, 16, 64, 256, 1024, 100000]
+
+print(f&quot;{&#x27;Cores&#x27;:&gt;8} | {&#x27;Amdahl Speedup&#x27;:&gt;15} | {&#x27;Amdahl Eff&#x27;:&gt;10} | {&#x27;Gustafson Speedup&#x27;:&gt;18}&quot;)
+print(&quot;-&quot; * 60)
+
+for p in cores:
+    s_amdahl = amdahl_speedup(s, p)
+    eff_amdahl = parallel_efficiency(s_amdahl, p)
+    s_gustafson = gustafson_speedup(s, p)
+    print(f&quot;{p:&gt;8} | {s_amdahl:&gt;15.2f} | {eff_amdahl:&gt;9.1%} | {s_gustafson:&gt;18.2f}&quot;)
+
+# Verify asymptotic upper bound of Amdahl&#x27;s Law: 1 / 0.05 = 20.0
+assert round(amdahl_speedup(0.05, 1000000), 2) == 20.0
+# Verify linear scaling of Gustafson&#x27;s Law on 1024 cores: 0.05 + 1024 * 0.95 = 972.85
+assert round(gustafson_speedup(0.05, 1024), 2) == 972.85
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment demonstrates Guy Blelloch's work-efficient parallel prefix sum (scan) algorithm. We trace the up-sweep reduction tree phase and down-sweep distribution phase across an 8-element array, verifying that the parallel algorithm computes the exact exclusive prefix scan in $O(n)$ work and $O(\log n)$ parallel depth without sequential accumulation. This algorithm forms the foundation for parallel stream compaction and radix sorting on modern GPUs.</p>
+<div class="lab demo" data-demo="p21-experiment-blelloch-scan">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Blelloch Parallel Prefix Scan Tree Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def blelloch_scan(input_arr: list[int]) -&gt; list[int]:
+    n = len(input_arr)
+    # n must be a power of 2
+    arr = list(input_arr)
+    
+    # 1. Up-sweep (Reduction) Phase: log2(n) steps
+    step = 1
+    while step &lt; n:
+        for i in range(2 * step - 1, n, 2 * step):
+            arr[i] = arr[i - step] + arr[i]
+        step *= 2
+        
+    # Total sum is now in arr[n - 1]
+    total_sum = arr[n - 1]
+    # Set the root to identity element (0 for addition)
+    arr[n - 1] = 0
+    
+    # 2. Down-sweep Phase: log2(n) steps
+    step //= 2
+    while step &gt; 0:
+        for i in range(2 * step - 1, n, 2 * step):
+            temp = arr[i - step]
+            arr[i - step] = arr[i]
+            arr[i] = arr[i] + temp
+        step //= 2
+        
+    return arr
+
+# Test array: [3, 1, 7, 0, 4, 1, 6, 3]
+raw = [3, 1, 7, 0, 4, 1, 6, 3]
+exclusive_scan = blelloch_scan(raw)
+
+print(&quot;Input array:&quot;, raw)
+print(&quot;Exclusive Prefix Scan:&quot;, exclusive_scan)
+
+# Expected exclusive scan:
+# index 0: 0
+# index 1: 3
+# index 2: 3+1 = 4
+# index 3: 3+1+7 = 11
+# index 4: 11+0 = 11
+# index 5: 11+4 = 15
+# index 6: 15+1 = 16
+# index 7: 16+6 = 22
+expected = [0, 3, 4, 11, 11, 15, 16, 22]
+assert exclusive_scan == expected
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-amdahl-gustafson-analyzer" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Amdahl&#x27;s and Gustafson&#x27;s Speedup and Efficiency Analyzer</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement functions to calculate Amdahl's fixed-size speedup, Gustafson's scaled speedup, and parallel efficiency across processor core counts to evaluate computational scaling limits in parallel systems.</p></div>
+<textarea class="code" spellcheck="false">def amdahl_speedup(serial_fraction: float, processors: int) -&gt; float:
+    pass
+
+def gustafson_speedup(serial_fraction: float, processors: int) -&gt; float:
+    pass
+
+def parallel_efficiency(speedup: float, processors: int) -&gt; float:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_amdahl_speedup_limits():
+    # 10% serial fraction -&gt; max speedup as P -&gt; inf is 10.0
+    s_10_cores = amdahl_speedup(0.1, 10)
+    # S = 1 / (0.1 + 0.9/10) = 1 / 0.19 = 5.263
+    assert round(s_10_cores, 3) == 5.263
+    
+    # 0% serial -&gt; linear speedup
+    assert amdahl_speedup(0.0, 16) == 16.0
+    
+    # 100% serial -&gt; 1.0 speedup
+    assert amdahl_speedup(1.0, 64) == 1.0
+
+def test_gustafson_scaled_speedup():
+    # 5% serial on 100 processors: 0.05 + 100 * 0.95 = 95.05
+    s = gustafson_speedup(0.05, 100)
+    assert round(s, 2) == 95.05
+
+def test_parallel_efficiency_and_validation():
+    eff = parallel_efficiency(speedup=6.0, processors=8)
+    assert eff == 0.75
+    
+    try:
+        amdahl_speedup(-0.1, 4)
+        assert False, &quot;Should raise ValueError for negative serial fraction&quot;
+    except ValueError:
+        pass
+    try:
+        gustafson_speedup(0.2, 0)
+        assert False, &quot;Should raise ValueError for 0 processors&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-work-span-dag-evaluator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>DAG Computation Model Work, Span, and Parallelism Evaluator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement evaluate_dag_parallelism to calculate total work (T1), critical path span (T_inf), theoretical parallelism (T1/T_inf), and Brent's execution time bounds for directed computation DAGs.</p></div>
+<textarea class="code" spellcheck="false">from typing import Dict, List, Tuple
+
+def evaluate_dag_parallelism(node_costs: Dict[str, int], edges: List[Tuple[str, str]], processors: int) -&gt; Dict[str, float]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_linear_chain_dag():
+    # Linear chain: A -&gt; B -&gt; C (costs: 10, 20, 30)
+    # Work = 60, Span = 60, Parallelism = 1.0
+    costs = {&quot;A&quot;: 10, &quot;B&quot;: 20, &quot;C&quot;: 30}
+    edges = [(&quot;A&quot;, &quot;B&quot;), (&quot;B&quot;, &quot;C&quot;)]
+    metrics = evaluate_dag_parallelism(costs, edges, processors=4)
+    assert metrics[&quot;work&quot;] == 60.0
+    assert metrics[&quot;span&quot;] == 60.0
+    assert metrics[&quot;parallelism&quot;] == 1.0
+    assert metrics[&quot;brent_bound&quot;] == 60.0
+
+def test_diamond_dag():
+    # Diamond graph:
+    #      /-&gt; B (20) \
+    # A(10)            -&gt; D(10)
+    #      \-&gt; C (30) /
+    # Work = 10 + 20 + 30 + 10 = 70
+    # Span = 10 + 30 + 10 = 50
+    # Parallelism = 70 / 50 = 1.4
+    costs = {&quot;A&quot;: 10, &quot;B&quot;: 20, &quot;C&quot;: 30, &quot;D&quot;: 10}
+    edges = [(&quot;A&quot;, &quot;B&quot;), (&quot;A&quot;, &quot;C&quot;), (&quot;B&quot;, &quot;D&quot;), (&quot;C&quot;, &quot;D&quot;)]
+    metrics = evaluate_dag_parallelism(costs, edges, processors=2)
+    assert metrics[&quot;work&quot;] == 70.0
+    assert metrics[&quot;span&quot;] == 50.0
+    assert metrics[&quot;parallelism&quot;] == 1.4
+    # Brent: (70 - 50)/2 + 50 = 10 + 50 = 60.0
+    assert metrics[&quot;brent_bound&quot;] == 60.0
+
+def test_wide_parallel_fanout():
+    # A (5) -&gt; B1(10), B2(10), B3(10), B4(10) -&gt; C(5)
+    # Work = 5 + 40 + 5 = 50
+    # Span = 5 + 10 + 5 = 20
+    # Parallelism = 50 / 20 = 2.5
+    costs = {&quot;A&quot;: 5, &quot;B1&quot;: 10, &quot;B2&quot;: 10, &quot;B3&quot;: 10, &quot;B4&quot;: 10, &quot;C&quot;: 5}
+    edges = [(&quot;A&quot;, &quot;B1&quot;), (&quot;A&quot;, &quot;B2&quot;), (&quot;A&quot;, &quot;B3&quot;), (&quot;A&quot;, &quot;B4&quot;),
+             (&quot;B1&quot;, &quot;C&quot;), (&quot;B2&quot;, &quot;C&quot;), (&quot;B3&quot;, &quot;C&quot;), (&quot;B4&quot;, &quot;C&quot;)]
+    metrics = evaluate_dag_parallelism(costs, edges, processors=4)
+    assert metrics[&quot;work&quot;] == 50.0
+    assert metrics[&quot;span&quot;] == 20.0
+    assert metrics[&quot;parallelism&quot;] == 2.5
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-parallel-prefix-sum-scan" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Blelloch Work-Efficient Parallel Prefix Sum (Scan)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement blelloch_scan to compute an exclusive prefix sum on a power-of-two array using parallel up-sweep reduction and down-sweep tree traversal phases in O(n) work.</p></div>
+<textarea class="code" spellcheck="false">from typing import List
+
+def blelloch_scan(arr: List[int]) -&gt; List[int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_blelloch_scan_powers_of_two():
+    raw = [3, 1, 7, 0, 4, 1, 6, 3]
+    res = blelloch_scan(raw)
+    assert res == [0, 3, 4, 11, 11, 15, 16, 22]
+
+def test_blelloch_scan_all_ones():
+    raw = [1, 1, 1, 1]
+    res = blelloch_scan(raw)
+    assert res == [0, 1, 2, 3]
+
+def test_blelloch_scan_two_elements_and_validation():
+    assert blelloch_scan([5, 8]) == [0, 5]
+    assert blelloch_scan([]) == []
+    
+    try:
+        blelloch_scan([1, 2, 3]) # Not a power of 2
+        assert False, &quot;Should raise ValueError for non-power-of-two length&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-work-stealing-thread-pool" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Work-Stealing Multi-Worker Scheduler and Load Balancer</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement WorkStealingPool simulating worker thread queues, local LIFO task execution, randomized FIFO peer work-stealing, and total execution throughput tracking across multi-core computing nodes.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Callable, Dict, List, Optional
+
+class WorkStealingPool:
+    def __init__(self, num_workers: int = 4):
+        pass
+
+    def submit_task(self, worker_id: int, task: Callable[[], Any]):
+        pass
+
+    def step_worker(self, worker_id: int) -&gt; Optional[Any]:
+        pass
+
+    def run_all(self) -&gt; Dict[int, int]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_work_stealing_local_execution():
+    pool = WorkStealingPool(num_workers=2)
+    pool.submit_task(0, lambda: 10)
+    pool.submit_task(0, lambda: 20)
+    
+    assert pool.step_worker(0) == 20 # LIFO pop
+    assert pool.step_worker(0) == 10
+    assert pool.step_worker(0) is None
+
+def test_work_stealing_from_overloaded_peer():
+    pool = WorkStealingPool(num_workers=3)
+    # Overload worker 0 with 6 tasks
+    for i in range(6):
+        pool.submit_task(0, lambda i=i: i * 2)
+        
+    counts = pool.run_all()
+    # All 6 tasks must have been executed
+    assert sum(counts.values()) == 6
+    # Idle workers 1 and 2 must have stolen tasks from worker 0
+    assert counts[1] &gt; 0
+    assert counts[2] &gt; 0
+
+def test_work_stealing_validation():
+    pool = WorkStealingPool(num_workers=2)
+    try:
+        pool.submit_task(5, lambda: 1)
+        assert False, &quot;Should raise IndexError&quot;
+    except IndexError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Adding twice as many CPU cores will always make a parallel program run twice as fast."</strong> Amdahl's law proves that speedup is bounded by the sequential fraction of the program. If only 10% of a program cannot be parallelized, the maximum possible speedup on an infinite number of cores is 10x, and doubling cores yields diminishing returns.</li>
+<li><strong>"Thread pools should always create as many threads as possible to maximize throughput."</strong> Spawning more worker threads than physical CPU hardware cores leads to CPU thrashing, excessive context switching overhead, and cache invalidation. Optimal compute-bound thread pool sizing is typically equal to the number of physical CPU cores.</li>
+<li><strong>"GPU SIMT architecture executes each thread completely independently just like CPU cores."</strong> In modern GPUs, threads execute in lockstep groups called warps (typically 32 threads). If threads within the same warp take different branches of an <code>if-else</code> statement (branch divergence), both branches are executed serially with threads masked out, destroying parallel efficiency.</li>
+<li><strong>"A computation with $O(n)$ work and $O(n)$ span is a great candidate for parallelization."</strong> Parallelism is defined as work divided by span ($T_1 / T_\infty$). If span is $O(n)$, the critical path has no concurrency ($T_1 / T_\infty = 1$), meaning zero speedup can be achieved regardless of how many parallel cores are available.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Parallel computing principles fail or encounter severe performance penalties in specific systems scenarios:
+1. <strong>Memory-Bound Kernels and the Roofline Ceiling</strong>: In simple streaming operations like vector addition ($y = a \cdot x + y$, DAXPY), each float requires reading 16 bytes and writing 8 bytes for only 2 FLOPs (operational intensity $0.083 \text{ FLOP/byte}$). The kernel hits the memory bandwidth wall immediately, leaving 95% of GPU compute cores idle.
+2. <strong>Fine-Grained Task Overhead in Work-Stealing Pools</strong>: If the cost of spawning a task or stealing it from a deque ($~1 \mu s$) exceeds the execution time of the task itself (e.g. adding two numbers), parallel scheduling overhead dwarfs execution time, making parallel code orders of magnitude slower than a simple sequential loop.
+3. <strong>Cache False Sharing</strong>: When two threads running on different CPU cores concurrently modify independent variables that happen to reside on the same 64-byte L1 CPU cache line, hardware cache coherency protocols (MESI) constantly invalidate the cache lines across cores, crippling parallel throughput.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Parallel computing techniques are applied across modern high-performance engineering:
+- <strong>Flutter and Skia/Impeller Graphics Engines</strong>: Render pipelines partition scene graphs into independent display lists, evaluating geometry and dispatching tessellation kernels concurrently across multi-core ARM big.LITTLE CPUs before rasterizing on mobile GPUs.
+- <strong>Deep Learning Training Frameworks (PyTorch/JAX)</strong>: Data-parallel and pipeline-parallel distributed training divides batches across thousands of GPUs, relying on Blelloch-style all-reduce tree algorithms implemented in NVIDIA NCCL to synchronize gradients.
+- <strong>Game Engine Physics and Particle Systems</strong>: Modern game engines (Unreal, Unity DOTS) use SIMD vectorization and lock-free work-stealing job systems to simulate millions of particles and ragdoll physics across all available CPU cores.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does Amdahl's Law state?</p></div><div class="a" hidden><p>The maximum speedup of a program on parallel processors is strictly bounded by the reciprocal of its sequential execution fraction: S(P) &lt;= 1/s as P -&gt; infinity.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the key difference between Amdahl's Law and Gustafson's Law?</p></div><div class="a" hidden><p>Amdahl assumes a fixed problem size (speedup asymptotes to 1/s), while Gustafson assumes problem size scales with processor count (speedup scales linearly: s + P(1-s)).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the difference between Work and Span?</p></div><div class="a" hidden><p>Work (T1) is the total sequential execution time of all operations. Span (T_inf) is the critical path length of the computation DAG. Maximum parallelism is T1 / T_inf.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the difference between SIMD and SIMT?</p></div><div class="a" hidden><p>SIMD (Single Instruction, Multiple Data) uses wide CPU vector registers (AVX/NEON) to execute one opcode over vector lanes; SIMT (Single Instruction, Multiple Threads) runs lockstep warps on GPUs where independent thread branches can cause divergence.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does Blelloch's parallel prefix scan achieve work-efficiency?</p></div><div class="a" hidden><p>By executing in two tree phases: an up-sweep reduction tree that computes partial sums, and a down-sweep distribution tree, achieving O(n) work and O(log n) span.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the Roofline Model in computer architecture?</p></div><div class="a" hidden><p>A performance model showing whether an algorithm's throughput is bounded by peak compute floating-point operations (GFLOPS) or by memory bandwidth (GB/s * operational intensity).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can calculate Amdahl and Gustafson speedup limits, analyze computation DAG work and span with Brent's theorem, implement Blelloch work-efficient parallel prefix scans, and simulate multi-worker work-stealing thread schedulers.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Amdahl, Gene (1967). Validity of the Single Processor Approach to Achieving Large Scale Computing Capabilities. AFIPS Conference Proceedings.</li>
+<li>Gustafson, John L. (1988). Reevaluating Amdahl's Law. Communications of the ACM, 31(5), 532-533.</li>
+<li>Blelloch, Guy E. (1990). Prefix Sums and Their Applications. Vector Models for Data-Parallel Computing, MIT Press.</li>
+<li>Blumofe, Robert D., &amp; Leiserson, Charles E. (1999). Scheduling Multithreaded Computations by Work Stealing. Journal of the ACM, 46(5), 720-748.</li>
+</ul></section>
+<footer class="pager"><a href="D20.html">&larr; D20 System design II: mobile and offline-first</a>
+<a href="P23.html">P23 Graphics, geometry and interaction &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P21", "packages": ["numpy"], "exercises": {"ex1-amdahl-gustafson-analyzer": {"starter": "def amdahl_speedup(serial_fraction: float, processors: int) -> float:\n    pass\n\ndef gustafson_speedup(serial_fraction: float, processors: int) -> float:\n    pass\n\ndef parallel_efficiency(speedup: float, processors: int) -> float:\n    pass\n", "solution": "def amdahl_speedup(serial_fraction: float, processors: int) -> float:\n    if not (0.0 <= serial_fraction <= 1.0):\n        raise ValueError(\"serial_fraction must be between 0.0 and 1.0\")\n    if processors < 1:\n        raise ValueError(\"processors must be >= 1\")\n    return 1.0 / (serial_fraction + (1.0 - serial_fraction) / processors)\n\ndef gustafson_speedup(serial_fraction: float, processors: int) -> float:\n    if not (0.0 <= serial_fraction <= 1.0):\n        raise ValueError(\"serial_fraction must be between 0.0 and 1.0\")\n    if processors < 1:\n        raise ValueError(\"processors must be >= 1\")\n    return serial_fraction + processors * (1.0 - serial_fraction)\n\ndef parallel_efficiency(speedup: float, processors: int) -> float:\n    if processors < 1:\n        raise ValueError(\"processors must be >= 1\")\n    return speedup / processors\n", "tests": "def test_amdahl_speedup_limits():\n    # 10% serial fraction -> max speedup as P -> inf is 10.0\n    s_10_cores = amdahl_speedup(0.1, 10)\n    # S = 1 / (0.1 + 0.9/10) = 1 / 0.19 = 5.263\n    assert round(s_10_cores, 3) == 5.263\n    \n    # 0% serial -> linear speedup\n    assert amdahl_speedup(0.0, 16) == 16.0\n    \n    # 100% serial -> 1.0 speedup\n    assert amdahl_speedup(1.0, 64) == 1.0\n\ndef test_gustafson_scaled_speedup():\n    # 5% serial on 100 processors: 0.05 + 100 * 0.95 = 95.05\n    s = gustafson_speedup(0.05, 100)\n    assert round(s, 2) == 95.05\n\ndef test_parallel_efficiency_and_validation():\n    eff = parallel_efficiency(speedup=6.0, processors=8)\n    assert eff == 0.75\n    \n    try:\n        amdahl_speedup(-0.1, 4)\n        assert False, \"Should raise ValueError for negative serial fraction\"\n    except ValueError:\n        pass\n    try:\n        gustafson_speedup(0.2, 0)\n        assert False, \"Should raise ValueError for 0 processors\"\n    except ValueError:\n        pass\n", "mutants": ["def amdahl_speedup(serial_fraction: float, processors: int) -> float:\n    assert False, 'mutant injected'\ndef gustafson_speedup(serial_fraction: float, processors: int) -> float: pass\ndef parallel_efficiency(speedup: float, processors: int) -> float: pass\n", "def amdahl_speedup(serial_fraction: float, processors: int) -> float:\n    # Mutant computes linear speedup regardless of serial fraction\n    return float(processors)\ndef gustafson_speedup(serial_fraction: float, processors: int) -> float:\n    return float(processors)\ndef parallel_efficiency(speedup: float, processors: int) -> float:\n    return 1.0\n"], "hints": ["Validate that serial_fraction is in [0, 1] and processors >= 1.", "Amdahl's formula: 1 / (s + (1-s)/P).", "Gustafson's formula: s + P*(1-s)."], "level": "warmup", "title": "Amdahl's and Gustafson's Speedup and Efficiency Analyzer"}, "ex2-work-span-dag-evaluator": {"starter": "from typing import Dict, List, Tuple\n\ndef evaluate_dag_parallelism(node_costs: Dict[str, int], edges: List[Tuple[str, str]], processors: int) -> Dict[str, float]:\n    pass\n", "solution": "from typing import Dict, List, Tuple\n\ndef evaluate_dag_parallelism(node_costs: Dict[str, int], edges: List[Tuple[str, str]], processors: int) -> Dict[str, float]:\n    if processors < 1:\n        raise ValueError(\"processors must be >= 1\")\n        \n    # 1. Total Work T1: sum of all node execution costs\n    t1 = sum(node_costs.values())\n    \n    # 2. Critical Path Span T_inf: longest path from any source to any sink\n    # Build adjacency list and compute in-degrees for topological sort\n    adj = {u: [] for u in node_costs}\n    in_degree = {u: 0 for u in node_costs}\n    for u, v in edges:\n        adj[u].append(v)\n        in_degree[v] += 1\n        \n    # Topological sort via Kahn's algorithm\n    queue = [u for u in node_costs if in_degree[u] == 0]\n    topo_order = []\n    while queue:\n        curr = queue.pop(0)\n        topo_order.append(curr)\n        for nxt in adj[curr]:\n            in_degree[nxt] -= 1\n            if in_degree[nxt] == 0:\n                queue.append(nxt)\n                \n    # Longest path dynamic programming\n    dist = {u: node_costs[u] for u in node_costs}\n    for u in topo_order:\n        for v in adj[u]:\n            if dist[u] + node_costs[v] > dist[v]:\n                dist[v] = dist[u] + node_costs[v]\n                \n    t_inf = max(dist.values()) if dist else 0\n    parallelism = (t1 / t_inf) if t_inf > 0 else 1.0\n    \n    # Brent's bound: (T1 - T_inf) / P + T_inf\n    brent_bound = ((t1 - t_inf) / processors) + t_inf\n    \n    return {\n        \"work\": float(t1),\n        \"span\": float(t_inf),\n        \"parallelism\": round(parallelism, 3),\n        \"brent_bound\": round(brent_bound, 3)\n    }\n", "tests": "def test_linear_chain_dag():\n    # Linear chain: A -> B -> C (costs: 10, 20, 30)\n    # Work = 60, Span = 60, Parallelism = 1.0\n    costs = {\"A\": 10, \"B\": 20, \"C\": 30}\n    edges = [(\"A\", \"B\"), (\"B\", \"C\")]\n    metrics = evaluate_dag_parallelism(costs, edges, processors=4)\n    assert metrics[\"work\"] == 60.0\n    assert metrics[\"span\"] == 60.0\n    assert metrics[\"parallelism\"] == 1.0\n    assert metrics[\"brent_bound\"] == 60.0\n\ndef test_diamond_dag():\n    # Diamond graph:\n    #      /-> B (20) \\\n    # A(10)            -> D(10)\n    #      \\-> C (30) /\n    # Work = 10 + 20 + 30 + 10 = 70\n    # Span = 10 + 30 + 10 = 50\n    # Parallelism = 70 / 50 = 1.4\n    costs = {\"A\": 10, \"B\": 20, \"C\": 30, \"D\": 10}\n    edges = [(\"A\", \"B\"), (\"A\", \"C\"), (\"B\", \"D\"), (\"C\", \"D\")]\n    metrics = evaluate_dag_parallelism(costs, edges, processors=2)\n    assert metrics[\"work\"] == 70.0\n    assert metrics[\"span\"] == 50.0\n    assert metrics[\"parallelism\"] == 1.4\n    # Brent: (70 - 50)/2 + 50 = 10 + 50 = 60.0\n    assert metrics[\"brent_bound\"] == 60.0\n\ndef test_wide_parallel_fanout():\n    # A (5) -> B1(10), B2(10), B3(10), B4(10) -> C(5)\n    # Work = 5 + 40 + 5 = 50\n    # Span = 5 + 10 + 5 = 20\n    # Parallelism = 50 / 20 = 2.5\n    costs = {\"A\": 5, \"B1\": 10, \"B2\": 10, \"B3\": 10, \"B4\": 10, \"C\": 5}\n    edges = [(\"A\", \"B1\"), (\"A\", \"B2\"), (\"A\", \"B3\"), (\"A\", \"B4\"),\n             (\"B1\", \"C\"), (\"B2\", \"C\"), (\"B3\", \"C\"), (\"B4\", \"C\")]\n    metrics = evaluate_dag_parallelism(costs, edges, processors=4)\n    assert metrics[\"work\"] == 50.0\n    assert metrics[\"span\"] == 20.0\n    assert metrics[\"parallelism\"] == 2.5\n", "mutants": ["def evaluate_dag_parallelism(node_costs, edges, processors):\n    assert False, 'mutant injected'\n", "def evaluate_dag_parallelism(node_costs, edges, processors):\n    # Mutant calculates span as average cost instead of longest path\n    t1 = sum(node_costs.values())\n    t_inf = t1 / len(node_costs)\n    return {\"work\": float(t1), \"span\": t_inf, \"parallelism\": 1.0, \"brent_bound\": t1}\n"], "hints": ["Calculate work T1 as the sum of all node execution costs.", "Use topological sort and dynamic programming to find the critical path maximum span T_inf.", "Apply Brent's theorem: (T1 - T_inf) / P + T_inf."], "level": "core", "title": "DAG Computation Model Work, Span, and Parallelism Evaluator"}, "ex3-parallel-prefix-sum-scan": {"starter": "from typing import List\n\ndef blelloch_scan(arr: List[int]) -> List[int]:\n    pass\n", "solution": "from typing import List\n\ndef blelloch_scan(arr: List[int]) -> List[int]:\n    n = len(arr)\n    if n == 0:\n        return []\n    # Verify power of 2\n    if (n & (n - 1)) != 0:\n        raise ValueError(\"Array length must be a power of 2\")\n        \n    tree = list(arr)\n    \n    # 1. Up-sweep (Reduce) phase\n    step = 1\n    while step < n:\n        for i in range(2 * step - 1, n, 2 * step):\n            tree[i] = tree[i - step] + tree[i]\n        step *= 2\n        \n    # Set root of tree to identity element 0\n    tree[n - 1] = 0\n    \n    # 2. Down-sweep phase\n    step //= 2\n    while step > 0:\n        for i in range(2 * step - 1, n, 2 * step):\n            temp = tree[i - step]\n            tree[i - step] = tree[i]\n            tree[i] = tree[i] + temp\n        step //= 2\n        \n    return tree\n", "tests": "def test_blelloch_scan_powers_of_two():\n    raw = [3, 1, 7, 0, 4, 1, 6, 3]\n    res = blelloch_scan(raw)\n    assert res == [0, 3, 4, 11, 11, 15, 16, 22]\n\ndef test_blelloch_scan_all_ones():\n    raw = [1, 1, 1, 1]\n    res = blelloch_scan(raw)\n    assert res == [0, 1, 2, 3]\n\ndef test_blelloch_scan_two_elements_and_validation():\n    assert blelloch_scan([5, 8]) == [0, 5]\n    assert blelloch_scan([]) == []\n    \n    try:\n        blelloch_scan([1, 2, 3]) # Not a power of 2\n        assert False, \"Should raise ValueError for non-power-of-two length\"\n    except ValueError:\n        pass\n", "mutants": ["def blelloch_scan(arr): assert False, 'mutant injected'\n", "def blelloch_scan(arr):\n    # Mutant computes inclusive scan instead of exclusive scan\n    if not arr: return []\n    res = []\n    acc = 0\n    for x in arr:\n        acc += x\n        res.append(acc)\n    return res\n"], "hints": ["Ensure the array length is a power of 2 using (n & (n - 1)) == 0.", "In the up-sweep phase, double step in each iteration and add left child to right child.", "In down-sweep phase, swap right child with left, and set right child to previous sum."], "level": "core", "title": "Blelloch Work-Efficient Parallel Prefix Sum (Scan)"}, "ex4-work-stealing-thread-pool": {"starter": "from typing import Any, Callable, Dict, List, Optional\n\nclass WorkStealingPool:\n    def __init__(self, num_workers: int = 4):\n        pass\n\n    def submit_task(self, worker_id: int, task: Callable[[], Any]):\n        pass\n\n    def step_worker(self, worker_id: int) -> Optional[Any]:\n        pass\n\n    def run_all(self) -> Dict[int, int]:\n        pass\n", "solution": "from typing import Any, Callable, Dict, List, Optional\nfrom collections import deque\n\nclass WorkStealingPool:\n    def __init__(self, num_workers: int = 4):\n        if num_workers < 1:\n            raise ValueError(\"num_workers must be >= 1\")\n        self.num_workers = num_workers\n        # Each worker owns a double-ended queue (deque) of tasks\n        self.queues = [deque() for _ in range(num_workers)]\n        # Worker ID -> count of completed tasks\n        self.completed_counts = {i: 0 for i in range(num_workers)}\n\n    def submit_task(self, worker_id: int, task: Callable[[], Any]):\n        if not (0 <= worker_id < self.num_workers):\n            raise IndexError(\"Invalid worker_id\")\n        self.queues[worker_id].append(task)\n\n    def step_worker(self, worker_id: int) -> Optional[Any]:\n        # 1. Pop from bottom of local deque (LIFO for cache locality)\n        local_q = self.queues[worker_id]\n        if local_q:\n            task = local_q.pop()\n            res = task()\n            self.completed_counts[worker_id] += 1\n            return res\n\n        # 2. Local queue empty: attempt to steal from top of another worker (FIFO)\n        for offset in range(1, self.num_workers):\n            victim_id = (worker_id + offset) % self.num_workers\n            victim_q = self.queues[victim_id]\n            if len(victim_q) > 0:\n                task = victim_q.popleft() # Steal from head (FIFO)\n                res = task()\n                self.completed_counts[worker_id] += 1\n                return res\n\n        return None\n\n    def run_all(self) -> Dict[int, int]:\n        while True:\n            # Check if any tasks remain across all queues\n            total_remaining = sum(len(q) for q in self.queues)\n            if total_remaining == 0:\n                break\n            for w in range(self.num_workers):\n                self.step_worker(w)\n        return dict(self.completed_counts)\n", "tests": "def test_work_stealing_local_execution():\n    pool = WorkStealingPool(num_workers=2)\n    pool.submit_task(0, lambda: 10)\n    pool.submit_task(0, lambda: 20)\n    \n    assert pool.step_worker(0) == 20 # LIFO pop\n    assert pool.step_worker(0) == 10\n    assert pool.step_worker(0) is None\n\ndef test_work_stealing_from_overloaded_peer():\n    pool = WorkStealingPool(num_workers=3)\n    # Overload worker 0 with 6 tasks\n    for i in range(6):\n        pool.submit_task(0, lambda i=i: i * 2)\n        \n    counts = pool.run_all()\n    # All 6 tasks must have been executed\n    assert sum(counts.values()) == 6\n    # Idle workers 1 and 2 must have stolen tasks from worker 0\n    assert counts[1] > 0\n    assert counts[2] > 0\n\ndef test_work_stealing_validation():\n    pool = WorkStealingPool(num_workers=2)\n    try:\n        pool.submit_task(5, lambda: 1)\n        assert False, \"Should raise IndexError\"\n    except IndexError:\n        pass\n", "mutants": ["class WorkStealingPool:\n    def __init__(self, num_workers: int = 4): pass\n    def submit_task(self, worker_id: int, task): pass\n    def step_worker(self, worker_id: int): assert False, 'mutant injected'\n    def run_all(self): return {}\n", "class WorkStealingPool:\n    def __init__(self, num_workers=4):\n        self.num_workers = num_workers\n        self.queues = [[] for _ in range(num_workers)]\n        self.completed_counts = {i: 0 for i in range(num_workers)}\n    def submit_task(self, w_id, task): self.queues[w_id].append(task)\n    def step_worker(self, w_id):\n        # Mutant never steals from peers, leaving idle workers starved\n        if self.queues[w_id]:\n            t = self.queues[w_id].pop()\n            self.completed_counts[w_id] += 1\n            return t()\n        return None\n    def run_all(self):\n        for w in range(self.num_workers):\n            while self.queues[w]: self.step_worker(w)\n        return dict(self.completed_counts)\n"], "hints": ["Use collections.deque for efficient O(1) pops from both ends.", "Pop locally from the right end (LIFO) and steal from peers from the left end (FIFO).", "Iterate over peers starting from (worker_id + 1) % num_workers when stealing."], "level": "boss", "title": "Work-Stealing Multi-Worker Scheduler and Load Balancer"}}, "demos": {"p21-oracle-amdahl-gustafson": {"code": "def amdahl_speedup(s: float, p: int) -> float:\n    # s is sequential fraction (0 <= s <= 1)\n    if not (0 <= s <= 1): raise ValueError(\"s must be in [0, 1]\")\n    if p < 1: raise ValueError(\"processors must be >= 1\")\n    return 1.0 / (s + (1.0 - s) / p)\n\ndef gustafson_speedup(s: float, p: int) -> float:\n    if not (0 <= s <= 1): raise ValueError(\"s must be in [0, 1]\")\n    if p < 1: raise ValueError(\"processors must be >= 1\")\n    return s + p * (1.0 - s)\n\ndef parallel_efficiency(speedup: float, p: int) -> float:\n    return speedup / p\n\n# Benchmark with s = 0.05 (5% serial, 95% parallelizable)\ns = 0.05\ncores = [1, 2, 4, 8, 16, 64, 256, 1024, 100000]\n\nprint(f\"{'Cores':>8} | {'Amdahl Speedup':>15} | {'Amdahl Eff':>10} | {'Gustafson Speedup':>18}\")\nprint(\"-\" * 60)\n\nfor p in cores:\n    s_amdahl = amdahl_speedup(s, p)\n    eff_amdahl = parallel_efficiency(s_amdahl, p)\n    s_gustafson = gustafson_speedup(s, p)\n    print(f\"{p:>8} | {s_amdahl:>15.2f} | {eff_amdahl:>9.1%} | {s_gustafson:>18.2f}\")\n\n# Verify asymptotic upper bound of Amdahl's Law: 1 / 0.05 = 20.0\nassert round(amdahl_speedup(0.05, 1000000), 2) == 20.0\n# Verify linear scaling of Gustafson's Law on 1024 cores: 0.05 + 1024 * 0.95 = 972.85\nassert round(gustafson_speedup(0.05, 1024), 2) == 972.85\n", "mutants": ["def amdahl_speedup(s: float, p: int) -> float:\n    # Mutant assumes linear speedup, ignoring Amdahl sequential bottleneck\n    return float(p)\n\ndef gustafson_speedup(s: float, p: int) -> float: return s + p * (1.0 - s)\ndef parallel_efficiency(speedup: float, p: int) -> float: return speedup / p\n\nassert round(amdahl_speedup(0.05, 1000000), 2) == 20.0, \"Amdahl speedup must asymptote to 1/s\"\n"]}, "p21-experiment-blelloch-scan": {"code": "def blelloch_scan(input_arr: list[int]) -> list[int]:\n    n = len(input_arr)\n    # n must be a power of 2\n    arr = list(input_arr)\n    \n    # 1. Up-sweep (Reduction) Phase: log2(n) steps\n    step = 1\n    while step < n:\n        for i in range(2 * step - 1, n, 2 * step):\n            arr[i] = arr[i - step] + arr[i]\n        step *= 2\n        \n    # Total sum is now in arr[n - 1]\n    total_sum = arr[n - 1]\n    # Set the root to identity element (0 for addition)\n    arr[n - 1] = 0\n    \n    # 2. Down-sweep Phase: log2(n) steps\n    step //= 2\n    while step > 0:\n        for i in range(2 * step - 1, n, 2 * step):\n            temp = arr[i - step]\n            arr[i - step] = arr[i]\n            arr[i] = arr[i] + temp\n        step //= 2\n        \n    return arr\n\n# Test array: [3, 1, 7, 0, 4, 1, 6, 3]\nraw = [3, 1, 7, 0, 4, 1, 6, 3]\nexclusive_scan = blelloch_scan(raw)\n\nprint(\"Input array:\", raw)\nprint(\"Exclusive Prefix Scan:\", exclusive_scan)\n\n# Expected exclusive scan:\n# index 0: 0\n# index 1: 3\n# index 2: 3+1 = 4\n# index 3: 3+1+7 = 11\n# index 4: 11+0 = 11\n# index 5: 11+4 = 15\n# index 6: 15+1 = 16\n# index 7: 16+6 = 22\nexpected = [0, 3, 4, 11, 11, 15, 16, 22]\nassert exclusive_scan == expected\n", "mutants": ["def blelloch_scan(input_arr: list[int]) -> list[int]:\n    # Mutant simply returns sequential inclusive scan instead of parallel exclusive scan\n    res = []\n    acc = 0\n    for x in input_arr:\n        acc += x\n        res.append(acc)\n    return res\n\nraw = [3, 1, 7, 0, 4, 1, 6, 3]\nassert blelloch_scan(raw) == [0, 3, 4, 11, 11, 15, 16, 22]\n"]}}, "cards": [{"q": "What does Amdahl's Law state?", "a": "The maximum speedup of a program on parallel processors is strictly bounded by the reciprocal of its sequential execution fraction: S(P) <= 1/s as P -> infinity."}, {"q": "What is the key difference between Amdahl's Law and Gustafson's Law?", "a": "Amdahl assumes a fixed problem size (speedup asymptotes to 1/s), while Gustafson assumes problem size scales with processor count (speedup scales linearly: s + P(1-s))."}, {"q": "What is the difference between Work and Span?", "a": "Work (T1) is the total sequential execution time of all operations. Span (T_inf) is the critical path length of the computation DAG. Maximum parallelism is T1 / T_inf."}, {"q": "What is the difference between SIMD and SIMT?", "a": "SIMD (Single Instruction, Multiple Data) uses wide CPU vector registers (AVX/NEON) to execute one opcode over vector lanes; SIMT (Single Instruction, Multiple Threads) runs lockstep warps on GPUs where independent thread branches can cause divergence."}, {"q": "How does Blelloch's parallel prefix scan achieve work-efficiency?", "a": "By executing in two tree phases: an up-sweep reduction tree that computes partial sums, and a down-sweep distribution tree, achieving O(n) work and O(log n) span."}, {"q": "What is the Roofline Model in computer architecture?", "a": "A performance model showing whether an algorithm's throughput is bounded by peak compute floating-point operations (GFLOPS) or by memory bandwidth (GB/s * operational intensity)."}], "title": "Parallel computing"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

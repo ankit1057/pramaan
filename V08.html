@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V08 Causality and confounding</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V08">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V08</p><h1>Causality and confounding</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V05.html">V05</a></div><div><b>Covers:</b> research methods</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>correlation vs causation</li><li>confounders</li><li>Simpson&#x27;s paradox</li><li>causal DAGs</li><li>the back-door idea</li><li>colliders and selection bias</li><li>randomised controlled trials</li><li>A/B tests: randomisation unit and sample-ratio mismatch</li><li>natural experiments</li><li>difference-in-differences idea</li><li>counterfactual thinking</li><li>adjusting for measured confounders: regression adjustment, matching and propensity scores</li><li>regression to the mean</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Imagine you are a detective investigating why ice cream sales and sunburn cases rise and fall together across the summer months. On sunny days, thousand of people buy cold vanilla ice cream cones, and thousands of people get red, stinging sunburns. If you only look at your clipboard, you might conclude that eating vanilla ice cream causes painful sunburns, or that getting a sunburn makes you crave ice cream!</p>
+<p>A six-year-old child laughs at this idea because the child knows there is a giant, fiery sun blazing in the sky. The hot summer sun causes people to buy refreshing ice cream, and the exact same hot summer sun burns unprotected skin. The sun is the hidden puppet master—the confounder.</p>
+<p>Even stranger things happen when you compare two hospitals. Hospital A might have a higher overall death rate than small rural Hospital B. But when you look at mild patients, Hospital A cures more of them. When you look at severe patients, Hospital A cures more of them too! How can Hospital A be better for mild cases and better for severe cases, yet have a worse overall death rate? Because all the critically ill, dying patients are sent in ambulances to Hospital A. This optical illusion is called Simpson's Paradox.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Correlation does not imply causation. Two variables can correlate strongly due to a common cause (confounder), reverse causation, or conditioning on a common effect (collider bias). Causal Directed Acyclic Graphs (DAGs) formalize causal assumptions and identify necessary adjustment sets using the back-door criterion.</p>
+<p>Simpson's paradox occurs when an apparent association between two variables reverses upon conditioning on a third confounding variable. In software engineering, observational telemetry is riddled with selection confounding (e.g. power users adopt a new feature and experience more crashes simply because they use the app 10x longer). Randomised controlled trials (A/B tests) break all confounding back-door paths by assigning treatment independently of all pre-existing user attributes.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let causal DAG $G = (V, E)$ represent structural causal relationships.
+1. <strong>The Back-Door Criterion (Judea Pearl):</strong> A set of variables $Z$ satisfies the back-door criterion relative to treatment $X$ and outcome $Y$ if:
+   - No node in $Z$ is a descendant of $X$.
+   - $Z$ blocks every back-door path between $X$ and $Y$ (paths ending with an arrow pointing into $X$).
+2. <strong>The Adjustment Formula:</strong> If $Z$ satisfies the back-door criterion:
+   $$\mathbb{P}(Y = y \mid \text{do}(X = x)) = \sum_z \mathbb{P}(Y = y \mid X = x, Z = z) \mathbb{P}(Z = z)$$
+3. <strong>Collider Bias (Berkson's Paradox):</strong> On a path $X \to C \leftarrow Y$, $C$ is a collider. Conditioning on $C$ opens the path, inducing a spurious correlation between $X$ and $Y$.
+4. <strong>Simpson's Paradox:</strong> A situation where:
+   $$\mathbb{P}(Y \mid X) &gt; \mathbb{P}(Y \mid \neg X) \quad \text{yet} \quad \forall z, \; \mathbb{P}(Y \mid X, Z = z) &lt; \mathbb{P}(Y \mid \neg X, Z = z)$$
+5. <strong>Sample Ratio Mismatch (SRM):</strong> In an A/B test with intended ratio $r$, an observed count ratio differing significantly ($\chi^2$ test $p &lt; 0.001$) indicates broken randomisation or attrition bias.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why does Simpson's paradox occur mathematically, and why does randomisation prevent it?</p>
+<p><strong>Step 1 (The marginal probability expansion):</strong> By the law of total probability, the overall success rate for treatment $X=1$ versus control $X=0$ is:
+$$\mathbb{P}(Y = 1 \mid X = x) = \sum_z \mathbb{P}(Y = 1 \mid X = x, Z = z) \mathbb{P}(Z = z \mid X = x)$$
+Notice that the overall rate is a weighted average of the stratum-specific rates $\mathbb{P}(Y = 1 \mid X = x, Z = z)$, where the weights are the stratum allocation proportions $\mathbb{P}(Z = z \mid X = x)$.</p>
+<p><strong>Step 2 (The mechanism of reversal):</strong> Suppose stratum $Z=1$ represents severe disease where survival is universally low, while $Z=0$ represents mild disease where survival is high. If doctors preferentially assign the new treatment $X=1$ to severe patients, the weight $\mathbb{P}(Z=1 \mid X=1)$ is large (e.g. $80\%$), pulling the weighted average down. If control $X=0$ is given mostly to mild patients, its weight $\mathbb{P}(Z=0 \mid X=0)$ is large, pulling its weighted average up. Consequently, the treatment can have a higher survival rate in every single stratum, yet have a lower overall survival rate.</p>
+<p><strong>Step 3 (Why randomisation breaks the paradox):</strong> In a randomised controlled trial, treatment $X$ is assigned by a coin toss or PRNG, independent of patient severity $Z$: $\mathbb{P}(Z = z \mid X = 1) = \mathbb{P}(Z = z \mid X = 0) = \mathbb{P}(Z = z)$. The weights become identical across both groups. When weights are equal, if treatment dominates in every stratum, it is mathematically impossible for the weighted average to reverse!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>We demonstrate Simpson's Paradox reversal and verify that stratified adjustment restores the true causal direction. We simulate two patient groups: Mild ($Z=0$) and Severe ($Z=1$). Treatment improves recovery in both strata: $+10\%$ in Mild ($90\%$ vs $80\%$) and $+10\%$ in Severe ($40\%$ vs $30\%$). However, $80\%$ of treated patients are Severe, while only $20\%$ of control patients are Severe. Method 1 computes the naive aggregate recovery rate (which shows treatment performing worse). Method 2 applies Pearl's back-door adjustment weighting by marginal stratum sizes $\mathbb{P}(Z=z)$. The adjusted causal effect must show positive $+10\%$ recovery. The broken mutant uses raw unadjusted marginal differences.</p>
+<div class="lab demo" data-demo="oracle-simpsons-paradox">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Simpson&#x27;s paradox reversal and back-door adjustment</h3></div>
+
+<textarea class="code" spellcheck="false"># Population: 50% Mild (Z=0), 50% Severe (Z=1)
+# Stratum rates:
+# Z=0 (Mild): Treat 90%, Ctrl 80% (Treat is +10% better)
+# Z=1 (Severe): Treat 40%, Ctrl 30% (Treat is +10% better)
+
+# Biased allocation:
+# Treat: 20 Mild, 80 Severe (Total 100) -&gt; Successes: 20*0.90 + 80*0.40 = 18 + 32 = 50 (50%)
+# Ctrl:  80 Mild, 20 Severe (Total 100) -&gt; Successes: 80*0.80 + 20*0.30 = 64 + 6 = 70 (70%)
+
+# Naive unadjusted: Treat (50%) appears worse than Ctrl (70%)!
+p_treat_naive = 50.0 / 100.0
+p_ctrl_naive = 70.0 / 100.0
+assert p_treat_naive &lt; p_ctrl_naive, &quot;Paradox must manifest in naive rates&quot;
+
+# Back-door adjustment: weight by overall population stratum shares (50% Mild, 50% Severe)
+adj_treat = 0.50 * 0.90 + 0.50 * 0.40  # 0.45 + 0.20 = 0.65
+adj_ctrl = 0.50 * 0.80 + 0.50 * 0.30   # 0.40 + 0.15 = 0.55
+
+causal_diff = adj_treat - adj_ctrl
+print(f&quot;Naive difference: {p_treat_naive - p_ctrl_naive:+.2f} (Deceptive reversal)&quot;)
+print(f&quot;Causal adjusted difference: {causal_diff:+.2f} (True positive effect)&quot;)
+assert abs(causal_diff - 0.10) &lt; 1e-6, &quot;Adjusted difference must equal true +10% effect&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We simulate Sample Ratio Mismatch (SRM) in an A/B test. We design a 50/50 randomized A/B test with 20,000 total visitors. Treatment contains a subtle front-end crash that causes 4% of users on older devices to fail logging telemetry before the experiment event triggers. The observed counts are $N_{\text{control}} = 10,000$ and $N_{\text{treatment}} = 9,600$. We apply the Pearson chi-square goodness-of-fit test for a 1:1 ratio. Theory predicts that SRM is detected with $p &lt; 0.005$. We measure the empirical $\chi^2$ statistic and verify that SRM flags the experiment as compromised before any metric is analyzed.</p>
+<div class="lab demo" data-demo="exp-sample-ratio-mismatch">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Sample Ratio Mismatch (SRM) detection via Chi-Square test</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+n_ctrl = 10000
+n_treat = 9600  # 4% attrition due to silent crash
+n_total = n_ctrl + n_treat
+expected = n_total / 2.0  # 9800
+
+# Chi-square goodness of fit for 1:1 ratio
+chi2 = ((n_ctrl - expected) ** 2) / expected + ((n_treat - expected) ** 2) / expected
+# For df=1, p-value from chi2: erfc(sqrt(chi2 / 2))
+p_val = math.erfc(math.sqrt(chi2 / 2.0))
+
+print(f&quot;Observed: Ctrl={n_ctrl}, Treat={n_treat}, Expected={expected:.0f}&quot;)
+print(f&quot;Chi2 statistic: {chi2:.2f}, p-value: {p_val:.6f}&quot;)
+
+assert chi2 &gt; 8.0, &quot;SRM chi-square statistic failed to detect imbalance&quot;
+assert p_val &lt; 0.005, &quot;SRM test failed to reject 1:1 ratio at alpha=0.005&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-backdoor-adjustment" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Compute back-door covariate adjustment for binary confounder</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>backdoor_adjustment(stratum_treat_means, stratum_ctrl_means, stratum_proportions)</code> that computes the causal average treatment effect $\mathbb{E}[Y(1) - Y(0)]$ adjusted for a categorical confounder. All three inputs are dictionaries with identical stratum keys. Raise <code>ValueError</code> if keys do not match, stratum proportions do not sum to $1.0 \pm 10^{-4}$, or dictionaries are empty.</p></div>
+<textarea class="code" spellcheck="false">def backdoor_adjustment(stratum_treat_means, stratum_ctrl_means, stratum_proportions):
+    &quot;&quot;&quot;Calculates average treatment effect adjusted via back-door criterion.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_backdoor_exact():
+    t_means = {&#x27;mild&#x27;: 0.90, &#x27;severe&#x27;: 0.40}
+    c_means = {&#x27;mild&#x27;: 0.80, &#x27;severe&#x27;: 0.30}
+    props = {&#x27;mild&#x27;: 0.50, &#x27;severe&#x27;: 0.50}
+    # Expected: (0.9-0.8)*0.5 + (0.4-0.3)*0.5 = 0.10*0.5 + 0.10*0.5 = 0.10
+    assert backdoor_adjustment(t_means, c_means, props) == 0.10
+
+def test_invalid_proportions():
+    try:
+        backdoor_adjustment({&#x27;A&#x27;: 1.0}, {&#x27;A&#x27;: 0.0}, {&#x27;A&#x27;: 0.8})
+        assert False
+    except ValueError:
+        pass
+
+def test_mismatched_keys():
+    try:
+        backdoor_adjustment({&#x27;A&#x27;: 1.0}, {&#x27;B&#x27;: 1.0}, {&#x27;A&#x27;: 1.0})
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-srm-checker" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Automated Sample Ratio Mismatch (SRM) diagnostic</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>check_srm(n_control, n_treatment, ratio=1.0, alpha=0.001)</code> that performs a Pearson Chi-Square goodness-of-fit test for Sample Ratio Mismatch in an A/B test. Expected proportions are $1 / (1 + \text{ratio})$ for control and $\text{ratio} / (1 + \text{ratio})$ for treatment. Compute $\chi^2$ statistic and p-value via <code>math.erfc(math.sqrt(chi2 / 2.0))</code>. Return <code>{'srm_detected': bool, 'chi2': round(chi2, 4), 'p_value': round(p, 6)}</code>. Raise <code>ValueError</code> if sample counts are non-positive or ratio $\le 0$.</p></div>
+<textarea class="code" spellcheck="false">def check_srm(n_control, n_treatment, ratio=1.0, alpha=0.001):
+    &quot;&quot;&quot;Checks for Sample Ratio Mismatch (SRM) using Chi-Square test.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_no_srm():
+    res = check_srm(5000, 5000, ratio=1.0)
+    assert res[&#x27;srm_detected&#x27;] is False
+    assert res[&#x27;chi2&#x27;] == 0.0
+    assert res[&#x27;p_value&#x27;] == 1.0
+
+def test_srm_detected():
+    res = check_srm(10000, 9500, ratio=1.0)
+    assert res[&#x27;srm_detected&#x27;] is True
+    assert res[&#x27;p_value&#x27;] &lt; 0.001
+
+def test_invalid_inputs():
+    try:
+        check_srm(-10, 50)
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-propensity-score-stratification" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Propensity score matching stratification</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>propensity_quintile_adjustment(data)</code> where <code>data</code> is a list of tuples <code>(treatment, outcome, propensity_score)</code>. <code>treatment</code> is $0$ or $1$, <code>outcome</code> is a float, and <code>propensity_score</code> is a float in $(0, 1)$. Divide the data into 5 equal-frequency quintiles based on <code>propensity_score</code>. Compute the average treatment effect within each quintile $Q_k$ where both treatment and control exist: $\Delta_k = \bar{y}_{1k} - \bar{y}_{0k}$. Return the unweighted average across valid quintiles, rounded to 4 decimal places. If fewer than 10 data points are provided, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def propensity_quintile_adjustment(data):
+    &quot;&quot;&quot;Computes treatment effect across propensity score quintiles.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_propensity_quintiles():
+    # 20 points with strong selection confounding: high p has high baseline and high treatment
+    # True effect is +2.0 across all strata
+    data = [
+        # Quintile 1: low p (approx 0.1)
+        (1, 12.0, 0.1), (0, 10.0, 0.1), (0, 10.1, 0.1), (0, 9.9, 0.1),
+        # Quintile 2: p approx 0.3
+        (1, 22.0, 0.3), (0, 20.0, 0.3), (0, 20.1, 0.3), (0, 19.9, 0.3),
+        # Quintile 3: p approx 0.5
+        (1, 32.0, 0.5), (1, 32.1, 0.5), (0, 30.0, 0.5), (0, 30.1, 0.5),
+        # Quintile 4: p approx 0.7
+        (1, 42.0, 0.7), (1, 42.1, 0.7), (0, 40.0, 0.7), (1, 41.9, 0.7),
+        # Quintile 5: high p approx 0.9 (mostly treated, high baseline)
+        (1, 52.0, 0.9), (1, 52.1, 0.9), (1, 51.9, 0.9), (0, 50.0, 0.9)
+    ]
+    res = propensity_quintile_adjustment(data)
+    # Stratified effect is ~2.0, whereas naive marginal treat mean (~42) - ctrl mean (~22) is ~20!
+    assert abs(res - 2.0) &lt; 0.3
+
+def test_too_few_points_raises():
+    try:
+        propensity_quintile_adjustment([(1, 1.0, 0.5)] * 5)
+        assert False
+    except ValueError:
+        pass
+
+def test_sorted_order_independence():
+    import random
+    rng = random.Random(42)
+    data = [(1 if i % 2 == 0 else 0, 10.0 + (3.0 if i % 2 == 0 else 0.0), (i+1)/30.0) for i in range(25)]
+    d_shuffled = list(data)
+    rng.shuffle(d_shuffled)
+    assert propensity_quintile_adjustment(data) == propensity_quintile_adjustment(d_shuffled)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-diff-in-diff-boss" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Difference-in-Differences (DiD) estimator for policy change</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the Difference-in-Differences estimator: <code>diff_in_differences(pre_treat, post_treat, pre_ctrl, post_ctrl)</code>. Given four lists of numerical metrics representing Treatment and Control units measured in Pre and Post intervention periods, compute the DiD point estimate: $\hat{\delta}_{\text{DiD}} = (\bar{y}_{\text{treat, post}} - \bar{y}_{\text{treat, pre}}) - (\bar{y}_{\text{ctrl, post}} - \bar{y}_{\text{ctrl, pre}})$. Also compute the standard error assuming independent groups: $\text{SE} = \sqrt{s_{tp}^2/n_{tp} + s_{t0}^2/n_{t0} + s_{cp}^2/n_{cp} + s_{c0}^2/n_{c0}}$. Return <code>{'did_estimate': round(did, 4), 'se': round(se, 4), 'parallel_trend_counterfactual': round(cf, 4)}</code> where counterfactual post-treatment is $\bar{y}_{\text{treat, pre}} + (\bar{y}_{\text{ctrl, post}} - \bar{y}_{\text{ctrl, pre}})$. If any list has fewer than 2 elements, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def diff_in_differences(pre_treat, post_treat, pre_ctrl, post_ctrl):
+    &quot;&quot;&quot;Computes Difference-in-Differences causal impact estimate.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_did_clean_effect():
+    # Pre-treatment baseline differs: treat=30, ctrl=10
+    # Common trend: +5.0 (ctrl rises from 10 to 15)
+    # Treat rises from 30 to 45 (+15 total) -&gt; DiD effect = +15 - (+5) = +10.0
+    # Naive post difference would be 45 - 15 = 30 (grossly biased due to baseline difference)
+    pre_t = [30.0, 30.0, 30.0]
+    post_t = [45.0, 45.0, 45.0]
+    pre_c = [10.0, 10.0, 10.0]
+    post_c = [15.0, 15.0, 15.0]
+    res = diff_in_differences(pre_t, post_t, pre_c, post_c)
+    assert res[&#x27;did_estimate&#x27;] == 10.0
+    assert res[&#x27;parallel_trend_counterfactual&#x27;] == 35.0
+
+def test_too_small_raises():
+    try:
+        diff_in_differences([1.0], [2.0, 3.0], [1.0, 2.0], [2.0, 3.0])
+        assert False
+    except ValueError:
+        pass
+
+def test_did_variance_scaling():
+    pre_t = [10.0, 12.0]
+    post_t = [20.0, 22.0]
+    pre_c = [5.0, 7.0]
+    post_c = [10.0, 12.0]
+    res = diff_in_differences(pre_t, post_t, pre_c, post_c)
+    assert res[&#x27;se&#x27;] &gt; 0
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"If two metrics have Pearson $r = 0.95$, one must be causing the other."</strong> Spurious correlation arises whenever both metrics are driven by latent confounding variables (e.g. population growth, inflation, daytime temperature).</li>
+<li><strong>"Conditioning on more covariates always reduces bias."</strong> Conditioning on a collider (a variable caused by both treatment and outcome) opens a spurious back-door path, inducing artificial selection bias.</li>
+<li><strong>"Sample Ratio Mismatch is a minor cosmetic issue that can be ignored."</strong> SRM indicates that the randomisation engine or data pipeline is corrupted, rendering all downstream p-values and effect sizes invalid.</li>
+<li><strong>"Natural experiments and Difference-in-Differences provide the same certainty as randomised trials."</strong> DiD relies on the unverifiable 'parallel trends' counterfactual assumption; if treatment and control groups would have diverged in the absence of treatment, DiD estimates are biased.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Causal inference from observational telemetry breaks down completely under unobserved confounding where latent variables violate the back-door criterion. Difference-in-differences estimators fail when the pre-intervention parallel trends assumption is violated or when spillover effects across connected users violate the Stable Unit Treatment Value Assumption (SUTVA). In complex systems with feedback loops, simple DAG directed acyclic models fail to capture dynamic equilibrium.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>In mobile A/B testing, teams frequently observe a sample ratio mismatch where treatment has 48,000 users and control has 50,000. Analysing conversion rates on that data produces invalid conclusions, because the 2,000 'missing' users in treatment crashed on launch before their conversion event was ever logged. Detecting SRM is the mandatory first health check of any real A/B test.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the Back-Door Criterion?</p></div><div class="a" hidden><p>A graphical criterion in causal DAGs: a set of variables $Z$ blocks all confounding paths between treatment $X$ and outcome $Y$ without containing descendants of $X$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is a collider in a causal DAG?</p></div><div class="a" hidden><p>A node where two arrows converge ($A \to C \leftarrow B$). Conditioning on a collider opens the path, creating spurious association between $A$ and $B$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>State Simpson's Paradox.</p></div><div class="a" hidden><p>A statistical phenomenon where a trend or correlation observed in several distinct groups reverses when the groups are aggregated.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is Sample Ratio Mismatch (SRM)?</p></div><div class="a" hidden><p>A statistically significant difference between the intended and observed sample allocation ratio in an A/B test, indicating broken randomisation or attrition bias.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the core identifying assumption of Difference-in-Differences (DiD)?</p></div><div class="a" hidden><p>The parallel trends assumption: in the absence of treatment, the average change in the treatment group would have been identical to the change in the control group.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is regression to the mean?</p></div><div class="a" hidden><p>The statistical tendency for extreme random scores on an initial test to move closer to the true population average upon subsequent re-testing.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain Simpson's paradox with a concrete 2x2 contingency table, detect Sample Ratio Mismatch in an A/B test log, and identify colliders on a causal DAG.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Pearl, Judea. <em>Causality: Models, Reasoning, and Inference</em>. 2nd ed., Cambridge University Press, 2009.</li>
+<li>Fabijan, A., et al. 'Diagnosing Sample Ratio Mismatch in Online Controlled Experiments.' <em>KDD</em>, 2019.</li>
+</ul></section>
+<footer class="pager"><a href="V06.html">&larr; V06 Power, effect size and sample size</a>
+<a href="V11.html">V11 Bayesian reasoning &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V08", "packages": ["numpy"], "exercises": {"ex1-backdoor-adjustment": {"starter": "def backdoor_adjustment(stratum_treat_means, stratum_ctrl_means, stratum_proportions):\n    \"\"\"Calculates average treatment effect adjusted via back-door criterion.\"\"\"\n    return 0.0\n", "solution": "def backdoor_adjustment(stratum_treat_means, stratum_ctrl_means, stratum_proportions):\n    \"\"\"Calculates average treatment effect adjusted via back-door criterion.\"\"\"\n    keys = set(stratum_treat_means.keys())\n    if keys != set(stratum_ctrl_means.keys()) or keys != set(stratum_proportions.keys()) or not keys:\n        raise ValueError(\"Mismatched or empty stratum keys\")\n    total_prop = sum(stratum_proportions.values())\n    if abs(total_prop - 1.0) > 1e-4:\n        raise ValueError(\"Stratum proportions must sum to 1.0\")\n    \n    ate = 0.0\n    for k in keys:\n        diff_k = stratum_treat_means[k] - stratum_ctrl_means[k]\n        ate += diff_k * stratum_proportions[k]\n    return round(ate, 4)\n", "tests": "def test_backdoor_exact():\n    t_means = {'mild': 0.90, 'severe': 0.40}\n    c_means = {'mild': 0.80, 'severe': 0.30}\n    props = {'mild': 0.50, 'severe': 0.50}\n    # Expected: (0.9-0.8)*0.5 + (0.4-0.3)*0.5 = 0.10*0.5 + 0.10*0.5 = 0.10\n    assert backdoor_adjustment(t_means, c_means, props) == 0.10\n\ndef test_invalid_proportions():\n    try:\n        backdoor_adjustment({'A': 1.0}, {'A': 0.0}, {'A': 0.8})\n        assert False\n    except ValueError:\n        pass\n\ndef test_mismatched_keys():\n    try:\n        backdoor_adjustment({'A': 1.0}, {'B': 1.0}, {'A': 1.0})\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def backdoor_adjustment(stratum_treat_means, stratum_ctrl_means, stratum_proportions):\n    # Ignores weights\n    if set(stratum_treat_means.keys()) != set(stratum_ctrl_means.keys()): raise ValueError(\"bad\")\n    return sum(stratum_treat_means.values()) - sum(stratum_ctrl_means.values())\n", "def backdoor_adjustment(stratum_treat_means, stratum_ctrl_means, stratum_proportions):\n    # Does not validate proportions sum to 1\n    return 0.10\n"], "hints": ["Check keys match and sum of proportions is 1.0.", "Sum over strata: $(T_k - C_k) \\times P(Z=k)$."], "level": "warmup", "title": "Compute back-door covariate adjustment for binary confounder"}, "ex2-srm-checker": {"starter": "def check_srm(n_control, n_treatment, ratio=1.0, alpha=0.001):\n    \"\"\"Checks for Sample Ratio Mismatch (SRM) using Chi-Square test.\"\"\"\n    return {}\n", "solution": "import math\n\ndef check_srm(n_control, n_treatment, ratio=1.0, alpha=0.001):\n    \"\"\"Checks for Sample Ratio Mismatch (SRM) using Chi-Square test.\"\"\"\n    if n_control <= 0 or n_treatment <= 0 or ratio <= 0:\n        raise ValueError(\"Counts and ratio must be strictly positive\")\n        \n    total = n_control + n_treatment\n    prob_ctrl = 1.0 / (1.0 + ratio)\n    prob_treat = ratio / (1.0 + ratio)\n    \n    exp_ctrl = total * prob_ctrl\n    exp_treat = total * prob_treat\n    \n    chi2 = ((n_control - exp_ctrl) ** 2) / exp_ctrl + ((n_treatment - exp_treat) ** 2) / exp_treat\n    p_val = math.erfc(math.sqrt(chi2 / 2.0))\n    \n    return {\n        'srm_detected': p_val < alpha,\n        'chi2': round(chi2, 4),\n        'p_value': round(p_val, 6)\n    }\n", "tests": "def test_no_srm():\n    res = check_srm(5000, 5000, ratio=1.0)\n    assert res['srm_detected'] is False\n    assert res['chi2'] == 0.0\n    assert res['p_value'] == 1.0\n\ndef test_srm_detected():\n    res = check_srm(10000, 9500, ratio=1.0)\n    assert res['srm_detected'] is True\n    assert res['p_value'] < 0.001\n\ndef test_invalid_inputs():\n    try:\n        check_srm(-10, 50)\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def check_srm(n_control, n_treatment, ratio=1.0, alpha=0.001):\n    # Ignores ratio and returns false always\n    if n_control <= 0 or n_treatment <= 0: raise ValueError(\"bad\")\n    return {'srm_detected': False, 'chi2': 0.0, 'p_value': 1.0}\n", "def check_srm(n_control, n_treatment, ratio=1.0, alpha=0.001):\n    # Does not raise on non-positive counts\n    return {'srm_detected': True, 'chi2': 100.0, 'p_value': 0.0}\n"], "hints": ["Expected control is $N \\times 1 / (1 + r)$.", "Chi2 formula: $\\sum (O - E)^2 / E$."], "level": "core", "title": "Automated Sample Ratio Mismatch (SRM) diagnostic"}, "ex3-propensity-score-stratification": {"starter": "def propensity_quintile_adjustment(data):\n    \"\"\"Computes treatment effect across propensity score quintiles.\"\"\"\n    return 0.0\n", "solution": "def propensity_quintile_adjustment(data):\n    \"\"\"Computes treatment effect across propensity score quintiles.\"\"\"\n    if len(data) < 10:\n        raise ValueError(\"Need at least 10 observations\")\n    \n    # Sort by propensity score\n    s = sorted(data, key=lambda x: x[2])\n    n = len(s)\n    q_size = n // 5\n    \n    quintile_diffs = []\n    for i in range(5):\n        chunk = s[i*q_size : (i+1)*q_size] if i < 4 else s[i*q_size:]\n        treat_y = [y for t, y, p in chunk if t == 1]\n        ctrl_y = [y for t, y, p in chunk if t == 0]\n        if treat_y and ctrl_y:\n            m_t = sum(treat_y) / len(treat_y)\n            m_c = sum(ctrl_y) / len(ctrl_y)\n            quintile_diffs.append(m_t - m_c)\n            \n    if not quintile_diffs:\n        raise ValueError(\"No quintiles contain both treatment and control\")\n    return round(sum(quintile_diffs) / len(quintile_diffs), 4)\n", "tests": "def test_propensity_quintiles():\n    # 20 points with strong selection confounding: high p has high baseline and high treatment\n    # True effect is +2.0 across all strata\n    data = [\n        # Quintile 1: low p (approx 0.1)\n        (1, 12.0, 0.1), (0, 10.0, 0.1), (0, 10.1, 0.1), (0, 9.9, 0.1),\n        # Quintile 2: p approx 0.3\n        (1, 22.0, 0.3), (0, 20.0, 0.3), (0, 20.1, 0.3), (0, 19.9, 0.3),\n        # Quintile 3: p approx 0.5\n        (1, 32.0, 0.5), (1, 32.1, 0.5), (0, 30.0, 0.5), (0, 30.1, 0.5),\n        # Quintile 4: p approx 0.7\n        (1, 42.0, 0.7), (1, 42.1, 0.7), (0, 40.0, 0.7), (1, 41.9, 0.7),\n        # Quintile 5: high p approx 0.9 (mostly treated, high baseline)\n        (1, 52.0, 0.9), (1, 52.1, 0.9), (1, 51.9, 0.9), (0, 50.0, 0.9)\n    ]\n    res = propensity_quintile_adjustment(data)\n    # Stratified effect is ~2.0, whereas naive marginal treat mean (~42) - ctrl mean (~22) is ~20!\n    assert abs(res - 2.0) < 0.3\n\ndef test_too_few_points_raises():\n    try:\n        propensity_quintile_adjustment([(1, 1.0, 0.5)] * 5)\n        assert False\n    except ValueError:\n        pass\n\ndef test_sorted_order_independence():\n    import random\n    rng = random.Random(42)\n    data = [(1 if i % 2 == 0 else 0, 10.0 + (3.0 if i % 2 == 0 else 0.0), (i+1)/30.0) for i in range(25)]\n    d_shuffled = list(data)\n    rng.shuffle(d_shuffled)\n    assert propensity_quintile_adjustment(data) == propensity_quintile_adjustment(d_shuffled)\n", "mutants": ["def propensity_quintile_adjustment(data):\n    # Ignores quintiles and computes naive marginal difference\n    if len(data) < 10: raise ValueError(\"bad\")\n    ty = [y for t, y, p in data if t == 1]\n    cy = [y for t, y, p in data if t == 0]\n    return round(sum(ty)/len(ty) - sum(cy)/len(cy), 4)\n", "def propensity_quintile_adjustment(data):\n    # Does not raise on < 10 points\n    return 0.0\n"], "hints": ["Sort by propensity score ascending.", "Divide into 5 slices and average within-slice differences."], "level": "core", "title": "Propensity score matching stratification"}, "ex4-diff-in-diff-boss": {"starter": "def diff_in_differences(pre_treat, post_treat, pre_ctrl, post_ctrl):\n    \"\"\"Computes Difference-in-Differences causal impact estimate.\"\"\"\n    return {}\n", "solution": "import math\n\ndef diff_in_differences(pre_treat, post_treat, pre_ctrl, post_ctrl):\n    \"\"\"Computes Difference-in-Differences causal impact estimate.\"\"\"\n    groups = [pre_treat, post_treat, pre_ctrl, post_ctrl]\n    if any(len(g) < 2 for g in groups):\n        raise ValueError(\"Each group must contain at least 2 observations\")\n        \n    def mean_var(arr):\n        n = len(arr)\n        m = sum(arr) / n\n        v = sum((x - m) ** 2 for x in arr) / (n - 1)\n        return m, v, n\n        \n    m_t0, v_t0, n_t0 = mean_var(pre_treat)\n    m_tp, v_tp, n_tp = mean_var(post_treat)\n    m_c0, v_c0, n_c0 = mean_var(pre_ctrl)\n    m_cp, v_cp, n_cp = mean_var(post_ctrl)\n    \n    treat_diff = m_tp - m_t0\n    ctrl_diff = m_cp - m_c0\n    did = treat_diff - ctrl_diff\n    \n    se = math.sqrt(v_tp / n_tp + v_t0 / n_t0 + v_cp / n_cp + v_c0 / n_c0)\n    counterfactual = m_t0 + ctrl_diff\n    \n    return {\n        'did_estimate': round(did, 4),\n        'se': round(se, 4),\n        'parallel_trend_counterfactual': round(counterfactual, 4)\n    }\n", "tests": "def test_did_clean_effect():\n    # Pre-treatment baseline differs: treat=30, ctrl=10\n    # Common trend: +5.0 (ctrl rises from 10 to 15)\n    # Treat rises from 30 to 45 (+15 total) -> DiD effect = +15 - (+5) = +10.0\n    # Naive post difference would be 45 - 15 = 30 (grossly biased due to baseline difference)\n    pre_t = [30.0, 30.0, 30.0]\n    post_t = [45.0, 45.0, 45.0]\n    pre_c = [10.0, 10.0, 10.0]\n    post_c = [15.0, 15.0, 15.0]\n    res = diff_in_differences(pre_t, post_t, pre_c, post_c)\n    assert res['did_estimate'] == 10.0\n    assert res['parallel_trend_counterfactual'] == 35.0\n\ndef test_too_small_raises():\n    try:\n        diff_in_differences([1.0], [2.0, 3.0], [1.0, 2.0], [2.0, 3.0])\n        assert False\n    except ValueError:\n        pass\n\ndef test_did_variance_scaling():\n    pre_t = [10.0, 12.0]\n    post_t = [20.0, 22.0]\n    pre_c = [5.0, 7.0]\n    post_c = [10.0, 12.0]\n    res = diff_in_differences(pre_t, post_t, pre_c, post_c)\n    assert res['se'] > 0\n", "mutants": ["def diff_in_differences(pre_treat, post_treat, pre_ctrl, post_ctrl):\n    # Naive post-treatment difference (ignores pre-trends)\n    if any(len(g) < 2 for g in [pre_treat, post_treat, pre_ctrl, post_ctrl]): raise ValueError(\"bad\")\n    m_tp = sum(post_treat)/len(post_treat)\n    m_cp = sum(post_ctrl)/len(post_ctrl)\n    return {'did_estimate': round(m_tp - m_cp, 4), 'se': 1.0, 'parallel_trend_counterfactual': m_cp}\n", "def diff_in_differences(pre_treat, post_treat, pre_ctrl, post_ctrl):\n    # Does not raise on single element\n    return {'did_estimate': 0.0, 'se': 0.0, 'parallel_trend_counterfactual': 0.0}\n"], "hints": ["DiD = $(\\bar{y}_{\\text{tp}} - \\bar{y}_{\\text{t0}}) - (\\bar{y}_{\\text{cp}} - \\bar{y}_{\\text{c0}})$.", "Sum variance of all 4 independent group means."], "level": "boss", "title": "Difference-in-Differences (DiD) estimator for policy change"}}, "demos": {"oracle-simpsons-paradox": {"code": "# Population: 50% Mild (Z=0), 50% Severe (Z=1)\n# Stratum rates:\n# Z=0 (Mild): Treat 90%, Ctrl 80% (Treat is +10% better)\n# Z=1 (Severe): Treat 40%, Ctrl 30% (Treat is +10% better)\n\n# Biased allocation:\n# Treat: 20 Mild, 80 Severe (Total 100) -> Successes: 20*0.90 + 80*0.40 = 18 + 32 = 50 (50%)\n# Ctrl:  80 Mild, 20 Severe (Total 100) -> Successes: 80*0.80 + 20*0.30 = 64 + 6 = 70 (70%)\n\n# Naive unadjusted: Treat (50%) appears worse than Ctrl (70%)!\np_treat_naive = 50.0 / 100.0\np_ctrl_naive = 70.0 / 100.0\nassert p_treat_naive < p_ctrl_naive, \"Paradox must manifest in naive rates\"\n\n# Back-door adjustment: weight by overall population stratum shares (50% Mild, 50% Severe)\nadj_treat = 0.50 * 0.90 + 0.50 * 0.40  # 0.45 + 0.20 = 0.65\nadj_ctrl = 0.50 * 0.80 + 0.50 * 0.30   # 0.40 + 0.15 = 0.55\n\ncausal_diff = adj_treat - adj_ctrl\nprint(f\"Naive difference: {p_treat_naive - p_ctrl_naive:+.2f} (Deceptive reversal)\")\nprint(f\"Causal adjusted difference: {causal_diff:+.2f} (True positive effect)\")\nassert abs(causal_diff - 0.10) < 1e-6, \"Adjusted difference must equal true +10% effect\"\n", "mutants": ["p_treat_naive = 0.50\np_ctrl_naive = 0.70\n# Mutant uses unadjusted difference and claims treatment is harmful\ncausal_diff = p_treat_naive - p_ctrl_naive\nassert abs(causal_diff - 0.10) < 1e-6, \"Failed to catch naive Simpson reversal\"\n"]}, "exp-sample-ratio-mismatch": {"code": "import math\n\nn_ctrl = 10000\nn_treat = 9600  # 4% attrition due to silent crash\nn_total = n_ctrl + n_treat\nexpected = n_total / 2.0  # 9800\n\n# Chi-square goodness of fit for 1:1 ratio\nchi2 = ((n_ctrl - expected) ** 2) / expected + ((n_treat - expected) ** 2) / expected\n# For df=1, p-value from chi2: erfc(sqrt(chi2 / 2))\np_val = math.erfc(math.sqrt(chi2 / 2.0))\n\nprint(f\"Observed: Ctrl={n_ctrl}, Treat={n_treat}, Expected={expected:.0f}\")\nprint(f\"Chi2 statistic: {chi2:.2f}, p-value: {p_val:.6f}\")\n\nassert chi2 > 8.0, \"SRM chi-square statistic failed to detect imbalance\"\nassert p_val < 0.005, \"SRM test failed to reject 1:1 ratio at alpha=0.005\"\n", "mutants": ["# Flawed assumption: 400 user difference out of 20000 is just normal noise\np_val = 0.50\nassert p_val < 0.005, \"SRM correctly caught\"\n"]}}, "cards": [{"q": "What is the Back-Door Criterion?", "a": "A graphical criterion in causal DAGs: a set of variables $Z$ blocks all confounding paths between treatment $X$ and outcome $Y$ without containing descendants of $X$."}, {"q": "What is a collider in a causal DAG?", "a": "A node where two arrows converge ($A \\to C \\leftarrow B$). Conditioning on a collider opens the path, creating spurious association between $A$ and $B$."}, {"q": "State Simpson's Paradox.", "a": "A statistical phenomenon where a trend or correlation observed in several distinct groups reverses when the groups are aggregated."}, {"q": "What is Sample Ratio Mismatch (SRM)?", "a": "A statistically significant difference between the intended and observed sample allocation ratio in an A/B test, indicating broken randomisation or attrition bias."}, {"q": "What is the core identifying assumption of Difference-in-Differences (DiD)?", "a": "The parallel trends assumption: in the absence of treatment, the average change in the treatment group would have been identical to the change in the control group."}, {"q": "What is regression to the mean?", "a": "The statistical tendency for extreme random scores on an initial test to move closer to the true population average upon subsequent re-testing."}], "title": "Causality and confounding"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

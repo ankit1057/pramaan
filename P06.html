@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P06 Operating systems I: processes, threads and scheduling</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P06">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P06</p><h1>Operating systems I: processes, threads and scheduling</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P05.html">P05</a> <a href="P02.html">P02</a></div><div><b>Covers:</b> CS2023 OS</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>kernel vs user mode</li><li>system calls</li><li>processes and address spaces</li><li>fork and exec</li><li>threads</li><li>context switches</li><li>scheduling: FCFS, SJF, round robin, priority, multilevel feedback queues, fair-share (CFS idea)</li><li>preemption and starvation</li><li>signals</li><li>process states</li><li>the shell: pipes, redirection, environment variables and small automation scripts</li><li>kernel architectures: monolithic, microkernel, modular and unikernel</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the late 1960s, computing was held hostage by the batch-processing paradigm. Programmers punched cards, handed them to white-coated computer operators, and waited hours or days for mainframe printers to output syntax errors or memory dumps. At MIT, Fernando Corbató pioneered time-sharing with the Compatible Time-Sharing System (CTSS) and the Multics project, proving that a single computer could serve dozens of simultaneous users interactively by slicing processor time into millisecond quanta. When the ambitious Multics project collapsed under bureaucratic bloat, two young Bell Labs researchers—Ken Thompson and Dennis Ritchie—salvaged the core philosophy. In the summer of 1969, writing on a discarded PDP-7 minicomputer, Thompson implemented a compact kernel providing clean abstractions: processes with protected address spaces, hierarchical file systems, and the <code>fork</code> and <code>exec</code> system call duality.</p>
+<p>That minimalist operating system was Unix. Over the next half-century, operating system scheduling evolved from naive round-robin queues to sophisticated mathematical models of fairness. In 2007, Linux kernel hacker Ingo Molnar introduced the Completely Fair Scheduler (CFS) in Linux 2.6.23. Replacing complex heuristic priority matrices with a self-balancing red-black tree tracking virtual runtime ($vruntime$), CFS proved that operating systems can mathematically model an ideal multi-tasking processor on physical silicon, providing guaranteed throughput for background batch jobs while delivering sub-millisecond responsiveness for interactive user interfaces.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>An operating system is the master conductor of a computer, making sure multiple programs share the CPU, memory, and devices safely without crashing into one another. The hardware enforces a strict boundary between user mode (where web browsers and games run with restricted permissions) and kernel mode (where the operating system directly controls hardware). The OS creates processes (isolated programs with their own private memory) and threads (lightweight workers within a process). The scheduler rapidly switches the CPU between tasks thousands of times per second, giving each program a turn so quickly that everything appears to run simultaneously.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal theory of operating system processes, privilege separation, and CPU scheduling is specified by:</p>
+<ol>
+<li>
+<p><strong>Dual-Mode Operation &amp; System Calls</strong>:
+Hardware CPU rings enforce protection: Ring 0 (Kernel/Privileged Mode) and Ring 3 (User Mode).
+User applications transition to kernel mode via software traps (<code>syscall</code> instruction), saving user register state onto the per-process kernel stack, validating arguments across the user-kernel boundary, and dispatching through the Interrupt Descriptor Table (IDT).</p>
+</li>
+<li>
+<p><strong>Process Address Spaces &amp; Lifecycle</strong>:
+A process possesses an isolated virtual address space: Text (code), Data (globals), BSS, Heap (dynamic memory), and Stack (call frames).
+- <code>fork()</code> clones the caller process, sharing physical pages via Copy-on-Write (COW).
+- <code>execve()</code> replaces the current process address space with a new executable ELF binary.
+- Context Switch: The kernel saves the outgoing process's hardware registers and Program Counter, flushes or switches the Page Table Base Register (CR3 / TTBR0), and restores the incoming process's state in $O(1)$ hardware cycles.</p>
+</li>
+<li>
+<p><strong>CPU Scheduling Formalisms</strong>:
+Given $N$ tasks with arrival times $A_i$ and burst times $B_i$:
+- <strong>Turnaround Time</strong>: $T_{\text{turnaround}} = T_{\text{completion}} - A_i$
+- <strong>Waiting Time</strong>: $T_{\text{wait}} = T_{\text{turnaround}} - B_i$
+- <strong>First-Come First-Served (FCFS)</strong>: Non-preemptive FIFO queue; suffers from the <strong>convoy effect</strong> where short tasks wait behind a massive CPU burst.
+- <strong>Shortest Remaining Time First (SRTF)</strong>: Preemptive variant of SJF; mathematically minimizes average waiting time $\frac{1}{N} \sum T_{\text{wait}}$.
+- <strong>Completely Fair Scheduler (CFS)</strong>:
+Maintains virtual runtime $vruntime$ for each task $i$:
+$$vruntime_i \mathrel{+}= \Delta t_{\text{exec}} \times \frac{w_0}{w_i}$$
+where $w_i$ is task weight derived from nice level ($w_0 = 1024$). CFS picks the task with minimum $vruntime$ using a red-black tree in $O(\log N)$ or $O(1)$ min-pointer.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why modern operating systems employ preemptive scheduling and memory protection rather than cooperative multitasking requires analyzing what occurs when untrusted or buggy software runs on physical hardware. In early consumer operating systems like Windows 3.1 and classic Mac OS, multitasking was purely <strong>cooperative</strong>: the operating system relied on individual applications to voluntarily yield control back to the scheduler via explicit calls like <code>Yield()</code>.</p>
+<p>If an application encountered an infinite loop, frozen network socket, or unhandled null pointer dereference, the entire machine locked up permanently, forcing a physical reboot. Furthermore, without hardware-enforced virtual memory protection, a rogue pointer write in a text editor could overwrite kernel page tables or crash other running software.</p>
+<p>Preemptive multitasking eliminates cooperative vulnerability through hardware timer interrupts. At periodic intervals (the scheduling tick, typically 1 to 10 milliseconds), the CPU hardware timer fires an interrupt that forces execution into the kernel scheduler, regardless of what the user program is doing. The kernel pauses the running thread, updates scheduling metrics, and preempts it in favor of another task. Paired with memory management units (MMU) that isolate address spaces, preemption guarantees that a crashing or malicious application cannot freeze the operating system or corrupt neighboring processes.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The CPU scheduler verification oracle demonstrates the mathematical difference between non-preemptive FCFS, preemptive SRTF, and Round Robin algorithms across arrival times and burst times. The interactive oracle simulates task execution timelines, calculates exact individual turnaround and waiting times, and verifies that Shortest Remaining Time First achieves the minimum theoretical average waiting time across heterogeneous arrival schedules and burst profiles.</p>
+<div class="lab demo" data-demo="p06-oracle-scheduler-comparison">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>CPU Scheduling Algorithm Waiting Time Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def calculate_fcfs_metrics(tasks: list) -&gt; dict:
+    # tasks: list of (id, arrival, burst)
+    tasks_sorted = sorted(tasks, key=lambda t: t[1])
+    current_time = 0
+    total_wait = 0
+    
+    for tid, arrival, burst in tasks_sorted:
+        if current_time &lt; arrival:
+            current_time = arrival
+        wait = current_time - arrival
+        total_wait += wait
+        current_time += burst
+        
+    avg_wait = total_wait / len(tasks)
+    return {&quot;avg_wait&quot;: round(avg_wait, 2), &quot;completion_time&quot;: current_time}
+
+# Task set: (T1: arrival 0, burst 8), (T2: arrival 1, burst 4), (T3: arrival 2, burst 2)
+tasks = [(&quot;T1&quot;, 0, 8), (&quot;T2&quot;, 1, 4), (&quot;T3&quot;, 2, 2)]
+res = calculate_fcfs_metrics(tasks)
+
+# FCFS execution:
+# T1: 0..8 (wait 0)
+# T2: 8..12 (wait 8 - 1 = 7)
+# T3: 12..14 (wait 12 - 2 = 10)
+# Total wait = 0 + 7 + 10 = 17; Avg wait = 17 / 3 = 5.67
+assert res[&quot;avg_wait&quot;] == 5.67
+assert res[&quot;completion_time&quot;] == 14
+
+print(&quot;CPU scheduler FCFS convoy effect and waiting time verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the algorithmic fairness property of the Completely Fair Scheduler (CFS) virtual runtime ($vruntime$) equation. When two tasks run concurrently—one with normal priority (nice 0, weight 1024) and one with high priority (nice -5, weight 3121)—the high-priority task accumulates $vruntime$ at a substantially slower rate, receiving proportionally more physical CPU execution time. This mathematical scaling guarantees that interactive threads receive immediate CPU attention without starving batch background workloads.</p>
+<div class="lab demo" data-demo="p06-exp-cfs-weights">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Linux CFS Virtual Runtime Scaling Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def advance_vruntime(exec_time_ms: float, weight: float) -&gt; float:
+    # vruntime += delta_exec * (1024 / weight)
+    return exec_time_ms * (1024.0 / weight)
+
+w_normal = 1024.0  # nice 0
+w_high = 3121.0    # nice -5
+
+delta_exec = 10.0  # 10 ms execution
+v_normal = advance_vruntime(delta_exec, w_normal)
+v_high = advance_vruntime(delta_exec, w_high)
+
+assert v_normal == 10.0
+assert round(v_high, 2) == 3.28
+
+ratio = v_normal / v_high
+assert round(ratio, 2) == round(w_high / w_normal, 2)
+print(f&quot;CFS weight scaling verified: high-priority task advances vruntime {ratio:.2f}x slower.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-round-robin-scheduler" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Round Robin Preemptive CPU Scheduler</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement schedule_round_robin(processes: list[dict], time_quantum: int) -&gt; dict that simulates a preemptive Round Robin CPU scheduler over a queue of tasks with arrival times and burst times, computing completion times, turnaround times, and average waiting time.</p></div>
+<textarea class="code" spellcheck="false">def schedule_round_robin(processes: list[dict], time_quantum: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_round_robin_basic():
+    processes = [
+        {&quot;id&quot;: &quot;P1&quot;, &quot;arrival&quot;: 0, &quot;burst&quot;: 5},
+        {&quot;id&quot;: &quot;P2&quot;, &quot;arrival&quot;: 0, &quot;burst&quot;: 3}
+    ]
+    # Quantum 2:
+    # 0..2: P1 (rem 3)
+    # 2..4: P2 (rem 1)
+    # 4..6: P1 (rem 1)
+    # 6..7: P2 (done at 7) -&gt; turnaround 7, wait 7-3=4
+    # 7..8: P1 (done at 8) -&gt; turnaround 8, wait 8-5=3
+    # Avg wait = (4 + 3) / 2 = 3.5
+    res = schedule_round_robin(processes, time_quantum=2)
+    assert res[&quot;turnaround&quot;][&quot;P1&quot;] == 8
+    assert res[&quot;turnaround&quot;][&quot;P2&quot;] == 7
+    assert res[&quot;avg_wait&quot;] == 3.5
+
+def test_round_robin_single_task():
+    res = schedule_round_robin([{&quot;id&quot;: &quot;P1&quot;, &quot;arrival&quot;: 2, &quot;burst&quot;: 4}], time_quantum=2)
+    assert res[&quot;turnaround&quot;][&quot;P1&quot;] == 4
+    assert res[&quot;waiting&quot;][&quot;P1&quot;] == 0
+    assert res[&quot;avg_wait&quot;] == 0.0
+
+def test_round_robin_empty():
+    res = schedule_round_robin([], time_quantum=2)
+    assert res[&quot;avg_wait&quot;] == 0.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-shortest-remaining-time" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Preemptive Shortest Remaining Time First (SRTF) Scheduler</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement schedule_srtf(processes: list[dict]) -&gt; dict that implements preemptive Shortest Remaining Time First scheduling, preempting the currently running process whenever a newly arrived task has a strictly shorter remaining burst time.</p></div>
+<textarea class="code" spellcheck="false">def schedule_srtf(processes: list[dict]) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_srtf_preemption():
+    processes = [
+        {&quot;id&quot;: &quot;P1&quot;, &quot;arrival&quot;: 0, &quot;burst&quot;: 8},
+        {&quot;id&quot;: &quot;P2&quot;, &quot;arrival&quot;: 1, &quot;burst&quot;: 4},
+        {&quot;id&quot;: &quot;P3&quot;, &quot;arrival&quot;: 2, &quot;burst&quot;: 2}
+    ]
+    # At t=0: P1 runs (rem 8 -&gt; 7 at t=1)
+    # At t=1: P2 arrives (burst 4 &lt; 7), P2 preempts P1!
+    # At t=2: P3 arrives (burst 2 &lt; 3), P3 preempts P2!
+    # t=2..4: P3 runs to completion (done at 4) -&gt; wait 4-2-2 = 0
+    # t=4..7: P2 resumes (done at 7) -&gt; wait 7-1-4 = 2
+    # t=7..14: P1 resumes (done at 14) -&gt; wait 14-0-8 = 6
+    # Total wait: 0 + 2 + 6 = 8; Avg wait: 8/3 = 2.67
+    res = schedule_srtf(processes)
+    assert res[&quot;waiting&quot;][&quot;P3&quot;] == 0
+    assert res[&quot;waiting&quot;][&quot;P2&quot;] == 2
+    assert res[&quot;waiting&quot;][&quot;P1&quot;] == 6
+    assert res[&quot;avg_wait&quot;] == 2.67
+
+def test_srtf_no_preemption():
+    processes = [
+        {&quot;id&quot;: &quot;A&quot;, &quot;arrival&quot;: 0, &quot;burst&quot;: 2},
+        {&quot;id&quot;: &quot;B&quot;, &quot;arrival&quot;: 5, &quot;burst&quot;: 3}
+    ]
+    res = schedule_srtf(processes)
+    assert res[&quot;waiting&quot;][&quot;A&quot;] == 0
+    assert res[&quot;waiting&quot;][&quot;B&quot;] == 0
+    assert res[&quot;avg_wait&quot;] == 0.0
+
+def test_srtf_empty():
+    assert schedule_srtf([])[&quot;avg_wait&quot;] == 0.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-cfs-vruntime-tracker" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Linux CFS Virtual Runtime and Task Selection Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_cfs_step(tasks: list[dict], elapsed_real_time_ms: float) -&gt; dict that advances the virtual runtime (vruntime) of the currently scheduled task based on nice-weight scaling and selects the next task to run.</p></div>
+<textarea class="code" spellcheck="false">def simulate_cfs_step(tasks: list[dict], elapsed_real_time_ms: float) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cfs_step_equal_priority():
+    tasks = [
+        {&quot;id&quot;: &quot;A&quot;, &quot;nice&quot;: 0, &quot;vruntime&quot;: 100.0},
+        {&quot;id&quot;: &quot;B&quot;, &quot;nice&quot;: 0, &quot;vruntime&quot;: 100.0}
+    ]
+    # Tie-break selects A; A runs for 10ms -&gt; vruntime becomes 110.0
+    res = simulate_cfs_step(tasks, elapsed_real_time_ms=10.0)
+    task_a = [t for t in res[&quot;updated_tasks&quot;] if t[&quot;id&quot;] == &quot;A&quot;][0]
+    assert task_a[&quot;vruntime&quot;] == 110.0
+    # Next task should now be B (vruntime 100.0 &lt; 110.0)
+    assert res[&quot;next_task_id&quot;] == &quot;B&quot;
+
+def test_cfs_step_high_priority_scaling():
+    tasks = [
+        {&quot;id&quot;: &quot;high&quot;, &quot;nice&quot;: -2, &quot;vruntime&quot;: 50.0},
+        {&quot;id&quot;: &quot;low&quot;, &quot;nice&quot;: 2, &quot;vruntime&quot;: 55.0}
+    ]
+    # high runs (vruntime 50 &lt; 55)
+    # nice -2 weight = 1024 / (1.25^-2) = 1024 * 1.5625 = 1600.0
+    # delta_vruntime = 10 * (1024 / 1600) = 6.4 ms
+    res = simulate_cfs_step(tasks, elapsed_real_time_ms=10.0)
+    task_high = [t for t in res[&quot;updated_tasks&quot;] if t[&quot;id&quot;] == &quot;high&quot;][0]
+    assert task_high[&quot;vruntime&quot;] == 56.4
+    assert res[&quot;next_task_id&quot;] == &quot;low&quot;  # 55.0 &lt; 56.4
+
+def test_cfs_empty():
+    res = simulate_cfs_step([], 10.0)
+    assert res[&quot;next_task_id&quot;] is None
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-multilevel-feedback-queue" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Multi-Level Feedback Queue (MLFQ) with Priority Boost</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_mlfq(processes: list[dict], queue_quantums: list[int], boost_interval: int) -&gt; dict that simulates a 3-level feedback queue, demoting CPU-bound tasks to lower-priority queues and periodically boosting all tasks to prevent starvation.</p></div>
+<textarea class="code" spellcheck="false">def simulate_mlfq(processes: list[dict], queue_quantums: list[int], boost_interval: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_mlfq_demotion():
+    # 2 queues: Q0 quantum 2, Q1 quantum 8. Boost interval 100
+    processes = [
+        {&quot;id&quot;: &quot;CPU_BOUND&quot;, &quot;arrival&quot;: 0, &quot;burst&quot;: 6},
+        {&quot;id&quot;: &quot;SHORT_IO&quot;, &quot;arrival&quot;: 3, &quot;burst&quot;: 1}
+    ]
+    res = simulate_mlfq(processes, queue_quantums=[2, 8], boost_interval=100)
+    assert res[&quot;waiting&quot;][&quot;CPU_BOUND&quot;] == 0
+    assert res[&quot;waiting&quot;][&quot;SHORT_IO&quot;] == 3
+    assert res[&quot;avg_wait&quot;] == 1.5
+
+def test_mlfq_priority_boost():
+    # Verify starvation prevention: boost restores priority to Q0
+    processes = [{&quot;id&quot;: &quot;T1&quot;, &quot;arrival&quot;: 0, &quot;burst&quot;: 10}]
+    res = simulate_mlfq(processes, queue_quantums=[2, 4], boost_interval=5)
+    assert res[&quot;turnaround&quot;][&quot;T1&quot;] == 10
+    assert res[&quot;avg_wait&quot;] == 0.0
+
+def test_mlfq_empty():
+    res = simulate_mlfq([], queue_quantums=[2, 4], boost_interval=10)
+    assert res[&quot;avg_wait&quot;] == 0.0
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Threads in the same process have isolated address spaces."</strong> Threads within a process share the exact same virtual memory address space (heap, globals, file descriptors); only their call stack and registers are thread-private.</li>
+<li><strong>"Preemptive multitasking requires multiple physical CPU cores."</strong> Preemptive multitasking was invented on single-core mainframes; hardware timer interrupts periodically pause execution, multiplexing a single core across hundreds of tasks.</li>
+<li><strong>"A system call is just an ordinary function call with high overhead."</strong> An ordinary function call stays within user mode and uses the CALL instruction; a system call executes a hardware trap, switching CPU privilege levels to kernel mode.</li>
+<li><strong>"Shortest Job First (SJF) is always practical for general-purpose OS schedulers."</strong> SJF requires knowing future CPU burst lengths in advance, which is impossible in general-purpose systems; OS schedulers must approximate burst lengths using exponential smoothing heuristics.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Operating system scheduling models collapse under priority inversion and CPU starvation. When a low-priority thread acquires a mutex and is preempted by medium-priority tasks, an urgent high-priority thread waiting on that mutex is starved indefinitely—a notorious defect that nearly caused the loss of NASA's Mars Pathfinder spacecraft in 1997.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Operating system process primitives and scheduling govern mobile app lifecycles (Android ActivityManager and Binder IPC), cloud containerization (Linux cgroups and namespaces powering Docker and Kubernetes), and game engine loop schedulers where physics, rendering, and audio threads are pinned to specific performance and efficiency cores.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the difference between kernel mode and user mode?</p></div><div class="a" hidden><p>Kernel mode has unrestricted hardware access; user mode operates with restricted CPU privileges and isolated memory to prevent system crashes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the convoy effect in FCFS scheduling?</p></div><div class="a" hidden><p>Short processes waiting a long time behind a single CPU-intensive process, dragging down average waiting time.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why does SRTF achieve minimal average waiting time?</p></div><div class="a" hidden><p>By prioritizing tasks with the least remaining work, it minimizes the queue length and total accumulated wait time.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does Linux CFS ensure fairness?</p></div><div class="a" hidden><p>By tracking virtual runtime (vruntime) scaled by task priority weight, always selecting the task with minimum vruntime.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the purpose of priority boosting in MLFQ?</p></div><div class="a" hidden><p>To prevent starvation by periodically moving all processes back to the highest-priority queue.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the difference between fork() and exec()?</p></div><div class="a" hidden><p>fork() clones the calling process address space; exec() replaces the address space with a new executable binary program.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain user vs kernel mode transitions, implement Round Robin and SRTF schedulers, trace Linux CFS virtual runtime mechanics, and prevent starvation using MLFQ priority boosting.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Ritchie, D. M., &amp; Thompson, K. (1974). The UNIX time-sharing system. Communications of the ACM, 17(7), 365-375.</li>
+<li>Corbató, F. J., et al. (1962). An experimental time-sharing system. AFIPS Spring Joint Computer Conference.</li>
+<li>Molnar, I. (2007). Modular Scheduler Core and Completely Fair Scheduler. Linux Kernel Archive.</li>
+</ul></section>
+<footer class="pager"><a href="P05.html">&larr; P05 Computer architecture and the memory hierarchy</a>
+<a href="P08.html">P08 Concurrency &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P06", "packages": ["numpy"], "exercises": {"ex1-round-robin-scheduler": {"starter": "def schedule_round_robin(processes: list[dict], time_quantum: int) -> dict:\n    pass\n", "solution": "def schedule_round_robin(processes: list[dict], time_quantum: int) -> dict:\n    if not processes:\n        return {\"timeline\": [], \"turnaround\": {}, \"waiting\": {}, \"avg_wait\": 0.0}\n        \n    procs = {p[\"id\"]: {\"arrival\": p[\"arrival\"], \"burst\": p[\"burst\"], \"rem\": p[\"burst\"]} for p in processes}\n    all_pids = sorted(procs.keys(), key=lambda pid: procs[pid][\"arrival\"])\n    \n    current_time = 0\n    ready_queue = []\n    incoming_idx = 0\n    completed = {}\n    timeline = []\n    \n    while len(completed) < len(processes):\n        # Enqueue newly arrived processes\n        while incoming_idx < len(all_pids) and procs[all_pids[incoming_idx]][\"arrival\"] <= current_time:\n            ready_queue.append(all_pids[incoming_idx])\n            incoming_idx += 1\n            \n        if not ready_queue:\n            # CPU idle until next arrival\n            if incoming_idx < len(all_pids):\n                current_time = procs[all_pids[incoming_idx]][\"arrival\"]\n            continue\n            \n        pid = ready_queue.pop(0)\n        run_time = min(time_quantum, procs[pid][\"rem\"])\n        timeline.append({\"pid\": pid, \"start\": current_time, \"duration\": run_time})\n        \n        current_time += run_time\n        procs[pid][\"rem\"] -= run_time\n        \n        # Enqueue processes that arrived during this time slice\n        while incoming_idx < len(all_pids) and procs[all_pids[incoming_idx]][\"arrival\"] <= current_time:\n            ready_queue.append(all_pids[incoming_idx])\n            incoming_idx += 1\n            \n        if procs[pid][\"rem\"] == 0:\n            completed[pid] = current_time\n        else:\n            ready_queue.append(pid)\n            \n    turnaround = {p[\"id\"]: completed[p[\"id\"]] - p[\"arrival\"] for p in processes}\n    waiting = {p[\"id\"]: turnaround[p[\"id\"]] - p[\"burst\"] for p in processes}\n    avg_wait = sum(waiting.values()) / len(processes)\n    \n    return {\n        \"timeline\": timeline,\n        \"turnaround\": turnaround,\n        \"waiting\": waiting,\n        \"avg_wait\": round(avg_wait, 2)\n    }\n", "tests": "def test_round_robin_basic():\n    processes = [\n        {\"id\": \"P1\", \"arrival\": 0, \"burst\": 5},\n        {\"id\": \"P2\", \"arrival\": 0, \"burst\": 3}\n    ]\n    # Quantum 2:\n    # 0..2: P1 (rem 3)\n    # 2..4: P2 (rem 1)\n    # 4..6: P1 (rem 1)\n    # 6..7: P2 (done at 7) -> turnaround 7, wait 7-3=4\n    # 7..8: P1 (done at 8) -> turnaround 8, wait 8-5=3\n    # Avg wait = (4 + 3) / 2 = 3.5\n    res = schedule_round_robin(processes, time_quantum=2)\n    assert res[\"turnaround\"][\"P1\"] == 8\n    assert res[\"turnaround\"][\"P2\"] == 7\n    assert res[\"avg_wait\"] == 3.5\n\ndef test_round_robin_single_task():\n    res = schedule_round_robin([{\"id\": \"P1\", \"arrival\": 2, \"burst\": 4}], time_quantum=2)\n    assert res[\"turnaround\"][\"P1\"] == 4\n    assert res[\"waiting\"][\"P1\"] == 0\n    assert res[\"avg_wait\"] == 0.0\n\ndef test_round_robin_empty():\n    res = schedule_round_robin([], time_quantum=2)\n    assert res[\"avg_wait\"] == 0.0\n", "mutants": ["def schedule_round_robin(processes, time_quantum): assert False, 'mutant injected'\n", "def schedule_round_robin(processes, time_quantum):\n    return {\"timeline\": [], \"turnaround\": {}, \"waiting\": {}, \"avg_wait\": 0.0}\n"], "hints": ["Maintain a ready_queue and enqueue arrivals that arrive before or during each time quantum.", "Turnaround = completion - arrival; Waiting = turnaround - burst."], "level": "warmup", "title": "Round Robin Preemptive CPU Scheduler"}, "ex2-shortest-remaining-time": {"starter": "def schedule_srtf(processes: list[dict]) -> dict:\n    pass\n", "solution": "def schedule_srtf(processes: list[dict]) -> dict:\n    if not processes:\n        return {\"turnaround\": {}, \"waiting\": {}, \"avg_wait\": 0.0}\n        \n    procs = {p[\"id\"]: {\"arrival\": p[\"arrival\"], \"burst\": p[\"burst\"], \"rem\": p[\"burst\"]} for p in processes}\n    total_tasks = len(processes)\n    current_time = 0\n    completed = {}\n    \n    while len(completed) < total_tasks:\n        # Find all arrived tasks that are not yet finished\n        available = [pid for pid, data in procs.items() if data[\"arrival\"] <= current_time and data[\"rem\"] > 0]\n        \n        if not available:\n            # Advance to earliest arrival\n            future_arrivals = [data[\"arrival\"] for data in procs.values() if data[\"rem\"] > 0]\n            current_time = min(future_arrivals)\n            continue\n            \n        # Pick task with shortest remaining time (tie break by arrival, then pid)\n        best_pid = min(available, key=lambda pid: (procs[pid][\"rem\"], procs[pid][\"arrival\"], pid))\n        \n        # Advance 1 time unit\n        procs[best_pid][\"rem\"] -= 1\n        current_time += 1\n        \n        if procs[best_pid][\"rem\"] == 0:\n            completed[best_pid] = current_time\n            \n    turnaround = {p[\"id\"]: completed[p[\"id\"]] - p[\"arrival\"] for p in processes}\n    waiting = {p[\"id\"]: turnaround[p[\"id\"]] - p[\"burst\"] for p in processes}\n    avg_wait = sum(waiting.values()) / total_tasks\n    \n    return {\n        \"turnaround\": turnaround,\n        \"waiting\": waiting,\n        \"avg_wait\": round(avg_wait, 2)\n    }\n", "tests": "def test_srtf_preemption():\n    processes = [\n        {\"id\": \"P1\", \"arrival\": 0, \"burst\": 8},\n        {\"id\": \"P2\", \"arrival\": 1, \"burst\": 4},\n        {\"id\": \"P3\", \"arrival\": 2, \"burst\": 2}\n    ]\n    # At t=0: P1 runs (rem 8 -> 7 at t=1)\n    # At t=1: P2 arrives (burst 4 < 7), P2 preempts P1!\n    # At t=2: P3 arrives (burst 2 < 3), P3 preempts P2!\n    # t=2..4: P3 runs to completion (done at 4) -> wait 4-2-2 = 0\n    # t=4..7: P2 resumes (done at 7) -> wait 7-1-4 = 2\n    # t=7..14: P1 resumes (done at 14) -> wait 14-0-8 = 6\n    # Total wait: 0 + 2 + 6 = 8; Avg wait: 8/3 = 2.67\n    res = schedule_srtf(processes)\n    assert res[\"waiting\"][\"P3\"] == 0\n    assert res[\"waiting\"][\"P2\"] == 2\n    assert res[\"waiting\"][\"P1\"] == 6\n    assert res[\"avg_wait\"] == 2.67\n\ndef test_srtf_no_preemption():\n    processes = [\n        {\"id\": \"A\", \"arrival\": 0, \"burst\": 2},\n        {\"id\": \"B\", \"arrival\": 5, \"burst\": 3}\n    ]\n    res = schedule_srtf(processes)\n    assert res[\"waiting\"][\"A\"] == 0\n    assert res[\"waiting\"][\"B\"] == 0\n    assert res[\"avg_wait\"] == 0.0\n\ndef test_srtf_empty():\n    assert schedule_srtf([])[\"avg_wait\"] == 0.0\n", "mutants": ["def schedule_srtf(processes): assert False, 'mutant injected'\n", "def schedule_srtf(processes):\n    return {\"turnaround\": {}, \"waiting\": {}, \"avg_wait\": 0.0}\n"], "hints": ["Simulate unit time steps or jump to next event.", "Select min remaining time task among arrived uncompleted tasks."], "level": "core", "title": "Preemptive Shortest Remaining Time First (SRTF) Scheduler"}, "ex3-cfs-vruntime-tracker": {"starter": "def simulate_cfs_step(tasks: list[dict], elapsed_real_time_ms: float) -> dict:\n    pass\n", "solution": "def simulate_cfs_step(tasks: list[dict], elapsed_real_time_ms: float) -> dict:\n    if not tasks:\n        return {\"updated_tasks\": [], \"next_task_id\": None}\n        \n    # Find active task with minimum vruntime\n    curr = min(tasks, key=lambda t: (t[\"vruntime\"], t[\"id\"]))\n    \n    # Weight formula: weight = 1024 / (1.25 ^ nice) or standard lookup\n    nice = curr.get(\"nice\", 0)\n    weight = 1024.0 / (1.25 ** nice)\n    \n    delta_vruntime = elapsed_real_time_ms * (1024.0 / weight)\n    \n    updated = []\n    for t in tasks:\n        item = dict(t)\n        if item[\"id\"] == curr[\"id\"]:\n            item[\"vruntime\"] = round(item[\"vruntime\"] + delta_vruntime, 3)\n        updated.append(item)\n        \n    next_task = min(updated, key=lambda t: (t[\"vruntime\"], t[\"id\"]))\n    return {\n        \"updated_tasks\": updated,\n        \"next_task_id\": next_task[\"id\"]\n    }\n", "tests": "def test_cfs_step_equal_priority():\n    tasks = [\n        {\"id\": \"A\", \"nice\": 0, \"vruntime\": 100.0},\n        {\"id\": \"B\", \"nice\": 0, \"vruntime\": 100.0}\n    ]\n    # Tie-break selects A; A runs for 10ms -> vruntime becomes 110.0\n    res = simulate_cfs_step(tasks, elapsed_real_time_ms=10.0)\n    task_a = [t for t in res[\"updated_tasks\"] if t[\"id\"] == \"A\"][0]\n    assert task_a[\"vruntime\"] == 110.0\n    # Next task should now be B (vruntime 100.0 < 110.0)\n    assert res[\"next_task_id\"] == \"B\"\n\ndef test_cfs_step_high_priority_scaling():\n    tasks = [\n        {\"id\": \"high\", \"nice\": -2, \"vruntime\": 50.0},\n        {\"id\": \"low\", \"nice\": 2, \"vruntime\": 55.0}\n    ]\n    # high runs (vruntime 50 < 55)\n    # nice -2 weight = 1024 / (1.25^-2) = 1024 * 1.5625 = 1600.0\n    # delta_vruntime = 10 * (1024 / 1600) = 6.4 ms\n    res = simulate_cfs_step(tasks, elapsed_real_time_ms=10.0)\n    task_high = [t for t in res[\"updated_tasks\"] if t[\"id\"] == \"high\"][0]\n    assert task_high[\"vruntime\"] == 56.4\n    assert res[\"next_task_id\"] == \"low\"  # 55.0 < 56.4\n\ndef test_cfs_empty():\n    res = simulate_cfs_step([], 10.0)\n    assert res[\"next_task_id\"] is None\n", "mutants": ["def simulate_cfs_step(tasks, elapsed_real_time_ms): assert False, 'mutant injected'\n", "def simulate_cfs_step(tasks, elapsed_real_time_ms):\n    return {\"updated_tasks\": tasks, \"next_task_id\": tasks[0][\"id\"] if tasks else None}\n"], "hints": ["Select task with lowest vruntime.", "delta_vruntime = elapsed_ms * (1024 / weight) where weight = 1024 / (1.25^nice)."], "level": "core", "title": "Linux CFS Virtual Runtime and Task Selection Engine"}, "ex4-multilevel-feedback-queue": {"starter": "def simulate_mlfq(processes: list[dict], queue_quantums: list[int], boost_interval: int) -> dict:\n    pass\n", "solution": "def simulate_mlfq(processes: list[dict], queue_quantums: list[int], boost_interval: int) -> dict:\n    if not processes:\n        return {\"turnaround\": {}, \"waiting\": {}, \"avg_wait\": 0.0}\n        \n    num_queues = len(queue_quantums)\n    procs = {\n        p[\"id\"]: {\n            \"arrival\": p[\"arrival\"],\n            \"burst\": p[\"burst\"],\n            \"rem\": p[\"burst\"],\n            \"priority\": 0  # 0 is highest priority\n        } for p in processes\n    }\n    \n    current_time = 0\n    completed = {}\n    last_boost = 0\n    total_tasks = len(processes)\n    \n    while len(completed) < total_tasks:\n        # Periodic priority boost to prevent starvation\n        if current_time >= last_boost + boost_interval and boost_interval > 0:\n            for pid, data in procs.items():\n                if data[\"rem\"] > 0:\n                    data[\"priority\"] = 0\n            last_boost = current_time\n            \n        # Find highest priority non-empty queue with arrived tasks\n        selected_pid = None\n        for q_level in range(num_queues):\n            candidates = [\n                pid for pid, data in procs.items()\n                if data[\"arrival\"] <= current_time and data[\"rem\"] > 0 and data[\"priority\"] == q_level\n            ]\n            if candidates:\n                # FIFO within same priority queue\n                selected_pid = min(candidates, key=lambda pid: (procs[pid][\"arrival\"], pid))\n                break\n                \n        if selected_pid is None:\n            # Idle: jump to next arrival or next boost\n            uncompleted = [data[\"arrival\"] for data in procs.values() if data[\"rem\"] > 0]\n            if not uncompleted:\n                break\n            current_time = min(uncompleted)\n            continue\n            \n        p_data = procs[selected_pid]\n        quantum = queue_quantums[p_data[\"priority\"]]\n        run_time = min(quantum, p_data[\"rem\"])\n        \n        current_time += run_time\n        p_data[\"rem\"] -= run_time\n        \n        if p_data[\"rem\"] == 0:\n            completed[selected_pid] = current_time\n        else:\n            # Demote priority if task used full quantum\n            if run_time == quantum and p_data[\"priority\"] < num_queues - 1:\n                p_data[\"priority\"] += 1\n                \n    turnaround = {p[\"id\"]: completed[p[\"id\"]] - p[\"arrival\"] for p in processes}\n    waiting = {p[\"id\"]: turnaround[p[\"id\"]] - p[\"burst\"] for p in processes}\n    avg_wait = sum(waiting.values()) / total_tasks\n    \n    return {\n        \"turnaround\": turnaround,\n        \"waiting\": waiting,\n        \"avg_wait\": round(avg_wait, 2)\n    }\n", "tests": "def test_mlfq_demotion():\n    # 2 queues: Q0 quantum 2, Q1 quantum 8. Boost interval 100\n    processes = [\n        {\"id\": \"CPU_BOUND\", \"arrival\": 0, \"burst\": 6},\n        {\"id\": \"SHORT_IO\", \"arrival\": 3, \"burst\": 1}\n    ]\n    res = simulate_mlfq(processes, queue_quantums=[2, 8], boost_interval=100)\n    assert res[\"waiting\"][\"CPU_BOUND\"] == 0\n    assert res[\"waiting\"][\"SHORT_IO\"] == 3\n    assert res[\"avg_wait\"] == 1.5\n\ndef test_mlfq_priority_boost():\n    # Verify starvation prevention: boost restores priority to Q0\n    processes = [{\"id\": \"T1\", \"arrival\": 0, \"burst\": 10}]\n    res = simulate_mlfq(processes, queue_quantums=[2, 4], boost_interval=5)\n    assert res[\"turnaround\"][\"T1\"] == 10\n    assert res[\"avg_wait\"] == 0.0\n\ndef test_mlfq_empty():\n    res = simulate_mlfq([], queue_quantums=[2, 4], boost_interval=10)\n    assert res[\"avg_wait\"] == 0.0\n", "mutants": ["def simulate_mlfq(processes, queue_quantums, boost_interval):\n    assert False, 'mutant injected'\n", "def simulate_mlfq(processes, queue_quantums, boost_interval):\n    return {\"turnaround\": {}, \"waiting\": {}, \"avg_wait\": 0.0}\n"], "hints": ["Higher priority queues preempt lower ones.", "Demote priority if task consumed full time quantum.", "Boost all unfinished tasks back to Q0 periodically."], "level": "boss", "title": "Multi-Level Feedback Queue (MLFQ) with Priority Boost"}}, "demos": {"p06-oracle-scheduler-comparison": {"code": "def calculate_fcfs_metrics(tasks: list) -> dict:\n    # tasks: list of (id, arrival, burst)\n    tasks_sorted = sorted(tasks, key=lambda t: t[1])\n    current_time = 0\n    total_wait = 0\n    \n    for tid, arrival, burst in tasks_sorted:\n        if current_time < arrival:\n            current_time = arrival\n        wait = current_time - arrival\n        total_wait += wait\n        current_time += burst\n        \n    avg_wait = total_wait / len(tasks)\n    return {\"avg_wait\": round(avg_wait, 2), \"completion_time\": current_time}\n\n# Task set: (T1: arrival 0, burst 8), (T2: arrival 1, burst 4), (T3: arrival 2, burst 2)\ntasks = [(\"T1\", 0, 8), (\"T2\", 1, 4), (\"T3\", 2, 2)]\nres = calculate_fcfs_metrics(tasks)\n\n# FCFS execution:\n# T1: 0..8 (wait 0)\n# T2: 8..12 (wait 8 - 1 = 7)\n# T3: 12..14 (wait 12 - 2 = 10)\n# Total wait = 0 + 7 + 10 = 17; Avg wait = 17 / 3 = 5.67\nassert res[\"avg_wait\"] == 5.67\nassert res[\"completion_time\"] == 14\n\nprint(\"CPU scheduler FCFS convoy effect and waiting time verified.\")\n", "mutants": ["def calculate_fcfs_metrics(tasks): return {\"avg_wait\": 0.0, \"completion_time\": 0}\nres = calculate_fcfs_metrics([(\"T1\", 0, 8), (\"T2\", 1, 4), (\"T3\", 2, 2)])\nassert res[\"avg_wait\"] == 5.67\n"]}, "p06-exp-cfs-weights": {"code": "def advance_vruntime(exec_time_ms: float, weight: float) -> float:\n    # vruntime += delta_exec * (1024 / weight)\n    return exec_time_ms * (1024.0 / weight)\n\nw_normal = 1024.0  # nice 0\nw_high = 3121.0    # nice -5\n\ndelta_exec = 10.0  # 10 ms execution\nv_normal = advance_vruntime(delta_exec, w_normal)\nv_high = advance_vruntime(delta_exec, w_high)\n\nassert v_normal == 10.0\nassert round(v_high, 2) == 3.28\n\nratio = v_normal / v_high\nassert round(ratio, 2) == round(w_high / w_normal, 2)\nprint(f\"CFS weight scaling verified: high-priority task advances vruntime {ratio:.2f}x slower.\")\n", "mutants": ["def advance_vruntime(exec_time_ms, weight): return 0.0\nassert advance_vruntime(10.0, 1024.0) == 10.0\n"]}}, "cards": [{"q": "What is the difference between kernel mode and user mode?", "a": "Kernel mode has unrestricted hardware access; user mode operates with restricted CPU privileges and isolated memory to prevent system crashes."}, {"q": "What is the convoy effect in FCFS scheduling?", "a": "Short processes waiting a long time behind a single CPU-intensive process, dragging down average waiting time."}, {"q": "Why does SRTF achieve minimal average waiting time?", "a": "By prioritizing tasks with the least remaining work, it minimizes the queue length and total accumulated wait time."}, {"q": "How does Linux CFS ensure fairness?", "a": "By tracking virtual runtime (vruntime) scaled by task priority weight, always selecting the task with minimum vruntime."}, {"q": "What is the purpose of priority boosting in MLFQ?", "a": "To prevent starvation by periodically moving all processes back to the highest-priority queue."}, {"q": "What is the difference between fork() and exec()?", "a": "fork() clones the calling process address space; exec() replaces the address space with a new executable binary program."}], "title": "Operating systems I: processes, threads and scheduling"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

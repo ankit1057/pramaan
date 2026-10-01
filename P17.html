@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P17 Compilers and runtimes</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P17">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P17</p><h1>Compilers and runtimes</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P16.html">P16</a> <a href="P07.html">P07</a></div><div><b>Covers:</b> CS2023 FPL</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>the compiler pipeline</li><li>intermediate representations and three-address code</li><li>control-flow graphs</li><li>SSA idea</li><li>constant folding and dead-code elimination</li><li>register allocation idea</li><li>JIT vs AOT (Dart AOT, ART)</li><li>garbage collection: reference counting, mark-sweep, copying, generational, write barriers</li><li>stack vs heap</li><li>tail calls</li><li>bytecode virtual machines</li><li>linking and loading: object files, symbol resolution, static vs dynamic libraries, and cross-compilers/transpilers</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1957, an IBM programming team led by John Warner Backus released the first optimizing compiler in history: the FORTRAN compiler for the IBM 704. Prior to Backus's triumph, computer programmers wrote all software directly in raw assembly language, widely convinced that machine-generated code would be five to ten times slower than hand-crafted machine instructions. Backus realized that the success of high-level languages hinged entirely on compiler optimization: his team invented the first compiler pipeline, decomposing programs into basic blocks, eliminating redundant expressions, and mapping variable lifespans onto physical CPU registers.</p>
+<p>Thirty years later in the late 1980s, Ron Cytron, Jeanne Ferrante, Barry Rosen, Mark Wegman, and Kenneth Zadeck at IBM Research revolutionized compiler intermediate representations by inventing Static Single Assignment (SSA) form. By guaranteeing that every variable is assigned a value exactly once and inserting $\phi$ (phi) functions at control-flow convergence points, SSA turned complex dataflow analyses—such as global value numbering, sparse conditional constant propagation, and dead-code elimination—into linear-time passes. Today, SSA form is the universal language of modern optimizing compilers, powering LLVM, GCC, and Google V8. Concurrently, runtime architectures evolved from static C binaries to sophisticated virtual machines: Google's Flutter relies on Dart Ahead-of-Time (AOT) compilation to emit ARM64 machine code for butter-smooth 60fps mobile interfaces, while Android's ART runtime combines <code>dex2oat</code> ahead-of-time compilation with multi-tier JIT profiling and generational garbage collection to balance instant startup speed with peak execution throughput.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A compiler is an automated translation pipeline that converts human-readable source code into hyper-optimized machine instructions or bytecode. First, it breaks text into an Abstract Syntax Tree (AST), translates it into simple three-address instructions, organizes the code into a Control-Flow Graph (CFG) of basic blocks, folds constant math, eliminates useless code, and allocates scarce hardware registers. At runtime, the operating system manages memory across the stack (fast, temporary function memory) and the heap (dynamic object memory), while garbage collectors automatically track and clean up unused memory behind the scenes.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and systems architecture of optimizing compilers and runtime execution engines are defined across distinct translation and execution phases:</p>
+<ol>
+<li>
+<p><strong>The Compiler Pipeline</strong>:
+$$\text{Source Code} \to \text{Tokens} \to \text{AST} \to \text{High-Level IR} \to \text{Optimization Passes} \to \text{Low-Level IR / Assembly} \to \text{Machine Code}$$
+- <strong>Intermediate Representation (IR)</strong>: Three-Address Code (TAC) where each instruction has at most one operator and three operands: $x = y \text{ op } z$.
+- <strong>Control-Flow Graph (CFG)</strong>: A directed graph $G = (V, E)$ where nodes $V$ are basic blocks (sequences of consecutive instructions executed without branching except at the exit) and edges $E$ represent control transfers.
+- <strong>Static Single Assignment (SSA)</strong>: An IR property where each variable is defined exactly once. At control-flow join points, $\phi$-nodes ($\phi(x_1, x_2)$) select the appropriate version depending on the predecessor block.</p>
+</li>
+<li>
+<p><strong>Core Optimization Passes</strong>:
+- <strong>Constant Folding &amp; Propagation</strong>: Evaluates static expressions at compile time ($x = 3 + 5 \to x = 8$) and propagates known constant values through the CFG.
+- <strong>Dead-Code Elimination (DCE)</strong>: Removes instructions whose definitions are never used by any reachable program exit.
+- <strong>Register Allocation (Chaitin Graph Coloring)</strong>: Maps an unbounded set of virtual temporaries to $K$ physical machine registers. Constructs an interference graph where nodes are live ranges and edges represent simultaneous liveness; a $K$-coloring provides a conflict-free register assignment. If chromatic number $\chi(G) &gt; K$, variables are spilled to memory stack slots.</p>
+</li>
+<li>
+<p><strong>Runtime Execution Models: AOT vs JIT</strong>:
+- <strong>Ahead-of-Time (AOT)</strong>: Translates code to native target machine instructions prior to execution (e.g., Dart AOT in Flutter, C/C++, Rust). Delivers instantaneous startup, zero warmup latency, and deterministic memory footprints.
+- <strong>Just-in-Time (JIT)</strong>: Executes bytecode via an interpreter while collecting runtime execution profiles, selectively compiling hot code paths into native instructions with speculative optimizations (e.g., V8 TurboFan, JVM HotSpot).</p>
+</li>
+<li>
+<p><strong>Garbage Collection (GC) Architectures</strong>:
+- <strong>Reference Counting</strong>: Tracks pointer counts per object (Swift ARC, Python). Immediate reclamation, but fails on cyclic data structures without weak references.
+- <strong>Mark-Sweep</strong>: Pauses execution (Stop-The-World), traverses object graph from roots marking live objects, and sweeps unmarked blocks into free lists. Suffers from memory fragmentation.
+- <strong>Copying / Evacuation</strong>: Compacts live objects from From-space to To-space, eliminating fragmentation and enabling bump-pointer allocation.
+- <strong>Generational GC</strong>: Exploits the Weak Generational Hypothesis (most objects die young). Partitions heap into Nursery (young) and Tenured (old) generations.
+- <strong>Write Barriers</strong>: Intercepts pointer writes from Tenured objects to Nursery objects, recording modified card table entries to avoid scanning the entire Tenured heap during minor collections.</p>
+</li>
+<li>
+<p><strong>Memory Layout, Tail Calls, and Linking</strong>:
+- <strong>Stack vs Heap</strong>: Stack manages LIFO activation records ($O(1)$ push/pop); Heap manages dynamic object allocations.
+- <strong>Tail-Call Optimization (TCO)</strong>: When a function call is the final action of a function ($return \; f(x)$), the compiler reuses the caller's activation frame, eliminating call stack growth and converting recursion into a loop.
+- <strong>Linking &amp; Loading</strong>: Resolves external symbols across object files (<code>.o</code>), static archives (<code>.a</code>), and shared dynamic libraries (<code>.so</code>, <code>.dylib</code>), performing address relocations.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding compilers and runtimes is critical for high-performance software engineering because high-level abstractions eventually execute on physical silicon governed by CPU caches, register limits, and memory allocators. Many developers write inefficient code because they are unaware of how compilers optimize control flow: understanding constant propagation, loop-invariant code motion, common subexpression elimination, and function inlining allows engineers to write clean, idiomatic code that the compiler can optimize into vectorized SIMD instructions and tightly unrolled hardware loops.</p>
+<p>Furthermore, runtime knowledge is essential for diagnosing production latency spikes and memory leaks. In mobile development with Flutter or Android, understanding Dart's generational garbage collector and ART's heap management explains why allocating hundreds of temporary objects inside a 60fps render loop triggers minor GC pauses and dropped frames (jank). By understanding write barriers, stack vs heap allocation, and AOT compilation pipelines, engineers can profile bottlenecks accurately, eliminate memory fragmentation, and architect scalable, high-throughput systems.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The three-address code (TAC) constant folding and propagation oracle demonstrates how an optimizing compiler pass evaluates static expressions at compile time. In industrial compiler backends like LLVM and V8 TurboFan, constant folding replaces expensive runtime arithmetic instructions with precomputed literal values and propagates those constants through the control-flow graph. The interactive oracle simulates a constant propagation pass and asserts that arithmetic operations between known constants are completely eliminated.</p>
+<div class="lab demo" data-demo="p17-oracle-constant-folding">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Three-Address Code Constant Folding Optimization Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def constant_fold_pass(instructions: list[dict]) -&gt; list[dict]:
+    # Instruction format: {&quot;op&quot;: &quot;+|-|*|=&quot;, &quot;dest&quot;: str, &quot;src1&quot;: any, &quot;src2&quot;: any}
+    env = {}  # maps variable -&gt; constant literal value
+    optimized = []
+
+    for inst in instructions:
+        op = inst.get(&quot;op&quot;)
+        dest = inst.get(&quot;dest&quot;)
+        s1 = inst.get(&quot;src1&quot;)
+        s2 = inst.get(&quot;src2&quot;)
+
+        # Resolve known constants
+        val1 = env[s1] if s1 in env else (s1 if isinstance(s1, int) else None)
+        val2 = env[s2] if s2 in env else (s2 if isinstance(s2, int) else None)
+
+        if op == &quot;=&quot;:
+            if val1 is not None:
+                env[dest] = val1
+                optimized.append({&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: dest, &quot;src1&quot;: val1})
+            else:
+                optimized.append(inst)
+        elif op in (&quot;+&quot;, &quot;-&quot;, &quot;*&quot;):
+            if val1 is not None and val2 is not None:
+                # Both operands are known constants: fold at compile time!
+                if op == &quot;+&quot;: res = val1 + val2
+                elif op == &quot;-&quot;: res = val1 - val2
+                elif op == &quot;*&quot;: res = val1 * val2
+                env[dest] = res
+                optimized.append({&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: dest, &quot;src1&quot;: res})
+            else:
+                optimized.append(inst)
+        else:
+            optimized.append(inst)
+
+    return optimized
+
+# Test input TAC:
+# t1 = 5
+# t2 = 10
+# t3 = t1 + t2   -&gt; should fold to: t3 = 15
+# t4 = t3 * 2    -&gt; should fold to: t4 = 30
+tac = [
+    {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;t1&quot;, &quot;src1&quot;: 5},
+    {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;t2&quot;, &quot;src1&quot;: 10},
+    {&quot;op&quot;: &quot;+&quot;, &quot;dest&quot;: &quot;t3&quot;, &quot;src1&quot;: &quot;t1&quot;, &quot;src2&quot;: &quot;t2&quot;},
+    {&quot;op&quot;: &quot;*&quot;, &quot;dest&quot;: &quot;t4&quot;, &quot;src1&quot;: &quot;t3&quot;, &quot;src2&quot;: 2}
+]
+
+opt_tac = constant_fold_pass(tac)
+assert opt_tac[2] == {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;t3&quot;, &quot;src1&quot;: 15}
+assert opt_tac[3] == {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;t4&quot;, &quot;src1&quot;: 30}
+
+print(&quot;Three-address code constant folding optimization oracle verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally simulate memory pause times and allocation latency between a Stop-The-World Mark-Sweep garbage collector and a Generational Copying garbage collector across 10,000 object allocations. While Mark-Sweep pauses scale with total heap size (scanning all 10,000 objects), Generational Copying minor collections scan only the young nursery, reclaiming short-lived ephemeral objects with microsecond pauses and demonstrating why modern mobile runtimes (Dart, ART) deploy generational GC.</p>
+<div class="lab demo" data-demo="p17-exp-generational-gc-throughput">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Generational GC vs Full Mark-Sweep Latency Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def simulate_mark_sweep_work(total_heap_objects: int) -&gt; int:
+    # Full mark-sweep must inspect every object on the heap
+    # Work is proportional to total heap size
+    return total_heap_objects
+
+def simulate_generational_minor_gc(nursery_objects: int, live_survival_rate: float = 0.05) -&gt; int:
+    # Generational minor collection only scans the nursery
+    # Live objects copied is survival_rate * nursery_objects (Weak Generational Hypothesis)
+    return int(nursery_objects * live_survival_rate)
+
+total_heap = 50_000
+nursery_size = 2_000
+
+# Full Mark-Sweep STW pause work
+mark_sweep_work = simulate_mark_sweep_work(total_heap)
+assert mark_sweep_work == 50000
+
+# Generational Minor GC pause work (copying only 5% surviving objects)
+minor_gc_work = simulate_generational_minor_gc(nursery_size, live_survival_rate=0.05)
+assert minor_gc_work == 100
+
+# Ratio of latency improvement
+speedup_factor = mark_sweep_work // minor_gc_work
+assert speedup_factor == 500
+
+print(f&quot;GC Latency experiment verified: Full Mark-Sweep={mark_sweep_work} checks vs Generational Minor GC={minor_gc_work} copies ({speedup_factor}x faster pause).&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-constant-folding-and-dce" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>TAC Constant Folding and Dead-Code Elimination Pass</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement optimize_tac_sequence(instructions: list[dict]) -&gt; list[dict] to evaluate static constant arithmetic operations and eliminate dead variable assignments that are never read downstream in three-address code instructions.</p></div>
+<textarea class="code" spellcheck="false">def optimize_tac_sequence(instructions: list[dict]) -&gt; list[dict]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_constant_folding_basic():
+    tac = [
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;a&quot;, &quot;src1&quot;: 10},
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;b&quot;, &quot;src1&quot;: 20},
+        {&quot;op&quot;: &quot;+&quot;, &quot;dest&quot;: &quot;c&quot;, &quot;src1&quot;: &quot;a&quot;, &quot;src2&quot;: &quot;b&quot;},
+        {&quot;op&quot;: &quot;RETURN&quot;, &quot;src1&quot;: &quot;c&quot;}
+    ]
+    opt = optimize_tac_sequence(tac)
+    # c should fold to 30, and RETURN c
+    assert {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;c&quot;, &quot;src1&quot;: 30} in opt
+    assert {&quot;op&quot;: &quot;RETURN&quot;, &quot;src1&quot;: &quot;c&quot;} in opt
+
+def test_dead_code_elimination():
+    tac = [
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;dead_var&quot;, &quot;src1&quot;: 999},  # never used!
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;live_var&quot;, &quot;src1&quot;: 42},
+        {&quot;op&quot;: &quot;RETURN&quot;, &quot;src1&quot;: &quot;live_var&quot;}
+    ]
+    opt = optimize_tac_sequence(tac)
+    # dead_var must be eliminated
+    dests = [inst.get(&quot;dest&quot;) for inst in opt]
+    assert &quot;dead_var&quot; not in dests
+    assert &quot;live_var&quot; in dests
+
+def test_return_only():
+    tac = [{&quot;op&quot;: &quot;RETURN&quot;, &quot;src1&quot;: 0}]
+    assert optimize_tac_sequence(tac) == [{&quot;op&quot;: &quot;RETURN&quot;, &quot;src1&quot;: 0}]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-control-flow-graph-builder" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Control-Flow Graph (CFG) Leader and Edge Partitioning</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement build_cfg(instructions: list[dict]) -&gt; dict to partition three-address code instructions into basic blocks based on leaders and construct the directed predecessor and successor graph.</p></div>
+<textarea class="code" spellcheck="false">def build_cfg(instructions: list[dict]) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cfg_straight_line():
+    tac = [
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;x&quot;, &quot;src1&quot;: 1},
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;y&quot;, &quot;src1&quot;: 2},
+        {&quot;op&quot;: &quot;RETURN&quot;, &quot;src1&quot;: &quot;x&quot;}
+    ]
+    cfg = build_cfg(tac)
+    assert len(cfg[&quot;blocks&quot;]) == 1
+    assert cfg[&quot;edges&quot;] == []
+
+def test_cfg_branching():
+    tac = [
+        {&quot;op&quot;: &quot;JMP_IF_ZERO&quot;, &quot;src1&quot;: &quot;cond&quot;, &quot;target&quot;: 3}, # 0: jump to 3
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;x&quot;, &quot;src1&quot;: 1},                 # 1: then
+        {&quot;op&quot;: &quot;JMP&quot;, &quot;target&quot;: 4},                           # 2: jump to 4
+        {&quot;op&quot;: &quot;=&quot;, &quot;dest&quot;: &quot;x&quot;, &quot;src1&quot;: 2},                 # 3: else
+        {&quot;op&quot;: &quot;RETURN&quot;, &quot;src1&quot;: &quot;x&quot;}                         # 4: exit
+    ]
+    cfg = build_cfg(tac)
+    # Leaders: 0 (start), 3 (target of JMP_IF_ZERO), 1 (after branch), 4 (target of JMP), 3 (after jump), 4 (after else)
+    # Blocks: B0: [0], B1: [1, 2], B2: [3], B3: [4]
+    assert len(cfg[&quot;blocks&quot;]) == 4
+    # Edges: B0 -&gt; B1 (fall-through), B0 -&gt; B2 (jump), B1 -&gt; B3 (jump), B2 -&gt; B3 (fall-through)
+    assert (&quot;B0&quot;, &quot;B1&quot;) in cfg[&quot;edges&quot;]
+    assert (&quot;B0&quot;, &quot;B2&quot;) in cfg[&quot;edges&quot;]
+    assert (&quot;B1&quot;, &quot;B3&quot;) in cfg[&quot;edges&quot;]
+    assert (&quot;B2&quot;, &quot;B3&quot;) in cfg[&quot;edges&quot;]
+
+def test_cfg_empty():
+    cfg = build_cfg([])
+    assert cfg[&quot;blocks&quot;] == {}
+    assert cfg[&quot;edges&quot;] == []
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-generational-gc-simulator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Generational Garbage Collector with Write Barriers</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement GenerationalGC with allocate(size: int, is_root: bool = False), minor_gc(), mutate_pointer(old_obj_id: int, new_obj_id: int) tracking tenured-to-nursery pointers in a remembered set, and promote_to_tenured().</p></div>
+<textarea class="code" spellcheck="false">class GenerationalGC:
+    def __init__(self, nursery_capacity: int = 5):
+        pass
+
+    def allocate(self, obj_id: int, is_root: bool = False) -&gt; bool:
+        pass
+
+    def mutate_pointer(self, parent_id: int, child_id: int):
+        pass
+
+    def minor_gc(self) -&gt; int:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_generational_gc_promotion():
+    gc = GenerationalGC(nursery_capacity=3)
+    gc.allocate(1, is_root=True)
+    gc.allocate(2, is_root=False) # dead object
+    gc.allocate(3, is_root=True)
+    gc.allocate(4, is_root=False) # triggers minor GC!
+    assert 1 in gc.tenured
+    assert 3 in gc.tenured
+    assert 2 not in gc.tenured
+
+def test_write_barrier_tracks_young_reference():
+    gc = GenerationalGC(nursery_capacity=5)
+    gc.allocate(10, is_root=True)
+    gc.minor_gc()
+    assert 10 in gc.tenured
+    gc.allocate(20, is_root=False)
+    gc.mutate_pointer(10, 20)
+    assert 10 in gc.remembered_set
+    gc.minor_gc()
+    assert 20 in gc.tenured
+
+def test_minor_gc_empty():
+    gc = GenerationalGC(nursery_capacity=5)
+    assert gc.minor_gc() == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-stack-bytecode-virtual-machine" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Stack-Based Bytecode Virtual Machine Emulator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement StackVM with run(bytecode: list[tuple]) -&gt; int executing a stack-based instruction set (PUSH, POP, ADD, SUB, MUL, LOAD, STORE, JMP_IF_ZERO, JMP, HALT) with memory registers.</p></div>
+<textarea class="code" spellcheck="false">class StackVM:
+    def __init__(self):
+        pass
+
+    def run(self, bytecode: list[tuple]) -&gt; int:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_vm_arithmetic():
+    # compute: (3 + 4) * 2 = 14
+    bytecode = [
+        (&quot;PUSH&quot;, 3),
+        (&quot;PUSH&quot;, 4),
+        (&quot;ADD&quot;,),
+        (&quot;PUSH&quot;, 2),
+        (&quot;MUL&quot;,),
+        (&quot;HALT&quot;,)
+    ]
+    vm = StackVM()
+    assert vm.run(bytecode) == 14
+
+def test_vm_loop_countdown():
+    # reg &#x27;sum&#x27; = 0; reg &#x27;n&#x27; = 3
+    # loop: sum = sum + n; n = n - 1; if n == 0 break
+    bytecode = [
+        (&quot;PUSH&quot;, 0), (&quot;STORE&quot;, &quot;sum&quot;),
+        (&quot;PUSH&quot;, 3), (&quot;STORE&quot;, &quot;n&quot;),
+        # loop start (pc=4)
+        (&quot;LOAD&quot;, &quot;sum&quot;),
+        (&quot;LOAD&quot;, &quot;n&quot;),
+        (&quot;ADD&quot;,),
+        (&quot;STORE&quot;, &quot;sum&quot;),
+        (&quot;LOAD&quot;, &quot;n&quot;),
+        (&quot;PUSH&quot;, 1),
+        (&quot;SUB&quot;,),
+        (&quot;STORE&quot;, &quot;n&quot;),
+        (&quot;LOAD&quot;, &quot;n&quot;),
+        (&quot;JMP_IF_ZERO&quot;, 15), # jump to HALT if n == 0
+        (&quot;JMP&quot;, 4),          # loop
+        # pc=15
+        (&quot;LOAD&quot;, &quot;sum&quot;),
+        (&quot;HALT&quot;,)
+    ]
+    vm = StackVM()
+    # sum of 3 + 2 + 1 = 6
+    assert vm.run(bytecode) == 6
+
+def test_vm_subtraction():
+    bytecode = [
+        (&quot;PUSH&quot;, 10),
+        (&quot;PUSH&quot;, 3),
+        (&quot;SUB&quot;,),
+        (&quot;HALT&quot;,)
+    ]
+    vm = StackVM()
+    assert vm.run(bytecode) == 7
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Compilers translate source code directly into machine code in a single step."</strong> Modern compilers employ a multi-stage pipeline passing through ASTs, language-independent Three-Address Code (TAC), SSA form, and machine-specific IR before emitting assembly.</li>
+<li><strong>"Garbage-collected languages never suffer from memory leaks."</strong> Unintentional object retention (such as static collections, uncancelled event listeners, or singleton caches) keeps objects reachable from the root set, causing heap exhaustion.</li>
+<li><strong>"Ahead-of-Time (AOT) compiled code is always faster than JIT compiled code."</strong> JIT compilers can perform dynamic speculative optimizations based on runtime profiling feedback (like monomorphic inline caching and devirtualization) that static AOT compilers cannot.</li>
+<li><strong>"Tail call optimization is supported automatically in all programming languages."</strong> TCO requires explicit compiler and runtime support; languages like Python and standard Java do not perform TCO because retaining the full stack trace is prioritized for debugging.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Static compiler optimizations and AOT compilation break down when programming languages heavily utilize dynamic runtime evaluation, reflection, monkey-patching, or dynamic <code>eval()</code>. Such dynamic capabilities prevent the compiler from proving data types or control-flow invariants at compile time, forcing the runtime to fall back to slow interpreted execution or dynamic deoptimization bails.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Compilers and runtime systems are engineered daily by mobile systems developers tuning Dart AOT release builds for Flutter, Android engineers profiling ART garbage collection traces via Perfetto, backend engineers optimizing LLVM clang compilation flags, and language VM implementers building custom bytecode interpreters.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Static Single Assignment (SSA) form?</p></div><div class="a" hidden><p>An intermediate representation where every variable is assigned exactly once, using phi-functions at merge points to simplify dataflow analysis.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the difference between AOT and JIT compilation?</p></div><div class="a" hidden><p>AOT compiles to native machine code prior to execution for zero warmup and predictable latency; JIT compiles dynamically at runtime using profiling feedback.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the Weak Generational Hypothesis?</p></div><div class="a" hidden><p>The empirical observation in computer systems that most allocated objects have very short lifespans and die shortly after creation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does a generational garbage collector use write barriers?</p></div><div class="a" hidden><p>A write barrier intercepts pointer writes from old-generation objects to young-generation objects, recording them in a remembered set so minor collections don't scan the entire old heap.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is Chaitin's graph coloring register allocation?</p></div><div class="a" hidden><p>A technique modeling variable live ranges as nodes in an interference graph; a K-coloring of the graph maps variables to K physical registers.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is Tail-Call Optimization (TCO)?</p></div><div class="a" hidden><p>Reusing the caller's stack frame when a function call is in tail position, eliminating stack frame growth and turning recursion into a loop.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement three-address code constant folding and dead-code elimination, construct control-flow graphs, simulate generational garbage collection with write barriers, and execute bytecode programs on a virtual machine.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Backus, J. W., et al. (1957). The FORTRAN Automatic Coding System. Western Joint Computer Conference, 188-198.</li>
+<li>Cytron, R., et al. (1991). Efficiently Computing Static Single Assignment Form and the Control Dependence Graph. ACM TOPLAS, 13(4), 451-490.</li>
+<li>Chaitin, G. J. (1982). Register Allocation &amp; Spilling via Graph Coloring. ACM SIGPLAN Notices, 17(6), 98-101.</li>
+</ul></section>
+<footer class="pager"><a href="P14.html">&larr; P14 Complexity: P, NP and intractability</a>
+<a href="S04.html">S04 Android internals I: processes, ART and memory &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P17", "packages": ["numpy"], "exercises": {"ex1-constant-folding-and-dce": {"starter": "def optimize_tac_sequence(instructions: list[dict]) -> list[dict]:\n    pass\n", "solution": "def optimize_tac_sequence(instructions: list[dict]) -> list[dict]:\n    # Pass 1: Constant folding\n    env = {}\n    folded = []\n    \n    for inst in instructions:\n        op = inst.get(\"op\")\n        dest = inst.get(\"dest\")\n        s1 = inst.get(\"src1\")\n        s2 = inst.get(\"src2\")\n        \n        val1 = env[s1] if s1 in env else (s1 if isinstance(s1, int) else None)\n        val2 = env[s2] if s2 in env else (s2 if isinstance(s2, int) else None)\n        \n        if op == \"=\":\n            if val1 is not None:\n                env[dest] = val1\n                folded.append({\"op\": \"=\", \"dest\": dest, \"src1\": val1})\n            else:\n                folded.append(inst)\n        elif op in (\"+\", \"-\", \"*\"):\n            if val1 is not None and val2 is not None:\n                if op == \"+\": res = val1 + val2\n                elif op == \"-\": res = val1 - val2\n                elif op == \"*\": res = val1 * val2\n                env[dest] = res\n                folded.append({\"op\": \"=\", \"dest\": dest, \"src1\": res})\n            else:\n                folded.append(inst)\n        elif op == \"RETURN\":\n            folded.append(inst)\n        else:\n            folded.append(inst)\n            \n    # Pass 2: Dead code elimination\n    # A variable definition is dead if its dest is never used in src1 or src2 of subsequent instructions\n    # Keep the final RETURN instruction and all instructions that contribute to it\n    used_vars = set()\n    for inst in reversed(folded):\n        if inst.get(\"op\") == \"RETURN\":\n            src = inst.get(\"src1\")\n            if isinstance(src, str):\n                used_vars.add(src)\n        else:\n            dest = inst.get(\"dest\")\n            if dest in used_vars:\n                # This instruction is live! Add its sources to used_vars\n                s1 = inst.get(\"src1\")\n                s2 = inst.get(\"src2\")\n                if isinstance(s1, str): used_vars.add(s1)\n                if isinstance(s2, str): used_vars.add(s2)\n                \n    dce_result = []\n    for inst in folded:\n        if inst.get(\"op\") == \"RETURN\":\n            dce_result.append(inst)\n        else:\n            dest = inst.get(\"dest\")\n            if dest in used_vars:\n                dce_result.append(inst)\n                \n    return dce_result\n", "tests": "def test_constant_folding_basic():\n    tac = [\n        {\"op\": \"=\", \"dest\": \"a\", \"src1\": 10},\n        {\"op\": \"=\", \"dest\": \"b\", \"src1\": 20},\n        {\"op\": \"+\", \"dest\": \"c\", \"src1\": \"a\", \"src2\": \"b\"},\n        {\"op\": \"RETURN\", \"src1\": \"c\"}\n    ]\n    opt = optimize_tac_sequence(tac)\n    # c should fold to 30, and RETURN c\n    assert {\"op\": \"=\", \"dest\": \"c\", \"src1\": 30} in opt\n    assert {\"op\": \"RETURN\", \"src1\": \"c\"} in opt\n\ndef test_dead_code_elimination():\n    tac = [\n        {\"op\": \"=\", \"dest\": \"dead_var\", \"src1\": 999},  # never used!\n        {\"op\": \"=\", \"dest\": \"live_var\", \"src1\": 42},\n        {\"op\": \"RETURN\", \"src1\": \"live_var\"}\n    ]\n    opt = optimize_tac_sequence(tac)\n    # dead_var must be eliminated\n    dests = [inst.get(\"dest\") for inst in opt]\n    assert \"dead_var\" not in dests\n    assert \"live_var\" in dests\n\ndef test_return_only():\n    tac = [{\"op\": \"RETURN\", \"src1\": 0}]\n    assert optimize_tac_sequence(tac) == [{\"op\": \"RETURN\", \"src1\": 0}]\n", "mutants": ["def optimize_tac_sequence(instructions):\n    assert False, 'mutant injected'\n", "def optimize_tac_sequence(instructions):\n    return instructions  # mutant performs zero optimization\n"], "hints": ["Evaluate arithmetic between known constants and store in an environment dictionary.", "Traverse instructions in reverse to identify variables read before their definitions.", "Filter out assignments to variables not in the used set."], "level": "warmup", "title": "TAC Constant Folding and Dead-Code Elimination Pass"}, "ex2-control-flow-graph-builder": {"starter": "def build_cfg(instructions: list[dict]) -> dict:\n    pass\n", "solution": "def build_cfg(instructions: list[dict]) -> dict:\n    if not instructions:\n        return {\"blocks\": {}, \"edges\": []}\n        \n    n = len(instructions)\n    # 1. Identify leaders:\n    # - Instruction 0 is a leader\n    # - Any target of a jump / branch is a leader\n    # - Any instruction immediately following a jump / branch is a leader\n    leaders = {0}\n    \n    for i, inst in enumerate(instructions):\n        op = inst.get(\"op\")\n        if op in (\"JMP\", \"JMP_IF_ZERO\"):\n            target = inst.get(\"target\")\n            if target is not None and 0 <= target < n:\n                leaders.add(target)\n            if i + 1 < n:\n                leaders.add(i + 1)\n                \n    leader_list = sorted(leaders)\n    \n    # 2. Partition into basic blocks\n    blocks = {}\n    inst_to_block = {}\n    \n    for b_idx in range(len(leader_list)):\n        start = leader_list[b_idx]\n        end = leader_list[b_idx + 1] if b_idx + 1 < len(leader_list) else n\n        block_id = f\"B{b_idx}\"\n        blocks[block_id] = instructions[start:end]\n        for inst_idx in range(start, end):\n            inst_to_block[inst_idx] = block_id\n            \n    # 3. Add edges between blocks\n    edges = set()\n    for b_idx in range(len(leader_list)):\n        block_id = f\"B{b_idx}\"\n        block_insts = blocks[block_id]\n        last_inst = block_insts[-1]\n        last_idx = leader_list[b_idx] + len(block_insts) - 1\n        last_op = last_inst.get(\"op\")\n        \n        if last_op == \"JMP\":\n            target_idx = last_inst.get(\"target\")\n            if target_idx in inst_to_block:\n                edges.add((block_id, inst_to_block[target_idx]))\n        elif last_op == \"JMP_IF_ZERO\":\n            target_idx = last_inst.get(\"target\")\n            if target_idx in inst_to_block:\n                edges.add((block_id, inst_to_block[target_idx]))\n            # Fall-through to next block\n            if last_idx + 1 in inst_to_block:\n                edges.add((block_id, inst_to_block[last_idx + 1]))\n        elif last_op == \"RETURN\":\n            # Exit block has no outgoing edges\n            pass\n        else:\n            # Fall-through to next block\n            if last_idx + 1 in inst_to_block:\n                edges.add((block_id, inst_to_block[last_idx + 1]))\n                \n    return {\n        \"blocks\": blocks,\n        \"edges\": sorted(list(edges))\n    }\n", "tests": "def test_cfg_straight_line():\n    tac = [\n        {\"op\": \"=\", \"dest\": \"x\", \"src1\": 1},\n        {\"op\": \"=\", \"dest\": \"y\", \"src1\": 2},\n        {\"op\": \"RETURN\", \"src1\": \"x\"}\n    ]\n    cfg = build_cfg(tac)\n    assert len(cfg[\"blocks\"]) == 1\n    assert cfg[\"edges\"] == []\n\ndef test_cfg_branching():\n    tac = [\n        {\"op\": \"JMP_IF_ZERO\", \"src1\": \"cond\", \"target\": 3}, # 0: jump to 3\n        {\"op\": \"=\", \"dest\": \"x\", \"src1\": 1},                 # 1: then\n        {\"op\": \"JMP\", \"target\": 4},                           # 2: jump to 4\n        {\"op\": \"=\", \"dest\": \"x\", \"src1\": 2},                 # 3: else\n        {\"op\": \"RETURN\", \"src1\": \"x\"}                         # 4: exit\n    ]\n    cfg = build_cfg(tac)\n    # Leaders: 0 (start), 3 (target of JMP_IF_ZERO), 1 (after branch), 4 (target of JMP), 3 (after jump), 4 (after else)\n    # Blocks: B0: [0], B1: [1, 2], B2: [3], B3: [4]\n    assert len(cfg[\"blocks\"]) == 4\n    # Edges: B0 -> B1 (fall-through), B0 -> B2 (jump), B1 -> B3 (jump), B2 -> B3 (fall-through)\n    assert (\"B0\", \"B1\") in cfg[\"edges\"]\n    assert (\"B0\", \"B2\") in cfg[\"edges\"]\n    assert (\"B1\", \"B3\") in cfg[\"edges\"]\n    assert (\"B2\", \"B3\") in cfg[\"edges\"]\n\ndef test_cfg_empty():\n    cfg = build_cfg([])\n    assert cfg[\"blocks\"] == {}\n    assert cfg[\"edges\"] == []\n", "mutants": ["def build_cfg(instructions):\n    assert False, 'mutant injected'\n", "def build_cfg(instructions):\n    return {\"blocks\": {}, \"edges\": []}\n"], "hints": ["Identify leaders: instruction 0, any jump target, and the instruction following any jump.", "Group instructions between consecutive leaders into basic blocks.", "Add directed edges for fall-through and branch targets."], "level": "core", "title": "Control-Flow Graph (CFG) Leader and Edge Partitioning"}, "ex3-generational-gc-simulator": {"starter": "class GenerationalGC:\n    def __init__(self, nursery_capacity: int = 5):\n        pass\n\n    def allocate(self, obj_id: int, is_root: bool = False) -> bool:\n        pass\n\n    def mutate_pointer(self, parent_id: int, child_id: int):\n        pass\n\n    def minor_gc(self) -> int:\n        pass\n", "solution": "class GenerationalGC:\n    def __init__(self, nursery_capacity: int = 5):\n        self.nursery_capacity = nursery_capacity\n        self.nursery = set()           # Objects in young generation\n        self.tenured = set()           # Objects in old generation\n        self.roots = set()             # Root set references\n        self.pointers = {}             # Object -> set of referenced objects\n        self.remembered_set = set()    # Old objects pointing to young objects (write barrier)\n\n    def allocate(self, obj_id: int, is_root: bool = False) -> bool:\n        if is_root:\n            self.roots.add(obj_id)\n        self.pointers[obj_id] = set()\n        \n        # If nursery is full, trigger minor GC\n        if len(self.nursery) >= self.nursery_capacity:\n            self.minor_gc()\n            \n        self.nursery.add(obj_id)\n        return True\n\n    def mutate_pointer(self, parent_id: int, child_id: int):\n        self.pointers.setdefault(parent_id, set()).add(child_id)\n        # Write barrier: if parent is tenured and child is in nursery, record in remembered set\n        if parent_id in self.tenured and child_id in self.nursery:\n            self.remembered_set.add(parent_id)\n\n    def minor_gc(self) -> int:\n        # Minor collection:\n        # Live roots into nursery are:\n        # 1. Roots in self.roots that point to nursery\n        # 2. Objects referenced by tenured objects in the remembered_set\n        live_nursery = set()\n        queue = []\n        \n        for r in self.roots:\n            if r in self.nursery:\n                live_nursery.add(r)\n                queue.append(r)\n                \n        for old in self.remembered_set:\n            for child in self.pointers.get(old, set()):\n                if child in self.nursery and child not in live_nursery:\n                    live_nursery.add(child)\n                    queue.append(child)\n                    \n        while queue:\n            curr = queue.pop(0)\n            for child in self.pointers.get(curr, set()):\n                if child in self.nursery and child not in live_nursery:\n                    live_nursery.add(child)\n                    queue.append(child)\n                    \n        # Promote surviving nursery objects to tenured generation\n        promoted_count = len(live_nursery)\n        for obj in live_nursery:\n            self.tenured.add(obj)\n            \n        # Clear nursery and remembered set\n        self.nursery.clear()\n        self.remembered_set.clear()\n        \n        return promoted_count\n", "tests": "def test_generational_gc_promotion():\n    gc = GenerationalGC(nursery_capacity=3)\n    gc.allocate(1, is_root=True)\n    gc.allocate(2, is_root=False) # dead object\n    gc.allocate(3, is_root=True)\n    gc.allocate(4, is_root=False) # triggers minor GC!\n    assert 1 in gc.tenured\n    assert 3 in gc.tenured\n    assert 2 not in gc.tenured\n\ndef test_write_barrier_tracks_young_reference():\n    gc = GenerationalGC(nursery_capacity=5)\n    gc.allocate(10, is_root=True)\n    gc.minor_gc()\n    assert 10 in gc.tenured\n    gc.allocate(20, is_root=False)\n    gc.mutate_pointer(10, 20)\n    assert 10 in gc.remembered_set\n    gc.minor_gc()\n    assert 20 in gc.tenured\n\ndef test_minor_gc_empty():\n    gc = GenerationalGC(nursery_capacity=5)\n    assert gc.minor_gc() == 0\n", "mutants": ["class GenerationalGC:\n    def __init__(self, nursery_capacity=5): pass\n    def allocate(self, obj_id, is_root=False): pass\n    def mutate_pointer(self, parent_id, child_id): pass\n    def minor_gc(self): assert False, 'mutant injected'\n", "class GenerationalGC:\n    def __init__(self, nursery_capacity=5): self.tenured = set(); self.nursery = set(); self.remembered_set = set()\n    def allocate(self, obj_id, is_root=False): self.tenured.add(obj_id)\n    def mutate_pointer(self, parent_id, child_id): pass\n    def minor_gc(self): return 0\n"], "hints": ["Track objects in nursery, tenured, and roots.", "Intercept pointer updates with write barriers to add old objects to the remembered set.", "During minor GC, scan roots and remembered set, promoting live objects to tenured."], "level": "core", "title": "Generational Garbage Collector with Write Barriers"}, "ex4-stack-bytecode-virtual-machine": {"starter": "class StackVM:\n    def __init__(self):\n        pass\n\n    def run(self, bytecode: list[tuple]) -> int:\n        pass\n", "solution": "class StackVM:\n    def __init__(self):\n        self.stack = []\n        self.registers = {}\n        self.pc = 0\n\n    def run(self, bytecode: list[tuple]) -> int:\n        self.stack = []\n        self.registers = {}\n        self.pc = 0\n        max_cycles = 10000\n        cycles = 0\n\n        while self.pc < len(bytecode) and cycles < max_cycles:\n            cycles += 1\n            inst = bytecode[self.pc]\n            opcode = inst[0]\n\n            if opcode == \"PUSH\":\n                self.stack.append(inst[1])\n                self.pc += 1\n            elif opcode == \"POP\":\n                self.stack.pop()\n                self.pc += 1\n            elif opcode in (\"ADD\", \"SUB\", \"MUL\"):\n                b = self.stack.pop()\n                a = self.stack.pop()\n                if opcode == \"ADD\": res = a + b\n                elif opcode == \"SUB\": res = a - b\n                elif opcode == \"MUL\": res = a * b\n                self.stack.append(res)\n                self.pc += 1\n            elif opcode == \"LOAD\":\n                reg_name = inst[1]\n                val = self.registers.get(reg_name, 0)\n                self.stack.append(val)\n                self.pc += 1\n            elif opcode == \"STORE\":\n                reg_name = inst[1]\n                val = self.stack.pop()\n                self.registers[reg_name] = val\n                self.pc += 1\n            elif opcode == \"JMP\":\n                target_pc = inst[1]\n                self.pc = target_pc\n            elif opcode == \"JMP_IF_ZERO\":\n                target_pc = inst[1]\n                cond = self.stack.pop()\n                if cond == 0:\n                    self.pc = target_pc\n                else:\n                    self.pc += 1\n            elif opcode == \"HALT\":\n                break\n            else:\n                raise ValueError(f\"Unknown opcode: {opcode}\")\n\n        return self.stack[-1] if self.stack else 0\n", "tests": "def test_vm_arithmetic():\n    # compute: (3 + 4) * 2 = 14\n    bytecode = [\n        (\"PUSH\", 3),\n        (\"PUSH\", 4),\n        (\"ADD\",),\n        (\"PUSH\", 2),\n        (\"MUL\",),\n        (\"HALT\",)\n    ]\n    vm = StackVM()\n    assert vm.run(bytecode) == 14\n\ndef test_vm_loop_countdown():\n    # reg 'sum' = 0; reg 'n' = 3\n    # loop: sum = sum + n; n = n - 1; if n == 0 break\n    bytecode = [\n        (\"PUSH\", 0), (\"STORE\", \"sum\"),\n        (\"PUSH\", 3), (\"STORE\", \"n\"),\n        # loop start (pc=4)\n        (\"LOAD\", \"sum\"),\n        (\"LOAD\", \"n\"),\n        (\"ADD\",),\n        (\"STORE\", \"sum\"),\n        (\"LOAD\", \"n\"),\n        (\"PUSH\", 1),\n        (\"SUB\",),\n        (\"STORE\", \"n\"),\n        (\"LOAD\", \"n\"),\n        (\"JMP_IF_ZERO\", 15), # jump to HALT if n == 0\n        (\"JMP\", 4),          # loop\n        # pc=15\n        (\"LOAD\", \"sum\"),\n        (\"HALT\",)\n    ]\n    vm = StackVM()\n    # sum of 3 + 2 + 1 = 6\n    assert vm.run(bytecode) == 6\n\ndef test_vm_subtraction():\n    bytecode = [\n        (\"PUSH\", 10),\n        (\"PUSH\", 3),\n        (\"SUB\",),\n        (\"HALT\",)\n    ]\n    vm = StackVM()\n    assert vm.run(bytecode) == 7\n", "mutants": ["class StackVM:\n    def __init__(self): pass\n    def run(self, bytecode): assert False, 'mutant injected'\n", "class StackVM:\n    def __init__(self): pass\n    def run(self, bytecode): return 0  # mutant always returns 0\n"], "hints": ["Maintain a stack list and a program counter pc.", "Implement PUSH, POP, ADD, SUB, MUL by modifying top of stack.", "Implement JMP and JMP_IF_ZERO by assigning to self.pc."], "level": "boss", "title": "Stack-Based Bytecode Virtual Machine Emulator"}}, "demos": {"p17-oracle-constant-folding": {"code": "def constant_fold_pass(instructions: list[dict]) -> list[dict]:\n    # Instruction format: {\"op\": \"+|-|*|=\", \"dest\": str, \"src1\": any, \"src2\": any}\n    env = {}  # maps variable -> constant literal value\n    optimized = []\n\n    for inst in instructions:\n        op = inst.get(\"op\")\n        dest = inst.get(\"dest\")\n        s1 = inst.get(\"src1\")\n        s2 = inst.get(\"src2\")\n\n        # Resolve known constants\n        val1 = env[s1] if s1 in env else (s1 if isinstance(s1, int) else None)\n        val2 = env[s2] if s2 in env else (s2 if isinstance(s2, int) else None)\n\n        if op == \"=\":\n            if val1 is not None:\n                env[dest] = val1\n                optimized.append({\"op\": \"=\", \"dest\": dest, \"src1\": val1})\n            else:\n                optimized.append(inst)\n        elif op in (\"+\", \"-\", \"*\"):\n            if val1 is not None and val2 is not None:\n                # Both operands are known constants: fold at compile time!\n                if op == \"+\": res = val1 + val2\n                elif op == \"-\": res = val1 - val2\n                elif op == \"*\": res = val1 * val2\n                env[dest] = res\n                optimized.append({\"op\": \"=\", \"dest\": dest, \"src1\": res})\n            else:\n                optimized.append(inst)\n        else:\n            optimized.append(inst)\n\n    return optimized\n\n# Test input TAC:\n# t1 = 5\n# t2 = 10\n# t3 = t1 + t2   -> should fold to: t3 = 15\n# t4 = t3 * 2    -> should fold to: t4 = 30\ntac = [\n    {\"op\": \"=\", \"dest\": \"t1\", \"src1\": 5},\n    {\"op\": \"=\", \"dest\": \"t2\", \"src1\": 10},\n    {\"op\": \"+\", \"dest\": \"t3\", \"src1\": \"t1\", \"src2\": \"t2\"},\n    {\"op\": \"*\", \"dest\": \"t4\", \"src1\": \"t3\", \"src2\": 2}\n]\n\nopt_tac = constant_fold_pass(tac)\nassert opt_tac[2] == {\"op\": \"=\", \"dest\": \"t3\", \"src1\": 15}\nassert opt_tac[3] == {\"op\": \"=\", \"dest\": \"t4\", \"src1\": 30}\n\nprint(\"Three-address code constant folding optimization oracle verified.\")\n", "mutants": ["def constant_fold_pass(instructions): return instructions  # mutant performs zero folding\ntac = [{\"op\": \"=\", \"dest\": \"t1\", \"src1\": 5}, {\"op\": \"=\", \"dest\": \"t2\", \"src1\": 10}, {\"op\": \"+\", \"dest\": \"t3\", \"src1\": \"t1\", \"src2\": \"t2\"}]\nopt = constant_fold_pass(tac)\nassert opt[2] == {\"op\": \"=\", \"dest\": \"t3\", \"src1\": 15}\n"]}, "p17-exp-generational-gc-throughput": {"code": "def simulate_mark_sweep_work(total_heap_objects: int) -> int:\n    # Full mark-sweep must inspect every object on the heap\n    # Work is proportional to total heap size\n    return total_heap_objects\n\ndef simulate_generational_minor_gc(nursery_objects: int, live_survival_rate: float = 0.05) -> int:\n    # Generational minor collection only scans the nursery\n    # Live objects copied is survival_rate * nursery_objects (Weak Generational Hypothesis)\n    return int(nursery_objects * live_survival_rate)\n\ntotal_heap = 50_000\nnursery_size = 2_000\n\n# Full Mark-Sweep STW pause work\nmark_sweep_work = simulate_mark_sweep_work(total_heap)\nassert mark_sweep_work == 50000\n\n# Generational Minor GC pause work (copying only 5% surviving objects)\nminor_gc_work = simulate_generational_minor_gc(nursery_size, live_survival_rate=0.05)\nassert minor_gc_work == 100\n\n# Ratio of latency improvement\nspeedup_factor = mark_sweep_work // minor_gc_work\nassert speedup_factor == 500\n\nprint(f\"GC Latency experiment verified: Full Mark-Sweep={mark_sweep_work} checks vs Generational Minor GC={minor_gc_work} copies ({speedup_factor}x faster pause).\")\n", "mutants": ["def simulate_generational_minor_gc(nursery, rate=0.05): return nursery  # copies entire nursery\nassert simulate_generational_minor_gc(2000, 0.05) == 100\n"]}}, "cards": [{"q": "What is Static Single Assignment (SSA) form?", "a": "An intermediate representation where every variable is assigned exactly once, using phi-functions at merge points to simplify dataflow analysis."}, {"q": "What is the difference between AOT and JIT compilation?", "a": "AOT compiles to native machine code prior to execution for zero warmup and predictable latency; JIT compiles dynamically at runtime using profiling feedback."}, {"q": "What is the Weak Generational Hypothesis?", "a": "The empirical observation in computer systems that most allocated objects have very short lifespans and die shortly after creation."}, {"q": "How does a generational garbage collector use write barriers?", "a": "A write barrier intercepts pointer writes from old-generation objects to young-generation objects, recording them in a remembered set so minor collections don't scan the entire old heap."}, {"q": "What is Chaitin's graph coloring register allocation?", "a": "A technique modeling variable live ranges as nodes in an interference graph; a K-coloring of the graph maps variables to K physical registers."}, {"q": "What is Tail-Call Optimization (TCO)?", "a": "Reusing the caller's stack frame when a function call is in tail position, eliminating stack frame growth and turning recursion into a loop."}], "title": "Compilers and runtimes"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

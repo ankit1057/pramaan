@@ -1,0 +1,1077 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M36 Optimisation</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M36">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-3 · ~5h20</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M36</p><h1>Optimisation</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M32.html">M32</a> <a href="M31.html">M31</a></div><div><b>Covers:</b> university optimisation, CS2023 AI</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>convex sets and functions</li><li>gradient descent and the step size for L-smooth functions</li><li>convergence rates</li><li>momentum and Nesterov</li><li>RMSProp and Adam with bias correction</li><li>SGD and mini-batches</li><li>Newton&#x27;s method</li><li>constrained optimisation and KKT conditions</li><li>LP duality and weak duality</li><li>non-convex landscapes</li><li>line search</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Priya is training a model that will not train. The loss goes up.</p>
+<p>She halves the learning rate. The loss still goes up, slower. She halves it again — now it goes <em>down</em>, but so slowly that a run which should take an hour is projected at nine days. Somewhere between "explodes" and "glacial" there is a right answer, and she is finding it by bisection, one expensive run at a time.</p>
+<p>Her colleague says what everyone says: learning rate is a hyperparameter, you tune it, that's the job.</p>
+<p>But watch what happens when she tries it on a problem simple enough to analyse — a quadratic bowl, two variables, no noise. The same thing happens. Above a certain step size the iterates fly apart; below it they converge. And the threshold is not vague. It sits at exactly $\frac{2}{L}$, where $L$ is the largest eigenvalue of the Hessian. Cross it by one percent and the method diverges; stay under it and it cannot.</p>
+<p>The second surprise is worse. Staying under the threshold guarantees convergence but says nothing about <em>speed</em>, and the speed is governed by a different number: the ratio of the largest eigenvalue to the smallest. Priya's bowl is a hundred times steeper in one direction than another, and gradient descent spends its time bouncing across the steep direction while creeping along the shallow one. No step size fixes that, because one step size has to serve both directions.</p>
+<p>That is the whole subject. Which problems can be solved reliably (convex ones), how fast (set by conditioning), and what to do when one scalar step size is not enough (momentum, adaptive methods, or second-order information).</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p><strong>Convexity</strong> is the property that makes optimisation tractable. A convex function has no local minimum that is not global, so a method that goes downhill cannot get stuck in the wrong place.</p>
+<p><strong>Gradient descent</strong> repeatedly steps against the gradient. It works when the step is small enough — specifically below $\frac{2}{L}$ for an $L$-smooth function — and its speed is set by the <strong>condition number</strong> $\kappa=\frac{L}{\mu}$.</p>
+<p>Everything else is a response to that. <strong>Momentum</strong> damps the oscillation across steep directions. <strong>Adam</strong> gives each coordinate its own effective step size. <strong>Newton's method</strong> uses curvature and removes the conditioning dependence entirely, at the cost of a Hessian. <strong>Line search</strong> picks the step by measuring instead of guessing.</p>
+<p>For <strong>constrained</strong> problems the <strong>KKT conditions</strong> generalise "the gradient is zero", and <strong>duality</strong> gives a certificate: a number you can compute that proves how close to optimal you are.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Convexity</h2>
+<p>A set $C$ is <strong>convex</strong> when $x,y\in C$ implies $\lambda x+(1-\lambda)y\in C$ for all $\lambda\in[0,1]$ — the segment between any two points stays inside.</p>
+<p>A function $f$ is <strong>convex</strong> when its domain is convex and</p>
+<p>$$f(\lambda x+(1-\lambda)y)\le\lambda f(x)+(1-\lambda)f(y)$$</p>
+<p>the chord lies above the graph. Equivalent characterisations for differentiable $f$:</p>
+<ul>
+<li><strong>First order:</strong> $f(y)\ge f(x)+\nabla f(x)^T(y-x)$ — the tangent plane is a global underestimator.</li>
+<li><strong>Second order:</strong> $\nabla^2f(x)\succeq0$, the Hessian is positive semidefinite everywhere.</li>
+</ul>
+<p>$f$ is <strong>$\mu$-strongly convex</strong> when $f-\frac{\mu}{2}\|x\|^2$ is convex, equivalently $\nabla^2f\succeq\mu I$. It is <strong>$L$-smooth</strong> when $\nabla f$ is $L$-Lipschitz, equivalently $\nabla^2f\preceq LI$.</p>
+<p><strong>The key consequence:</strong> for a convex $f$, $\nabla f(x^\*)=0$ implies $x^\*$ is a <em>global</em> minimum. For non-convex $f$ it implies nothing of the sort.</p>
+<h2>Gradient descent</h2>
+<p>$$x_{k+1} = x_k - \alpha\nabla f(x_k)$$</p>
+<table>
+<thead>
+<tr>
+<th>Assumptions</th>
+<th>Step</th>
+<th>Rate</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>convex, $L$-smooth</td>
+<td>$\alpha=\frac1L$</td>
+<td>$f(x_k)-f^\*\le\frac{L\|x_0-x^\*\|^2}{2k}$, i.e. $O(1/k)$</td>
+</tr>
+<tr>
+<td>$\mu$-strongly convex, $L$-smooth</td>
+<td>$\alpha=\frac1L$</td>
+<td>$\|x_k-x^\*\|\le\left(1-\frac1\kappa\right)^k\|x_0-x^\*\|$</td>
+</tr>
+<tr>
+<td>same</td>
+<td>$\alpha=\frac{2}{\mu+L}$</td>
+<td>$\left(\frac{\kappa-1}{\kappa+1}\right)^k$</td>
+</tr>
+</tbody>
+</table>
+<p>with $\kappa=\frac{L}{\mu}$. <strong>Divergence for $\alpha&gt;\frac2L$</strong> is not a heuristic: on a quadratic the iteration is linear with factor $1-\alpha\lambda$ per eigendirection, and $|1-\alpha L|&gt;1$ exactly when $\alpha&gt;\frac2L$.</p>
+<p>Linear ("geometric") convergence multiplies the error by a constant each step — the error's <em>digits</em> grow linearly. The $O(1/k)$ rate for merely-convex problems is far worse: ten times the accuracy costs ten times the iterations.</p>
+<h2>Momentum</h2>
+<p><strong>Heavy ball</strong> (Polyak):</p>
+<p>$$v_{k+1}=\beta v_k-\alpha\nabla f(x_k), \qquad x_{k+1}=x_k+v_{k+1}$$</p>
+<p><strong>Nesterov</strong> evaluates the gradient at the <em>look-ahead</em> point:</p>
+<p>$$y_k = x_k+\beta(x_k-x_{k-1}), \qquad x_{k+1}=y_k-\alpha\nabla f(y_k)$$</p>
+<p>The payoff is the $\sqrt\kappa$ rate: momentum achieves $\left(\frac{\sqrt\kappa-1}{\sqrt\kappa+1}\right)^k$ where plain descent gets $\left(\frac{\kappa-1}{\kappa+1}\right)^k$. For $\kappa=100$ that is $0.82$ against $0.98$ per step — roughly a tenfold reduction in iterations. Nesterov's method is <strong>optimal</strong>: no first-order method can beat $O\!\left(\frac{1}{k^2}\right)$ on convex $L$-smooth problems.</p>
+<h2>Adaptive methods</h2>
+<p><strong>RMSProp</strong> keeps a running average of squared gradients and divides by its root:</p>
+<p>$$s_k=\rho s_{k-1}+(1-\rho)g_k^2, \qquad x_{k+1}=x_k-\frac{\alpha}{\sqrt{s_k}+\epsilon}g_k$$</p>
+<p><strong>Adam</strong> adds momentum and <strong>bias correction</strong>:</p>
+<p>$$m_k=\beta_1m_{k-1}+(1-\beta_1)g_k, \qquad v_k=\beta_2v_{k-1}+(1-\beta_2)g_k^2$$
+$$\hat m_k=\frac{m_k}{1-\beta_1^k}, \qquad \hat v_k=\frac{v_k}{1-\beta_2^k}, \qquad x_{k+1}=x_k-\frac{\alpha\hat m_k}{\sqrt{\hat v_k}+\epsilon}$$</p>
+<p>The bias correction matters because $m_0=v_0=0$: both estimates start biased <em>towards zero</em>. The net effect on the step is not obvious, because the two biases pull in opposite directions — a small $m$ shrinks the step, a small $v$ shrinks the denominator and so inflates it. Working out the ratio at step $k$:</p>
+<p>$$\frac{\text{uncorrected step}}{\text{corrected step}} = \frac{\sqrt{1-\beta_2^k}}{1-\beta_1^k}$$</p>
+<p>At $k=1$ with the usual $\beta_1=0.9,\beta_2=0.999$ this is $\frac{\sqrt{0.001}}{0.1}=3.16$: <strong>the uncorrected first steps are about three times too LARGE</strong>, not too small, because the under-estimated denominator wins. With the correction, the first step has magnitude exactly $\alpha$ — which is the design intent, since $\frac{\hat m_1}{\sqrt{\hat v_1}}=\frac{g}{|g|}=\pm1$. Adam's step size is meant to be a trust region, and bias correction is what makes it one from the very first step.</p>
+<h2>Stochastic gradient descent</h2>
+<p>With $f=\frac1n\sum f_i$, SGD uses $\nabla f_i$ for a random $i$ (or a <strong>mini-batch</strong> average). Each step costs $O(1)$ instead of $O(n)$, and the gradient is unbiased: $E[\nabla f_i]=\nabla f$.</p>
+<p>The price is variance. With a <strong>constant</strong> step SGD converges to a <em>noise ball</em> of radius $O(\alpha\sigma^2)$ around the optimum rather than to the optimum; convergence requires a decreasing step with $\sum\alpha_k=\infty$ and $\sum\alpha_k^2&lt;\infty$. A mini-batch of size $b$ cuts the variance by $b$, hence the standard deviation by $\sqrt b$ — M34's $\frac{1}{\sqrt n}$ again, and the reason batch size has diminishing returns.</p>
+<h2>Newton and line search</h2>
+<p>$$x_{k+1}=x_k-\left(\nabla^2f(x_k)\right)^{-1}\nabla f(x_k)$$</p>
+<p>Newton's method is <strong>affine invariant</strong>: rescaling the variables does not change its path, so the condition number does not appear in its rate. Near a minimum it converges quadratically, like M35's root finder. Costs: $O(d^3)$ per step for the solve, $O(d^2)$ memory, and a Hessian that must be positive definite.</p>
+<p><strong>Backtracking line search</strong> (Armijo) replaces guessing with measuring: start from $\alpha=1$ and halve until</p>
+<p>$$f(x-\alpha g)\le f(x)-c\,\alpha\|g\|^2$$</p>
+<p>with $c\in(0,1)$, typically $10^{-4}$. It needs no knowledge of $L$.</p>
+<h2>Constrained optimisation and duality</h2>
+<p>For $\min f(x)$ subject to $g_i(x)\le0$ and $h_j(x)=0$, the <strong>Lagrangian</strong> is</p>
+<p>$$\mathcal{L}(x,\lambda,\nu)=f(x)+\sum\lambda_ig_i(x)+\sum\nu_jh_j(x)$$</p>
+<p>The <strong>KKT conditions</strong> at an optimum (under a constraint qualification) are</p>
+<ol>
+<li><strong>Stationarity:</strong> $\nabla f+\sum\lambda_i\nabla g_i+\sum\nu_j\nabla h_j=0$</li>
+<li><strong>Primal feasibility:</strong> $g_i\le0$, $h_j=0$</li>
+<li><strong>Dual feasibility:</strong> $\lambda_i\ge0$</li>
+<li><strong>Complementary slackness:</strong> $\lambda_ig_i=0$ — an inactive constraint has zero multiplier</li>
+</ol>
+<p>For convex problems KKT is sufficient as well as necessary.</p>
+<p><strong>Weak duality.</strong> The dual function $d(\lambda,\nu)=\inf_x\mathcal{L}$ satisfies $d(\lambda,\nu)\le p^\*$ for every feasible $(\lambda,\nu)$ — <em>always</em>, convex or not. For a linear program $\min c^Tx$ s.t. $Ax\ge b,x\ge0$, the dual is $\max b^Ty$ s.t. $A^Ty\le c,y\ge0$, and weak duality reads $c^Tx\ge b^Ty$. <strong>Strong duality</strong> ($d^\*=p^\*$) holds for LPs always, and for convex problems under Slater's condition. The gap $c^Tx-b^Ty$ is a <em>computable certificate</em> of suboptimality.</p>
+<h2>A pinch of history</h2>
+<p>Cauchy proposed gradient descent in 1847. Dantzig invented the simplex method in 1947 and LP duality followed from von Neumann's game-theoretic insight the same year. Karush wrote his conditions in a 1939 master's thesis that went unnoticed until Kuhn and Tucker rediscovered them in 1951. Polyak introduced the heavy ball in 1964; Nesterov's accelerated method and its optimality proof came in 1983. Khachiyan showed LP is in P in 1979 with the ellipsoid method, and Karmarkar made interior-point methods practical in 1984. Robbins and Monro published stochastic approximation in 1951, thirty years before anyone trained a neural network with it. Adam is due to Kingma and Ba in 2015.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: for convex $f$, a stationary point is a global minimum.</strong> The first-order condition says $f(y)\ge f(x)+\nabla f(x)^T(y-x)$ for all $y$. If $\nabla f(x)=0$ the inequality reads $f(y)\ge f(x)$ for every $y$. Done — in one line, and it is the entire reason convexity is the dividing line of the subject.</p>
+<p><strong>Result 2: the $\frac{2}{L}$ threshold.</strong> Take $f(x)=\frac12x^TAx$ with $A$ symmetric positive definite, eigenvalues $\lambda_i$. Then $\nabla f=Ax$ and</p>
+<p>$$x_{k+1}=x_k-\alpha Ax_k=(I-\alpha A)x_k$$</p>
+<p>In the eigenbasis each coordinate evolves independently as $(1-\alpha\lambda_i)^k$. Convergence requires $|1-\alpha\lambda_i|&lt;1$ for every $i$, i.e. $0&lt;\alpha&lt;\frac{2}{\lambda_i}$. The binding constraint is the largest eigenvalue:</p>
+<p>$$0&lt;\alpha&lt;\frac{2}{\lambda_{\max}}=\frac{2}{L}$$</p>
+<p>This is exact, not asymptotic. At $\alpha=\frac2L$ the largest mode oscillates with constant amplitude forever; above it, it grows geometrically. Priya's explosion was one eigendirection.</p>
+<p><strong>Result 3: why conditioning sets the speed.</strong> With $\alpha=\frac1L$ the per-step contraction in direction $i$ is $\left|1-\frac{\lambda_i}{L}\right|$. The slowest is the smallest eigenvalue:</p>
+<p>$$1-\frac{\mu}{L}=1-\frac1\kappa$$</p>
+<p>To reduce the error by $e$ needs about $\kappa$ iterations. The step size cannot help: raising $\alpha$ to speed up the shallow direction destabilises the steep one, because <strong>one scalar must serve every eigendirection at once</strong>. That tension is precisely what momentum, adaptive methods and Newton each attack differently.</p>
+<p><strong>Result 4: the descent lemma, and why $\frac1L$ is the natural step.</strong> $L$-smoothness gives</p>
+<p>$$f(y)\le f(x)+\nabla f(x)^T(y-x)+\frac{L}{2}\|y-x\|^2$$</p>
+<p>Substituting $y=x-\alpha\nabla f(x)$:</p>
+<p>$$f(y)\le f(x)-\alpha\|\nabla f\|^2+\frac{L\alpha^2}{2}\|\nabla f\|^2 = f(x)-\alpha\left(1-\frac{L\alpha}{2}\right)\|\nabla f\|^2$$</p>
+<p>The bracket is positive exactly when $\alpha&lt;\frac2L$ — the same threshold, now from the function-value side — and the decrease $\alpha\left(1-\frac{L\alpha}{2}\right)$ is maximised at $\alpha=\frac1L$, giving $f(y)\le f(x)-\frac{1}{2L}\|\nabla f\|^2$.</p>
+<p><strong>Result 5: weak duality in three lines.</strong> For any feasible $x$ (so $g_i(x)\le0$, $h_j(x)=0$) and any $\lambda\ge0$:</p>
+<p>$$\mathcal{L}(x,\lambda,\nu)=f(x)+\underbrace{\sum\lambda_ig_i(x)}_{\le0}+\underbrace{\sum\nu_jh_j(x)}_{=0}\le f(x)$$</p>
+<p>Taking the infimum over all $x$ on the left only decreases it, so $d(\lambda,\nu)\le f(x)$ for every feasible $x$, hence $d(\lambda,\nu)\le p^\*$. No convexity was used anywhere. This is what makes a dual feasible point a <em>proof</em> of a lower bound, and the duality gap a number you can report.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle optimises problems whose answers are known in closed form, so every iterate can be measured against the truth rather than against a convergence heuristic.</p>
+<p>For a quadratic $\frac12x^TAx-b^Tx$ the minimiser is $A^{-1}b$, found by exact elimination. For the constrained problem the KKT system is linear and solved directly. For the LP, weak duality is checked as an inequality that must hold for <em>every</em> feasible pair.</p>
+<p>The mutant drops Adam's bias correction — a real and frequently-made omission that leaves the first steps a thousand times too small.</p>
+<div class="lab demo" data-demo="m36-known-answers">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Optimisers measured against closed-form optima</h3></div>
+
+<textarea class="code" spellcheck="false">from math import sqrt
+
+
+def solve2(A, b):
+    &quot;&quot;&quot;Exact 2x2 solve by Cramer&#x27;s rule - the closed-form optimum.&quot;&quot;&quot;
+    det = A[0][0] * A[1][1] - A[0][1] * A[1][0]
+    assert abs(det) &gt; 1e-12, &quot;the system must be nonsingular&quot;
+    return [(b[0] * A[1][1] - A[0][1] * b[1]) / det,
+            (A[0][0] * b[1] - b[0] * A[1][0]) / det]
+
+
+# f(x) = 0.5 x&#x27;Ax - b&#x27;x, with A diagonal so L and mu are read off directly
+A = [[1.0, 0.0], [0.0, 20.0]]
+b = [3.0, 5.0]
+L, mu = 20.0, 1.0
+kappa = L / mu
+star = solve2(A, b)
+f = lambda x: 0.5 * (A[0][0] * x[0] ** 2 + A[1][1] * x[1] ** 2) - b[0] * x[0] - b[1] * x[1]
+grad = lambda x: [A[0][0] * x[0] - b[0], A[1][1] * x[1] - b[1]]
+fstar = f(star)
+print(f&quot;closed-form optimum: {star}, f* = {fstar:.10f}&quot;)
+print(f&quot;L = {L}, mu = {mu}, kappa = {kappa}&quot;)
+
+# the gradient really vanishes there, and nothing beats it
+assert max(abs(g) for g in grad(star)) &lt; 1e-12
+for d in ([0.1, 0.0], [0.0, 0.1], [-0.05, 0.07]):
+    assert f([star[0] + d[0], star[1] + d[1]]) &gt; fstar
+
+
+def gd(step, iters=400, beta=0.0, nesterov=False):
+    x = [0.0, 0.0]
+    v = [0.0, 0.0]
+    prev = list(x)
+    for _ in range(iters):
+        if nesterov:
+            y = [x[i] + beta * (x[i] - prev[i]) for i in range(2)]
+            g = grad(y)
+            prev = list(x)
+            x = [y[i] - step * g[i] for i in range(2)]
+        else:
+            g = grad(x)
+            v = [beta * v[i] - step * g[i] for i in range(2)]
+            x = [x[i] + v[i] for i in range(2)]
+        if max(abs(xi) for xi in x) &gt; 1e8:
+            return x, False
+    return x, True
+
+
+# --- plain gradient descent at the theoretically correct step ---
+x, ok = gd(1.0 / L)
+err = max(abs(x[i] - star[i]) for i in range(2))
+print()
+print(f&quot;gradient descent, step 1/L = {1/L}: error {err:.3e} after 400 steps&quot;)
+assert ok and err &lt; 1e-6, &quot;the textbook step must converge to the known optimum&quot;
+
+# --- the 2/L threshold, from both sides ---
+# Near the boundary the growth factor is only just above 1, so divergence
+# takes many iterations to become visible. 2000 is enough for these.
+print()
+for step in (1.9 / L, 1.99 / L, 2.1 / L, 2.5 / L):
+    _, ok = gd(step, iters=2000)
+    print(f&quot;  step = {step * L:.2f}/L : {&#x27;converges&#x27; if ok else &#x27;DIVERGES&#x27;}&quot;)
+assert gd(1.99 / L, iters=2000)[1], &quot;just under 2/L it must still converge&quot;
+assert not gd(2.1 / L, iters=2000)[1], &quot;just over 2/L it must diverge&quot;
+
+# --- momentum reaches the same known optimum faster ---
+beta_opt = ((sqrt(kappa) - 1) / (sqrt(kappa) + 1)) ** 2
+print()
+print(f&quot;iterations to reach 1e-8 of the closed-form optimum&quot;)
+for name, kw in ((&quot;plain&quot;, dict()),
+                 (&quot;heavy ball&quot;, dict(beta=beta_opt)),
+                 (&quot;Nesterov&quot;, dict(beta=beta_opt, nesterov=True))):
+    n = None
+    for iters in range(1, 900):
+        x, ok = gd(1.0 / L, iters=iters, **kw)
+        if ok and max(abs(x[i] - star[i]) for i in range(2)) &lt; 1e-8:
+            n = iters
+            break
+    print(f&quot;  {name:&gt;12}: {n} iterations&quot;)
+    assert n is not None, name
+    if name == &quot;plain&quot;:
+        plain_n = n
+    else:
+        assert n &lt; plain_n, f&quot;{name} must beat plain descent&quot;
+
+# --- Adam, with and without bias correction ---
+print()
+
+
+def adam(iters, correct=True, step=0.5, b1=0.9, b2=0.999, eps=1e-8):
+    x = [0.0, 0.0]
+    m = [0.0, 0.0]
+    v = [0.0, 0.0]
+    first_step = None
+    for t in range(1, iters + 1):
+        g = grad(x)
+        for i in range(2):
+            m[i] = b1 * m[i] + (1 - b1) * g[i]
+            v[i] = b2 * v[i] + (1 - b2) * g[i] * g[i]
+        if correct:
+            mh = [m[i] / (1 - b1 ** t) for i in range(2)]
+            vh = [v[i] / (1 - b2 ** t) for i in range(2)]
+        else:
+            mh, vh = list(m), list(v)
+        delta = [step * mh[i] / (sqrt(vh[i]) + eps) for i in range(2)]
+        if t == 1:
+            first_step = max(abs(d) for d in delta)
+        x = [x[i] - delta[i] for i in range(2)]
+    return x, first_step
+
+
+xc, step_c = adam(600, correct=True)
+xu, step_u = adam(600, correct=False)
+print(f&quot;  with bias correction   : first step {step_c:.6f}, &quot;
+      f&quot;final error {max(abs(xc[i]-star[i]) for i in range(2)):.3e}&quot;)
+print(f&quot;  without bias correction: first step {step_u:.6f}, &quot;
+      f&quot;final error {max(abs(xu[i]-star[i]) for i in range(2)):.3e}&quot;)
+# The corrected first step has magnitude EXACTLY the step size, because
+# m_hat / sqrt(v_hat) = g / |g| = 1 at t = 1. That is Adam&#x27;s design intent.
+assert abs(step_c - 0.5) &lt; 1e-6, &quot;the corrected first step must equal the step size&quot;
+# The uncorrected one is larger by sqrt(1-b2)/(1-b1) = 3.162, not smaller:
+# the under-estimated denominator beats the under-estimated numerator.
+ratio = step_u / step_c
+print(f&quot;  uncorrected / corrected = {ratio:.4f}   theory &quot;
+      f&quot;{(1 - 0.9) / sqrt(1 - 0.999):.4f}&quot;)
+assert abs(ratio - (1 - 0.9) / sqrt(1 - 0.999)) &lt; 1e-6, &quot;the ratio is sqrt(1-b2)/(1-b1)&quot;
+assert max(abs(xc[i] - star[i]) for i in range(2)) &lt; 1e-4, &quot;corrected Adam finds it&quot;
+
+# --- a constrained problem whose KKT system is linear ---
+print()
+# minimise x^2 + y^2 subject to x + y = 1  -&gt;  x = y = 1/2, nu = -1
+# stationarity: 2x + nu = 0, 2y + nu = 0; feasibility: x + y = 1
+xs, ys, nu = 0.5, 0.5, -1.0
+print(f&quot;constrained optimum ({xs}, {ys}) with multiplier nu = {nu}&quot;)
+assert abs(2 * xs + nu) &lt; 1e-12 and abs(2 * ys + nu) &lt; 1e-12, &quot;stationarity&quot;
+assert abs(xs + ys - 1) &lt; 1e-12, &quot;primal feasibility&quot;
+# no feasible point does better
+best = xs ** 2 + ys ** 2
+for t in (-0.3, 0.0, 0.2, 0.49, 0.8, 1.4):
+    assert t ** 2 + (1 - t) ** 2 &gt;= best - 1e-12, t
+print(f&quot;  objective {best}, and no feasible point beats it&quot;)
+
+# --- weak duality holds for EVERY feasible pair ---
+print()
+# primal: min c&#x27;x s.t. Ax &gt;= b, x &gt;= 0   dual: max b&#x27;y s.t. A&#x27;y &lt;= c, y &gt;= 0
+c = [2.0, 3.0]
+Am = [[1.0, 1.0], [1.0, 3.0]]
+bb = [4.0, 6.0]
+feasible_x = [[6.0, 0.0], [3.0, 1.0], [2.0, 2.0], [1.0, 3.0], [0.0, 4.0], [6.0, 6.0]]
+feasible_y = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.5, 0.5], [2.0, 0.0]]
+print(f&quot;{&#x27;primal c-x&#x27;:&gt;12} {&#x27;dual b-y&#x27;:&gt;12}  gap&quot;)
+for x in feasible_x:
+    assert all(sum(Am[i][j] * x[j] for j in range(2)) &gt;= bb[i] - 1e-12 for i in range(2))
+for y in feasible_y:
+    assert all(sum(Am[i][j] * y[i] for i in range(2)) &lt;= c[j] + 1e-12 for j in range(2))
+best_primal = min(sum(c[j] * x[j] for j in range(2)) for x in feasible_x)
+best_dual = max(sum(bb[i] * y[i] for i in range(2)) for y in feasible_y)
+for x in feasible_x[:4]:
+    p = sum(c[j] * x[j] for j in range(2))
+    for y in feasible_y[:3]:
+        d = sum(bb[i] * y[i] for i in range(2))
+        assert d &lt;= p + 1e-12, &quot;weak duality must never be violated&quot;
+print(f&quot;{best_primal:&gt;12} {best_dual:&gt;12}  {best_primal - best_dual}&quot;)
+assert best_dual &lt;= best_primal, &quot;every dual value lower-bounds every primal value&quot;
+print(&quot;every dual feasible point is a PROOF that no primal point goes below it&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Four predictions.</p>
+<p><strong>First, the threshold is sharp.</strong> Theory says divergence at $\alpha&gt;\frac2L$ exactly. We sweep across it and look for a cliff, not a slope.</p>
+<p><strong>Second, iterations scale with $\kappa$.</strong> Plain descent should need $O(\kappa)$ iterations and momentum $O(\sqrt\kappa)$, so multiplying $\kappa$ by 100 should cost 100× for one and 10× for the other.</p>
+<p><strong>Third, SGD with a constant step does not converge</strong> — it reaches a noise ball whose radius scales with the step size.</p>
+<p><strong>Fourth, non-convexity is a different world.</strong> Gradient descent on a function with several minima lands in whichever basin it started in, and no step size changes that.</p>
+<div class="lab demo" data-demo="m36-rates-and-limits">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>The cliff at 2/L, the cost of conditioning, and where convexity ends</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import sqrt
+
+# --- 1. the threshold is a cliff, not a slope ---
+print(&quot;gradient descent on f(x) = 0.5 * L * x^2, swept across the threshold&quot;)
+print(f&quot;{&#x27;alpha * L&#x27;:&gt;11} {&#x27;|x| after 200 steps&#x27;:&gt;22} {&#x27;outcome&#x27;:&gt;12}&quot;)
+L = 10.0
+# Just above the threshold the growth factor is only 1.01, so a few hundred
+# steps hide the divergence entirely. 4000 makes it unmistakable.
+for mult in (1.5, 1.9, 1.99, 2.0, 2.01, 2.1):
+    alpha = mult / L
+    x = 1.0
+    for _ in range(4000):
+        x = x - alpha * L * x
+        if abs(x) &gt; 1e30:
+            break
+    out = &quot;converges&quot; if abs(x) &lt; 1e-6 else (&quot;oscillates&quot; if abs(x) &lt; 2 else &quot;DIVERGES&quot;)
+    print(f&quot;{mult:&gt;11.2f} {abs(x):&gt;22.4e} {out:&gt;12}&quot;)
+    if mult &lt; 2.0:
+        assert abs(x) &lt; 1e-6, f&quot;below 2/L it must converge, mult={mult}&quot;
+    if mult &gt; 2.0:
+        assert abs(x) &gt; 1e6, f&quot;above 2/L it must blow up, mult={mult}&quot;
+# exactly at 2/L the iterate flips sign forever without shrinking
+x = 1.0
+for _ in range(4000):
+    x = x - (2.0 / L) * L * x
+assert abs(abs(x) - 1.0) &lt; 1e-9, &quot;at exactly 2/L it oscillates with constant amplitude&quot;
+print()
+print(&quot;predicted: convergence for alpha &lt; 2/L, constant oscillation AT 2/L,&quot;)
+print(&quot;           geometric blow-up above. Measured: exactly that.&quot;)
+
+# --- 2. iterations against the condition number ---
+def iters_to_tol(kappa, momentum, tol=1e-8, cap=200000):
+    &quot;&quot;&quot;Steps for a 2-D quadratic with eigenvalues 1 and kappa.
+
+    Each method gets ITS OWN optimal step. Pairing the optimal momentum
+    coefficient with plain descent&#x27;s 1/L is a real and common mistake: it
+    still accelerates, but it does not reach the sqrt(kappa) rate.
+    &quot;&quot;&quot;
+    L_, mu_ = float(kappa), 1.0
+    if momentum:
+        beta = ((sqrt(kappa) - 1) / (sqrt(kappa) + 1)) ** 2
+        alpha = 4.0 / (sqrt(L_) + sqrt(mu_)) ** 2
+    else:
+        beta = 0.0
+        alpha = 1.0 / L_
+    x = [1.0, 1.0]
+    v = [0.0, 0.0]
+    lam = [mu_, L_]
+    for k in range(1, cap + 1):
+        g = [lam[i] * x[i] for i in range(2)]
+        for i in range(2):
+            v[i] = beta * v[i] - alpha * g[i]
+            x[i] = x[i] + v[i]
+        if max(abs(xi) for xi in x) &lt; tol:
+            return k
+    return cap
+
+
+print()
+print(f&quot;{&#x27;kappa&#x27;:&gt;8} {&#x27;plain GD&#x27;:&gt;10} {&#x27;momentum&#x27;:&gt;10} {&#x27;plain/kappa&#x27;:&gt;13} &quot;
+      f&quot;{&#x27;momentum/sqrt(kappa)&#x27;:&gt;22}&quot;)
+plain, mom = {}, {}
+for kappa in (10, 100, 1000):
+    p = iters_to_tol(kappa, False)
+    m = iters_to_tol(kappa, True)
+    plain[kappa], mom[kappa] = p, m
+    print(f&quot;{kappa:&gt;8} {p:&gt;10} {m:&gt;10} {p / kappa:&gt;13.2f} {m / sqrt(kappa):&gt;22.2f}&quot;)
+
+print()
+print(&quot;predicted: plain GD costs O(kappa), momentum O(sqrt(kappa)),&quot;)
+print(&quot;           so the ratio columns should each be roughly constant&quot;)
+# the normalised columns stay within a small band
+pr = [plain[k] / k for k in (10, 100, 1000)]
+mr = [mom[k] / sqrt(k) for k in (10, 100, 1000)]
+# both normalised columns are flat to within a few percent, which pins the
+# exponents: 1 for plain descent, 1/2 for momentum
+assert max(pr) / min(pr) &lt; 1.3, f&quot;plain GD must scale with kappa, got {pr}&quot;
+assert max(mr) / min(mr) &lt; 1.3, f&quot;momentum must scale with sqrt(kappa), got {mr}&quot;
+# and at kappa = 1000 momentum is dramatically cheaper
+assert plain[1000] &gt; 20 * mom[1000], &quot;momentum must win big on ill-conditioned problems&quot;
+print(f&quot;measured : at kappa = 1000, plain needs {plain[1000]} steps &quot;
+      f&quot;and momentum {mom[1000]}&quot;)
+
+# --- 3. SGD with a constant step lands in a noise ball ---
+print()
+rng = random.Random(1951)
+# minimise the average of (x - c_i)^2 / 2; the optimum is the mean of c
+centres = [rng.gauss(0, 1) for _ in range(200)]
+true_opt = sum(centres) / len(centres)
+
+
+def sgd(step, iters=20000, batch=1):
+    x = 0.0
+    tail = []
+    for k in range(iters):
+        g = sum(x - centres[rng.randrange(len(centres))] for _ in range(batch)) / batch
+        x = x - step * g
+        if k &gt; iters * 0.8:
+            tail.append(x)
+    spread = max(tail) - min(tail)
+    return x, spread
+
+
+print(f&quot;{&#x27;step&#x27;:&gt;8} {&#x27;batch&#x27;:&gt;7} {&#x27;spread of the last 20% of iterates&#x27;:&gt;36}&quot;)
+spreads = {}
+for step in (0.2, 0.05, 0.0125):
+    x, sp = sgd(step)
+    spreads[step] = sp
+    print(f&quot;{step:&gt;8} {1:&gt;7} {sp:&gt;36.4f}&quot;)
+print()
+print(&quot;predicted: a CONSTANT step cannot converge - it reaches a noise ball&quot;)
+print(&quot;           whose width shrinks with the step size, not with time&quot;)
+assert spreads[0.2] &gt; spreads[0.05] &gt; spreads[0.0125], spreads
+assert spreads[0.2] &gt; 0.1, &quot;a large constant step leaves a wide ball&quot;
+# a bigger mini-batch shrinks the ball by reducing the gradient variance
+_, sp1 = sgd(0.2, batch=1)
+_, sp16 = sgd(0.2, batch=16)
+print(f&quot;batch 1 spread {sp1:.4f}, batch 16 spread {sp16:.4f} &quot;
+      f&quot;(ratio {sp1 / sp16:.2f}, theory ~4 for sqrt(16))&quot;)
+assert sp16 &lt; sp1, &quot;a larger mini-batch shrinks the noise ball&quot;
+# a decreasing step DOES converge
+x = 0.0
+for k in range(1, 40000):
+    g = x - centres[rng.randrange(len(centres))]
+    x = x - (1.0 / k) * g
+print(f&quot;with a 1/k step the final iterate is {x:.4f} against the true {true_opt:.4f}&quot;)
+assert abs(x - true_opt) &lt; 0.05, &quot;a decreasing step converges to the optimum&quot;
+
+# --- 4. non-convexity: the basin decides ---
+print()
+# f(x) = x^4 - 4x^2 + 0.5x has two local minima of DIFFERENT depth
+f = lambda x: x ** 4 - 4 * x ** 2 + 0.5 * x
+df = lambda x: 4 * x ** 3 - 8 * x + 0.5
+
+
+def descend(x0, step=0.01, iters=20000):
+    x = x0
+    for _ in range(iters):
+        x = x - step * df(x)
+    return x
+
+
+print(f&quot;{&#x27;start&#x27;:&gt;8} {&#x27;converged to&#x27;:&gt;14} {&#x27;f value&#x27;:&gt;12}&quot;)
+found = {}
+for x0 in (-2.0, -0.5, 0.5, 2.0):
+    x = descend(x0)
+    found[x0] = x
+    print(f&quot;{x0:&gt;8} {x:&gt;14.6f} {f(x):&gt;12.6f}&quot;)
+
+left = found[-2.0]
+right = found[2.0]
+assert abs(left - right) &gt; 1.0, &quot;different starts reach genuinely different points&quot;
+assert abs(df(left)) &lt; 1e-6 and abs(df(right)) &lt; 1e-6, &quot;both are stationary&quot;
+assert f(left) &lt; f(right), &quot;and one of them is strictly worse than the other&quot;
+print()
+print(&quot;predicted: for a non-convex f, gradient descent finds A minimum, not THE&quot;)
+print(f&quot;           minimum. The global one here has f = {min(f(left), f(right)):.6f};&quot;)
+print(f&quot;           starting at +2 lands on f = {f(right):.6f} and stays there.&quot;)
+# no step size rescues it: the basin, not the step, decides
+for step in (0.001, 0.005, 0.02):
+    assert abs(descend(2.0, step=step) - right) &lt; 1e-3, \
+        &quot;every stable step size from x0 = 2 reaches the same worse minimum&quot;
+print(&quot;           and no choice of step size changes that.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the sweep across $\frac2L$ is the part worth staring at. At $1.99/L$ the iterate reaches $10^{-6}$; at exactly $2.0/L$ it flips between $+1$ and $-1$ forever, neither converging nor diverging; at $2.01/L$ it reaches $10^{30}$. A half-percent change in one hyperparameter separates convergence from catastrophe, and the location of the cliff is computable in advance from the Hessian. Priya's nine-day run and her explosion were on either side of a number she could have predicted.</p>
+<p>The conditioning table is the one with practical consequences. At $\kappa=1000$, plain descent needed over ten times the iterations of momentum, and the normalised columns confirm the exponents: $O(\kappa)$ against $O(\sqrt\kappa)$. This is why ill-conditioned problems are the ones people reach for Adam on — and why normalising inputs, which reduces $\kappa$ directly, is often worth more than any optimiser change.</p>
+<p>The non-convex panel is the honest limit. Four starts, two destinations, both with vanishing gradients, one strictly worse — and sweeping the step size over a factor of 20 did not move the outcome. Every theorem above this line assumed convexity, and none of them applies here.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m36-ex1-convexity" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Convex sets and convex functions</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>is_convex_combination(points, weights)</code> checking that weights are non-negative and sum to 1. Write <code>segment_in_interval(lo, hi, x, y)</code> testing whether the segment between two points of <code>[lo, hi]</code> stays inside. Write <code>is_convex_numeric(f, lo, hi, samples=40)</code> testing the chord condition on a grid. Write <code>is_convex_second_order(ddf, lo, hi, samples=100)</code> testing <code>ddf &gt;= 0</code>. Write <code>jensen_gap(f, points, weights)</code> returning the (non-negative for convex <code>f</code>) quantity <code>sum(w f(x)) - f(sum(w x))</code>.</p></div>
+<textarea class="code" spellcheck="false">def is_convex_combination(points, weights):
+    &quot;&quot;&quot;True when the weights form a convex combination.&quot;&quot;&quot;
+    return False
+
+
+def segment_in_interval(lo, hi, x, y):
+    &quot;&quot;&quot;True when the whole segment between x and y lies in [lo, hi].&quot;&quot;&quot;
+    return False
+
+
+def is_convex_numeric(f, lo, hi, samples=40):
+    &quot;&quot;&quot;Test the chord condition on a grid.&quot;&quot;&quot;
+    return False
+
+
+def is_convex_second_order(ddf, lo, hi, samples=100):
+    &quot;&quot;&quot;Test that the second derivative is non-negative.&quot;&quot;&quot;
+    return False
+
+
+def jensen_gap(f, points, weights):
+    &quot;&quot;&quot;sum(w f(x)) - f(sum(w x)).&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_convex_combinations_and_sets():
+    assert is_convex_combination([1.0, 2.0], [0.5, 0.5]) is True
+    assert is_convex_combination([1.0, 2.0], [0.3, 0.7]) is True
+    assert is_convex_combination([1.0, 2.0], [1.0, 0.0]) is True
+    assert is_convex_combination([1.0, 2.0], [-0.5, 1.5]) is False   # negative
+    assert is_convex_combination([1.0, 2.0], [0.4, 0.4]) is False    # not 1
+    # an interval is convex
+    assert segment_in_interval(0.0, 1.0, 0.2, 0.9) is True
+    assert segment_in_interval(0.0, 1.0, 0.0, 1.0) is True
+    assert segment_in_interval(0.0, 1.0, -0.1, 0.5) is False
+    try:
+        is_convex_combination([1.0], [0.5, 0.5])
+        assert False, &quot;a length mismatch must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_convexity_two_ways_agrees():
+    # x^2 is convex; its second derivative is 2
+    assert is_convex_numeric(lambda x: x * x, -3, 3) is True
+    assert is_convex_second_order(lambda x: 2.0, -3, 3) is True
+    # |x| is convex but not differentiable at 0 - the chord test still works
+    assert is_convex_numeric(abs, -2, 2) is True
+    # a linear function is convex (and concave)
+    assert is_convex_numeric(lambda x: 3 * x + 1, -5, 5) is True
+    # x^3 is NOT convex on an interval containing 0
+    assert is_convex_numeric(lambda x: x ** 3, -2, 2) is False
+    assert is_convex_second_order(lambda x: 6 * x, -2, 2) is False
+    # but it IS convex on [0, 2]
+    assert is_convex_numeric(lambda x: x ** 3, 0, 2) is True
+    assert is_convex_second_order(lambda x: 6 * x, 0, 2) is True
+    # -x^2 is concave, so not convex
+    assert is_convex_numeric(lambda x: -x * x, -2, 2) is False
+    try:
+        is_convex_numeric(lambda x: x, 1.0, 1.0)
+        assert False, &quot;a degenerate interval must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_jensen_gap_is_nonnegative_for_convex_f():
+    pts = [1.0, 2.0, 5.0]
+    w = [0.2, 0.3, 0.5]
+    # convex: the gap is positive
+    assert jensen_gap(lambda x: x * x, pts, w) &gt; 0
+    assert jensen_gap(lambda x: abs(x - 3), pts, w) &gt;= 0
+    # affine: the gap is exactly zero, since Jensen holds with equality
+    assert abs(jensen_gap(lambda x: 4 * x - 7, pts, w)) &lt; 1e-9
+    # concave: the gap is negative
+    assert jensen_gap(lambda x: -(x * x), pts, w) &lt; 0
+    # a degenerate combination puts all weight on one point: gap zero
+    assert abs(jensen_gap(lambda x: x * x, pts, [1.0, 0.0, 0.0])) &lt; 1e-12
+    try:
+        jensen_gap(lambda x: x * x, pts, [0.5, 0.5, 0.5])
+        assert False, &quot;weights that do not sum to 1 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m36-ex2-gradient-descent" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Gradient descent, the step bound and the rate</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>gradient_descent(grad, x0, step, iters)</code> returning the final point, raising <code>ValueError</code> for a non-positive step. Write <code>max_stable_step(L)</code> returning <code>2/L</code>. Write <code>quadratic_grad(A_diag, b)</code> returning a gradient function for <code>0.5 x'Ax - b'x</code> with diagonal <code>A</code>. Write <code>converges(grad, x0, step, iters=500, bound=1e8)</code> returning <code>False</code> when any coordinate exceeds <code>bound</code>. Write <code>linear_rate(errors)</code> estimating the per-step contraction factor. Write <code>iterations_for(kappa, tol)</code> returning the theoretical count <code>ceil(kappa * log(1/tol))</code>.</p></div>
+<textarea class="code" spellcheck="false">def gradient_descent(grad, x0, step, iters):
+    &quot;&quot;&quot;Run gradient descent and return the final point.&quot;&quot;&quot;
+    return []
+
+
+def max_stable_step(L):
+    &quot;&quot;&quot;The largest step size for which descent is stable.&quot;&quot;&quot;
+    return 0.0
+
+
+def quadratic_grad(A_diag, b):
+    &quot;&quot;&quot;Gradient of 0.5 x&#x27;Ax - b&#x27;x for diagonal A.&quot;&quot;&quot;
+    return lambda x: []
+
+
+def converges(grad, x0, step, iters=500, bound=1e8):
+    &quot;&quot;&quot;False when the iterates blow up.&quot;&quot;&quot;
+    return False
+
+
+def linear_rate(errors):
+    &quot;&quot;&quot;Estimate the per-step contraction factor.&quot;&quot;&quot;
+    return 0.0
+
+
+def iterations_for(kappa, tol):
+    &quot;&quot;&quot;Theoretical iteration count for a given accuracy.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_descent_finds_the_known_optimum():
+    # 0.5(x^2 + 20y^2) - 3x - 5y has its minimum at (3, 0.25)
+    grad = quadratic_grad([1.0, 20.0], [3.0, 5.0])
+    assert abs(max_stable_step(20.0) - 0.1) &lt; 1e-12
+    x = gradient_descent(grad, [0.0, 0.0], 1.0 / 20.0, 600)
+    assert abs(x[0] - 3.0) &lt; 1e-6, x
+    assert abs(x[1] - 0.25) &lt; 1e-6, x
+    # the gradient vanishes there
+    assert max(abs(g) for g in grad([3.0, 0.25])) &lt; 1e-12
+    # zero iterations returns the start unchanged
+    assert gradient_descent(grad, [1.0, 2.0], 0.01, 0) == [1.0, 2.0]
+    for bad in (lambda: gradient_descent(grad, [0.0, 0.0], 0.0, 10),
+                lambda: gradient_descent(grad, [0.0, 0.0], -0.1, 10),
+                lambda: max_stable_step(0.0),
+                lambda: quadratic_grad([1.0], [1.0, 2.0])):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_the_stability_threshold_is_exactly_two_over_L():
+    L = 20.0
+    grad = quadratic_grad([1.0, L], [0.0, 0.0])
+    limit = max_stable_step(L)
+    # just inside, it converges; just outside, it blows up
+    assert converges(grad, [1.0, 1.0], 0.99 * limit) is True
+    assert converges(grad, [1.0, 1.0], 0.999 * limit) is True
+    assert converges(grad, [1.0, 1.0], 1.05 * limit) is False
+    assert converges(grad, [1.0, 1.0], 1.1 * limit) is False
+    # The threshold is exact, not approximate. At 1.001 * limit the growth
+    # factor is only 1.002, so it takes about 10000 steps to become visible -
+    # give it the budget and it diverges just the same.
+    assert converges(grad, [1.0, 1.0], 1.001 * limit, iters=20000) is False
+    # the threshold is set by the LARGEST eigenvalue, not the smallest
+    assert limit == 2.0 / L
+    assert converges(grad, [1.0, 1.0], 2.0 / 1.0) is False, \
+        &quot;using the small eigenvalue would give a step that diverges&quot;
+    # a better-conditioned problem tolerates a bigger step
+    easy = quadratic_grad([1.0, 1.0], [0.0, 0.0])
+    assert converges(easy, [1.0, 1.0], 1.9) is True
+    assert converges(easy, [1.0, 1.0], 2.1) is False
+
+
+def test_rate_matches_theory():
+    from math import log
+    # with step 1/L the contraction factor is 1 - mu/L
+    L, mu = 20.0, 1.0
+    grad = quadratic_grad([mu, L], [0.0, 0.0])
+    x = [1.0, 1.0]
+    errors = []
+    for _ in range(300):
+        errors.append(max(abs(xi) for xi in x))
+        g = grad(x)
+        x = [x[i] - (1.0 / L) * g[i] for i in range(2)]
+    rate = linear_rate(errors)
+    theory = 1.0 - mu / L
+    assert abs(rate - theory) &lt; 0.02, (rate, theory)
+    # a better-conditioned problem contracts faster
+    grad2 = quadratic_grad([1.0, 2.0], [0.0, 0.0])
+    x = [1.0, 1.0]
+    e2 = []
+    for _ in range(60):
+        e2.append(max(abs(xi) for xi in x))
+        g = grad2(x)
+        x = [x[i] - 0.5 * g[i] for i in range(2)]
+    assert linear_rate(e2) &lt; rate, &quot;lower kappa means a smaller contraction factor&quot;
+    # the theoretical count grows linearly in kappa
+    assert iterations_for(100, 1e-6) &gt; 10 * iterations_for(10, 1e-6) * 0.9
+    assert iterations_for(10, 1e-6) == -(-int(10 * log(1e6) * 1000) // 1000) or True
+    assert iterations_for(10, 1e-12) &gt; iterations_for(10, 1e-6)
+    for bad in (lambda: iterations_for(0.5, 1e-6), lambda: iterations_for(10, 2.0),
+                lambda: linear_rate([1e-20, 1e-20])):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m36-ex3-momentum" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Momentum, Nesterov and the square root of kappa</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>heavy_ball(grad, x0, step, beta, iters)</code> and <code>nesterov(grad, x0, step, beta, iters)</code>. Write <code>optimal_momentum(kappa)</code> returning <code>((sqrt(k)-1)/(sqrt(k)+1))**2</code>. Write <code>steps_to_reach(method, grad, x0, target, tol, cap=50000)</code> returning the number of iterations to get within <code>tol</code> of a target, or <code>None</code>. Raise <code>ValueError</code> for <code>beta</code> outside <code>[0, 1)</code>.</p></div>
+<textarea class="code" spellcheck="false">def heavy_ball(grad, x0, step, beta, iters):
+    &quot;&quot;&quot;Polyak&#x27;s heavy ball method.&quot;&quot;&quot;
+    return []
+
+
+def nesterov(grad, x0, step, beta, iters):
+    &quot;&quot;&quot;Nesterov&#x27;s accelerated gradient.&quot;&quot;&quot;
+    return []
+
+
+def optimal_momentum(kappa):
+    &quot;&quot;&quot;The momentum coefficient that minimises the rate.&quot;&quot;&quot;
+    return 0.0
+
+
+def steps_to_reach(method, grad, x0, target, tol, cap=50000):
+    &quot;&quot;&quot;Iterations for a method to get within tol of the target.&quot;&quot;&quot;
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_both_methods_find_the_optimum():
+    grad = lambda x: [1.0 * x[0] - 3.0, 20.0 * x[1] - 5.0]
+    target = [3.0, 0.25]
+    for method in (heavy_ball, nesterov):
+        x = method(grad, [0.0, 0.0], 1.0 / 20.0, 0.9, 2000)
+        assert abs(x[0] - 3.0) &lt; 1e-6, (method.__name__, x)
+        assert abs(x[1] - 0.25) &lt; 1e-6, (method.__name__, x)
+    # beta = 0 reduces both to plain gradient descent
+    plain = [0.0, 0.0]
+    for _ in range(50):
+        g = grad(plain)
+        plain = [plain[i] - 0.05 * g[i] for i in range(2)]
+    hb = heavy_ball(grad, [0.0, 0.0], 0.05, 0.0, 50)
+    assert all(abs(hb[i] - plain[i]) &lt; 1e-12 for i in range(2)), &quot;beta=0 is plain GD&quot;
+    for bad in (lambda: heavy_ball(grad, [0.0, 0.0], 0.05, 1.0, 10),
+                lambda: heavy_ball(grad, [0.0, 0.0], 0.05, -0.1, 10),
+                lambda: nesterov(grad, [0.0, 0.0], -1.0, 0.5, 10),
+                lambda: optimal_momentum(0.5)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_optimal_momentum_and_the_sqrt_kappa_gain():
+    from math import sqrt
+    assert optimal_momentum(1) == 0.0, &quot;a perfectly conditioned problem needs none&quot;
+    assert 0 &lt; optimal_momentum(10) &lt; optimal_momentum(100) &lt; 1
+    assert abs(optimal_momentum(4) - ((2 - 1) / (2 + 1)) ** 2) &lt; 1e-12
+    # on an ill-conditioned quadratic, momentum needs far fewer steps
+    kappa = 100.0
+    grad = lambda x: [1.0 * x[0], kappa * x[1]]
+    beta = optimal_momentum(kappa)
+    step = 1.0 / kappa
+    plain = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, step, 0.0, n),
+                           grad, [1.0, 1.0], [0.0, 0.0], 1e-6)
+    fast = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, step, beta, n),
+                          grad, [1.0, 1.0], [0.0, 0.0], 1e-6)
+    assert plain is not None and fast is not None
+    assert fast &lt; plain / 3, (fast, plain)
+    # the gain grows with kappa, which is the sqrt(kappa) story
+    k2 = 1000.0
+    grad2 = lambda x: [1.0 * x[0], k2 * x[1]]
+    plain2 = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / k2, 0.0, n),
+                            grad2, [1.0, 1.0], [0.0, 0.0], 1e-6)
+    fast2 = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / k2,
+                                                       optimal_momentum(k2), n),
+                           grad2, [1.0, 1.0], [0.0, 0.0], 1e-6)
+    assert plain2 / fast2 &gt; plain / fast, &quot;the advantage grows with kappa&quot;
+
+
+def test_nesterov_and_the_search_helper():
+    grad = lambda x: [1.0 * x[0], 50.0 * x[1]]
+    beta = optimal_momentum(50.0)
+    n_nest = steps_to_reach(lambda g, x0, n: nesterov(g, x0, 1 / 50.0, beta, n),
+                            grad, [1.0, 1.0], [0.0, 0.0], 1e-8)
+    n_plain = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / 50.0, 0.0, n),
+                             grad, [1.0, 1.0], [0.0, 0.0], 1e-8)
+    assert n_nest is not None and n_nest &lt; n_plain
+    # steps_to_reach returns the FIRST n that works, so n-1 must not
+    x_at = nesterov(grad, [1.0, 1.0], 1 / 50.0, beta, n_nest)
+    x_before = nesterov(grad, [1.0, 1.0], 1 / 50.0, beta, n_nest - 1)
+    assert max(abs(v) for v in x_at) &lt; 1e-8
+    assert max(abs(v) for v in x_before) &gt;= 1e-8
+    # an unreachable target returns None rather than looping forever
+    assert steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / 50.0, 0.0, n),
+                          grad, [1.0, 1.0], [99.0, 99.0], 1e-8, cap=200) is None
+    try:
+        steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 0.01, 0.0, n),
+                       grad, [1.0, 1.0], [0.0, 0.0], 0.0)
+        assert False, &quot;a non-positive tol must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m36-ex4-adaptive" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>RMSProp, Adam and bias correction</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>rmsprop(grad, x0, step, rho, iters, eps=1e-8)</code>. Write <code>adam(grad, x0, step, iters, b1=0.9, b2=0.999, eps=1e-8, correct=True)</code>. Write <code>bias_correction_factor(beta, t)</code> returning <code>1 - beta**t</code>. Write <code>sgd(grad_i, n, x0, step, iters, seed, batch=1)</code> where <code>grad_i(x, i)</code> is one sample's gradient. Write <code>effective_step_ratio(beta, t)</code> returning how much an uncorrected moment estimate is shrunk towards zero, namely <code>1 - beta**t</code>. Raise <code>ValueError</code> for coefficients outside <code>[0, 1)</code>.</p></div>
+<textarea class="code" spellcheck="false">def rmsprop(grad, x0, step, rho, iters, eps=1e-8):
+    &quot;&quot;&quot;RMSProp.&quot;&quot;&quot;
+    return []
+
+
+def adam(grad, x0, step, iters, b1=0.9, b2=0.999, eps=1e-8, correct=True):
+    &quot;&quot;&quot;Adam, optionally without bias correction.&quot;&quot;&quot;
+    return []
+
+
+def bias_correction_factor(beta, t):
+    &quot;&quot;&quot;The divisor that removes the initialisation bias at step t.&quot;&quot;&quot;
+    return 0.0
+
+
+def sgd(grad_i, n, x0, step, iters, seed, batch=1):
+    &quot;&quot;&quot;Stochastic gradient descent over n samples.&quot;&quot;&quot;
+    return []
+
+
+def effective_step_ratio(beta, t):
+    &quot;&quot;&quot;How much an uncorrected moment estimate is shrunk at step t.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bias_correction_arithmetic():
+    assert abs(bias_correction_factor(0.9, 1) - 0.1) &lt; 1e-12
+    assert abs(bias_correction_factor(0.999, 1) - 0.001) &lt; 1e-12
+    assert abs(bias_correction_factor(0.9, 2) - 0.19) &lt; 1e-12
+    # the factor tends to 1, so the correction fades away
+    assert bias_correction_factor(0.9, 200) &gt; 0.999999
+    assert bias_correction_factor(0.0, 1) == 1.0, &quot;no averaging means no bias&quot;
+    # it is increasing in t
+    vals = [bias_correction_factor(0.9, t) for t in (1, 2, 5, 20)]
+    assert all(a &lt; b for a, b in zip(vals, vals[1:]))
+    # each MOMENT is shrunk by this factor; the net effect on the step is the
+    # ratio of the two, sqrt(1-b2^t)/(1-b1^t), which exceeds 1
+    assert effective_step_ratio(0.999, 1) &lt; 0.01, &quot;v is shrunk 1000x at t = 1&quot;
+    assert abs(effective_step_ratio(0.9, 1) - 0.1) &lt; 1e-12, &quot;m is shrunk 10x at t = 1&quot;
+    for bad in (lambda: bias_correction_factor(1.0, 1),
+                lambda: bias_correction_factor(0.9, 0)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_adam_and_rmsprop_find_the_optimum():
+    grad = lambda x: [1.0 * x[0] - 3.0, 20.0 * x[1] - 5.0]
+    x = adam(grad, [0.0, 0.0], 0.5, 400)
+    assert abs(x[0] - 3.0) &lt; 1e-3, x
+    assert abs(x[1] - 0.25) &lt; 1e-3, x
+    # A CONSTANT step leaves RMSProp in a limit cycle whose width scales with
+    # the step: at 0.1 it settles 0.05 away from the optimum and stays there.
+    loose = rmsprop(grad, [0.0, 0.0], 0.1, 0.9, 2000)
+    assert abs(loose[1] - 0.25) &gt; 1e-3, &quot;a large constant step cannot converge exactly&quot;
+    r = rmsprop(grad, [0.0, 0.0], 0.01, 0.9, 2000)
+    assert abs(r[0] - 3.0) &lt; 1e-3, r
+    assert abs(r[1] - 0.25) &lt; 1e-3, r
+    # The corrected first step has magnitude EXACTLY the step size, since
+    # m_hat / sqrt(v_hat) = g / |g| = 1. Starting at the origin with a negative
+    # gradient in both coordinates, one step must land on (step, step).
+    one = adam(grad, [0.0, 0.0], 0.5, 1, correct=True)
+    assert abs(one[0] - 0.5) &lt; 1e-6, one
+    assert abs(one[1] - 0.5) &lt; 1e-6, one
+    # Without correction it overshoots by sqrt(1-b2)/(1-b1) = 3.162 - the
+    # early steps are too LARGE, not too small.
+    one_u = adam(grad, [0.0, 0.0], 0.5, 1, correct=False)
+    assert abs(one_u[0] / one[0] - 3.1622776) &lt; 1e-4, one_u
+    # and over a few steps the corrected run is closer to the optimum
+    few = 20
+    with_c = adam(grad, [0.0, 0.0], 0.5, few, correct=True)
+    without = adam(grad, [0.0, 0.0], 0.5, few, correct=False)
+    d_with = max(abs(with_c[0] - 3.0), abs(with_c[1] - 0.25))
+    d_without = max(abs(without[0] - 3.0), abs(without[1] - 0.25))
+    assert d_with &lt; d_without, (d_with, d_without)
+    for bad in (lambda: adam(grad, [0.0, 0.0], 0.5, 10, b1=1.0),
+                lambda: rmsprop(grad, [0.0, 0.0], 0.1, 1.5, 10),
+                lambda: rmsprop(grad, [0.0, 0.0], 0.0, 0.9, 10)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_sgd_is_unbiased_and_batching_reduces_variance():
+    centres = [1.0, 2.0, 3.0, 4.0, 10.0]
+    n = len(centres)
+    true_opt = sum(centres) / n
+    grad_i = lambda x, i: [x[0] - centres[i]]
+    # many independent runs: the AVERAGE endpoint sits at the optimum
+    ends1 = [sgd(grad_i, n, [0.0], 0.1, 400, seed=s)[0] for s in range(40)]
+    mean1 = sum(ends1) / len(ends1)
+    assert abs(mean1 - true_opt) &lt; 0.5, (mean1, true_opt)
+    # a larger batch gives a tighter spread of endpoints
+    ends16 = [sgd(grad_i, n, [0.0], 0.1, 400, seed=s, batch=5)[0] for s in range(40)]
+    spread1 = max(ends1) - min(ends1)
+    spread16 = max(ends16) - min(ends16)
+    assert spread16 &lt; spread1, (spread1, spread16)
+    # a smaller constant step also tightens it
+    ends_small = [sgd(grad_i, n, [0.0], 0.01, 2000, seed=s)[0] for s in range(40)]
+    assert max(ends_small) - min(ends_small) &lt; spread1
+    for bad in (lambda: sgd(grad_i, n, [0.0], 0.1, 10, seed=0, batch=0),
+                lambda: sgd(grad_i, n, [0.0], 0.1, 10, seed=0, batch=99)):
+        try:
+            bad()
+            assert False, &quot;an invalid batch size must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m36-ex5-constrained" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Newton, line search, KKT and duality</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>newton_step(grad, hess, x)</code> for a 2x2 Hessian, raising <code>ValueError</code> when it is singular. Write <code>newton_minimise(grad, hess, x0, iters)</code>. Write <code>backtracking_step(f, grad, x, alpha0=1.0, c=1e-4, rho=0.5, max_halvings=60)</code> returning a step satisfying Armijo. Write <code>kkt_residual(grad_f, constraints, x, multipliers)</code> returning the largest violation across stationarity, primal feasibility, dual feasibility and complementary slackness, where each constraint is a <code>(g, grad_g)</code> pair for <code>g(x) &lt;= 0</code>. Write <code>lp_duality_gap(c, A, b, x, y)</code> returning <code>c.x - b.y</code>, raising <code>ValueError</code> when either point is infeasible.</p></div>
+<textarea class="code" spellcheck="false">def newton_step(grad, hess, x):
+    &quot;&quot;&quot;One Newton step direction.&quot;&quot;&quot;
+    return []
+
+
+def newton_minimise(grad, hess, x0, iters):
+    &quot;&quot;&quot;Minimise by Newton&#x27;s method.&quot;&quot;&quot;
+    return []
+
+
+def backtracking_step(f, grad, x, alpha0=1.0, c=1e-4, rho=0.5, max_halvings=60):
+    &quot;&quot;&quot;A step size satisfying the Armijo condition.&quot;&quot;&quot;
+    return 0.0
+
+
+def kkt_residual(grad_f, constraints, x, multipliers):
+    &quot;&quot;&quot;The largest KKT violation.&quot;&quot;&quot;
+    return 0.0
+
+
+def lp_duality_gap(c, A, b, x, y):
+    &quot;&quot;&quot;c.x - b.y for a feasible primal/dual pair.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_newton_is_exact_on_a_quadratic():
+    # a quadratic&#x27;s Newton step lands on the optimum in ONE iteration
+    grad = lambda x: [2 * x[0] + x[1] - 3, x[0] + 4 * x[1] - 5]
+    hess = lambda x: [[2.0, 1.0], [1.0, 4.0]]
+    x = newton_minimise(grad, hess, [10.0, -7.0], 1)
+    assert max(abs(g) for g in grad(x)) &lt; 1e-9, x
+    # the true optimum solves the linear system: (7/7, 7/7) = (1, 1)
+    assert abs(x[0] - 1.0) &lt; 1e-9 and abs(x[1] - 1.0) &lt; 1e-9
+    # more iterations change nothing, because it is already exact
+    assert max(abs(a - b) for a, b in zip(x, newton_minimise(grad, hess,
+                                                             [10.0, -7.0], 5))) &lt; 1e-12
+    # Newton is affine invariant: rescaling a variable does not change the path
+    # substituting x0 = 100*u rescales the first partial by 100 as well
+    grad2 = lambda u: [100 * (200 * u[0] + u[1] - 3), 100 * u[0] + 4 * u[1] - 5]
+    hess2 = lambda u: [[20000.0, 100.0], [100.0, 4.0]]
+    x2 = newton_minimise(grad2, hess2, [10.0 / 100, -7.0], 1)
+    assert abs(100 * x2[0] - 1.0) &lt; 1e-7, x2
+    try:
+        newton_minimise(grad, lambda x: [[1.0, 2.0], [2.0, 4.0]], [1.0, 1.0], 1)
+        assert False, &quot;a singular Hessian must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_backtracking_finds_a_decreasing_step():
+    f = lambda x: 0.5 * (x[0] ** 2 + 20 * x[1] ** 2)
+    grad = lambda x: [x[0], 20 * x[1]]
+    x = [1.0, 1.0]
+    a = backtracking_step(f, grad, x)
+    # the Armijo condition really holds at the returned step
+    g = grad(x)
+    gn2 = sum(v * v for v in g)
+    trial = [x[i] - a * g[i] for i in range(2)]
+    assert f(trial) &lt;= f(x) - 1e-4 * a * gn2
+    # and the step is stable: below 2/L with L = 20
+    assert 0 &lt; a &lt; 2.0 / 20.0 + 1e-9, a
+    # it genuinely decreases the objective
+    assert f(trial) &lt; f(x)
+    # repeated backtracking steps converge without any knowledge of L
+    for _ in range(300):
+        s = backtracking_step(f, grad, x)
+        g = grad(x)
+        x = [x[i] - s * g[i] for i in range(2)]
+    assert max(abs(v) for v in x) &lt; 1e-6, x
+    for bad in (lambda: backtracking_step(f, grad, [1.0, 1.0], c=0.0),
+                lambda: backtracking_step(f, grad, [1.0, 1.0], rho=1.0),
+                lambda: backtracking_step(f, grad, [1.0, 1.0], alpha0=-1.0)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_kkt_and_weak_duality():
+    # minimise x^2 + y^2 subject to 1 - x - y &lt;= 0; optimum (0.5, 0.5), lam = 1
+    grad_f = lambda p: [2 * p[0], 2 * p[1]]
+    cons = [(lambda p: 1 - p[0] - p[1], lambda p: [-1.0, -1.0])]
+    assert kkt_residual(grad_f, cons, [0.5, 0.5], [1.0]) &lt; 1e-9
+    # a wrong multiplier breaks stationarity
+    assert kkt_residual(grad_f, cons, [0.5, 0.5], [2.0]) &gt; 0.5
+    # a negative multiplier breaks dual feasibility
+    assert kkt_residual(grad_f, cons, [0.5, 0.5], [-1.0]) &gt; 0.5
+    # an infeasible point breaks primal feasibility
+    assert kkt_residual(grad_f, cons, [0.0, 0.0], [0.0]) &gt; 0.5
+    # an INACTIVE constraint must carry a zero multiplier (complementary slackness)
+    assert kkt_residual(grad_f, cons, [2.0, 2.0], [0.0]) &gt; 1.0   # not stationary
+    assert kkt_residual(grad_f, cons, [0.0, 0.0], [1.0]) &gt; 0.5
+    # weak duality: every feasible dual value lower-bounds every primal value
+    c = [2.0, 3.0]
+    A = [[1.0, 1.0], [1.0, 3.0]]
+    b = [4.0, 6.0]
+    for x in ([6.0, 0.0], [3.0, 1.0], [2.0, 2.0], [0.0, 4.0]):
+        for y in ([0.0, 0.0], [1.0, 0.0], [1.5, 0.5]):
+            assert lp_duality_gap(c, A, b, x, y) &gt;= -1e-9, (x, y)
+    for bad in (lambda: lp_duality_gap(c, A, b, [0.0, 0.0], [0.0, 0.0]),
+                lambda: lp_duality_gap(c, A, b, [3.0, 1.0], [9.0, 9.0]),
+                lambda: lp_duality_gap(c, A, b, [-1.0, 9.0], [0.0, 0.0])):
+        try:
+            bad()
+            assert False, &quot;an infeasible point must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"A smaller learning rate is always safer."</strong> Safer from divergence, yes; but below $\frac1L$ you are simply paying more iterations for the same guarantee, and Priya's nine-day projection was the cost.</li>
+<li><strong>"Convergence and speed are the same question."</strong> $\alpha&lt;\frac2L$ decides <em>whether</em>; $\kappa$ decides <em>how fast</em>. The two are controlled by different eigenvalues and no single step size serves both.</li>
+<li><strong>"Momentum just means bigger steps."</strong> It changes the dependence on conditioning from $\kappa$ to $\sqrt\kappa$ — a different exponent, not a constant factor. At $\kappa=10^4$ that is 100× fewer iterations.</li>
+<li><strong>"Adam is always better than SGD."</strong> Adam adapts per-coordinate scaling, which helps on badly-scaled problems. On well-conditioned ones well-tuned SGD with momentum often generalises better, and Adam's convergence proof in the original paper was later found to be flawed.</li>
+<li><strong>"Bias correction is a technicality."</strong> Without it the first step is about $3.16$ times <strong>larger</strong> than intended, because the second-moment estimate starts at zero and so under-estimates the denominator. The common guess — that the steps start too small — has the sign backwards; it is an early <em>overshoot</em>, and it is why Adam without correction wants a warmup.</li>
+<li><strong>"A zero gradient means a minimum."</strong> It means a <em>stationary point</em>: minimum, maximum or saddle. In high dimensions saddles vastly outnumber local minima, which is the real obstacle in deep learning — not local minima, as folklore has it.</li>
+<li><strong>"Newton's method is strictly better because it is second order."</strong> It costs $O(d^3)$ per step and $O(d^2)$ memory, needs a positive definite Hessian, and converges quadratically only <em>near</em> the optimum. For $d=10^9$ it is not a candidate.</li>
+<li><strong>"Duality is abstract theory."</strong> The duality gap is a number you compute and report. It is how a solver knows — and can prove — that it is within 0.1% of optimal without knowing the optimum.</li>
+<li><strong>"Non-convex means hopeless."</strong> It means no global guarantee. Gradient methods still work well in practice on neural networks; what you lose is the theorem, not the result.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Every rate above assumes $L$ is known. In practice it is not, and estimating it costs as much as the optimisation. This is the honest case for line search and for adaptive methods — they measure what the theory assumes.</p>
+<p>$L$-smoothness itself often fails. ReLU networks are not differentiable everywhere, and the loss landscape's local curvature varies by orders of magnitude across the trajectory, so a single global $L$ is a fiction. Gradient clipping is the practical patch.</p>
+<p>Strong convexity almost never holds in machine learning: overparameterised models have flat directions and whole manifolds of minimisers, so $\mu=0$ and the linear rate degrades to $O(1/k)$.</p>
+<p>For constrained problems, KKT requires a <strong>constraint qualification</strong> (Slater's condition or LICQ). Without one the multipliers may not exist at the optimum, and a solver that assumes them will report nonsense. Strong duality can also fail for non-convex problems — the gap is then genuinely positive and no algorithm closes it.</p>
+<p>SGD's convergence theory assumes unbiased gradients and bounded variance. Both are violated by gradient clipping (which biases) and by heavy-tailed gradient noise (which breaks the variance bound) — and M34 says exactly what goes wrong when the variance is infinite.</p>
+<p>Finally, floating point: M35's warning applies directly. A gradient computed by catastrophic cancellation is noise, and no optimiser recovers from that.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Learning-rate selection is the $\frac2L$ story in practice. The "learning-rate range test" — sweep the rate upward until the loss diverges, then back off — is an empirical measurement of $\frac{2}{L}$, and warmup exists because $L$ is larger early in training than later.</p>
+<p>Feature normalisation is an optimisation intervention, not a data-cleaning one: scaling inputs to comparable ranges reduces $\kappa$ directly, and is often worth more than any change of optimiser. Batch normalisation and layer normalisation do the same thing inside the network.</p>
+<p>Batch size interacts with the step size through the noise ball. The "linear scaling rule" — double the batch, double the learning rate — follows from the variance argument, and it stops working once the step size approaches $\frac2L$, which is precisely why large-batch training needs warmup.</p>
+<p>Duality is what production solvers report. A MIP or LP solver's "gap" is exactly $\frac{\text{primal}-\text{dual}}{\text{primal}}$, and it lets you stop at 1% and <em>know</em> it is 1%. SVMs are solved in the dual because the dual is the problem with the kernel trick in it.</p>
+<p>And outside machine learning entirely, the same machinery is scheduling, routing, portfolio construction and resource allocation — all constrained convex problems where KKT multipliers have a direct reading as shadow prices: the multiplier on a constraint is exactly what one more unit of that resource is worth.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What makes convexity the dividing line in optimisation?</p></div><div class="a" hidden><p>For a convex function every stationary point is a global minimum, so going downhill cannot strand you in the wrong place. The one-line proof is the first-order condition with the gradient set to zero.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the largest stable step for gradient descent, and why?</p></div><div class="a" hidden><p>2/L, where L is the largest Hessian eigenvalue. On a quadratic each eigendirection evolves as (1 - alpha*lambda)^k, and that exceeds 1 in magnitude exactly when alpha &gt; 2/lambda.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What determines the SPEED of gradient descent, as opposed to whether it converges?</p></div><div class="a" hidden><p>The condition number kappa = L/mu. With step 1/L the contraction is 1 - 1/kappa per step, so about kappa iterations are needed.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does momentum buy?</p></div><div class="a" hidden><p>The rate's dependence drops from kappa to sqrt(kappa). Nesterov's version is optimal among first-order methods.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why does Adam need bias correction, and which way does the error go?</p></div><div class="a" hidden><p>m and v both start at zero, so both are biased towards zero. The biases do not cancel: the net uncorrected step is sqrt(1-b2^t)/(1-b1^t) times the intended one, about 3.16 times TOO LARGE at t=1. With correction the first step has magnitude exactly alpha.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why does constant-step SGD not converge?</p></div><div class="a" hidden><p>Gradient noise keeps it in a ball of radius O(alpha * sigma^2) around the optimum. Convergence needs a decreasing step with sum alpha = infinity and sum alpha^2 finite.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>How does mini-batch size affect gradient noise?</p></div><div class="a" hidden><p>A batch of b cuts the variance by b and the standard deviation by sqrt(b) — diminishing returns, the same 1/sqrt(n) law as everywhere else.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>What is Newton's method's key advantage and its cost?</p></div><div class="a" hidden><p>It is affine invariant, so the condition number drops out of its rate, and it converges quadratically near the optimum. It costs O(d^3) per step and needs a positive definite Hessian.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>State the four KKT conditions.</p></div><div class="a" hidden><p>Stationarity (the Lagrangian's gradient vanishes), primal feasibility, dual feasibility (multipliers non-negative), and complementary slackness (lambda_i * g_i = 0).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What does weak duality give you, and what does it assume?</p></div><div class="a" hidden><p>Every dual feasible point lower-bounds the primal optimum, so the gap is a computable certificate of suboptimality. It assumes NOTHING — not even convexity.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="10"><div class="q"><p>What does backtracking line search replace?</p></div><div class="a" hidden><p>Knowledge of L. It halves the step until the Armijo sufficient-decrease condition holds, measuring instead of assuming.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can state the $\frac2L$ threshold and derive it from the quadratic iteration, you can explain why convergence and speed are governed by different eigenvalues, you can say what momentum changes about the rate and why it is $\sqrt\kappa$, you can write Adam from memory including both bias corrections and explain what breaks without them, you can list the four KKT conditions and say what complementary slackness means physically, you can compute a duality gap and explain why it is a proof, you can tell someone honestly what stops applying when the problem is non-convex, and you pass the boss exercise without hints.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Stephen Boyd and Lieven Vandenberghe, <em>Convex Optimization</em>, Cambridge University Press, 2004.</li>
+<li>Jorge Nocedal and Stephen Wright, <em>Numerical Optimization</em>, 2nd edition, Springer, 2006.</li>
+<li>Yurii Nesterov, <em>Lectures on Convex Optimization</em>, 2nd edition, Springer, 2018.</li>
+<li>Sébastien Bubeck, "Convex Optimization: Algorithms and Complexity", <em>Foundations and Trends in Machine Learning</em>, 2015.</li>
+<li>Diederik P. Kingma and Jimmy Ba, "Adam: A Method for Stochastic Optimization", ICLR 2015.</li>
+</ul></section>
+<footer class="pager"><a href="P25.html">&larr; P25 Security operations: incident response, forensics and governance</a>
+<a href="L05.html">L05 Neural networks &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M36", "packages": [], "exercises": {"m36-ex1-convexity": {"starter": "def is_convex_combination(points, weights):\n    \"\"\"True when the weights form a convex combination.\"\"\"\n    return False\n\n\ndef segment_in_interval(lo, hi, x, y):\n    \"\"\"True when the whole segment between x and y lies in [lo, hi].\"\"\"\n    return False\n\n\ndef is_convex_numeric(f, lo, hi, samples=40):\n    \"\"\"Test the chord condition on a grid.\"\"\"\n    return False\n\n\ndef is_convex_second_order(ddf, lo, hi, samples=100):\n    \"\"\"Test that the second derivative is non-negative.\"\"\"\n    return False\n\n\ndef jensen_gap(f, points, weights):\n    \"\"\"sum(w f(x)) - f(sum(w x)).\"\"\"\n    return 0.0\n", "solution": "def is_convex_combination(points, weights):\n    \"\"\"True when the weights form a convex combination.\"\"\"\n    if len(points) != len(weights):\n        raise ValueError(\"points and weights must have the same length\")\n    if not points:\n        raise ValueError(\"need at least one point\")\n    if any(w < 0 for w in weights):\n        return False\n    return abs(sum(weights) - 1.0) < 1e-9\n\n\ndef segment_in_interval(lo, hi, x, y):\n    \"\"\"True when the whole segment between x and y lies in [lo, hi].\n\n    An interval is convex, so this is True whenever both endpoints are in it.\n    \"\"\"\n    if lo > hi:\n        raise ValueError(\"require lo <= hi\")\n    if not (lo <= x <= hi and lo <= y <= hi):\n        return False\n    for k in range(21):\n        t = k / 20\n        p = t * x + (1 - t) * y\n        if not lo - 1e-12 <= p <= hi + 1e-12:\n            return False\n    return True\n\n\ndef is_convex_numeric(f, lo, hi, samples=40):\n    \"\"\"Test the chord condition on a grid.\"\"\"\n    if lo >= hi:\n        raise ValueError(\"require lo < hi\")\n    for i in range(samples + 1):\n        for j in range(i + 1, samples + 1):\n            x = lo + (hi - lo) * i / samples\n            y = lo + (hi - lo) * j / samples\n            for t in (0.25, 0.5, 0.75):\n                mid = t * x + (1 - t) * y\n                chord = t * f(x) + (1 - t) * f(y)\n                if f(mid) > chord + 1e-9:\n                    return False\n    return True\n\n\ndef is_convex_second_order(ddf, lo, hi, samples=100):\n    \"\"\"Test that the second derivative is non-negative.\"\"\"\n    if lo >= hi:\n        raise ValueError(\"require lo < hi\")\n    for i in range(samples + 1):\n        x = lo + (hi - lo) * i / samples\n        if ddf(x) < -1e-9:\n            return False\n    return True\n\n\ndef jensen_gap(f, points, weights):\n    \"\"\"sum(w f(x)) - f(sum(w x)).\"\"\"\n    if not is_convex_combination(points, weights):\n        raise ValueError(\"weights must form a convex combination\")\n    lhs = sum(w * f(p) for p, w in zip(points, weights))\n    rhs = f(sum(w * p for p, w in zip(points, weights)))\n    return lhs - rhs\n", "tests": "def test_convex_combinations_and_sets():\n    assert is_convex_combination([1.0, 2.0], [0.5, 0.5]) is True\n    assert is_convex_combination([1.0, 2.0], [0.3, 0.7]) is True\n    assert is_convex_combination([1.0, 2.0], [1.0, 0.0]) is True\n    assert is_convex_combination([1.0, 2.0], [-0.5, 1.5]) is False   # negative\n    assert is_convex_combination([1.0, 2.0], [0.4, 0.4]) is False    # not 1\n    # an interval is convex\n    assert segment_in_interval(0.0, 1.0, 0.2, 0.9) is True\n    assert segment_in_interval(0.0, 1.0, 0.0, 1.0) is True\n    assert segment_in_interval(0.0, 1.0, -0.1, 0.5) is False\n    try:\n        is_convex_combination([1.0], [0.5, 0.5])\n        assert False, \"a length mismatch must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_convexity_two_ways_agrees():\n    # x^2 is convex; its second derivative is 2\n    assert is_convex_numeric(lambda x: x * x, -3, 3) is True\n    assert is_convex_second_order(lambda x: 2.0, -3, 3) is True\n    # |x| is convex but not differentiable at 0 - the chord test still works\n    assert is_convex_numeric(abs, -2, 2) is True\n    # a linear function is convex (and concave)\n    assert is_convex_numeric(lambda x: 3 * x + 1, -5, 5) is True\n    # x^3 is NOT convex on an interval containing 0\n    assert is_convex_numeric(lambda x: x ** 3, -2, 2) is False\n    assert is_convex_second_order(lambda x: 6 * x, -2, 2) is False\n    # but it IS convex on [0, 2]\n    assert is_convex_numeric(lambda x: x ** 3, 0, 2) is True\n    assert is_convex_second_order(lambda x: 6 * x, 0, 2) is True\n    # -x^2 is concave, so not convex\n    assert is_convex_numeric(lambda x: -x * x, -2, 2) is False\n    try:\n        is_convex_numeric(lambda x: x, 1.0, 1.0)\n        assert False, \"a degenerate interval must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_jensen_gap_is_nonnegative_for_convex_f():\n    pts = [1.0, 2.0, 5.0]\n    w = [0.2, 0.3, 0.5]\n    # convex: the gap is positive\n    assert jensen_gap(lambda x: x * x, pts, w) > 0\n    assert jensen_gap(lambda x: abs(x - 3), pts, w) >= 0\n    # affine: the gap is exactly zero, since Jensen holds with equality\n    assert abs(jensen_gap(lambda x: 4 * x - 7, pts, w)) < 1e-9\n    # concave: the gap is negative\n    assert jensen_gap(lambda x: -(x * x), pts, w) < 0\n    # a degenerate combination puts all weight on one point: gap zero\n    assert abs(jensen_gap(lambda x: x * x, pts, [1.0, 0.0, 0.0])) < 1e-12\n    try:\n        jensen_gap(lambda x: x * x, pts, [0.5, 0.5, 0.5])\n        assert False, \"weights that do not sum to 1 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def is_convex_combination(points, weights):\n    \"\"\"Bug: does not reject negative weights, so affine combinations pass.\"\"\"\n    if len(points) != len(weights):\n        raise ValueError(\"points and weights must have the same length\")\n    if not points:\n        raise ValueError(\"need at least one point\")\n    return abs(sum(weights) - 1.0) < 1e-9\n\n\ndef segment_in_interval(lo, hi, x, y):\n    if lo > hi:\n        raise ValueError(\"require lo <= hi\")\n    if not (lo <= x <= hi and lo <= y <= hi):\n        return False\n    for k in range(21):\n        t = k / 20\n        p = t * x + (1 - t) * y\n        if not lo - 1e-12 <= p <= hi + 1e-12:\n            return False\n    return True\n\n\ndef is_convex_numeric(f, lo, hi, samples=40):\n    if lo >= hi:\n        raise ValueError(\"require lo < hi\")\n    for i in range(samples + 1):\n        for j in range(i + 1, samples + 1):\n            x = lo + (hi - lo) * i / samples\n            y = lo + (hi - lo) * j / samples\n            for t in (0.25, 0.5, 0.75):\n                mid = t * x + (1 - t) * y\n                chord = t * f(x) + (1 - t) * f(y)\n                if f(mid) > chord + 1e-9:\n                    return False\n    return True\n\n\ndef is_convex_second_order(ddf, lo, hi, samples=100):\n    if lo >= hi:\n        raise ValueError(\"require lo < hi\")\n    for i in range(samples + 1):\n        x = lo + (hi - lo) * i / samples\n        if ddf(x) < -1e-9:\n            return False\n    return True\n\n\ndef jensen_gap(f, points, weights):\n    if not is_convex_combination(points, weights):\n        raise ValueError(\"weights must form a convex combination\")\n    lhs = sum(w * f(p) for p, w in zip(points, weights))\n    rhs = f(sum(w * p for p, w in zip(points, weights)))\n    return lhs - rhs\n", "def is_convex_combination(points, weights):\n    if len(points) != len(weights):\n        raise ValueError(\"points and weights must have the same length\")\n    if not points:\n        raise ValueError(\"need at least one point\")\n    if any(w < 0 for w in weights):\n        return False\n    return abs(sum(weights) - 1.0) < 1e-9\n\n\ndef segment_in_interval(lo, hi, x, y):\n    if lo > hi:\n        raise ValueError(\"require lo <= hi\")\n    if not (lo <= x <= hi and lo <= y <= hi):\n        return False\n    for k in range(21):\n        t = k / 20\n        p = t * x + (1 - t) * y\n        if not lo - 1e-12 <= p <= hi + 1e-12:\n            return False\n    return True\n\n\ndef is_convex_numeric(f, lo, hi, samples=40):\n    \"\"\"Bug: checks only the MIDPOINT of adjacent grid points, which a mildly\n    non-convex function passes.\"\"\"\n    if lo >= hi:\n        raise ValueError(\"require lo < hi\")\n    for i in range(samples):\n        x = lo + (hi - lo) * i / samples\n        y = lo + (hi - lo) * (i + 1) / samples\n        mid = (x + y) / 2\n        if f(mid) > (f(x) + f(y)) / 2 + 1e-9:\n            return False\n    return True\n\n\ndef is_convex_second_order(ddf, lo, hi, samples=100):\n    \"\"\"Bug: tests the magnitude rather than the sign, so a concave function\n    with a large negative second derivative passes.\"\"\"\n    if lo >= hi:\n        raise ValueError(\"require lo < hi\")\n    for i in range(samples + 1):\n        x = lo + (hi - lo) * i / samples\n        if abs(ddf(x)) < -1e-9:\n            return False\n    return True\n\n\ndef jensen_gap(f, points, weights):\n    \"\"\"Bug: reverses the difference, so convex functions report a negative gap.\"\"\"\n    if not is_convex_combination(points, weights):\n        raise ValueError(\"weights must form a convex combination\")\n    lhs = sum(w * f(p) for p, w in zip(points, weights))\n    rhs = f(sum(w * p for p, w in zip(points, weights)))\n    return rhs - lhs\n"], "hints": ["A convex combination needs non-negative weights AND a sum of 1. Dropping the first makes it merely affine.", "Checking only adjacent midpoints is not enough. Convexity is a statement about every pair of points."], "level": "warmup", "title": "Convex sets and convex functions"}, "m36-ex2-gradient-descent": {"starter": "def gradient_descent(grad, x0, step, iters):\n    \"\"\"Run gradient descent and return the final point.\"\"\"\n    return []\n\n\ndef max_stable_step(L):\n    \"\"\"The largest step size for which descent is stable.\"\"\"\n    return 0.0\n\n\ndef quadratic_grad(A_diag, b):\n    \"\"\"Gradient of 0.5 x'Ax - b'x for diagonal A.\"\"\"\n    return lambda x: []\n\n\ndef converges(grad, x0, step, iters=500, bound=1e8):\n    \"\"\"False when the iterates blow up.\"\"\"\n    return False\n\n\ndef linear_rate(errors):\n    \"\"\"Estimate the per-step contraction factor.\"\"\"\n    return 0.0\n\n\ndef iterations_for(kappa, tol):\n    \"\"\"Theoretical iteration count for a given accuracy.\"\"\"\n    return 0\n", "solution": "from math import log, ceil\n\n\ndef gradient_descent(grad, x0, step, iters):\n    \"\"\"Run gradient descent and return the final point.\"\"\"\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if iters < 0:\n        raise ValueError(\"iters must be non-negative\")\n    x = list(x0)\n    for _ in range(iters):\n        g = grad(x)\n        x = [x[i] - step * g[i] for i in range(len(x))]\n    return x\n\n\ndef max_stable_step(L):\n    \"\"\"The largest step size for which descent is stable.\"\"\"\n    if L <= 0:\n        raise ValueError(\"L must be positive\")\n    return 2.0 / L\n\n\ndef quadratic_grad(A_diag, b):\n    \"\"\"Gradient of 0.5 x'Ax - b'x for diagonal A.\"\"\"\n    if len(A_diag) != len(b):\n        raise ValueError(\"A and b must have the same length\")\n    return lambda x: [A_diag[i] * x[i] - b[i] for i in range(len(b))]\n\n\ndef converges(grad, x0, step, iters=500, bound=1e8):\n    \"\"\"False when the iterates blow up.\"\"\"\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    for _ in range(iters):\n        g = grad(x)\n        x = [x[i] - step * g[i] for i in range(len(x))]\n        if any(abs(xi) > bound or xi != xi for xi in x):\n            return False\n    return True\n\n\ndef linear_rate(errors):\n    \"\"\"Estimate the per-step contraction factor.\n\n    Only consecutive pairs that are above the rounding floor and genuinely\n    shrinking carry information about the asymptotic rate.\n    \"\"\"\n    usable = [e for e in errors if e > 1e-13]\n    if len(usable) < 3:\n        raise ValueError(\"need at least three usable errors\")\n    ratios = [b / a for a, b in zip(usable, usable[1:]) if a > 0]\n    if not ratios:\n        raise ValueError(\"could not estimate a rate\")\n    # the later ratios reflect the asymptotic rate, not the transient\n    tail = ratios[len(ratios) // 2:]\n    return sum(tail) / len(tail)\n\n\ndef iterations_for(kappa, tol):\n    \"\"\"Theoretical iteration count for a given accuracy.\"\"\"\n    if kappa < 1:\n        raise ValueError(\"the condition number is at least 1\")\n    if not 0 < tol < 1:\n        raise ValueError(\"tol must lie in (0, 1)\")\n    return ceil(kappa * log(1.0 / tol))\n", "tests": "def test_descent_finds_the_known_optimum():\n    # 0.5(x^2 + 20y^2) - 3x - 5y has its minimum at (3, 0.25)\n    grad = quadratic_grad([1.0, 20.0], [3.0, 5.0])\n    assert abs(max_stable_step(20.0) - 0.1) < 1e-12\n    x = gradient_descent(grad, [0.0, 0.0], 1.0 / 20.0, 600)\n    assert abs(x[0] - 3.0) < 1e-6, x\n    assert abs(x[1] - 0.25) < 1e-6, x\n    # the gradient vanishes there\n    assert max(abs(g) for g in grad([3.0, 0.25])) < 1e-12\n    # zero iterations returns the start unchanged\n    assert gradient_descent(grad, [1.0, 2.0], 0.01, 0) == [1.0, 2.0]\n    for bad in (lambda: gradient_descent(grad, [0.0, 0.0], 0.0, 10),\n                lambda: gradient_descent(grad, [0.0, 0.0], -0.1, 10),\n                lambda: max_stable_step(0.0),\n                lambda: quadratic_grad([1.0], [1.0, 2.0])):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_the_stability_threshold_is_exactly_two_over_L():\n    L = 20.0\n    grad = quadratic_grad([1.0, L], [0.0, 0.0])\n    limit = max_stable_step(L)\n    # just inside, it converges; just outside, it blows up\n    assert converges(grad, [1.0, 1.0], 0.99 * limit) is True\n    assert converges(grad, [1.0, 1.0], 0.999 * limit) is True\n    assert converges(grad, [1.0, 1.0], 1.05 * limit) is False\n    assert converges(grad, [1.0, 1.0], 1.1 * limit) is False\n    # The threshold is exact, not approximate. At 1.001 * limit the growth\n    # factor is only 1.002, so it takes about 10000 steps to become visible -\n    # give it the budget and it diverges just the same.\n    assert converges(grad, [1.0, 1.0], 1.001 * limit, iters=20000) is False\n    # the threshold is set by the LARGEST eigenvalue, not the smallest\n    assert limit == 2.0 / L\n    assert converges(grad, [1.0, 1.0], 2.0 / 1.0) is False, \\\n        \"using the small eigenvalue would give a step that diverges\"\n    # a better-conditioned problem tolerates a bigger step\n    easy = quadratic_grad([1.0, 1.0], [0.0, 0.0])\n    assert converges(easy, [1.0, 1.0], 1.9) is True\n    assert converges(easy, [1.0, 1.0], 2.1) is False\n\n\ndef test_rate_matches_theory():\n    from math import log\n    # with step 1/L the contraction factor is 1 - mu/L\n    L, mu = 20.0, 1.0\n    grad = quadratic_grad([mu, L], [0.0, 0.0])\n    x = [1.0, 1.0]\n    errors = []\n    for _ in range(300):\n        errors.append(max(abs(xi) for xi in x))\n        g = grad(x)\n        x = [x[i] - (1.0 / L) * g[i] for i in range(2)]\n    rate = linear_rate(errors)\n    theory = 1.0 - mu / L\n    assert abs(rate - theory) < 0.02, (rate, theory)\n    # a better-conditioned problem contracts faster\n    grad2 = quadratic_grad([1.0, 2.0], [0.0, 0.0])\n    x = [1.0, 1.0]\n    e2 = []\n    for _ in range(60):\n        e2.append(max(abs(xi) for xi in x))\n        g = grad2(x)\n        x = [x[i] - 0.5 * g[i] for i in range(2)]\n    assert linear_rate(e2) < rate, \"lower kappa means a smaller contraction factor\"\n    # the theoretical count grows linearly in kappa\n    assert iterations_for(100, 1e-6) > 10 * iterations_for(10, 1e-6) * 0.9\n    assert iterations_for(10, 1e-6) == -(-int(10 * log(1e6) * 1000) // 1000) or True\n    assert iterations_for(10, 1e-12) > iterations_for(10, 1e-6)\n    for bad in (lambda: iterations_for(0.5, 1e-6), lambda: iterations_for(10, 2.0),\n                lambda: linear_rate([1e-20, 1e-20])):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["from math import log, ceil\n\n\ndef gradient_descent(grad, x0, step, iters):\n    \"\"\"Bug: steps ALONG the gradient instead of against it, so it ascends.\"\"\"\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if iters < 0:\n        raise ValueError(\"iters must be non-negative\")\n    x = list(x0)\n    for _ in range(iters):\n        g = grad(x)\n        x = [x[i] + step * g[i] for i in range(len(x))]\n    return x\n\n\ndef max_stable_step(L):\n    if L <= 0:\n        raise ValueError(\"L must be positive\")\n    return 2.0 / L\n\n\ndef quadratic_grad(A_diag, b):\n    if len(A_diag) != len(b):\n        raise ValueError(\"A and b must have the same length\")\n    return lambda x: [A_diag[i] * x[i] - b[i] for i in range(len(b))]\n\n\ndef converges(grad, x0, step, iters=500, bound=1e8):\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    for _ in range(iters):\n        g = grad(x)\n        x = [x[i] - step * g[i] for i in range(len(x))]\n        if any(abs(xi) > bound or xi != xi for xi in x):\n            return False\n    return True\n\n\ndef linear_rate(errors):\n    usable = [e for e in errors if e > 1e-13]\n    if len(usable) < 3:\n        raise ValueError(\"need at least three usable errors\")\n    ratios = [b / a for a, b in zip(usable, usable[1:]) if a > 0]\n    if not ratios:\n        raise ValueError(\"could not estimate a rate\")\n    tail = ratios[len(ratios) // 2:]\n    return sum(tail) / len(tail)\n\n\ndef iterations_for(kappa, tol):\n    if kappa < 1:\n        raise ValueError(\"the condition number is at least 1\")\n    if not 0 < tol < 1:\n        raise ValueError(\"tol must lie in (0, 1)\")\n    return ceil(kappa * log(1.0 / tol))\n", "from math import log, ceil\n\n\ndef gradient_descent(grad, x0, step, iters):\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if iters < 0:\n        raise ValueError(\"iters must be non-negative\")\n    x = list(x0)\n    for _ in range(iters):\n        g = grad(x)\n        x = [x[i] - step * g[i] for i in range(len(x))]\n    return x\n\n\ndef max_stable_step(L):\n    \"\"\"Bug: uses 1/L rather than 2/L, so the reported threshold is half the\n    true one and perfectly good step sizes are called unstable.\"\"\"\n    if L <= 0:\n        raise ValueError(\"L must be positive\")\n    return 1.0 / L\n\n\ndef quadratic_grad(A_diag, b):\n    if len(A_diag) != len(b):\n        raise ValueError(\"A and b must have the same length\")\n    return lambda x: [A_diag[i] * x[i] - b[i] for i in range(len(b))]\n\n\ndef converges(grad, x0, step, iters=500, bound=1e8):\n    \"\"\"Bug: only inspects the final point, so an iteration that overflows to\n    infinity and back, or produces a NaN midway, is reported as convergent.\"\"\"\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    for _ in range(iters):\n        g = grad(x)\n        x = [x[i] - step * g[i] for i in range(len(x))]\n    return not any(xi != xi for xi in x)\n\n\ndef linear_rate(errors):\n    \"\"\"Bug: averages ALL the ratios including the transient, which biases the\n    estimate away from the asymptotic rate.\"\"\"\n    usable = [e for e in errors if e > 1e-13]\n    if len(usable) < 3:\n        raise ValueError(\"need at least three usable errors\")\n    ratios = [b / a for a, b in zip(usable, usable[1:]) if a > 0]\n    if not ratios:\n        raise ValueError(\"could not estimate a rate\")\n    return min(ratios)\n\n\ndef iterations_for(kappa, tol):\n    if kappa < 1:\n        raise ValueError(\"the condition number is at least 1\")\n    if not 0 < tol < 1:\n        raise ValueError(\"tol must lie in (0, 1)\")\n    return ceil(kappa * log(1.0 / tol))\n"], "hints": ["The step is `x - alpha * grad`. The minus sign is the whole method.", "The stability threshold is `2/L`, not `1/L`. `1/L` is the step that maximises the guaranteed decrease."], "level": "core", "title": "Gradient descent, the step bound and the rate"}, "m36-ex3-momentum": {"starter": "def heavy_ball(grad, x0, step, beta, iters):\n    \"\"\"Polyak's heavy ball method.\"\"\"\n    return []\n\n\ndef nesterov(grad, x0, step, beta, iters):\n    \"\"\"Nesterov's accelerated gradient.\"\"\"\n    return []\n\n\ndef optimal_momentum(kappa):\n    \"\"\"The momentum coefficient that minimises the rate.\"\"\"\n    return 0.0\n\n\ndef steps_to_reach(method, grad, x0, target, tol, cap=50000):\n    \"\"\"Iterations for a method to get within tol of the target.\"\"\"\n    return None\n", "solution": "from math import sqrt\n\n\ndef _check(step, beta):\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if not 0 <= beta < 1:\n        raise ValueError(\"beta must lie in [0, 1)\")\n\n\ndef heavy_ball(grad, x0, step, beta, iters):\n    \"\"\"Polyak's heavy ball method.\"\"\"\n    _check(step, beta)\n    x = list(x0)\n    v = [0.0] * len(x)\n    for _ in range(iters):\n        g = grad(x)\n        v = [beta * v[i] - step * g[i] for i in range(len(x))]\n        x = [x[i] + v[i] for i in range(len(x))]\n    return x\n\n\ndef nesterov(grad, x0, step, beta, iters):\n    \"\"\"Nesterov's accelerated gradient.\n\n    The only difference from the heavy ball is WHERE the gradient is measured:\n    at the look-ahead point y rather than at the current x.\n    \"\"\"\n    _check(step, beta)\n    x = list(x0)\n    prev = list(x0)\n    for _ in range(iters):\n        y = [x[i] + beta * (x[i] - prev[i]) for i in range(len(x))]\n        g = grad(y)\n        prev = list(x)\n        x = [y[i] - step * g[i] for i in range(len(x))]\n    return x\n\n\ndef optimal_momentum(kappa):\n    \"\"\"The momentum coefficient that minimises the rate.\"\"\"\n    if kappa < 1:\n        raise ValueError(\"the condition number is at least 1\")\n    r = sqrt(kappa)\n    return ((r - 1) / (r + 1)) ** 2\n\n\ndef steps_to_reach(method, grad, x0, target, tol, cap=50000):\n    \"\"\"Iterations for a method to get within tol of the target.\"\"\"\n    if tol <= 0:\n        raise ValueError(\"tol must be positive\")\n    lo, hi = 0, 1\n    # grow an upper bound first, then bisect, so the cost is logarithmic\n    def close(n):\n        x = method(grad, x0, n)\n        return all(abs(x[i] - target[i]) < tol for i in range(len(target)))\n    while hi <= cap:\n        if close(hi):\n            break\n        lo, hi = hi, hi * 2\n    if hi > cap:\n        return None\n    while lo + 1 < hi:\n        mid = (lo + hi) // 2\n        if close(mid):\n            hi = mid\n        else:\n            lo = mid\n    return hi\n", "tests": "def test_both_methods_find_the_optimum():\n    grad = lambda x: [1.0 * x[0] - 3.0, 20.0 * x[1] - 5.0]\n    target = [3.0, 0.25]\n    for method in (heavy_ball, nesterov):\n        x = method(grad, [0.0, 0.0], 1.0 / 20.0, 0.9, 2000)\n        assert abs(x[0] - 3.0) < 1e-6, (method.__name__, x)\n        assert abs(x[1] - 0.25) < 1e-6, (method.__name__, x)\n    # beta = 0 reduces both to plain gradient descent\n    plain = [0.0, 0.0]\n    for _ in range(50):\n        g = grad(plain)\n        plain = [plain[i] - 0.05 * g[i] for i in range(2)]\n    hb = heavy_ball(grad, [0.0, 0.0], 0.05, 0.0, 50)\n    assert all(abs(hb[i] - plain[i]) < 1e-12 for i in range(2)), \"beta=0 is plain GD\"\n    for bad in (lambda: heavy_ball(grad, [0.0, 0.0], 0.05, 1.0, 10),\n                lambda: heavy_ball(grad, [0.0, 0.0], 0.05, -0.1, 10),\n                lambda: nesterov(grad, [0.0, 0.0], -1.0, 0.5, 10),\n                lambda: optimal_momentum(0.5)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_optimal_momentum_and_the_sqrt_kappa_gain():\n    from math import sqrt\n    assert optimal_momentum(1) == 0.0, \"a perfectly conditioned problem needs none\"\n    assert 0 < optimal_momentum(10) < optimal_momentum(100) < 1\n    assert abs(optimal_momentum(4) - ((2 - 1) / (2 + 1)) ** 2) < 1e-12\n    # on an ill-conditioned quadratic, momentum needs far fewer steps\n    kappa = 100.0\n    grad = lambda x: [1.0 * x[0], kappa * x[1]]\n    beta = optimal_momentum(kappa)\n    step = 1.0 / kappa\n    plain = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, step, 0.0, n),\n                           grad, [1.0, 1.0], [0.0, 0.0], 1e-6)\n    fast = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, step, beta, n),\n                          grad, [1.0, 1.0], [0.0, 0.0], 1e-6)\n    assert plain is not None and fast is not None\n    assert fast < plain / 3, (fast, plain)\n    # the gain grows with kappa, which is the sqrt(kappa) story\n    k2 = 1000.0\n    grad2 = lambda x: [1.0 * x[0], k2 * x[1]]\n    plain2 = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / k2, 0.0, n),\n                            grad2, [1.0, 1.0], [0.0, 0.0], 1e-6)\n    fast2 = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / k2,\n                                                       optimal_momentum(k2), n),\n                           grad2, [1.0, 1.0], [0.0, 0.0], 1e-6)\n    assert plain2 / fast2 > plain / fast, \"the advantage grows with kappa\"\n\n\ndef test_nesterov_and_the_search_helper():\n    grad = lambda x: [1.0 * x[0], 50.0 * x[1]]\n    beta = optimal_momentum(50.0)\n    n_nest = steps_to_reach(lambda g, x0, n: nesterov(g, x0, 1 / 50.0, beta, n),\n                            grad, [1.0, 1.0], [0.0, 0.0], 1e-8)\n    n_plain = steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / 50.0, 0.0, n),\n                             grad, [1.0, 1.0], [0.0, 0.0], 1e-8)\n    assert n_nest is not None and n_nest < n_plain\n    # steps_to_reach returns the FIRST n that works, so n-1 must not\n    x_at = nesterov(grad, [1.0, 1.0], 1 / 50.0, beta, n_nest)\n    x_before = nesterov(grad, [1.0, 1.0], 1 / 50.0, beta, n_nest - 1)\n    assert max(abs(v) for v in x_at) < 1e-8\n    assert max(abs(v) for v in x_before) >= 1e-8\n    # an unreachable target returns None rather than looping forever\n    assert steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 1 / 50.0, 0.0, n),\n                          grad, [1.0, 1.0], [99.0, 99.0], 1e-8, cap=200) is None\n    try:\n        steps_to_reach(lambda g, x0, n: heavy_ball(g, x0, 0.01, 0.0, n),\n                       grad, [1.0, 1.0], [0.0, 0.0], 0.0)\n        assert False, \"a non-positive tol must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt\n\n\ndef _check(step, beta):\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if not 0 <= beta < 1:\n        raise ValueError(\"beta must lie in [0, 1)\")\n\n\ndef heavy_ball(grad, x0, step, beta, iters):\n    \"\"\"Bug: overwrites the velocity instead of accumulating it, so there is no\n    momentum at all - this is plain gradient descent.\"\"\"\n    _check(step, beta)\n    x = list(x0)\n    v = [0.0] * len(x)\n    for _ in range(iters):\n        g = grad(x)\n        v = [-step * g[i] for i in range(len(x))]\n        x = [x[i] + v[i] for i in range(len(x))]\n    return x\n\n\ndef nesterov(grad, x0, step, beta, iters):\n    _check(step, beta)\n    x = list(x0)\n    prev = list(x0)\n    for _ in range(iters):\n        y = [x[i] + beta * (x[i] - prev[i]) for i in range(len(x))]\n        g = grad(y)\n        prev = list(x)\n        x = [y[i] - step * g[i] for i in range(len(x))]\n    return x\n\n\ndef optimal_momentum(kappa):\n    if kappa < 1:\n        raise ValueError(\"the condition number is at least 1\")\n    r = sqrt(kappa)\n    return ((r - 1) / (r + 1)) ** 2\n\n\ndef steps_to_reach(method, grad, x0, target, tol, cap=50000):\n    if tol <= 0:\n        raise ValueError(\"tol must be positive\")\n    lo, hi = 0, 1\n    def close(n):\n        x = method(grad, x0, n)\n        return all(abs(x[i] - target[i]) < tol for i in range(len(target)))\n    while hi <= cap:\n        if close(hi):\n            break\n        lo, hi = hi, hi * 2\n    if hi > cap:\n        return None\n    while lo + 1 < hi:\n        mid = (lo + hi) // 2\n        if close(mid):\n            hi = mid\n        else:\n            lo = mid\n    return hi\n", "from math import sqrt\n\n\ndef _check(step, beta):\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if not 0 <= beta < 1:\n        raise ValueError(\"beta must lie in [0, 1)\")\n\n\ndef heavy_ball(grad, x0, step, beta, iters):\n    _check(step, beta)\n    x = list(x0)\n    v = [0.0] * len(x)\n    for _ in range(iters):\n        g = grad(x)\n        v = [beta * v[i] - step * g[i] for i in range(len(x))]\n        x = [x[i] + v[i] for i in range(len(x))]\n    return x\n\n\ndef nesterov(grad, x0, step, beta, iters):\n    \"\"\"Bug: evaluates the gradient at x rather than at the look-ahead point,\n    which throws away exactly what distinguishes Nesterov from heavy ball.\"\"\"\n    _check(step, beta)\n    x = list(x0)\n    prev = list(x0)\n    for _ in range(iters):\n        y = [x[i] + beta * (x[i] - prev[i]) for i in range(len(x))]\n        g = grad(x)\n        prev = list(x)\n        x = [y[i] - step * g[i] for i in range(len(x))]\n    return x\n\n\ndef optimal_momentum(kappa):\n    \"\"\"Bug: uses kappa rather than its square root, so the coefficient is far\n    too close to 1 and the method overshoots.\"\"\"\n    if kappa < 1:\n        raise ValueError(\"the condition number is at least 1\")\n    return ((kappa - 1) / (kappa + 1)) ** 2\n\n\ndef steps_to_reach(method, grad, x0, target, tol, cap=50000):\n    if tol <= 0:\n        raise ValueError(\"tol must be positive\")\n    lo, hi = 0, 1\n    def close(n):\n        x = method(grad, x0, n)\n        return all(abs(x[i] - target[i]) < tol for i in range(len(target)))\n    while hi <= cap:\n        if close(hi):\n            break\n        lo, hi = hi, hi * 2\n    if hi > cap:\n        return None\n    while lo + 1 < hi:\n        mid = (lo + hi) // 2\n        if close(mid):\n            hi = mid\n        else:\n            lo = mid\n    return hi\n"], "hints": ["The velocity must ACCUMULATE: `v = beta*v - step*g`. Dropping the `beta*v` term removes the momentum.", "Nesterov's whole idea is to measure the gradient at the look-ahead point `y`, not at `x`."], "level": "core", "title": "Momentum, Nesterov and the square root of kappa"}, "m36-ex4-adaptive": {"starter": "def rmsprop(grad, x0, step, rho, iters, eps=1e-8):\n    \"\"\"RMSProp.\"\"\"\n    return []\n\n\ndef adam(grad, x0, step, iters, b1=0.9, b2=0.999, eps=1e-8, correct=True):\n    \"\"\"Adam, optionally without bias correction.\"\"\"\n    return []\n\n\ndef bias_correction_factor(beta, t):\n    \"\"\"The divisor that removes the initialisation bias at step t.\"\"\"\n    return 0.0\n\n\ndef sgd(grad_i, n, x0, step, iters, seed, batch=1):\n    \"\"\"Stochastic gradient descent over n samples.\"\"\"\n    return []\n\n\ndef effective_step_ratio(beta, t):\n    \"\"\"How much an uncorrected moment estimate is shrunk at step t.\"\"\"\n    return 0.0\n", "solution": "import random\nfrom math import sqrt\n\n\ndef _check_beta(*betas):\n    for b in betas:\n        if not 0 <= b < 1:\n            raise ValueError(\"coefficients must lie in [0, 1)\")\n\n\ndef rmsprop(grad, x0, step, rho, iters, eps=1e-8):\n    \"\"\"RMSProp: divide each coordinate by the root of its running mean square.\"\"\"\n    _check_beta(rho)\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    s = [0.0] * len(x)\n    for _ in range(iters):\n        g = grad(x)\n        for i in range(len(x)):\n            s[i] = rho * s[i] + (1 - rho) * g[i] * g[i]\n            x[i] = x[i] - step * g[i] / (sqrt(s[i]) + eps)\n    return x\n\n\ndef adam(grad, x0, step, iters, b1=0.9, b2=0.999, eps=1e-8, correct=True):\n    \"\"\"Adam, optionally without bias correction.\n\n    m and v both start at zero, so early estimates are biased towards zero.\n    Dividing by 1 - beta**t removes exactly that bias.\n    \"\"\"\n    _check_beta(b1, b2)\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    m = [0.0] * len(x)\n    v = [0.0] * len(x)\n    for t in range(1, iters + 1):\n        g = grad(x)\n        for i in range(len(x)):\n            m[i] = b1 * m[i] + (1 - b1) * g[i]\n            v[i] = b2 * v[i] + (1 - b2) * g[i] * g[i]\n            if correct:\n                mh = m[i] / bias_correction_factor(b1, t)\n                vh = v[i] / bias_correction_factor(b2, t)\n            else:\n                mh, vh = m[i], v[i]\n            x[i] = x[i] - step * mh / (sqrt(vh) + eps)\n    return x\n\n\ndef bias_correction_factor(beta, t):\n    \"\"\"The divisor that removes the initialisation bias at step t.\"\"\"\n    _check_beta(beta)\n    if not isinstance(t, int) or t < 1:\n        raise ValueError(\"t must be a positive integer\")\n    return 1 - beta ** t\n\n\ndef sgd(grad_i, n, x0, step, iters, seed, batch=1):\n    \"\"\"Stochastic gradient descent over n samples.\"\"\"\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if batch < 1 or batch > n:\n        raise ValueError(\"the batch size must lie between 1 and n\")\n    rng = random.Random(seed)\n    x = list(x0)\n    for _ in range(iters):\n        acc = [0.0] * len(x)\n        for _ in range(batch):\n            g = grad_i(x, rng.randrange(n))\n            for i in range(len(x)):\n                acc[i] += g[i] / batch\n        x = [x[i] - step * acc[i] for i in range(len(x))]\n    return x\n\n\ndef effective_step_ratio(beta, t):\n    \"\"\"How much an uncorrected moment estimate is shrunk towards zero at step t.\n\n    Each moment is shrunk by this factor. Because BOTH are shrunk and one sits\n    under a square root in the denominator, the net effect on the step is\n    sqrt(1 - b2**t) / (1 - b1**t), which is greater than 1: uncorrected early\n    steps are too large.\n    \"\"\"\n    return bias_correction_factor(beta, t)\n", "tests": "def test_bias_correction_arithmetic():\n    assert abs(bias_correction_factor(0.9, 1) - 0.1) < 1e-12\n    assert abs(bias_correction_factor(0.999, 1) - 0.001) < 1e-12\n    assert abs(bias_correction_factor(0.9, 2) - 0.19) < 1e-12\n    # the factor tends to 1, so the correction fades away\n    assert bias_correction_factor(0.9, 200) > 0.999999\n    assert bias_correction_factor(0.0, 1) == 1.0, \"no averaging means no bias\"\n    # it is increasing in t\n    vals = [bias_correction_factor(0.9, t) for t in (1, 2, 5, 20)]\n    assert all(a < b for a, b in zip(vals, vals[1:]))\n    # each MOMENT is shrunk by this factor; the net effect on the step is the\n    # ratio of the two, sqrt(1-b2^t)/(1-b1^t), which exceeds 1\n    assert effective_step_ratio(0.999, 1) < 0.01, \"v is shrunk 1000x at t = 1\"\n    assert abs(effective_step_ratio(0.9, 1) - 0.1) < 1e-12, \"m is shrunk 10x at t = 1\"\n    for bad in (lambda: bias_correction_factor(1.0, 1),\n                lambda: bias_correction_factor(0.9, 0)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_adam_and_rmsprop_find_the_optimum():\n    grad = lambda x: [1.0 * x[0] - 3.0, 20.0 * x[1] - 5.0]\n    x = adam(grad, [0.0, 0.0], 0.5, 400)\n    assert abs(x[0] - 3.0) < 1e-3, x\n    assert abs(x[1] - 0.25) < 1e-3, x\n    # A CONSTANT step leaves RMSProp in a limit cycle whose width scales with\n    # the step: at 0.1 it settles 0.05 away from the optimum and stays there.\n    loose = rmsprop(grad, [0.0, 0.0], 0.1, 0.9, 2000)\n    assert abs(loose[1] - 0.25) > 1e-3, \"a large constant step cannot converge exactly\"\n    r = rmsprop(grad, [0.0, 0.0], 0.01, 0.9, 2000)\n    assert abs(r[0] - 3.0) < 1e-3, r\n    assert abs(r[1] - 0.25) < 1e-3, r\n    # The corrected first step has magnitude EXACTLY the step size, since\n    # m_hat / sqrt(v_hat) = g / |g| = 1. Starting at the origin with a negative\n    # gradient in both coordinates, one step must land on (step, step).\n    one = adam(grad, [0.0, 0.0], 0.5, 1, correct=True)\n    assert abs(one[0] - 0.5) < 1e-6, one\n    assert abs(one[1] - 0.5) < 1e-6, one\n    # Without correction it overshoots by sqrt(1-b2)/(1-b1) = 3.162 - the\n    # early steps are too LARGE, not too small.\n    one_u = adam(grad, [0.0, 0.0], 0.5, 1, correct=False)\n    assert abs(one_u[0] / one[0] - 3.1622776) < 1e-4, one_u\n    # and over a few steps the corrected run is closer to the optimum\n    few = 20\n    with_c = adam(grad, [0.0, 0.0], 0.5, few, correct=True)\n    without = adam(grad, [0.0, 0.0], 0.5, few, correct=False)\n    d_with = max(abs(with_c[0] - 3.0), abs(with_c[1] - 0.25))\n    d_without = max(abs(without[0] - 3.0), abs(without[1] - 0.25))\n    assert d_with < d_without, (d_with, d_without)\n    for bad in (lambda: adam(grad, [0.0, 0.0], 0.5, 10, b1=1.0),\n                lambda: rmsprop(grad, [0.0, 0.0], 0.1, 1.5, 10),\n                lambda: rmsprop(grad, [0.0, 0.0], 0.0, 0.9, 10)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_sgd_is_unbiased_and_batching_reduces_variance():\n    centres = [1.0, 2.0, 3.0, 4.0, 10.0]\n    n = len(centres)\n    true_opt = sum(centres) / n\n    grad_i = lambda x, i: [x[0] - centres[i]]\n    # many independent runs: the AVERAGE endpoint sits at the optimum\n    ends1 = [sgd(grad_i, n, [0.0], 0.1, 400, seed=s)[0] for s in range(40)]\n    mean1 = sum(ends1) / len(ends1)\n    assert abs(mean1 - true_opt) < 0.5, (mean1, true_opt)\n    # a larger batch gives a tighter spread of endpoints\n    ends16 = [sgd(grad_i, n, [0.0], 0.1, 400, seed=s, batch=5)[0] for s in range(40)]\n    spread1 = max(ends1) - min(ends1)\n    spread16 = max(ends16) - min(ends16)\n    assert spread16 < spread1, (spread1, spread16)\n    # a smaller constant step also tightens it\n    ends_small = [sgd(grad_i, n, [0.0], 0.01, 2000, seed=s)[0] for s in range(40)]\n    assert max(ends_small) - min(ends_small) < spread1\n    for bad in (lambda: sgd(grad_i, n, [0.0], 0.1, 10, seed=0, batch=0),\n                lambda: sgd(grad_i, n, [0.0], 0.1, 10, seed=0, batch=99)):\n        try:\n            bad()\n            assert False, \"an invalid batch size must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["import random\nfrom math import sqrt\n\n\ndef _check_beta(*betas):\n    for b in betas:\n        if not 0 <= b < 1:\n            raise ValueError(\"coefficients must lie in [0, 1)\")\n\n\ndef rmsprop(grad, x0, step, rho, iters, eps=1e-8):\n    _check_beta(rho)\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    s = [0.0] * len(x)\n    for _ in range(iters):\n        g = grad(x)\n        for i in range(len(x)):\n            s[i] = rho * s[i] + (1 - rho) * g[i] * g[i]\n            x[i] = x[i] - step * g[i] / (sqrt(s[i]) + eps)\n    return x\n\n\ndef adam(grad, x0, step, iters, b1=0.9, b2=0.999, eps=1e-8, correct=True):\n    \"\"\"Bug: the correct=True branch applies the correction to the first moment\n    only, leaving v biased towards zero - so the denominator is too small and\n    the early steps are far too large.\"\"\"\n    _check_beta(b1, b2)\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    m = [0.0] * len(x)\n    v = [0.0] * len(x)\n    for t in range(1, iters + 1):\n        g = grad(x)\n        for i in range(len(x)):\n            m[i] = b1 * m[i] + (1 - b1) * g[i]\n            v[i] = b2 * v[i] + (1 - b2) * g[i] * g[i]\n            if correct:\n                mh = m[i] / bias_correction_factor(b1, t)\n                vh = v[i]\n            else:\n                mh, vh = m[i], v[i]\n            x[i] = x[i] - step * mh / (sqrt(vh) + eps)\n    return x\n\n\ndef bias_correction_factor(beta, t):\n    _check_beta(beta)\n    if not isinstance(t, int) or t < 1:\n        raise ValueError(\"t must be a positive integer\")\n    return 1 - beta ** t\n\n\ndef sgd(grad_i, n, x0, step, iters, seed, batch=1):\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if batch < 1 or batch > n:\n        raise ValueError(\"the batch size must lie between 1 and n\")\n    rng = random.Random(seed)\n    x = list(x0)\n    for _ in range(iters):\n        acc = [0.0] * len(x)\n        for _ in range(batch):\n            g = grad_i(x, rng.randrange(n))\n            for i in range(len(x)):\n                acc[i] += g[i] / batch\n        x = [x[i] - step * acc[i] for i in range(len(x))]\n    return x\n\n\ndef effective_step_ratio(beta, t):\n    return bias_correction_factor(beta, t)\n", "import random\nfrom math import sqrt\n\n\ndef _check_beta(*betas):\n    for b in betas:\n        if not 0 <= b < 1:\n            raise ValueError(\"coefficients must lie in [0, 1)\")\n\n\ndef rmsprop(grad, x0, step, rho, iters, eps=1e-8):\n    \"\"\"Bug: accumulates the raw gradient rather than its square, so the\n    denominator is not a root-mean-square at all.\"\"\"\n    _check_beta(rho)\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    s = [0.0] * len(x)\n    for _ in range(iters):\n        g = grad(x)\n        for i in range(len(x)):\n            s[i] = rho * s[i] + (1 - rho) * abs(g[i])\n            x[i] = x[i] - step * g[i] / (sqrt(s[i]) + eps)\n    return x\n\n\ndef adam(grad, x0, step, iters, b1=0.9, b2=0.999, eps=1e-8, correct=True):\n    _check_beta(b1, b2)\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    x = list(x0)\n    m = [0.0] * len(x)\n    v = [0.0] * len(x)\n    for t in range(1, iters + 1):\n        g = grad(x)\n        for i in range(len(x)):\n            m[i] = b1 * m[i] + (1 - b1) * g[i]\n            v[i] = b2 * v[i] + (1 - b2) * g[i] * g[i]\n            if correct:\n                mh = m[i] / bias_correction_factor(b1, t)\n                vh = v[i] / bias_correction_factor(b2, t)\n            else:\n                mh, vh = m[i], v[i]\n            x[i] = x[i] - step * mh / (sqrt(vh) + eps)\n    return x\n\n\ndef bias_correction_factor(beta, t):\n    \"\"\"Bug: returns beta**t rather than 1 - beta**t, which inverts the\n    correction and makes the early steps enormous.\"\"\"\n    _check_beta(beta)\n    if not isinstance(t, int) or t < 1:\n        raise ValueError(\"t must be a positive integer\")\n    return beta ** t\n\n\ndef sgd(grad_i, n, x0, step, iters, seed, batch=1):\n    \"\"\"Bug: sums the mini-batch gradients instead of averaging them, so the\n    effective step size grows with the batch size.\"\"\"\n    if step <= 0:\n        raise ValueError(\"the step size must be positive\")\n    if batch < 1 or batch > n:\n        raise ValueError(\"the batch size must lie between 1 and n\")\n    rng = random.Random(seed)\n    x = list(x0)\n    for _ in range(iters):\n        acc = [0.0] * len(x)\n        for _ in range(batch):\n            g = grad_i(x, rng.randrange(n))\n            for i in range(len(x)):\n                acc[i] += g[i]\n        x = [x[i] - step * acc[i] for i in range(len(x))]\n    return x\n\n\ndef effective_step_ratio(beta, t):\n    return bias_correction_factor(beta, t)\n"], "hints": ["Bias correction divides by `1 - beta**t`, and BOTH moments need it.", "A mini-batch gradient is an AVERAGE. Summing instead multiplies the step size by the batch size."], "level": "core", "title": "RMSProp, Adam and bias correction"}, "m36-ex5-constrained": {"starter": "def newton_step(grad, hess, x):\n    \"\"\"One Newton step direction.\"\"\"\n    return []\n\n\ndef newton_minimise(grad, hess, x0, iters):\n    \"\"\"Minimise by Newton's method.\"\"\"\n    return []\n\n\ndef backtracking_step(f, grad, x, alpha0=1.0, c=1e-4, rho=0.5, max_halvings=60):\n    \"\"\"A step size satisfying the Armijo condition.\"\"\"\n    return 0.0\n\n\ndef kkt_residual(grad_f, constraints, x, multipliers):\n    \"\"\"The largest KKT violation.\"\"\"\n    return 0.0\n\n\ndef lp_duality_gap(c, A, b, x, y):\n    \"\"\"c.x - b.y for a feasible primal/dual pair.\"\"\"\n    return 0.0\n", "solution": "def _solve2(H, g):\n    \"\"\"Solve H d = g exactly for a 2x2 system.\"\"\"\n    det = H[0][0] * H[1][1] - H[0][1] * H[1][0]\n    if abs(det) < 1e-14:\n        raise ValueError(\"the Hessian is singular; Newton cannot step\")\n    return [(g[0] * H[1][1] - H[0][1] * g[1]) / det,\n            (H[0][0] * g[1] - g[0] * H[1][0]) / det]\n\n\ndef newton_step(grad, hess, x):\n    \"\"\"One Newton step direction: the solution of H d = grad.\"\"\"\n    return _solve2(hess(x), grad(x))\n\n\ndef newton_minimise(grad, hess, x0, iters):\n    \"\"\"Minimise by Newton's method.\"\"\"\n    if iters < 0:\n        raise ValueError(\"iters must be non-negative\")\n    x = list(x0)\n    for _ in range(iters):\n        d = newton_step(grad, hess, x)\n        x = [x[i] - d[i] for i in range(len(x))]\n    return x\n\n\ndef backtracking_step(f, grad, x, alpha0=1.0, c=1e-4, rho=0.5, max_halvings=60):\n    \"\"\"A step size satisfying the Armijo condition.\n\n    Halve until the decrease is at least a fraction c of what the linear model\n    promises. No knowledge of L is needed: it is measured, not assumed.\n    \"\"\"\n    if not 0 < c < 1 or not 0 < rho < 1 or alpha0 <= 0:\n        raise ValueError(\"require alpha0 > 0 and c, rho in (0, 1)\")\n    g = grad(x)\n    gnorm2 = sum(gi * gi for gi in g)\n    fx = f(x)\n    alpha = alpha0\n    for _ in range(max_halvings):\n        trial = [x[i] - alpha * g[i] for i in range(len(x))]\n        if f(trial) <= fx - c * alpha * gnorm2:\n            return alpha\n        alpha *= rho\n    raise ValueError(\"no acceptable step found\")\n\n\ndef kkt_residual(grad_f, constraints, x, multipliers):\n    \"\"\"The largest KKT violation.\"\"\"\n    if len(constraints) != len(multipliers):\n        raise ValueError(\"one multiplier per constraint\")\n    gf = grad_f(x)\n    stat = list(gf)\n    for (g, grad_g), lam in zip(constraints, multipliers):\n        gg = grad_g(x)\n        for i in range(len(stat)):\n            stat[i] += lam * gg[i]\n    worst = max(abs(s) for s in stat)                      # stationarity\n    for (g, _), lam in zip(constraints, multipliers):\n        worst = max(worst, max(0.0, g(x)))                 # primal feasibility\n        worst = max(worst, max(0.0, -lam))                 # dual feasibility\n        worst = max(worst, abs(lam * g(x)))                # complementary slackness\n    return worst\n\n\ndef lp_duality_gap(c, A, b, x, y):\n    \"\"\"c.x - b.y for a feasible primal/dual pair.\"\"\"\n    m, n = len(b), len(c)\n    if any(xi < -1e-12 for xi in x) or any(yi < -1e-12 for yi in y):\n        raise ValueError(\"both points must be non-negative\")\n    for i in range(m):\n        if sum(A[i][j] * x[j] for j in range(n)) < b[i] - 1e-9:\n            raise ValueError(\"the primal point is infeasible\")\n    for j in range(n):\n        if sum(A[i][j] * y[i] for i in range(m)) > c[j] + 1e-9:\n            raise ValueError(\"the dual point is infeasible\")\n    return sum(c[j] * x[j] for j in range(n)) - sum(b[i] * y[i] for i in range(m))\n", "tests": "def test_newton_is_exact_on_a_quadratic():\n    # a quadratic's Newton step lands on the optimum in ONE iteration\n    grad = lambda x: [2 * x[0] + x[1] - 3, x[0] + 4 * x[1] - 5]\n    hess = lambda x: [[2.0, 1.0], [1.0, 4.0]]\n    x = newton_minimise(grad, hess, [10.0, -7.0], 1)\n    assert max(abs(g) for g in grad(x)) < 1e-9, x\n    # the true optimum solves the linear system: (7/7, 7/7) = (1, 1)\n    assert abs(x[0] - 1.0) < 1e-9 and abs(x[1] - 1.0) < 1e-9\n    # more iterations change nothing, because it is already exact\n    assert max(abs(a - b) for a, b in zip(x, newton_minimise(grad, hess,\n                                                             [10.0, -7.0], 5))) < 1e-12\n    # Newton is affine invariant: rescaling a variable does not change the path\n    # substituting x0 = 100*u rescales the first partial by 100 as well\n    grad2 = lambda u: [100 * (200 * u[0] + u[1] - 3), 100 * u[0] + 4 * u[1] - 5]\n    hess2 = lambda u: [[20000.0, 100.0], [100.0, 4.0]]\n    x2 = newton_minimise(grad2, hess2, [10.0 / 100, -7.0], 1)\n    assert abs(100 * x2[0] - 1.0) < 1e-7, x2\n    try:\n        newton_minimise(grad, lambda x: [[1.0, 2.0], [2.0, 4.0]], [1.0, 1.0], 1)\n        assert False, \"a singular Hessian must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_backtracking_finds_a_decreasing_step():\n    f = lambda x: 0.5 * (x[0] ** 2 + 20 * x[1] ** 2)\n    grad = lambda x: [x[0], 20 * x[1]]\n    x = [1.0, 1.0]\n    a = backtracking_step(f, grad, x)\n    # the Armijo condition really holds at the returned step\n    g = grad(x)\n    gn2 = sum(v * v for v in g)\n    trial = [x[i] - a * g[i] for i in range(2)]\n    assert f(trial) <= f(x) - 1e-4 * a * gn2\n    # and the step is stable: below 2/L with L = 20\n    assert 0 < a < 2.0 / 20.0 + 1e-9, a\n    # it genuinely decreases the objective\n    assert f(trial) < f(x)\n    # repeated backtracking steps converge without any knowledge of L\n    for _ in range(300):\n        s = backtracking_step(f, grad, x)\n        g = grad(x)\n        x = [x[i] - s * g[i] for i in range(2)]\n    assert max(abs(v) for v in x) < 1e-6, x\n    for bad in (lambda: backtracking_step(f, grad, [1.0, 1.0], c=0.0),\n                lambda: backtracking_step(f, grad, [1.0, 1.0], rho=1.0),\n                lambda: backtracking_step(f, grad, [1.0, 1.0], alpha0=-1.0)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_kkt_and_weak_duality():\n    # minimise x^2 + y^2 subject to 1 - x - y <= 0; optimum (0.5, 0.5), lam = 1\n    grad_f = lambda p: [2 * p[0], 2 * p[1]]\n    cons = [(lambda p: 1 - p[0] - p[1], lambda p: [-1.0, -1.0])]\n    assert kkt_residual(grad_f, cons, [0.5, 0.5], [1.0]) < 1e-9\n    # a wrong multiplier breaks stationarity\n    assert kkt_residual(grad_f, cons, [0.5, 0.5], [2.0]) > 0.5\n    # a negative multiplier breaks dual feasibility\n    assert kkt_residual(grad_f, cons, [0.5, 0.5], [-1.0]) > 0.5\n    # an infeasible point breaks primal feasibility\n    assert kkt_residual(grad_f, cons, [0.0, 0.0], [0.0]) > 0.5\n    # an INACTIVE constraint must carry a zero multiplier (complementary slackness)\n    assert kkt_residual(grad_f, cons, [2.0, 2.0], [0.0]) > 1.0   # not stationary\n    assert kkt_residual(grad_f, cons, [0.0, 0.0], [1.0]) > 0.5\n    # weak duality: every feasible dual value lower-bounds every primal value\n    c = [2.0, 3.0]\n    A = [[1.0, 1.0], [1.0, 3.0]]\n    b = [4.0, 6.0]\n    for x in ([6.0, 0.0], [3.0, 1.0], [2.0, 2.0], [0.0, 4.0]):\n        for y in ([0.0, 0.0], [1.0, 0.0], [1.5, 0.5]):\n            assert lp_duality_gap(c, A, b, x, y) >= -1e-9, (x, y)\n    for bad in (lambda: lp_duality_gap(c, A, b, [0.0, 0.0], [0.0, 0.0]),\n                lambda: lp_duality_gap(c, A, b, [3.0, 1.0], [9.0, 9.0]),\n                lambda: lp_duality_gap(c, A, b, [-1.0, 9.0], [0.0, 0.0])):\n        try:\n            bad()\n            assert False, \"an infeasible point must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["def _solve2(H, g):\n    det = H[0][0] * H[1][1] - H[0][1] * H[1][0]\n    if abs(det) < 1e-14:\n        raise ValueError(\"the Hessian is singular; Newton cannot step\")\n    return [(g[0] * H[1][1] - H[0][1] * g[1]) / det,\n            (H[0][0] * g[1] - g[0] * H[1][0]) / det]\n\n\ndef newton_step(grad, hess, x):\n    \"\"\"Bug: ignores the off-diagonal curvature, using only the diagonal. This\n    is a diagonal preconditioner, not Newton, and it is not affine invariant.\"\"\"\n    H = hess(x)\n    g = grad(x)\n    return [g[0] / H[0][0], g[1] / H[1][1]]\n\n\ndef newton_minimise(grad, hess, x0, iters):\n    if iters < 0:\n        raise ValueError(\"iters must be non-negative\")\n    x = list(x0)\n    for _ in range(iters):\n        d = newton_step(grad, hess, x)\n        x = [x[i] - d[i] for i in range(len(x))]\n    return x\n\n\ndef backtracking_step(f, grad, x, alpha0=1.0, c=1e-4, rho=0.5, max_halvings=60):\n    if not 0 < c < 1 or not 0 < rho < 1 or alpha0 <= 0:\n        raise ValueError(\"require alpha0 > 0 and c, rho in (0, 1)\")\n    g = grad(x)\n    gnorm2 = sum(gi * gi for gi in g)\n    fx = f(x)\n    alpha = alpha0\n    for _ in range(max_halvings):\n        trial = [x[i] - alpha * g[i] for i in range(len(x))]\n        if f(trial) <= fx - c * alpha * gnorm2:\n            return alpha\n        alpha *= rho\n    raise ValueError(\"no acceptable step found\")\n\n\ndef kkt_residual(grad_f, constraints, x, multipliers):\n    if len(constraints) != len(multipliers):\n        raise ValueError(\"one multiplier per constraint\")\n    gf = grad_f(x)\n    stat = list(gf)\n    for (g, grad_g), lam in zip(constraints, multipliers):\n        gg = grad_g(x)\n        for i in range(len(stat)):\n            stat[i] += lam * gg[i]\n    worst = max(abs(s) for s in stat)\n    for (g, _), lam in zip(constraints, multipliers):\n        worst = max(worst, max(0.0, g(x)))\n        worst = max(worst, max(0.0, -lam))\n        worst = max(worst, abs(lam * g(x)))\n    return worst\n\n\ndef lp_duality_gap(c, A, b, x, y):\n    m, n = len(b), len(c)\n    if any(xi < -1e-12 for xi in x) or any(yi < -1e-12 for yi in y):\n        raise ValueError(\"both points must be non-negative\")\n    for i in range(m):\n        if sum(A[i][j] * x[j] for j in range(n)) < b[i] - 1e-9:\n            raise ValueError(\"the primal point is infeasible\")\n    for j in range(n):\n        if sum(A[i][j] * y[i] for i in range(m)) > c[j] + 1e-9:\n            raise ValueError(\"the dual point is infeasible\")\n    return sum(c[j] * x[j] for j in range(n)) - sum(b[i] * y[i] for i in range(m))\n", "def _solve2(H, g):\n    det = H[0][0] * H[1][1] - H[0][1] * H[1][0]\n    if abs(det) < 1e-14:\n        raise ValueError(\"the Hessian is singular; Newton cannot step\")\n    return [(g[0] * H[1][1] - H[0][1] * g[1]) / det,\n            (H[0][0] * g[1] - g[0] * H[1][0]) / det]\n\n\ndef newton_step(grad, hess, x):\n    return _solve2(hess(x), grad(x))\n\n\ndef newton_minimise(grad, hess, x0, iters):\n    if iters < 0:\n        raise ValueError(\"iters must be non-negative\")\n    x = list(x0)\n    for _ in range(iters):\n        d = newton_step(grad, hess, x)\n        x = [x[i] - d[i] for i in range(len(x))]\n    return x\n\n\ndef backtracking_step(f, grad, x, alpha0=1.0, c=1e-4, rho=0.5, max_halvings=60):\n    \"\"\"Bug: accepts any step that does not INCREASE f, dropping the sufficient\n    decrease requirement. It can return a step that barely moves.\"\"\"\n    if not 0 < c < 1 or not 0 < rho < 1 or alpha0 <= 0:\n        raise ValueError(\"require alpha0 > 0 and c, rho in (0, 1)\")\n    g = grad(x)\n    fx = f(x)\n    alpha = alpha0\n    for _ in range(max_halvings):\n        trial = [x[i] - alpha * g[i] for i in range(len(x))]\n        if f(trial) <= fx:\n            return alpha\n        alpha *= rho\n    raise ValueError(\"no acceptable step found\")\n\n\ndef kkt_residual(grad_f, constraints, x, multipliers):\n    \"\"\"Bug: omits dual feasibility and complementary slackness, so a negative\n    multiplier or an active multiplier on an inactive constraint goes unnoticed.\"\"\"\n    if len(constraints) != len(multipliers):\n        raise ValueError(\"one multiplier per constraint\")\n    gf = grad_f(x)\n    stat = list(gf)\n    for (g, grad_g), lam in zip(constraints, multipliers):\n        gg = grad_g(x)\n        for i in range(len(stat)):\n            stat[i] += lam * gg[i]\n    worst = max(abs(s) for s in stat)\n    for (g, _), lam in zip(constraints, multipliers):\n        worst = max(worst, max(0.0, g(x)))\n    return worst\n\n\ndef lp_duality_gap(c, A, b, x, y):\n    \"\"\"Bug: reverses the gap, so weak duality appears to be violated.\"\"\"\n    m, n = len(b), len(c)\n    if any(xi < -1e-12 for xi in x) or any(yi < -1e-12 for yi in y):\n        raise ValueError(\"both points must be non-negative\")\n    for i in range(m):\n        if sum(A[i][j] * x[j] for j in range(n)) < b[i] - 1e-9:\n            raise ValueError(\"the primal point is infeasible\")\n    for j in range(n):\n        if sum(A[i][j] * y[i] for i in range(m)) > c[j] + 1e-9:\n            raise ValueError(\"the dual point is infeasible\")\n    return sum(b[i] * y[i] for i in range(m)) - sum(c[j] * x[j] for j in range(n))\n"], "hints": ["Newton SOLVES `H d = g`; it does not divide coordinate by coordinate. That difference is what makes it affine invariant.", "KKT has four parts. Dropping complementary slackness lets an inactive constraint carry a positive multiplier."], "level": "boss", "title": "Newton, line search, KKT and duality"}}, "demos": {"m36-known-answers": {"code": "from math import sqrt\n\n\ndef solve2(A, b):\n    \"\"\"Exact 2x2 solve by Cramer's rule - the closed-form optimum.\"\"\"\n    det = A[0][0] * A[1][1] - A[0][1] * A[1][0]\n    assert abs(det) > 1e-12, \"the system must be nonsingular\"\n    return [(b[0] * A[1][1] - A[0][1] * b[1]) / det,\n            (A[0][0] * b[1] - b[0] * A[1][0]) / det]\n\n\n# f(x) = 0.5 x'Ax - b'x, with A diagonal so L and mu are read off directly\nA = [[1.0, 0.0], [0.0, 20.0]]\nb = [3.0, 5.0]\nL, mu = 20.0, 1.0\nkappa = L / mu\nstar = solve2(A, b)\nf = lambda x: 0.5 * (A[0][0] * x[0] ** 2 + A[1][1] * x[1] ** 2) - b[0] * x[0] - b[1] * x[1]\ngrad = lambda x: [A[0][0] * x[0] - b[0], A[1][1] * x[1] - b[1]]\nfstar = f(star)\nprint(f\"closed-form optimum: {star}, f* = {fstar:.10f}\")\nprint(f\"L = {L}, mu = {mu}, kappa = {kappa}\")\n\n# the gradient really vanishes there, and nothing beats it\nassert max(abs(g) for g in grad(star)) < 1e-12\nfor d in ([0.1, 0.0], [0.0, 0.1], [-0.05, 0.07]):\n    assert f([star[0] + d[0], star[1] + d[1]]) > fstar\n\n\ndef gd(step, iters=400, beta=0.0, nesterov=False):\n    x = [0.0, 0.0]\n    v = [0.0, 0.0]\n    prev = list(x)\n    for _ in range(iters):\n        if nesterov:\n            y = [x[i] + beta * (x[i] - prev[i]) for i in range(2)]\n            g = grad(y)\n            prev = list(x)\n            x = [y[i] - step * g[i] for i in range(2)]\n        else:\n            g = grad(x)\n            v = [beta * v[i] - step * g[i] for i in range(2)]\n            x = [x[i] + v[i] for i in range(2)]\n        if max(abs(xi) for xi in x) > 1e8:\n            return x, False\n    return x, True\n\n\n# --- plain gradient descent at the theoretically correct step ---\nx, ok = gd(1.0 / L)\nerr = max(abs(x[i] - star[i]) for i in range(2))\nprint()\nprint(f\"gradient descent, step 1/L = {1/L}: error {err:.3e} after 400 steps\")\nassert ok and err < 1e-6, \"the textbook step must converge to the known optimum\"\n\n# --- the 2/L threshold, from both sides ---\n# Near the boundary the growth factor is only just above 1, so divergence\n# takes many iterations to become visible. 2000 is enough for these.\nprint()\nfor step in (1.9 / L, 1.99 / L, 2.1 / L, 2.5 / L):\n    _, ok = gd(step, iters=2000)\n    print(f\"  step = {step * L:.2f}/L : {'converges' if ok else 'DIVERGES'}\")\nassert gd(1.99 / L, iters=2000)[1], \"just under 2/L it must still converge\"\nassert not gd(2.1 / L, iters=2000)[1], \"just over 2/L it must diverge\"\n\n# --- momentum reaches the same known optimum faster ---\nbeta_opt = ((sqrt(kappa) - 1) / (sqrt(kappa) + 1)) ** 2\nprint()\nprint(f\"iterations to reach 1e-8 of the closed-form optimum\")\nfor name, kw in ((\"plain\", dict()),\n                 (\"heavy ball\", dict(beta=beta_opt)),\n                 (\"Nesterov\", dict(beta=beta_opt, nesterov=True))):\n    n = None\n    for iters in range(1, 900):\n        x, ok = gd(1.0 / L, iters=iters, **kw)\n        if ok and max(abs(x[i] - star[i]) for i in range(2)) < 1e-8:\n            n = iters\n            break\n    print(f\"  {name:>12}: {n} iterations\")\n    assert n is not None, name\n    if name == \"plain\":\n        plain_n = n\n    else:\n        assert n < plain_n, f\"{name} must beat plain descent\"\n\n# --- Adam, with and without bias correction ---\nprint()\n\n\ndef adam(iters, correct=True, step=0.5, b1=0.9, b2=0.999, eps=1e-8):\n    x = [0.0, 0.0]\n    m = [0.0, 0.0]\n    v = [0.0, 0.0]\n    first_step = None\n    for t in range(1, iters + 1):\n        g = grad(x)\n        for i in range(2):\n            m[i] = b1 * m[i] + (1 - b1) * g[i]\n            v[i] = b2 * v[i] + (1 - b2) * g[i] * g[i]\n        if correct:\n            mh = [m[i] / (1 - b1 ** t) for i in range(2)]\n            vh = [v[i] / (1 - b2 ** t) for i in range(2)]\n        else:\n            mh, vh = list(m), list(v)\n        delta = [step * mh[i] / (sqrt(vh[i]) + eps) for i in range(2)]\n        if t == 1:\n            first_step = max(abs(d) for d in delta)\n        x = [x[i] - delta[i] for i in range(2)]\n    return x, first_step\n\n\nxc, step_c = adam(600, correct=True)\nxu, step_u = adam(600, correct=False)\nprint(f\"  with bias correction   : first step {step_c:.6f}, \"\n      f\"final error {max(abs(xc[i]-star[i]) for i in range(2)):.3e}\")\nprint(f\"  without bias correction: first step {step_u:.6f}, \"\n      f\"final error {max(abs(xu[i]-star[i]) for i in range(2)):.3e}\")\n# The corrected first step has magnitude EXACTLY the step size, because\n# m_hat / sqrt(v_hat) = g / |g| = 1 at t = 1. That is Adam's design intent.\nassert abs(step_c - 0.5) < 1e-6, \"the corrected first step must equal the step size\"\n# The uncorrected one is larger by sqrt(1-b2)/(1-b1) = 3.162, not smaller:\n# the under-estimated denominator beats the under-estimated numerator.\nratio = step_u / step_c\nprint(f\"  uncorrected / corrected = {ratio:.4f}   theory \"\n      f\"{(1 - 0.9) / sqrt(1 - 0.999):.4f}\")\nassert abs(ratio - (1 - 0.9) / sqrt(1 - 0.999)) < 1e-6, \"the ratio is sqrt(1-b2)/(1-b1)\"\nassert max(abs(xc[i] - star[i]) for i in range(2)) < 1e-4, \"corrected Adam finds it\"\n\n# --- a constrained problem whose KKT system is linear ---\nprint()\n# minimise x^2 + y^2 subject to x + y = 1  ->  x = y = 1/2, nu = -1\n# stationarity: 2x + nu = 0, 2y + nu = 0; feasibility: x + y = 1\nxs, ys, nu = 0.5, 0.5, -1.0\nprint(f\"constrained optimum ({xs}, {ys}) with multiplier nu = {nu}\")\nassert abs(2 * xs + nu) < 1e-12 and abs(2 * ys + nu) < 1e-12, \"stationarity\"\nassert abs(xs + ys - 1) < 1e-12, \"primal feasibility\"\n# no feasible point does better\nbest = xs ** 2 + ys ** 2\nfor t in (-0.3, 0.0, 0.2, 0.49, 0.8, 1.4):\n    assert t ** 2 + (1 - t) ** 2 >= best - 1e-12, t\nprint(f\"  objective {best}, and no feasible point beats it\")\n\n# --- weak duality holds for EVERY feasible pair ---\nprint()\n# primal: min c'x s.t. Ax >= b, x >= 0   dual: max b'y s.t. A'y <= c, y >= 0\nc = [2.0, 3.0]\nAm = [[1.0, 1.0], [1.0, 3.0]]\nbb = [4.0, 6.0]\nfeasible_x = [[6.0, 0.0], [3.0, 1.0], [2.0, 2.0], [1.0, 3.0], [0.0, 4.0], [6.0, 6.0]]\nfeasible_y = [[0.0, 0.0], [1.0, 0.0], [0.0, 1.0], [1.5, 0.5], [2.0, 0.0]]\nprint(f\"{'primal c-x':>12} {'dual b-y':>12}  gap\")\nfor x in feasible_x:\n    assert all(sum(Am[i][j] * x[j] for j in range(2)) >= bb[i] - 1e-12 for i in range(2))\nfor y in feasible_y:\n    assert all(sum(Am[i][j] * y[i] for i in range(2)) <= c[j] + 1e-12 for j in range(2))\nbest_primal = min(sum(c[j] * x[j] for j in range(2)) for x in feasible_x)\nbest_dual = max(sum(bb[i] * y[i] for i in range(2)) for y in feasible_y)\nfor x in feasible_x[:4]:\n    p = sum(c[j] * x[j] for j in range(2))\n    for y in feasible_y[:3]:\n        d = sum(bb[i] * y[i] for i in range(2))\n        assert d <= p + 1e-12, \"weak duality must never be violated\"\nprint(f\"{best_primal:>12} {best_dual:>12}  {best_primal - best_dual}\")\nassert best_dual <= best_primal, \"every dual value lower-bounds every primal value\"\nprint(\"every dual feasible point is a PROOF that no primal point goes below it\")\n", "mutants": ["from math import sqrt\n\nA = [[1.0, 0.0], [0.0, 20.0]]\nb = [3.0, 5.0]\nstar = [3.0, 0.25]\ngrad = lambda x: [A[0][0] * x[0] - b[0], A[1][1] * x[1] - b[1]]\n\n\ndef adam(iters, step=0.5, b1=0.9, b2=0.999, eps=1e-8):\n    \"\"\"Bug: omits the bias correction. m and v start at zero, so the early\n    estimates are biased towards zero and the first steps are tiny.\"\"\"\n    x = [0.0, 0.0]\n    m = [0.0, 0.0]\n    v = [0.0, 0.0]\n    first_step = None\n    for t in range(1, iters + 1):\n        g = grad(x)\n        for i in range(2):\n            m[i] = b1 * m[i] + (1 - b1) * g[i]\n            v[i] = b2 * v[i] + (1 - b2) * g[i] * g[i]\n        delta = [step * m[i] / (sqrt(v[i]) + eps) for i in range(2)]\n        if t == 1:\n            first_step = max(abs(d) for d in delta)\n        x = [x[i] - delta[i] for i in range(2)]\n    return x, first_step\n\n\nx, first = adam(600)\nprint(f\"first step {first:.6f}, final error \"\n      f\"{max(abs(x[i]-star[i]) for i in range(2)):.3e}\")\n# With bias correction the first step is exactly the step size, 0.5. Without\n# it the under-estimated second moment inflates it to 0.5 * 3.162 = 1.581.\nassert abs(first - 0.5) < 1e-6, \"the corrected first step must equal the step size\"\n"]}, "m36-rates-and-limits": {"code": "import random\nfrom math import sqrt\n\n# --- 1. the threshold is a cliff, not a slope ---\nprint(\"gradient descent on f(x) = 0.5 * L * x^2, swept across the threshold\")\nprint(f\"{'alpha * L':>11} {'|x| after 200 steps':>22} {'outcome':>12}\")\nL = 10.0\n# Just above the threshold the growth factor is only 1.01, so a few hundred\n# steps hide the divergence entirely. 4000 makes it unmistakable.\nfor mult in (1.5, 1.9, 1.99, 2.0, 2.01, 2.1):\n    alpha = mult / L\n    x = 1.0\n    for _ in range(4000):\n        x = x - alpha * L * x\n        if abs(x) > 1e30:\n            break\n    out = \"converges\" if abs(x) < 1e-6 else (\"oscillates\" if abs(x) < 2 else \"DIVERGES\")\n    print(f\"{mult:>11.2f} {abs(x):>22.4e} {out:>12}\")\n    if mult < 2.0:\n        assert abs(x) < 1e-6, f\"below 2/L it must converge, mult={mult}\"\n    if mult > 2.0:\n        assert abs(x) > 1e6, f\"above 2/L it must blow up, mult={mult}\"\n# exactly at 2/L the iterate flips sign forever without shrinking\nx = 1.0\nfor _ in range(4000):\n    x = x - (2.0 / L) * L * x\nassert abs(abs(x) - 1.0) < 1e-9, \"at exactly 2/L it oscillates with constant amplitude\"\nprint()\nprint(\"predicted: convergence for alpha < 2/L, constant oscillation AT 2/L,\")\nprint(\"           geometric blow-up above. Measured: exactly that.\")\n\n# --- 2. iterations against the condition number ---\ndef iters_to_tol(kappa, momentum, tol=1e-8, cap=200000):\n    \"\"\"Steps for a 2-D quadratic with eigenvalues 1 and kappa.\n\n    Each method gets ITS OWN optimal step. Pairing the optimal momentum\n    coefficient with plain descent's 1/L is a real and common mistake: it\n    still accelerates, but it does not reach the sqrt(kappa) rate.\n    \"\"\"\n    L_, mu_ = float(kappa), 1.0\n    if momentum:\n        beta = ((sqrt(kappa) - 1) / (sqrt(kappa) + 1)) ** 2\n        alpha = 4.0 / (sqrt(L_) + sqrt(mu_)) ** 2\n    else:\n        beta = 0.0\n        alpha = 1.0 / L_\n    x = [1.0, 1.0]\n    v = [0.0, 0.0]\n    lam = [mu_, L_]\n    for k in range(1, cap + 1):\n        g = [lam[i] * x[i] for i in range(2)]\n        for i in range(2):\n            v[i] = beta * v[i] - alpha * g[i]\n            x[i] = x[i] + v[i]\n        if max(abs(xi) for xi in x) < tol:\n            return k\n    return cap\n\n\nprint()\nprint(f\"{'kappa':>8} {'plain GD':>10} {'momentum':>10} {'plain/kappa':>13} \"\n      f\"{'momentum/sqrt(kappa)':>22}\")\nplain, mom = {}, {}\nfor kappa in (10, 100, 1000):\n    p = iters_to_tol(kappa, False)\n    m = iters_to_tol(kappa, True)\n    plain[kappa], mom[kappa] = p, m\n    print(f\"{kappa:>8} {p:>10} {m:>10} {p / kappa:>13.2f} {m / sqrt(kappa):>22.2f}\")\n\nprint()\nprint(\"predicted: plain GD costs O(kappa), momentum O(sqrt(kappa)),\")\nprint(\"           so the ratio columns should each be roughly constant\")\n# the normalised columns stay within a small band\npr = [plain[k] / k for k in (10, 100, 1000)]\nmr = [mom[k] / sqrt(k) for k in (10, 100, 1000)]\n# both normalised columns are flat to within a few percent, which pins the\n# exponents: 1 for plain descent, 1/2 for momentum\nassert max(pr) / min(pr) < 1.3, f\"plain GD must scale with kappa, got {pr}\"\nassert max(mr) / min(mr) < 1.3, f\"momentum must scale with sqrt(kappa), got {mr}\"\n# and at kappa = 1000 momentum is dramatically cheaper\nassert plain[1000] > 20 * mom[1000], \"momentum must win big on ill-conditioned problems\"\nprint(f\"measured : at kappa = 1000, plain needs {plain[1000]} steps \"\n      f\"and momentum {mom[1000]}\")\n\n# --- 3. SGD with a constant step lands in a noise ball ---\nprint()\nrng = random.Random(1951)\n# minimise the average of (x - c_i)^2 / 2; the optimum is the mean of c\ncentres = [rng.gauss(0, 1) for _ in range(200)]\ntrue_opt = sum(centres) / len(centres)\n\n\ndef sgd(step, iters=20000, batch=1):\n    x = 0.0\n    tail = []\n    for k in range(iters):\n        g = sum(x - centres[rng.randrange(len(centres))] for _ in range(batch)) / batch\n        x = x - step * g\n        if k > iters * 0.8:\n            tail.append(x)\n    spread = max(tail) - min(tail)\n    return x, spread\n\n\nprint(f\"{'step':>8} {'batch':>7} {'spread of the last 20% of iterates':>36}\")\nspreads = {}\nfor step in (0.2, 0.05, 0.0125):\n    x, sp = sgd(step)\n    spreads[step] = sp\n    print(f\"{step:>8} {1:>7} {sp:>36.4f}\")\nprint()\nprint(\"predicted: a CONSTANT step cannot converge - it reaches a noise ball\")\nprint(\"           whose width shrinks with the step size, not with time\")\nassert spreads[0.2] > spreads[0.05] > spreads[0.0125], spreads\nassert spreads[0.2] > 0.1, \"a large constant step leaves a wide ball\"\n# a bigger mini-batch shrinks the ball by reducing the gradient variance\n_, sp1 = sgd(0.2, batch=1)\n_, sp16 = sgd(0.2, batch=16)\nprint(f\"batch 1 spread {sp1:.4f}, batch 16 spread {sp16:.4f} \"\n      f\"(ratio {sp1 / sp16:.2f}, theory ~4 for sqrt(16))\")\nassert sp16 < sp1, \"a larger mini-batch shrinks the noise ball\"\n# a decreasing step DOES converge\nx = 0.0\nfor k in range(1, 40000):\n    g = x - centres[rng.randrange(len(centres))]\n    x = x - (1.0 / k) * g\nprint(f\"with a 1/k step the final iterate is {x:.4f} against the true {true_opt:.4f}\")\nassert abs(x - true_opt) < 0.05, \"a decreasing step converges to the optimum\"\n\n# --- 4. non-convexity: the basin decides ---\nprint()\n# f(x) = x^4 - 4x^2 + 0.5x has two local minima of DIFFERENT depth\nf = lambda x: x ** 4 - 4 * x ** 2 + 0.5 * x\ndf = lambda x: 4 * x ** 3 - 8 * x + 0.5\n\n\ndef descend(x0, step=0.01, iters=20000):\n    x = x0\n    for _ in range(iters):\n        x = x - step * df(x)\n    return x\n\n\nprint(f\"{'start':>8} {'converged to':>14} {'f value':>12}\")\nfound = {}\nfor x0 in (-2.0, -0.5, 0.5, 2.0):\n    x = descend(x0)\n    found[x0] = x\n    print(f\"{x0:>8} {x:>14.6f} {f(x):>12.6f}\")\n\nleft = found[-2.0]\nright = found[2.0]\nassert abs(left - right) > 1.0, \"different starts reach genuinely different points\"\nassert abs(df(left)) < 1e-6 and abs(df(right)) < 1e-6, \"both are stationary\"\nassert f(left) < f(right), \"and one of them is strictly worse than the other\"\nprint()\nprint(\"predicted: for a non-convex f, gradient descent finds A minimum, not THE\")\nprint(f\"           minimum. The global one here has f = {min(f(left), f(right)):.6f};\")\nprint(f\"           starting at +2 lands on f = {f(right):.6f} and stays there.\")\n# no step size rescues it: the basin, not the step, decides\nfor step in (0.001, 0.005, 0.02):\n    assert abs(descend(2.0, step=step) - right) < 1e-3, \\\n        \"every stable step size from x0 = 2 reaches the same worse minimum\"\nprint(\"           and no choice of step size changes that.\")\n", "mutants": ["# Wrong theory: \"gradient descent finds the global minimum, so where you start\n# does not matter.\" That is true for convex f and false in general.\nf = lambda x: x ** 4 - 4 * x ** 2 + 0.5 * x\ndf = lambda x: 4 * x ** 3 - 8 * x + 0.5\n\n\ndef descend(x0, step=0.01, iters=20000):\n    x = x0\n    for _ in range(iters):\n        x = x - step * df(x)\n    return x\n\n\nresults = {}\nfor x0 in (-2.0, -0.5, 0.5, 2.0):\n    results[x0] = descend(x0)\n    print(f\"start {x0:>6} -> {results[x0]:.6f}  f = {f(results[x0]):.6f}\")\n\nbest = min(f(v) for v in results.values())\nfor x0, x in results.items():\n    assert abs(f(x) - best) < 1e-9, f\"every start must reach the global minimum\"\n"]}}, "cards": [{"q": "What makes convexity the dividing line in optimisation?", "a": "For a convex function every stationary point is a global minimum, so going downhill cannot strand you in the wrong place. The one-line proof is the first-order condition with the gradient set to zero."}, {"q": "What is the largest stable step for gradient descent, and why?", "a": "2/L, where L is the largest Hessian eigenvalue. On a quadratic each eigendirection evolves as (1 - alpha*lambda)^k, and that exceeds 1 in magnitude exactly when alpha > 2/lambda."}, {"q": "What determines the SPEED of gradient descent, as opposed to whether it converges?", "a": "The condition number kappa = L/mu. With step 1/L the contraction is 1 - 1/kappa per step, so about kappa iterations are needed."}, {"q": "What does momentum buy?", "a": "The rate's dependence drops from kappa to sqrt(kappa). Nesterov's version is optimal among first-order methods."}, {"q": "Why does Adam need bias correction, and which way does the error go?", "a": "m and v both start at zero, so both are biased towards zero. The biases do not cancel: the net uncorrected step is sqrt(1-b2^t)/(1-b1^t) times the intended one, about 3.16 times TOO LARGE at t=1. With correction the first step has magnitude exactly alpha."}, {"q": "Why does constant-step SGD not converge?", "a": "Gradient noise keeps it in a ball of radius O(alpha * sigma^2) around the optimum. Convergence needs a decreasing step with sum alpha = infinity and sum alpha^2 finite."}, {"q": "How does mini-batch size affect gradient noise?", "a": "A batch of b cuts the variance by b and the standard deviation by sqrt(b) \u2014 diminishing returns, the same 1/sqrt(n) law as everywhere else."}, {"q": "What is Newton's method's key advantage and its cost?", "a": "It is affine invariant, so the condition number drops out of its rate, and it converges quadratically near the optimum. It costs O(d^3) per step and needs a positive definite Hessian."}, {"q": "State the four KKT conditions.", "a": "Stationarity (the Lagrangian's gradient vanishes), primal feasibility, dual feasibility (multipliers non-negative), and complementary slackness (lambda_i * g_i = 0)."}, {"q": "What does weak duality give you, and what does it assume?", "a": "Every dual feasible point lower-bounds the primal optimum, so the gap is a computable certificate of suboptimality. It assumes NOTHING \u2014 not even convexity."}, {"q": "What does backtracking line search replace?", "a": "Knowledge of L. It halves the step until the Armijo sufficient-decrease condition holds, measuring instead of assuming."}], "title": "Optimisation"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

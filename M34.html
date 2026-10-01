@@ -1,0 +1,946 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M34 Probability theory</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M34">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-2 · ~5h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M34</p><h1>Probability theory</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M27.html">M27</a> <a href="M24.html">M24</a></div><div><b>Covers:</b> CS2023 MSF, university probability</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>discrete and continuous distributions: Bernoulli, binomial, geometric, Poisson, uniform, exponential, normal</li><li>PMF, PDF and CDF</li><li>joint, marginal and conditional distributions</li><li>covariance and correlation</li><li>linearity of expectation</li><li>variance of sums</li><li>Markov, Chebyshev and Hoeffding inequalities</li><li>the weak law of large numbers</li><li>the central limit theorem</li><li>sampling distributions</li><li>simulation by inverse CDF and Box-Muller</li><li>Monte Carlo integration and its 1/sqrt(n) error</li><li>heavy-tailed distributions (log-normal, Pareto) and why the mean misleads for latency</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Meera's team runs a web service. The dashboard says the average response time is 120 milliseconds, and everyone is pleased.</p>
+<p>Then the complaints start. Users say the site is slow. Not sometimes — often enough that they mention it.</p>
+<p>Meera pulls the raw numbers instead of the average. Most requests finish in about 40 milliseconds. A smaller group takes 200. And a thin tail — maybe one request in fifty — takes two or three seconds.</p>
+<p>She works out what the average is doing. The few enormous values are dragging it upwards, so 120 milliseconds describes almost nobody: it is far above the typical request and far below the slow ones. Nobody experiences 120 milliseconds.</p>
+<p>Her colleague suggests collecting more data so the average settles down. Meera tries it. With ten times the data the average does not settle — it jumps around, and occasionally jumps <em>up</em>, because a new record-breaking slow request arrived and pulled it.</p>
+<p>Here is the surprise: for some distributions, collecting more data does not make the average more trustworthy. The familiar comfort that "averages converge" has conditions, and when the tail is heavy enough those conditions fail. Knowing which distribution you are in — and which theorems therefore apply — is the difference between a number that means something and a number that does not.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>random variable</strong> attaches numbers to outcomes. Its <strong>distribution</strong> says how the probability is spread: a <strong>PMF</strong> for discrete values, a <strong>PDF</strong> for continuous ones, and a <strong>CDF</strong> for both.</p>
+<p>A handful of named distributions cover most situations: <strong>Bernoulli</strong> and <strong>binomial</strong> for counting successes, <strong>geometric</strong> for waiting, <strong>Poisson</strong> for rare events in a window, <strong>uniform</strong>, <strong>exponential</strong> for waiting times, and the <strong>normal</strong> for almost everything that is a sum of many small effects.</p>
+<p>Three results do the heavy lifting. <strong>Linearity of expectation</strong> always holds. The <strong>law of large numbers</strong> says sample averages converge to the true mean — <em>if</em> that mean exists. The <strong>central limit theorem</strong> says sums of many independent things look normal, almost regardless of what they were.</p>
+<p>And the <strong>inequalities</strong> — Markov, Chebyshev, Hoeffding — turn "probably" into a number you can quote, which is what makes all of this engineering rather than hope.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Distributions</h2>
+<p>A <strong>discrete</strong> random variable has a <strong>probability mass function</strong> $p(x)=P(X=x)$ with $\sum p(x)=1$. A <strong>continuous</strong> one has a <strong>probability density function</strong> $f$ with $f\ge0$ and $\int f = 1$; here $P(X=x)=0$ for every single $x$, and probability lives in intervals: $P(a\le X\le b)=\int_a^b f$.</p>
+<p>The <strong>cumulative distribution function</strong> $F(x)=P(X\le x)$ exists for both, is non-decreasing, and runs from 0 to 1. For continuous $X$, $F&#x27;=f$.</p>
+<table>
+<thead>
+<tr>
+<th>Distribution</th>
+<th>Parameters</th>
+<th>Mean</th>
+<th>Variance</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bernoulli</td>
+<td>$p$</td>
+<td>$p$</td>
+<td>$p(1-p)$</td>
+</tr>
+<tr>
+<td>Binomial</td>
+<td>$n,p$</td>
+<td>$np$</td>
+<td>$np(1-p)$</td>
+</tr>
+<tr>
+<td>Geometric (trials until first success)</td>
+<td>$p$</td>
+<td>$\frac1p$</td>
+<td>$\frac{1-p}{p^2}$</td>
+</tr>
+<tr>
+<td>Poisson</td>
+<td>$\lambda$</td>
+<td>$\lambda$</td>
+<td>$\lambda$</td>
+</tr>
+<tr>
+<td>Uniform on $[a,b]$</td>
+<td>$a,b$</td>
+<td>$\frac{a+b}{2}$</td>
+<td>$\frac{(b-a)^2}{12}$</td>
+</tr>
+<tr>
+<td>Exponential</td>
+<td>$\lambda$</td>
+<td>$\frac1\lambda$</td>
+<td>$\frac{1}{\lambda^2}$</td>
+</tr>
+<tr>
+<td>Normal</td>
+<td>$\mu,\sigma^2$</td>
+<td>$\mu$</td>
+<td>$\sigma^2$</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>Poisson</strong> arises as the limit of a binomial with $n\to\infty$, $p\to0$ and $np=\lambda$ fixed: rare events, many opportunities. The <strong>exponential</strong> is <strong>memoryless</strong>: $P(X&gt;s+t\mid X&gt;s)=P(X&gt;t)$ — having waited tells you nothing about how much longer, which is the continuous analogue of M10's coin.</p>
+<h2>Joint, marginal, conditional</h2>
+<p>For a pair $(X,Y)$ the <strong>joint</strong> PMF is $p(x,y)$. The <strong>marginals</strong> come from summing out the other variable: $p_X(x)=\sum_y p(x,y)$. The <strong>conditional</strong> is $p_{Y|X}(y|x)=\frac{p(x,y)}{p_X(x)}$. $X$ and $Y$ are <strong>independent</strong> when $p(x,y)=p_X(x)p_Y(y)$ for all $x,y$.</p>
+<p><strong>Covariance</strong> and <strong>correlation</strong>:</p>
+<p>$$\operatorname{Cov}(X,Y) = E[XY]-E[X]E[Y], \qquad \rho = \frac{\operatorname{Cov}(X,Y)}{\sigma_X\sigma_Y}\in[-1,1]$$</p>
+<p>Independence implies zero covariance; the converse is <strong>false</strong>. With $X$ uniform on $[-1,1]$ and $Y=X^2$, the covariance is zero and $Y$ is a deterministic function of $X$.</p>
+<h2>Expectation and variance of sums</h2>
+<p>$$E\left[\sum X_i\right] = \sum E[X_i] \quad \textbf{always}$$
+$$\operatorname{Var}\left(\sum X_i\right) = \sum\operatorname{Var}(X_i) + 2\sum_{i&lt;j}\operatorname{Cov}(X_i,X_j)$$</p>
+<p>so variances add <strong>only</strong> when the covariances vanish. For $n$ independent identically distributed variables, the sample mean has variance $\frac{\sigma^2}{n}$ and standard deviation $\frac{\sigma}{\sqrt n}$ — the <strong>standard error</strong>, and the origin of the $\frac{1}{\sqrt n}$ that appears everywhere.</p>
+<h2>Inequalities</h2>
+<p><strong>Markov.</strong> For $X\ge0$ and $a&gt;0$: $P(X\ge a)\le\frac{E[X]}{a}$.</p>
+<p><strong>Chebyshev.</strong> $P(|X-\mu|\ge k\sigma)\le\frac{1}{k^2}$.</p>
+<p><strong>Hoeffding.</strong> For independent $X_i\in[a_i,b_i]$ with $S=\sum X_i$:</p>
+<p>$$P\left(|S-E[S]|\ge t\right) \le 2\exp\left(\frac{-2t^2}{\sum(b_i-a_i)^2}\right)$$</p>
+<p>Markov needs only non-negativity and a mean; Chebyshev needs a variance; Hoeffding needs boundedness and gives an <em>exponentially</em> small bound rather than a polynomial one. Each buys a stronger conclusion with a stronger hypothesis.</p>
+<h2>Limit theorems</h2>
+<p><strong>Weak law of large numbers.</strong> If $X_i$ are i.i.d. with finite mean $\mu$, then $\bar X_n\to\mu$ in probability. The proof is one line of Chebyshev when the variance is finite.</p>
+<p><strong>Central limit theorem.</strong> If $X_i$ are i.i.d. with mean $\mu$ and <strong>finite</strong> variance $\sigma^2$, then</p>
+<p>$$\frac{\bar X_n-\mu}{\sigma/\sqrt n} \to \mathcal{N}(0,1)$$</p>
+<p>in distribution. The shape of the original distribution is irrelevant; only the finiteness of the variance matters.</p>
+<h2>Simulation</h2>
+<p><strong>Inverse CDF (inverse transform).</strong> If $U$ is uniform on $[0,1]$ then $F^{-1}(U)$ has CDF $F$. For the exponential, $F(x)=1-e^{-\lambda x}$ inverts to $X=-\frac{\ln(1-U)}{\lambda}$.</p>
+<p><strong>Box-Muller.</strong> From independent uniforms $U_1,U_2$ on $(0,1]$:</p>
+<p>$$Z_1 = \sqrt{-2\ln U_1}\cos(2\pi U_2), \qquad Z_2 = \sqrt{-2\ln U_1}\sin(2\pi U_2)$$</p>
+<p>are independent standard normals. The derivation is the polar-coordinate trick of M32, run backwards.</p>
+<p><strong>Monte Carlo integration.</strong> $\int_a^b g \approx (b-a)\cdot\frac1n\sum g(U_i)$ with $U_i$ uniform on $[a,b]$. The error is $O\!\left(\frac{1}{\sqrt n}\right)$ <strong>independently of the dimension</strong>, which is why it beats grid methods in high dimensions even though it is hopeless in one.</p>
+<h2>Heavy tails</h2>
+<p>A distribution is <strong>heavy-tailed</strong> when its tail decays slower than exponentially. The <strong>log-normal</strong> ($\ln X$ normal) and the <strong>Pareto</strong> ($P(X&gt;x)=\left(\frac{x_m}{x}\right)^\alpha$) are the standard examples.</p>
+<p>The Pareto has mean $\frac{\alpha x_m}{\alpha-1}$ only when $\alpha&gt;1$, and finite variance only when $\alpha&gt;2$. For $\alpha\le2$ the <strong>CLT does not apply</strong>, and for $\alpha\le1$ even the law of large numbers fails — the sample mean never settles, which is exactly Meera's experience.</p>
+<p>For such data the mean is not a summary; <strong>quantiles</strong> are. That is why latency is reported as p50, p95 and p99.</p>
+<h2>A pinch of history</h2>
+<p>The normal distribution appears in de Moivre (1733) as an approximation to the binomial, and in Laplace and Gauss (1809) for measurement error. Laplace stated a general central limit theorem in 1810; the modern Lindeberg-Lévy form is from the 1920s. Chebyshev proved his inequality in 1867, and his student Markov the simpler one that bears his name. Kolmogorov's 1933 axioms put it all on a rigorous footing, and he proved the strong law of large numbers in 1930.</p>
+<p>Box and Muller published their transform in 1958. Monte Carlo methods were developed at Los Alamos by Ulam, von Neumann and Metropolis in the 1940s, and named after the casino. Vilfredo Pareto described his distribution in 1896 studying the distribution of wealth, and Benoit Mandelbrot argued from the 1960s that heavy tails are the rule rather than the exception in economics and nature.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: linearity of expectation needs no independence.</strong> For discrete $X,Y$ on a joint distribution,</p>
+<p>$$E[X+Y] = \sum_{x,y}(x+y)p(x,y) = \sum_{x,y}x\,p(x,y) + \sum_{x,y}y\,p(x,y) = \sum_x x\,p_X(x) + \sum_y y\,p_Y(y)$$</p>
+<p>because summing the joint over the other variable gives the marginal. Nothing anywhere required $p(x,y)=p_X(x)p_Y(y)$. This is why expectation is the tool of choice for messy dependent problems.</p>
+<p><strong>Result 2: variance of a sum.</strong></p>
+<p>$$\operatorname{Var}(X+Y) = E[(X+Y)^2]-\left(E[X+Y]\right)^2 = E[X^2]+2E[XY]+E[Y^2] - \mu_X^2-2\mu_X\mu_Y-\mu_Y^2$$</p>
+<p>Grouping gives $\operatorname{Var}(X)+\operatorname{Var}(Y)+2\left(E[XY]-\mu_X\mu_Y\right)$, and the bracket is the covariance. <strong>The cross term is where independence is needed</strong> and nowhere else.</p>
+<p><strong>Result 3: Markov, then Chebyshev, then the weak law.</strong></p>
+<p><em>Markov.</em> For $X\ge0$ and $a&gt;0$, split the expectation: $E[X]\ge E[X\cdot\mathbf{1}_{X\ge a}]\ge a\,P(X\ge a)$, since on that event $X$ is at least $a$. Rearranging gives the bound.</p>
+<p><em>Chebyshev.</em> Apply Markov to the non-negative variable $(X-\mu)^2$ with threshold $k^2\sigma^2$:</p>
+<p>$$P\left(|X-\mu|\ge k\sigma\right) = P\left((X-\mu)^2\ge k^2\sigma^2\right)\le\frac{E[(X-\mu)^2]}{k^2\sigma^2}=\frac{\sigma^2}{k^2\sigma^2}=\frac{1}{k^2}$$</p>
+<p><em>Weak law.</em> $\bar X_n$ has mean $\mu$ and variance $\frac{\sigma^2}{n}$. Chebyshev gives</p>
+<p>$$P\left(|\bar X_n-\mu|\ge\varepsilon\right)\le\frac{\sigma^2}{n\varepsilon^2}\to0$$</p>
+<p><strong>The whole chain hangs on $\sigma^2&lt;\infty$</strong>, which is exactly the hypothesis that fails for Meera's latencies.</p>
+<p><strong>Result 4: why the sample mean has standard deviation $\frac{\sigma}{\sqrt n}$.</strong> $\bar X_n = \frac1n\sum X_i$, so $\operatorname{Var}(\bar X_n) = \frac{1}{n^2}\operatorname{Var}\left(\sum X_i\right) = \frac{1}{n^2}\cdot n\sigma^2 = \frac{\sigma^2}{n}$, using independence in the middle step. Taking the square root gives $\frac{\sigma}{\sqrt n}$: to halve the error you need four times the data, and that single fact governs the cost of every measurement, A/B test and Monte Carlo estimate you will ever run.</p>
+<p><strong>Result 5: the inverse CDF method.</strong> Let $U$ be uniform on $[0,1]$ and $F$ a continuous strictly increasing CDF. Then</p>
+<p>$$P\left(F^{-1}(U)\le x\right) = P\left(U\le F(x)\right) = F(x)$$</p>
+<p>the last step because $U$ is uniform and $F(x)\in[0,1]$. So $F^{-1}(U)$ has exactly the distribution $F$. The method needs an invertible CDF, which is why the normal — whose CDF has no closed-form inverse — needs Box-Muller instead.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes distribution properties two genuinely independent ways.</p>
+<p>The <strong>analytic</strong> route uses the closed-form mean and variance from the table, and the closed-form PMF or CDF.</p>
+<p>The <strong>empirical</strong> route simulates a large sample and measures. It never consults a formula.</p>
+<p>A third check runs underneath: variables generated by the <strong>inverse CDF</strong> are compared against their theoretical CDF at many points, which tests the simulation itself rather than trusting it. The mutant below samples the exponential with $-\ln(U)/\lambda$ where $U$ is uniform on $[0,1)$ — which is actually correct in distribution, so instead it uses $-\ln(U)\cdot\lambda$, scaling the wrong way, a slip that still produces plausible positive numbers.</p>
+<div class="lab demo" data-demo="m34-distributions-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Closed-form moments against simulation</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import exp, log, sqrt, factorial, pi
+
+rng = random.Random(1733)
+N = 200000
+
+
+def sample_mean_var(sampler, n=N):
+    total = 0.0
+    total_sq = 0.0
+    for _ in range(n):
+        x = sampler()
+        total += x
+        total_sq += x * x
+    mean = total / n
+    return mean, total_sq / n - mean * mean
+
+
+print(f&quot;{&#x27;distribution&#x27;:&gt;22} {&#x27;mean (theory)&#x27;:&gt;15} {&#x27;measured&#x27;:&gt;12} &quot;
+      f&quot;{&#x27;var (theory)&#x27;:&gt;14} {&#x27;measured&#x27;:&gt;12}&quot;)
+
+# Bernoulli
+p = 0.3
+m, v = sample_mean_var(lambda: 1.0 if rng.random() &lt; p else 0.0)
+print(f&quot;{&#x27;Bernoulli(0.3)&#x27;:&gt;22} {p:&gt;15.4f} {m:&gt;12.4f} {p * (1 - p):&gt;14.4f} {v:&gt;12.4f}&quot;)
+assert abs(m - p) &lt; 0.01 and abs(v - p * (1 - p)) &lt; 0.01
+
+# Binomial
+n_trials, p = 20, 0.4
+m, v = sample_mean_var(lambda: float(sum(1 for _ in range(n_trials) if rng.random() &lt; p)), 50000)
+print(f&quot;{&#x27;Binomial(20, 0.4)&#x27;:&gt;22} {n_trials * p:&gt;15.4f} {m:&gt;12.4f} &quot;
+      f&quot;{n_trials * p * (1 - p):&gt;14.4f} {v:&gt;12.4f}&quot;)
+assert abs(m - n_trials * p) &lt; 0.05
+assert abs(v - n_trials * p * (1 - p)) &lt; 0.15
+
+# Geometric: trials until the first success
+p = 0.25
+def geometric():
+    k = 1
+    while rng.random() &gt;= p:
+        k += 1
+    return float(k)
+m, v = sample_mean_var(geometric, 100000)
+print(f&quot;{&#x27;Geometric(0.25)&#x27;:&gt;22} {1 / p:&gt;15.4f} {m:&gt;12.4f} &quot;
+      f&quot;{(1 - p) / (p * p):&gt;14.4f} {v:&gt;12.4f}&quot;)
+assert abs(m - 1 / p) &lt; 0.1
+assert abs(v - (1 - p) / (p * p)) &lt; 2.0
+
+# Uniform on [2, 8]
+a, b = 2.0, 8.0
+m, v = sample_mean_var(lambda: rng.uniform(a, b))
+print(f&quot;{&#x27;Uniform(2, 8)&#x27;:&gt;22} {(a + b) / 2:&gt;15.4f} {m:&gt;12.4f} &quot;
+      f&quot;{(b - a) ** 2 / 12:&gt;14.4f} {v:&gt;12.4f}&quot;)
+assert abs(m - (a + b) / 2) &lt; 0.02
+assert abs(v - (b - a) ** 2 / 12) &lt; 0.05
+
+# Exponential by inverse CDF
+lam = 1.5
+def exponential():
+    u = rng.random()
+    while u == 0.0:
+        u = rng.random()
+    return -log(u) / lam
+m, v = sample_mean_var(exponential)
+print(f&quot;{&#x27;Exponential(1.5)&#x27;:&gt;22} {1 / lam:&gt;15.4f} {m:&gt;12.4f} &quot;
+      f&quot;{1 / (lam * lam):&gt;14.4f} {v:&gt;12.4f}&quot;)
+assert abs(m - 1 / lam) &lt; 0.01
+assert abs(v - 1 / (lam * lam)) &lt; 0.02
+
+# Normal by Box-Muller
+mu, sigma = 3.0, 2.0
+def normal():
+    u1 = rng.random()
+    while u1 == 0.0:
+        u1 = rng.random()
+    u2 = rng.random()
+    import math
+    return mu + sigma * sqrt(-2 * log(u1)) * math.cos(2 * pi * u2)
+m, v = sample_mean_var(normal)
+print(f&quot;{&#x27;Normal(3, 4)&#x27;:&gt;22} {mu:&gt;15.4f} {m:&gt;12.4f} {sigma * sigma:&gt;14.4f} {v:&gt;12.4f}&quot;)
+assert abs(m - mu) &lt; 0.03
+assert abs(v - sigma * sigma) &lt; 0.08
+
+# --- the inverse CDF really produces the right distribution ---
+print()
+print(&quot;exponential samples versus the theoretical CDF 1 - e^(-lam x)&quot;)
+samples = sorted(exponential() for _ in range(200000))
+worst = 0.0
+for x in (0.1, 0.25, 0.5, 1.0, 2.0, 3.0):
+    empirical = sum(1 for s in samples if s &lt;= x) / len(samples)
+    theory = 1 - exp(-lam * x)
+    worst = max(worst, abs(empirical - theory))
+    print(f&quot;  x = {x:&lt;5} empirical {empirical:.5f}   theory {theory:.5f}&quot;)
+assert worst &lt; 0.01, &quot;the inverse-CDF sampler must match its own CDF&quot;
+
+# memorylessness, measured
+cond = [s - 1.0 for s in samples if s &gt; 1.0]
+tail_frac = sum(1 for c in cond if c &gt; 0.5) / len(cond)
+plain_frac = sum(1 for s in samples if s &gt; 0.5) / len(samples)
+print()
+print(&quot;memorylessness: P(X &gt; 1.5 | X &gt; 1) =&quot;, round(tail_frac, 4),
+      &quot; and P(X &gt; 0.5) =&quot;, round(plain_frac, 4))
+assert abs(tail_frac - plain_frac) &lt; 0.01, &quot;the exponential must be memoryless&quot;
+
+# Poisson as the limit of a binomial with np fixed
+lam_p = 2.0
+print()
+print(&quot;Poisson(2) pmf versus a Binomial(n, 2/n) for growing n&quot;)
+def poisson_pmf(k, lam):
+    return exp(-lam) * lam ** k / factorial(k)
+def binom_pmf(k, n, p):
+    from math import comb
+    return comb(n, k) * p ** k * (1 - p) ** (n - k)
+for n in (20, 200, 2000):
+    gap = max(abs(binom_pmf(k, n, lam_p / n) - poisson_pmf(k, lam_p)) for k in range(8))
+    print(f&quot;  n = {n:&gt;5}: largest pmf gap {gap:.6f}&quot;)
+assert max(abs(binom_pmf(k, 2000, lam_p / 2000) - poisson_pmf(k, lam_p))
+           for k in range(8)) &lt; 1e-3
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Three predictions.</p>
+<p><strong>First, the central limit theorem.</strong> Sums of independent variables should look normal regardless of the original shape — provided the variance is finite. We average samples from a wildly non-normal distribution and watch the shape.</p>
+<p><strong>Second, the $\frac{1}{\sqrt n}$ law.</strong> The standard error of a mean should shrink like $\frac{1}{\sqrt n}$, so a hundredfold increase in data buys a tenfold improvement and no more.</p>
+<p><strong>Third, and the one that matters for Meera: heavy tails break both.</strong> For a Pareto with $\alpha\le1$ the mean does not exist, the sample mean never settles, and no amount of extra data helps.</p>
+<div class="lab demo" data-demo="m34-clt-and-heavy-tails">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>When averages converge, and when they refuse to</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import sqrt
+
+rng = random.Random(1810)
+REPS = 4000
+
+# --- the CLT on a very non-normal source: a single fair coin flip ---
+print(f&quot;averaging n Bernoulli(0.5) draws, {REPS} times over&quot;)
+print(f&quot;{&#x27;n&#x27;:&gt;5} {&#x27;mean&#x27;:&gt;9} {&#x27;sd of the mean&#x27;:&gt;16} {&#x27;sigma/sqrt(n)&#x27;:&gt;14} &quot;
+      f&quot;{&#x27;frac within 1 sd&#x27;:&gt;18}&quot;)
+sds = {}
+for n in (1, 4, 16, 64):
+    means = [sum(1 if rng.random() &lt; 0.5 else 0 for _ in range(n)) / n
+             for _ in range(REPS)]
+    m = sum(means) / REPS
+    sd = sqrt(sum((x - m) ** 2 for x in means) / (REPS - 1))
+    sds[n] = sd
+    predicted = 0.5 / sqrt(n)
+    within = sum(1 for x in means if abs(x - m) &lt;= sd) / REPS
+    print(f&quot;{n:&gt;5} {m:&gt;9.5f} {sd:&gt;16.5f} {predicted:&gt;14.5f} {within:&gt;18.4f}&quot;)
+    assert abs(sd - predicted) &lt; 0.05 * predicted, &quot;sd must be sigma/sqrt(n)&quot;
+    if n &gt;= 16:
+        # for a normal about 68% lie within one standard deviation; at n = 4
+        # the sum still has only 5 possible values and sits at 0.63
+        assert 0.64 &lt; within &lt; 0.72, f&quot;the shape must become normal, got {within}&quot;
+
+print()
+print(&quot;predicted: the spread of the mean falls like 1/sqrt(n), so going from&quot;)
+print(&quot;           n = 4 to n = 64 (16x the data) should improve it 4x, not 16x&quot;)
+print(f&quot;measured : sd(4) / sd(64) = {sds[4] / sds[64]:.3f}&quot;)
+assert 3.6 &lt; sds[4] / sds[64] &lt; 4.4, &quot;16x the data buys 4x the accuracy&quot;
+print(&quot;           the shape approaches a normal whatever the source was&quot;)
+
+# --- heavy tails: a Pareto whose mean does not exist ---
+def pareto(alpha, xm=1.0):
+    u = rng.random() or 1e-12
+    return xm * u ** (-1.0 / alpha)
+
+
+print()
+print(&quot;Pareto with alpha = 0.8: the mean does NOT exist (alpha &lt;= 1).&quot;)
+print(&quot;Eight INDEPENDENT runs, each of 20000 samples - same size every time:&quot;)
+print(f&quot;{&#x27;run&#x27;:&gt;5} {&#x27;sample mean&#x27;:&gt;14} {&#x27;median&#x27;:&gt;10}&quot;)
+means, medians = [], []
+for run in range(1, 9):
+    vals = sorted(pareto(0.8) for _ in range(20000))
+    mean = sum(vals) / len(vals)
+    median = vals[len(vals) // 2]
+    means.append(mean)
+    medians.append(median)
+    print(f&quot;{run:&gt;5} {mean:&gt;14.1f} {median:&gt;10.4f}&quot;)
+
+mean_spread = max(means) / min(means)
+median_spread = max(medians) / min(medians)
+print()
+print(&quot;predicted: the sample mean is irreproducible; the median is not&quot;)
+print(f&quot;measured : the means differ by a factor of {mean_spread:.2f}&quot;)
+print(f&quot;measured : the medians differ by a factor of {median_spread:.3f}&quot;)
+assert mean_spread &gt; 1.5, &quot;the sample mean must refuse to settle&quot;
+assert median_spread &lt; 1.15, &quot;the median is stable across every run&quot;
+
+# With alpha = 3 the mean and variance both exist, and everything behaves.
+print()
+print(&quot;Pareto with alpha = 3: mean and variance both exist, so the law applies&quot;)
+means3 = []
+for n in (2000, 20000):
+    vals = [pareto(3.0) for _ in range(n)]
+    means3.append(sum(vals) / len(vals))
+    print(f&quot;  n = {n:&gt;6}: sample mean {means3[-1]:.4f}   theory {3.0 / (3.0 - 1):.4f}&quot;)
+assert abs(means3[-1] - 1.5) &lt; 0.05, &quot;with alpha = 3 the sample mean converges&quot;
+assert max(means3) / min(means3) &lt; 1.1, &quot;and it is stable across sample sizes&quot;
+
+# --- Meera&#x27;s dashboard ---
+print()
+print(&quot;Meera&#x27;s latencies: a mixture, mostly fast with a thin slow tail&quot;)
+def latency():
+    r = rng.random()
+    if r &lt; 0.80:
+        return rng.gauss(40, 8)
+    if r &lt; 0.98:
+        return rng.gauss(200, 40)
+    return 1000 + 2000 * rng.random()
+
+
+lat = sorted(max(1.0, latency()) for _ in range(50000))
+mean = sum(lat) / len(lat)
+median = lat[len(lat) // 2]
+p95 = lat[int(0.95 * len(lat))]
+p99 = lat[int(0.99 * len(lat))]
+print(f&quot;  mean {mean:.1f} ms   median {median:.1f} ms   &quot;
+      f&quot;p95 {p95:.1f} ms   p99 {p99:.1f} ms&quot;)
+frac_below_mean = sum(1 for x in lat if x &lt; mean) / len(lat)
+print(f&quot;  fraction of requests FASTER than the mean: {frac_below_mean:.3f}&quot;)
+assert mean &gt; median * 1.5, &quot;the mean sits far above the typical request&quot;
+assert frac_below_mean &gt; 0.75, &quot;most requests are faster than the average&quot;
+assert p99 &gt; 10 * median, &quot;and the tail is an order of magnitude worse&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the Pareto table is the point. Every one of those eight runs
+drew the <em>same</em> 20000 samples' worth of data, and the means ranged over a factor of
+more than two while the medians agreed to within about 2%. Nothing is wrong with the
+data or the arithmetic. The law of large numbers simply does not apply, because its
+hypothesis — a finite mean — fails. There is nothing for the average to converge to,
+so collecting more data does not help; it only gives the tail more chances to produce
+a new record and drag the mean somewhere else.</p>
+<p>Note also what the CLT table shows about rates. Even for the wildly non-normal coin
+flip, by $n=16$ the fraction within one standard deviation has already reached the
+normal's 68%, and at $n=4$ it has not. The CLT arrives fast for well-behaved
+distributions and never at all for $\alpha\le2$ Pareto — and "how fast" is the
+practical question that Berry-Esseen bounds answer and that a dashboard quietly
+assumes.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m34-ex1-discrete" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Discrete distributions, PMF and CDF</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>bernoulli_pmf(p, k)</code>, <code>binomial_pmf(n, p, k)</code>, <code>geometric_pmf(p, k)</code> (trials until the first success, so <code>k &gt;= 1</code>) and <code>poisson_pmf(lam, k)</code>. Write <code>cdf_from_pmf(pmf, upto)</code> summing a PMF up to and including <code>upto</code>. Write <code>mean_and_variance(pmf, support)</code> computing them from a PMF over a finite support. Raise <code>ValueError</code> for parameters outside their valid ranges or a negative <code>k</code>.</p></div>
+<textarea class="code" spellcheck="false">def bernoulli_pmf(p, k):
+    &quot;&quot;&quot;P(X = k) for a Bernoulli.&quot;&quot;&quot;
+    return 0.0
+
+
+def binomial_pmf(n, p, k):
+    &quot;&quot;&quot;P(X = k) for a binomial.&quot;&quot;&quot;
+    return 0.0
+
+
+def geometric_pmf(p, k):
+    &quot;&quot;&quot;P(X = k) for trials until the first success.&quot;&quot;&quot;
+    return 0.0
+
+
+def poisson_pmf(lam, k):
+    &quot;&quot;&quot;P(X = k) for a Poisson.&quot;&quot;&quot;
+    return 0.0
+
+
+def cdf_from_pmf(pmf, upto):
+    &quot;&quot;&quot;P(X &lt;= upto).&quot;&quot;&quot;
+    return 0.0
+
+
+def mean_and_variance(pmf, support):
+    &quot;&quot;&quot;(mean, variance) from a PMF over a finite support.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pmfs_sum_to_one():
+    # binomial over its whole support
+    assert abs(sum(binomial_pmf(10, 0.3, k) for k in range(11)) - 1.0) &lt; 1e-12
+    # geometric over many trials
+    assert abs(sum(geometric_pmf(0.4, k) for k in range(1, 200)) - 1.0) &lt; 1e-9
+    # Poisson over many counts
+    assert abs(sum(poisson_pmf(3.0, k) for k in range(60)) - 1.0) &lt; 1e-9
+    # Bernoulli
+    assert abs(bernoulli_pmf(0.3, 0) + bernoulli_pmf(0.3, 1) - 1.0) &lt; 1e-12
+    assert bernoulli_pmf(0.3, 5) == 0.0
+
+
+def test_moments_match_the_closed_forms():
+    # binomial: np and np(1-p)
+    n, p = 12, 0.35
+    m, v = mean_and_variance(lambda k: binomial_pmf(n, p, k), range(n + 1))
+    assert abs(m - n * p) &lt; 1e-9
+    assert abs(v - n * p * (1 - p)) &lt; 1e-9
+    # Poisson: mean equals variance equals lambda
+    lam = 4.0
+    m, v = mean_and_variance(lambda k: poisson_pmf(lam, k), range(80))
+    assert abs(m - lam) &lt; 1e-6 and abs(v - lam) &lt; 1e-6
+    # geometric: 1/p and (1-p)/p^2
+    pp = 0.25
+    m, v = mean_and_variance(lambda k: geometric_pmf(pp, k), range(1, 600))
+    assert abs(m - 1 / pp) &lt; 1e-4
+    assert abs(v - (1 - pp) / (pp * pp)) &lt; 1e-2
+
+
+def test_cdf_and_errors():
+    pmf = {k: binomial_pmf(5, 0.5, k) for k in range(6)}
+    assert abs(cdf_from_pmf(pmf, 5) - 1.0) &lt; 1e-12
+    assert abs(cdf_from_pmf(pmf, -1)) &lt; 1e-12
+    assert abs(cdf_from_pmf(pmf, 2) - sum(pmf[k] for k in (0, 1, 2))) &lt; 1e-12
+    # the CDF is non-decreasing
+    vals = [cdf_from_pmf(pmf, k) for k in range(-1, 7)]
+    assert all(a &lt;= b + 1e-15 for a, b in zip(vals, vals[1:]))
+    for bad in (lambda: binomial_pmf(5, 1.5, 2),
+                lambda: geometric_pmf(0.5, 0),
+                lambda: poisson_pmf(-1.0, 2)):
+        try:
+            bad()
+            assert False, &quot;an invalid parameter must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m34-ex2-continuous" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Continuous distributions and the inverse CDF</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>uniform_pdf(a, b, x)</code> and <code>uniform_cdf(a, b, x)</code>. Write <code>exponential_pdf(lam, x)</code> and <code>exponential_cdf(lam, x)</code>, zero for negative <code>x</code>. Write <code>exponential_inverse_cdf(lam, u)</code> returning <code>-log(1-u)/lam</code>, raising <code>ValueError</code> unless <code>0 &lt;= u &lt; 1</code>. Write <code>sample_exponential(lam, u)</code> using the inverse CDF. Write <code>memoryless_check(lam, s, t)</code> returning <code>True</code> when <code>P(X &gt; s+t | X &gt; s)</code> equals <code>P(X &gt; t)</code> within 1e-12 - computing each survival probability directly as <code>exp(-lam * x)</code>, since <code>1 - cdf(x)</code> loses the tail to cancellation. Raise <code>ValueError</code> for a non-positive <code>lam</code> or <code>a &gt;= b</code>.</p></div>
+<textarea class="code" spellcheck="false">def uniform_pdf(a, b, x):
+    &quot;&quot;&quot;Density of the uniform on [a, b].&quot;&quot;&quot;
+    return 0.0
+
+
+def uniform_cdf(a, b, x):
+    &quot;&quot;&quot;CDF of the uniform on [a, b].&quot;&quot;&quot;
+    return 0.0
+
+
+def exponential_pdf(lam, x):
+    &quot;&quot;&quot;Density of the exponential.&quot;&quot;&quot;
+    return 0.0
+
+
+def exponential_cdf(lam, x):
+    &quot;&quot;&quot;CDF of the exponential.&quot;&quot;&quot;
+    return 0.0
+
+
+def exponential_inverse_cdf(lam, u):
+    &quot;&quot;&quot;Inverse CDF of the exponential.&quot;&quot;&quot;
+    return 0.0
+
+
+def sample_exponential(lam, u):
+    &quot;&quot;&quot;One exponential sample from a uniform u.&quot;&quot;&quot;
+    return 0.0
+
+
+def memoryless_check(lam, s, t):
+    &quot;&quot;&quot;True when the exponential&#x27;s memorylessness holds.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_uniform_density_and_cdf():
+    assert abs(uniform_pdf(2, 8, 5) - 1 / 6) &lt; 1e-12
+    assert uniform_pdf(2, 8, 1) == 0.0
+    assert uniform_cdf(2, 8, 2) == 0.0
+    assert uniform_cdf(2, 8, 8) == 1.0
+    assert abs(uniform_cdf(2, 8, 5) - 0.5) &lt; 1e-12
+    assert uniform_cdf(2, 8, 100) == 1.0
+    # the density integrates to 1
+    n = 20000
+    total = sum(uniform_pdf(2, 8, 2 + 6 * k / n) * (6 / n) for k in range(n))
+    assert abs(total - 1.0) &lt; 1e-3
+    try:
+        uniform_pdf(5, 5, 5)
+        assert False, &quot;a degenerate interval must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_exponential_and_its_inverse():
+    from math import exp, log
+    lam = 1.5
+    assert abs(exponential_cdf(lam, 0.0)) &lt; 1e-12
+    assert exponential_cdf(lam, -1.0) == 0.0
+    assert abs(exponential_cdf(lam, 1.0) - (1 - exp(-1.5))) &lt; 1e-12
+    # the inverse really inverts
+    for u in (0.0, 0.1, 0.5, 0.9, 0.999):
+        x = exponential_inverse_cdf(lam, u)
+        assert abs(exponential_cdf(lam, x) - u) &lt; 1e-12, u
+    # and the CDF of a sample matches u
+    for u in (0.25, 0.75):
+        assert abs(exponential_cdf(lam, sample_exponential(lam, u)) - u) &lt; 1e-12
+    try:
+        exponential_inverse_cdf(lam, 1.0)
+        assert False, &quot;u = 1 must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_memorylessness_and_simulation():
+    import random
+    for lam in (0.5, 1.5, 3.0):
+        for s in (0.0, 1.0, 5.0):
+            for t in (0.5, 2.0):
+                assert memoryless_check(lam, s, t) is True
+    # simulate and compare against the CDF
+    rng = random.Random(1958)
+    lam = 2.0
+    samples = sorted(sample_exponential(lam, rng.random()) for _ in range(200000))
+    for x in (0.1, 0.5, 1.0, 2.0):
+        empirical = sum(1 for v in samples if v &lt;= x) / len(samples)
+        assert abs(empirical - exponential_cdf(lam, x)) &lt; 0.01, x
+    # the sample mean is 1/lambda
+    assert abs(sum(samples) / len(samples) - 1 / lam) &lt; 0.01
+    try:
+        memoryless_check(1.0, -1.0, 1.0)
+        assert False, &quot;a negative time must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m34-ex3-joint" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Joint distributions, covariance and correlation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>A joint PMF is a dict from <code>(x, y)</code> to probability. Write <code>is_valid_joint(joint)</code> checking non-negativity and that it sums to 1. Write <code>marginal_x(joint)</code> and <code>marginal_y(joint)</code>. Write <code>conditional_y_given_x(joint, x)</code> raising <code>ValueError</code> when that <code>x</code> has probability zero. Write <code>are_independent(joint, tol=1e-9)</code>. Write <code>covariance(joint)</code> and <code>correlation(joint)</code>, the latter raising <code>ValueError</code> when either variance is zero.</p></div>
+<textarea class="code" spellcheck="false">def is_valid_joint(joint):
+    &quot;&quot;&quot;True when the joint PMF is valid.&quot;&quot;&quot;
+    return False
+
+
+def marginal_x(joint):
+    &quot;&quot;&quot;Marginal distribution of X.&quot;&quot;&quot;
+    return {}
+
+
+def marginal_y(joint):
+    &quot;&quot;&quot;Marginal distribution of Y.&quot;&quot;&quot;
+    return {}
+
+
+def conditional_y_given_x(joint, x):
+    &quot;&quot;&quot;Conditional distribution of Y given X = x.&quot;&quot;&quot;
+    return {}
+
+
+def are_independent(joint, tol=1e-9):
+    &quot;&quot;&quot;True when the joint factorises.&quot;&quot;&quot;
+    return False
+
+
+def covariance(joint):
+    &quot;&quot;&quot;E[XY] - E[X]E[Y].&quot;&quot;&quot;
+    return 0.0
+
+
+def correlation(joint):
+    &quot;&quot;&quot;Covariance divided by the product of the standard deviations.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_marginals_and_validity():
+    joint = {(0, 0): 0.1, (0, 1): 0.2, (1, 0): 0.3, (1, 1): 0.4}
+    assert is_valid_joint(joint) is True
+    assert is_valid_joint({(0, 0): 0.5}) is False          # does not sum to 1
+    assert is_valid_joint({(0, 0): 1.5, (0, 1): -0.5}) is False
+    mx = marginal_x(joint)
+    my = marginal_y(joint)
+    assert abs(mx[0] - 0.3) &lt; 1e-12 and abs(mx[1] - 0.7) &lt; 1e-12
+    assert abs(my[0] - 0.4) &lt; 1e-12 and abs(my[1] - 0.6) &lt; 1e-12
+    assert abs(sum(mx.values()) - 1.0) &lt; 1e-12
+
+
+def test_independence_and_conditionals():
+    # an independent pair, built as a product
+    px = {0: 0.3, 1: 0.7}
+    py = {0: 0.4, 1: 0.6}
+    indep = {(x, y): px[x] * py[y] for x in px for y in py}
+    assert are_independent(indep) is True
+    assert abs(covariance(indep)) &lt; 1e-12
+    # conditioning changes nothing when independent
+    cond = conditional_y_given_x(indep, 0)
+    for y in py:
+        assert abs(cond[y] - py[y]) &lt; 1e-12
+    # a dependent pair
+    dep = {(0, 0): 0.5, (1, 1): 0.5}
+    assert are_independent(dep) is False
+    assert abs(correlation(dep) - 1.0) &lt; 1e-9
+    try:
+        conditional_y_given_x(dep, 5)
+        assert False, &quot;an impossible x must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_zero_covariance_does_not_mean_independent():
+    # X in {-1, 0, 1} uniform, Y = X^2: covariance zero, utterly dependent
+    joint = {(-1, 1): 1 / 3, (0, 0): 1 / 3, (1, 1): 1 / 3}
+    assert abs(covariance(joint)) &lt; 1e-12, &quot;the covariance vanishes&quot;
+    assert are_independent(joint) is False, &quot;yet they are not independent&quot;
+    # Y is a deterministic function of X
+    assert conditional_y_given_x(joint, 1) == {1: 1.0}
+    assert conditional_y_given_x(joint, 0) == {0: 1.0}
+    # perfect negative correlation
+    anti = {(0, 1): 0.5, (1, 0): 0.5}
+    assert abs(correlation(anti) + 1.0) &lt; 1e-9
+    # correlation is undefined when a variable is constant
+    const = {(1, 0): 0.5, (1, 1): 0.5}
+    try:
+        correlation(const)
+        assert False, &quot;a zero variance must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m34-ex4-inequalities" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Markov, Chebyshev, Hoeffding and the weak law</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>markov_bound(mean, a)</code> returning <code>mean / a</code>, raising <code>ValueError</code> for a non-positive <code>a</code> or a negative <code>mean</code>. Write <code>chebyshev_bound(k)</code> returning <code>1 / k**2</code> for <code>k &gt; 0</code>. Write <code>hoeffding_bound(n, t, span=1.0)</code> returning <code>2 * exp(-2 * t**2 / (n * span**2))</code>. Write <code>empirical_tail(samples, threshold)</code> returning the fraction at or above a threshold. Write <code>wlln_bound(variance, n, eps)</code> returning Chebyshev's bound <code>variance / (n * eps**2)</code> for the sample mean.</p></div>
+<textarea class="code" spellcheck="false">def markov_bound(mean, a):
+    &quot;&quot;&quot;Markov&#x27;s bound on P(X &gt;= a).&quot;&quot;&quot;
+    return 0.0
+
+
+def chebyshev_bound(k):
+    &quot;&quot;&quot;Chebyshev&#x27;s bound on P(|X - mu| &gt;= k sigma).&quot;&quot;&quot;
+    return 0.0
+
+
+def hoeffding_bound(n, t, span=1.0):
+    &quot;&quot;&quot;Hoeffding&#x27;s bound on the deviation of a bounded sum.&quot;&quot;&quot;
+    return 0.0
+
+
+def empirical_tail(samples, threshold):
+    &quot;&quot;&quot;Fraction of samples at or above the threshold.&quot;&quot;&quot;
+    return 0.0
+
+
+def wlln_bound(variance, n, eps):
+    &quot;&quot;&quot;Chebyshev&#x27;s bound for the sample mean.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_markov_and_chebyshev_are_valid_bounds():
+    import random
+    from math import log
+    rng = random.Random(1867)
+    # The bound must be the right NUMBER, not merely a valid one. A bound that
+    # always returns 1.0 is technically correct and completely useless, so pin
+    # the arithmetic down first.
+    assert abs(markov_bound(2.0, 8.0) - 0.25) &lt; 1e-12
+    assert abs(markov_bound(1.0, 4.0) - 0.25) &lt; 1e-12
+    assert abs(markov_bound(3.0, 5.0) - 0.6) &lt; 1e-12
+    # a larger threshold gives a tighter bound
+    assert markov_bound(1.0, 10.0) &lt; markov_bound(1.0, 2.0) &lt; markov_bound(1.0, 1.5)
+    # and it saturates at 1 rather than exceeding it
+    assert markov_bound(5.0, 1.0) == 1.0
+    # exponential with mean 1: check Markov really holds, and is non-trivial
+    samples = [-log(rng.random() or 1e-12) for _ in range(20000)]
+    mean = sum(samples) / len(samples)
+    for a in (2.0, 5.0, 10.0):
+        actual = empirical_tail(samples, a)
+        bound = markov_bound(mean, a)
+        assert actual &lt;= bound + 0.01, (a, actual, bound)
+        assert bound &lt; 1.0, f&quot;the bound at a = {a} must say something&quot;
+    # Chebyshev on a normal: the bound is valid and loose
+    normals = [rng.gauss(0, 1) for _ in range(20000)]
+    for k in (1.0, 2.0, 3.0):
+        actual = sum(1 for x in normals if abs(x) &gt;= k) / len(normals)
+        assert actual &lt;= chebyshev_bound(k) + 0.01, k
+    # for a normal the true tail at k = 2 is about 4.6%, far below 25%
+    actual2 = sum(1 for x in normals if abs(x) &gt;= 2) / len(normals)
+    assert actual2 &lt; 0.06 and chebyshev_bound(2.0) == 0.25
+
+
+def test_hoeffding_is_exponentially_tighter():
+    import random
+    rng = random.Random(1963)
+    n = 200
+    # sum of n coin flips, deviation from the mean of n/2
+    trials = 4000
+    deviations = []
+    for _ in range(trials):
+        s = sum(1 if rng.random() &lt; 0.5 else 0 for _ in range(n))
+        deviations.append(abs(s - n / 2))
+    for t in (15.0, 20.0, 30.0):
+        actual = sum(1 for d in deviations if d &gt;= t) / trials
+        bound = hoeffding_bound(n, t)
+        assert actual &lt;= bound + 0.01, (t, actual, bound)
+    # Hoeffding decays exponentially in t, Chebyshev only polynomially
+    assert hoeffding_bound(n, 30.0) &lt; hoeffding_bound(n, 20.0) &lt; hoeffding_bound(n, 15.0)
+    assert hoeffding_bound(n, 30.0) &lt; 0.01
+    try:
+        hoeffding_bound(0, 1.0)
+        assert False, &quot;n = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_weak_law_bound_shrinks_with_n():
+    # Chebyshev&#x27;s bound on the sample mean falls like 1/n
+    var, eps = 1.0, 0.1
+    bounds = [wlln_bound(var, n, eps) for n in (100, 1000, 10000, 100000)]
+    assert all(a &gt; b for a, b in zip(bounds, bounds[1:]))
+    assert abs(bounds[0] - 1.0) &lt; 1e-12          # 1/(100 * 0.01) = 1
+    assert abs(bounds[2] - 0.01) &lt; 1e-12
+    # it really bounds the observed failure rate
+    import random
+    rng = random.Random(1930)
+    n = 1000
+    fails = 0
+    for _ in range(2000):
+        m = sum(rng.gauss(0, 1) for _ in range(n)) / n
+        if abs(m) &gt;= eps:
+            fails += 1
+    assert fails / 2000 &lt;= wlln_bound(var, n, eps) + 0.01
+    for bad in (lambda: markov_bound(-1.0, 1.0), lambda: chebyshev_bound(0.0),
+                lambda: wlln_bound(1.0, 0, 0.1)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m34-ex5-clt-and-tails" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>The CLT, Monte Carlo and heavy tails</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>box_muller(u1, u2)</code> returning a pair of standard normals, raising <code>ValueError</code> unless <code>0 &lt; u1 &lt;= 1</code> and <code>0 &lt;= u2 &lt;= 1</code>. Write <code>standard_error(sigma, n)</code> returning <code>sigma / sqrt(n)</code>. Write <code>monte_carlo_integrate(f, a, b, samples)</code> using a supplied list of uniform draws on <code>[0, 1]</code>. Write <code>pareto_sample(alpha, u, xm=1.0)</code> by inverse CDF. Write <code>pareto_mean(alpha, xm=1.0)</code> returning the mean when <code>alpha &gt; 1</code> and <code>None</code> otherwise. Write <code>tail_index_has_finite_variance(alpha)</code> returning <code>True</code> when <code>alpha &gt; 2</code>.</p></div>
+<textarea class="code" spellcheck="false">def box_muller(u1, u2):
+    &quot;&quot;&quot;Two independent standard normals from two uniforms.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def standard_error(sigma, n):
+    &quot;&quot;&quot;Standard deviation of the sample mean.&quot;&quot;&quot;
+    return 0.0
+
+
+def monte_carlo_integrate(f, a, b, samples):
+    &quot;&quot;&quot;Estimate the integral of f over [a, b].&quot;&quot;&quot;
+    return 0.0
+
+
+def pareto_sample(alpha, u, xm=1.0):
+    &quot;&quot;&quot;One Pareto sample by inverse CDF.&quot;&quot;&quot;
+    return 0.0
+
+
+def pareto_mean(alpha, xm=1.0):
+    &quot;&quot;&quot;The mean, or None when it does not exist.&quot;&quot;&quot;
+    return None
+
+
+def tail_index_has_finite_variance(alpha):
+    &quot;&quot;&quot;True when the variance exists.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_box_muller_produces_standard_normals():
+    import random
+    rng = random.Random(1958)
+    vals = []
+    for _ in range(100000):
+        u1 = rng.random()
+        while u1 == 0.0:
+            u1 = rng.random()
+        z1, z2 = box_muller(u1, rng.random())
+        vals.append(z1)
+        vals.append(z2)
+    m = sum(vals) / len(vals)
+    v = sum((x - m) ** 2 for x in vals) / (len(vals) - 1)
+    assert abs(m) &lt; 0.02, m
+    assert abs(v - 1.0) &lt; 0.02, v
+    # about 68% lie within one standard deviation, 95% within two
+    within1 = sum(1 for x in vals if abs(x) &lt;= 1) / len(vals)
+    within2 = sum(1 for x in vals if abs(x) &lt;= 2) / len(vals)
+    assert 0.66 &lt; within1 &lt; 0.70, within1
+    assert 0.94 &lt; within2 &lt; 0.96, within2
+    try:
+        box_muller(0.0, 0.5)
+        assert False, &quot;u1 = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_standard_error_and_monte_carlo():
+    import random
+    from math import sqrt, sin, cos
+    assert abs(standard_error(2.0, 100) - 0.2) &lt; 1e-12
+    # quadrupling the data halves the error
+    assert abs(standard_error(1.0, 400) - standard_error(1.0, 100) / 2) &lt; 1e-12
+    rng = random.Random(1946)
+    # integral of x^2 over [0, 1] is 1/3
+    for n in (1000, 100000):
+        draws = [rng.random() for _ in range(n)]
+        est = monte_carlo_integrate(lambda x: x * x, 0.0, 1.0, draws)
+        assert abs(est - 1 / 3) &lt; 4.0 / sqrt(n), (n, est)
+    # a bigger sample is usually better: compare the average error
+    errs = {}
+    for n in (100, 10000):
+        total = 0.0
+        for _ in range(200):
+            draws = [rng.random() for _ in range(n)]
+            total += abs(monte_carlo_integrate(lambda x: x * x, 0.0, 1.0, draws) - 1 / 3)
+        errs[n] = total / 200
+    assert 6.0 &lt; errs[100] / errs[10000] &lt; 15.0, errs
+
+
+def test_pareto_and_the_existence_of_moments():
+    import random
+    rng = random.Random(1896)
+    # the inverse CDF really produces the Pareto tail
+    alpha = 2.5
+    samples = [pareto_sample(alpha, rng.random() or 1e-12) for _ in range(200000)]
+    for x in (1.5, 2.0, 4.0):
+        empirical = sum(1 for s in samples if s &gt; x) / len(samples)
+        theory = x ** (-alpha)
+        assert abs(empirical - theory) &lt; 0.01, x
+    assert all(s &gt;= 1.0 for s in samples), &quot;the support starts at xm&quot;
+    # the mean exists only for alpha &gt; 1
+    assert pareto_mean(0.8) is None
+    assert pareto_mean(1.0) is None
+    assert abs(pareto_mean(3.0) - 1.5) &lt; 1e-12
+    assert abs(pareto_mean(2.5) - 2.5 / 1.5) &lt; 1e-12
+    # the variance exists only for alpha &gt; 2
+    assert tail_index_has_finite_variance(1.5) is False
+    assert tail_index_has_finite_variance(2.0) is False
+    assert tail_index_has_finite_variance(3.0) is True
+    # with alpha = 3 the sample mean converges; with alpha = 0.8 it does not
+    m3 = [sum(pareto_sample(3.0, rng.random() or 1e-12) for _ in range(n)) / n
+          for n in (10000, 100000)]
+    assert abs(m3[-1] - 1.5) &lt; 0.05
+    try:
+        pareto_sample(2.0, 0.0)
+        assert False, &quot;u = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"The average summarises the data."</strong> Only for a roughly symmetric distribution without a heavy tail. Meera's mean of 120 ms described no request at all, and most requests were faster than it.</li>
+<li><strong>"More data always makes the average more reliable."</strong> It does when the variance is finite. For a Pareto with $\alpha\le1$ there is no mean to converge to, and the sample mean wanders forever.</li>
+<li><strong>"Zero correlation means independent."</strong> False. $X$ uniform on $\{-1,0,1\}$ and $Y=X^2$ have zero covariance and $Y$ is determined by $X$. Correlation detects only <em>linear</em> association.</li>
+<li><strong>"The central limit theorem applies to everything."</strong> It needs a finite variance. For heavy-tailed data with $\alpha\le2$ the sums converge to a stable law with infinite variance, not a normal.</li>
+<li><strong>"Variance adds."</strong> Only without covariance. Positively correlated variables have a variance of the sum larger than the sum of the variances — which is why correlated failures are so much worse than independent ones.</li>
+<li><strong>"A PDF value is a probability."</strong> A density can exceed 1; only its integral over an interval is a probability, and the probability of any single point is zero.</li>
+<li><strong>"Chebyshev's bound is the actual tail probability."</strong> It is a bound, often very loose: for a normal it gives 25% at two standard deviations where the truth is about 4.6%. Its virtue is that it needs almost no assumptions.</li>
+<li><strong>"Monte Carlo is inefficient because the error only falls like $\frac{1}{\sqrt n}$."</strong> That rate is <strong>independent of dimension</strong>, which is why it wins in high dimensions where grid methods need $n^d$ points.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Everything rests on moments existing. The Cauchy distribution has no mean at all: the sample mean of $n$ Cauchy draws has exactly the same Cauchy distribution as a single draw, so averaging accomplishes nothing whatsoever. That is not an edge case but the clearest statement of the limit of averaging.</p>
+<p>The CLT says nothing about <em>how fast</em> convergence happens. Berry-Esseen bounds the error by $\frac{C\rho}{\sigma^3\sqrt n}$, and for a skewed distribution with a long tail the normal approximation can be poor even at $n$ in the thousands — exactly where people reach for it to justify a confidence interval.</p>
+<p>Independence is assumed throughout and routinely false. Correlated samples inflate the effective variance, so a confidence interval computed as if the data were independent is too narrow — the usual sin in time-series and A/B analysis.</p>
+<p>Simulation has its own hazards. The inverse CDF method needs an invertible CDF. Floating point truncates the tails: a 64-bit uniform cannot produce a normal beyond about 8 standard deviations, so rare-event simulation needs importance sampling rather than brute force. And a linear congruential generator has correlations that will quietly corrupt a Monte Carlo result.</p>
+<p>Finally, the empirical tail is only as good as your sample. A p99.9 estimated from a thousand samples rests on one observation, and reporting it as though it were a measurement is a fiction.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Meera's problem is the daily one. Latency is heavy-tailed almost everywhere — a mixture of cache hits, cache misses, retries and timeouts — so the mean is the wrong summary and p50, p95, p99 are reported instead. The queueing explanation for why the tail explodes is M40.</p>
+<p>The $\frac{1}{\sqrt n}$ law prices every experiment: to halve the confidence interval of an A/B test you need four times the traffic, and that calculation decides whether a test is worth running. Hoeffding's inequality is what turns "we observed a 2% lift" into "with 95% confidence the lift is at least 1.4%".</p>
+<p>Sampling is everywhere in practice: synthetic load generation, randomised algorithms, dropout, and the reservoir sampling behind trace collection. Knowing that the exponential is memoryless tells you that a Poisson arrival process does not "build up", which is the right model for independent user requests and the wrong one for a thundering herd after a restart.</p>
+<p>And the independence caveat is the one that bites hardest. "Three replicas at 99.9% gives nine nines" assumes independent failures; a shared config service, a shared rack or a shared deploy makes them correlated, and the variance-of-sums formula says precisely how much worse that is.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why can the mean be a bad summary?</p></div><div class="a" hidden><p>A heavy tail drags it above almost every observation. For skewed data the median and high quantiles describe reality; the mean describes nobody.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>When does the law of large numbers fail?</p></div><div class="a" hidden><p>When the mean does not exist, as for a Pareto with alpha at most 1 or a Cauchy. The sample mean then never settles.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does the central limit theorem require?</p></div><div class="a" hidden><p>Independent identically distributed variables with FINITE variance. The shape of the original distribution is irrelevant.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Does zero correlation imply independence?</p></div><div class="a" hidden><p>No. Correlation measures linear association only. X uniform on {-1,0,1} and Y = X^2 have zero covariance and Y is a function of X.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Give the standard error of a sample mean and its practical consequence.</p></div><div class="a" hidden><p>sigma over root n. To halve the error you need four times the data.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>State Markov's and Chebyshev's inequalities and what each assumes.</p></div><div class="a" hidden><p>Markov: P(X &gt;= a) &lt;= E[X]/a, needing only non-negativity. Chebyshev: P(|X-mu| &gt;= k sigma) &lt;= 1/k^2, needing a finite variance. Chebyshev follows from Markov applied to the squared deviation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>What makes Hoeffding stronger than Chebyshev?</p></div><div class="a" hidden><p>It assumes bounded variables and in exchange gives an exponentially small bound rather than a polynomial one.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>How does the inverse CDF method work, and when can you not use it?</p></div><div class="a" hidden><p>If U is uniform then F inverse of U has CDF F. It needs an invertible CDF, which the normal lacks — hence Box-Muller.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Why is Monte Carlo integration used in high dimensions?</p></div><div class="a" hidden><p>Its error falls like 1/sqrt(n) independently of dimension, while grid methods need exponentially many points.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What is special about the exponential distribution?</p></div><div class="a" hidden><p>It is memoryless: having waited tells you nothing about the remaining wait. It is the only continuous distribution with that property.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a colleague why the average latency describes nobody, you can derive Chebyshev from Markov and the weak law from Chebyshev, you can say exactly which hypothesis fails for heavy-tailed data and what that means for a dashboard, you can simulate any invertible distribution by inverse CDF and explain why the normal needs Box-Muller, you pass the boss exercise without hints, and you reach for quantiles rather than a mean whenever a distribution is skewed.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Sheldon Ross, <em>A First Course in Probability</em>, Pearson.</li>
+<li>Rick Durrett, <em>Probability: Theory and Examples</em>, 5th edition, Cambridge University Press.</li>
+<li>Michael Mitzenmacher and Eli Upfal, <em>Probability and Computing</em>, 2nd edition, Cambridge University Press.</li>
+<li>G. E. P. Box and Mervin E. Muller, "A Note on the Generation of Random Normal Deviates", <em>Annals of Mathematical Statistics</em>, 1958.</li>
+<li>Jeffrey Dean and Luiz André Barroso, "The Tail at Scale", <em>Communications of the ACM</em>, 2013.</li>
+</ul></section>
+<footer class="pager"><a href="V12.html">&larr; V12 The oracle problem: how do you know the answer is right?</a>
+<a href="V04.html">V04 Estimation and confidence intervals &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M34", "packages": [], "exercises": {"m34-ex1-discrete": {"starter": "def bernoulli_pmf(p, k):\n    \"\"\"P(X = k) for a Bernoulli.\"\"\"\n    return 0.0\n\n\ndef binomial_pmf(n, p, k):\n    \"\"\"P(X = k) for a binomial.\"\"\"\n    return 0.0\n\n\ndef geometric_pmf(p, k):\n    \"\"\"P(X = k) for trials until the first success.\"\"\"\n    return 0.0\n\n\ndef poisson_pmf(lam, k):\n    \"\"\"P(X = k) for a Poisson.\"\"\"\n    return 0.0\n\n\ndef cdf_from_pmf(pmf, upto):\n    \"\"\"P(X <= upto).\"\"\"\n    return 0.0\n\n\ndef mean_and_variance(pmf, support):\n    \"\"\"(mean, variance) from a PMF over a finite support.\"\"\"\n    return (0.0, 0.0)\n", "solution": "from math import comb, exp, factorial\n\n\ndef bernoulli_pmf(p, k):\n    \"\"\"P(X = k) for a Bernoulli.\"\"\"\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n    if k == 1:\n        return p\n    if k == 0:\n        return 1 - p\n    return 0.0\n\n\ndef binomial_pmf(n, p, k):\n    \"\"\"P(X = k) for a binomial.\"\"\"\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    if k > n:\n        return 0.0\n    return comb(n, k) * p ** k * (1 - p) ** (n - k)\n\n\ndef geometric_pmf(p, k):\n    \"\"\"P(X = k) for trials until the first success.\"\"\"\n    if not 0 < p <= 1:\n        raise ValueError(\"p must lie in (0, 1]\")\n    if not isinstance(k, int) or k < 1:\n        raise ValueError(\"k must be a positive integer\")\n    return (1 - p) ** (k - 1) * p\n\n\ndef poisson_pmf(lam, k):\n    \"\"\"P(X = k) for a Poisson.\"\"\"\n    if lam < 0:\n        raise ValueError(\"lambda must be non-negative\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    return exp(-lam) * lam ** k / factorial(k)\n\n\ndef cdf_from_pmf(pmf, upto):\n    \"\"\"P(X <= upto).\"\"\"\n    return sum(v for k, v in pmf.items() if k <= upto)\n\n\ndef mean_and_variance(pmf, support):\n    \"\"\"(mean, variance) from a PMF over a finite support.\"\"\"\n    total = sum(pmf(k) for k in support)\n    if abs(total - 1.0) > 1e-6:\n        raise ValueError(\"the pmf must sum to 1 over the support\")\n    mean = sum(k * pmf(k) for k in support)\n    second = sum(k * k * pmf(k) for k in support)\n    return (mean, second - mean * mean)\n", "tests": "def test_pmfs_sum_to_one():\n    # binomial over its whole support\n    assert abs(sum(binomial_pmf(10, 0.3, k) for k in range(11)) - 1.0) < 1e-12\n    # geometric over many trials\n    assert abs(sum(geometric_pmf(0.4, k) for k in range(1, 200)) - 1.0) < 1e-9\n    # Poisson over many counts\n    assert abs(sum(poisson_pmf(3.0, k) for k in range(60)) - 1.0) < 1e-9\n    # Bernoulli\n    assert abs(bernoulli_pmf(0.3, 0) + bernoulli_pmf(0.3, 1) - 1.0) < 1e-12\n    assert bernoulli_pmf(0.3, 5) == 0.0\n\n\ndef test_moments_match_the_closed_forms():\n    # binomial: np and np(1-p)\n    n, p = 12, 0.35\n    m, v = mean_and_variance(lambda k: binomial_pmf(n, p, k), range(n + 1))\n    assert abs(m - n * p) < 1e-9\n    assert abs(v - n * p * (1 - p)) < 1e-9\n    # Poisson: mean equals variance equals lambda\n    lam = 4.0\n    m, v = mean_and_variance(lambda k: poisson_pmf(lam, k), range(80))\n    assert abs(m - lam) < 1e-6 and abs(v - lam) < 1e-6\n    # geometric: 1/p and (1-p)/p^2\n    pp = 0.25\n    m, v = mean_and_variance(lambda k: geometric_pmf(pp, k), range(1, 600))\n    assert abs(m - 1 / pp) < 1e-4\n    assert abs(v - (1 - pp) / (pp * pp)) < 1e-2\n\n\ndef test_cdf_and_errors():\n    pmf = {k: binomial_pmf(5, 0.5, k) for k in range(6)}\n    assert abs(cdf_from_pmf(pmf, 5) - 1.0) < 1e-12\n    assert abs(cdf_from_pmf(pmf, -1)) < 1e-12\n    assert abs(cdf_from_pmf(pmf, 2) - sum(pmf[k] for k in (0, 1, 2))) < 1e-12\n    # the CDF is non-decreasing\n    vals = [cdf_from_pmf(pmf, k) for k in range(-1, 7)]\n    assert all(a <= b + 1e-15 for a, b in zip(vals, vals[1:]))\n    for bad in (lambda: binomial_pmf(5, 1.5, 2),\n                lambda: geometric_pmf(0.5, 0),\n                lambda: poisson_pmf(-1.0, 2)):\n        try:\n            bad()\n            assert False, \"an invalid parameter must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["from math import comb, exp, factorial\n\n\ndef bernoulli_pmf(p, k):\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n    if k == 1:\n        return p\n    if k == 0:\n        return 1 - p\n    return 0.0\n\n\ndef binomial_pmf(n, p, k):\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    if k > n:\n        return 0.0\n    return comb(n, k) * p ** k * (1 - p) ** (n - k)\n\n\ndef geometric_pmf(p, k):\n    \"\"\"Bug: uses (1-p)^k instead of (1-p)^(k-1), shifting the distribution.\"\"\"\n    if not 0 < p <= 1:\n        raise ValueError(\"p must lie in (0, 1]\")\n    if not isinstance(k, int) or k < 1:\n        raise ValueError(\"k must be a positive integer\")\n    return (1 - p) ** k * p\n\n\ndef poisson_pmf(lam, k):\n    if lam < 0:\n        raise ValueError(\"lambda must be non-negative\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    return exp(-lam) * lam ** k / factorial(k)\n\n\ndef cdf_from_pmf(pmf, upto):\n    return sum(v for k, v in pmf.items() if k <= upto)\n\n\ndef mean_and_variance(pmf, support):\n    total = sum(pmf(k) for k in support)\n    if abs(total - 1.0) > 1e-6:\n        raise ValueError(\"the pmf must sum to 1 over the support\")\n    mean = sum(k * pmf(k) for k in support)\n    second = sum(k * k * pmf(k) for k in support)\n    return (mean, second - mean * mean)\n", "from math import comb, exp, factorial\n\n\ndef bernoulli_pmf(p, k):\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n    if k == 1:\n        return p\n    if k == 0:\n        return 1 - p\n    return 0.0\n\n\ndef binomial_pmf(n, p, k):\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    if k > n:\n        return 0.0\n    return comb(n, k) * p ** k * (1 - p) ** (n - k)\n\n\ndef geometric_pmf(p, k):\n    if not 0 < p <= 1:\n        raise ValueError(\"p must lie in (0, 1]\")\n    if not isinstance(k, int) or k < 1:\n        raise ValueError(\"k must be a positive integer\")\n    return (1 - p) ** (k - 1) * p\n\n\ndef poisson_pmf(lam, k):\n    \"\"\"Bug: omits the e^(-lambda) normalisation.\"\"\"\n    if lam < 0:\n        raise ValueError(\"lambda must be non-negative\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    return lam ** k / factorial(k)\n\n\ndef cdf_from_pmf(pmf, upto):\n    \"\"\"Bug: strict inequality, so it computes P(X < upto).\"\"\"\n    return sum(v for k, v in pmf.items() if k < upto)\n\n\ndef mean_and_variance(pmf, support):\n    total = sum(pmf(k) for k in support)\n    if abs(total - 1.0) > 1e-6:\n        raise ValueError(\"the pmf must sum to 1 over the support\")\n    mean = sum(k * pmf(k) for k in support)\n    second = sum(k * k * pmf(k) for k in support)\n    return (mean, second - mean * mean)\n"], "hints": ["The geometric counts trials *until* the first success, so k-1 failures precede it.", "A CDF is `P(X <= upto)`, which includes the value itself."], "level": "warmup", "title": "Discrete distributions, PMF and CDF"}, "m34-ex2-continuous": {"starter": "def uniform_pdf(a, b, x):\n    \"\"\"Density of the uniform on [a, b].\"\"\"\n    return 0.0\n\n\ndef uniform_cdf(a, b, x):\n    \"\"\"CDF of the uniform on [a, b].\"\"\"\n    return 0.0\n\n\ndef exponential_pdf(lam, x):\n    \"\"\"Density of the exponential.\"\"\"\n    return 0.0\n\n\ndef exponential_cdf(lam, x):\n    \"\"\"CDF of the exponential.\"\"\"\n    return 0.0\n\n\ndef exponential_inverse_cdf(lam, u):\n    \"\"\"Inverse CDF of the exponential.\"\"\"\n    return 0.0\n\n\ndef sample_exponential(lam, u):\n    \"\"\"One exponential sample from a uniform u.\"\"\"\n    return 0.0\n\n\ndef memoryless_check(lam, s, t):\n    \"\"\"True when the exponential's memorylessness holds.\"\"\"\n    return False\n", "solution": "from math import exp, log\n\n\ndef uniform_pdf(a, b, x):\n    \"\"\"Density of the uniform on [a, b].\"\"\"\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    return 1.0 / (b - a) if a <= x <= b else 0.0\n\n\ndef uniform_cdf(a, b, x):\n    \"\"\"CDF of the uniform on [a, b].\"\"\"\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    if x < a:\n        return 0.0\n    if x > b:\n        return 1.0\n    return (x - a) / (b - a)\n\n\ndef exponential_pdf(lam, x):\n    \"\"\"Density of the exponential.\"\"\"\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    return lam * exp(-lam * x) if x >= 0 else 0.0\n\n\ndef exponential_cdf(lam, x):\n    \"\"\"CDF of the exponential.\"\"\"\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    return 1 - exp(-lam * x) if x >= 0 else 0.0\n\n\ndef exponential_inverse_cdf(lam, u):\n    \"\"\"Inverse CDF of the exponential.\"\"\"\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    if not 0 <= u < 1:\n        raise ValueError(\"u must lie in [0, 1)\")\n    return -log(1 - u) / lam\n\n\ndef sample_exponential(lam, u):\n    \"\"\"One exponential sample from a uniform u.\"\"\"\n    return exponential_inverse_cdf(lam, u)\n\n\ndef memoryless_check(lam, s, t):\n    \"\"\"True when the exponential's memorylessness holds.\n\n    The survival probability is computed directly as exp(-lam x) rather than as\n    1 - cdf(x). The two agree in exact arithmetic, but 1 - (1 - e**-15) throws\n    the tail away to cancellation: it is wrong by around 1e-10 relative, which\n    dwarfs the 1e-12 tolerance being tested.\n    \"\"\"\n    if s < 0 or t < 0:\n        raise ValueError(\"s and t must be non-negative\")\n    survive = lambda x: exp(-lam * x)\n    conditional = survive(s + t) / survive(s)\n    return abs(conditional - survive(t)) < 1e-12\n", "tests": "def test_uniform_density_and_cdf():\n    assert abs(uniform_pdf(2, 8, 5) - 1 / 6) < 1e-12\n    assert uniform_pdf(2, 8, 1) == 0.0\n    assert uniform_cdf(2, 8, 2) == 0.0\n    assert uniform_cdf(2, 8, 8) == 1.0\n    assert abs(uniform_cdf(2, 8, 5) - 0.5) < 1e-12\n    assert uniform_cdf(2, 8, 100) == 1.0\n    # the density integrates to 1\n    n = 20000\n    total = sum(uniform_pdf(2, 8, 2 + 6 * k / n) * (6 / n) for k in range(n))\n    assert abs(total - 1.0) < 1e-3\n    try:\n        uniform_pdf(5, 5, 5)\n        assert False, \"a degenerate interval must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_exponential_and_its_inverse():\n    from math import exp, log\n    lam = 1.5\n    assert abs(exponential_cdf(lam, 0.0)) < 1e-12\n    assert exponential_cdf(lam, -1.0) == 0.0\n    assert abs(exponential_cdf(lam, 1.0) - (1 - exp(-1.5))) < 1e-12\n    # the inverse really inverts\n    for u in (0.0, 0.1, 0.5, 0.9, 0.999):\n        x = exponential_inverse_cdf(lam, u)\n        assert abs(exponential_cdf(lam, x) - u) < 1e-12, u\n    # and the CDF of a sample matches u\n    for u in (0.25, 0.75):\n        assert abs(exponential_cdf(lam, sample_exponential(lam, u)) - u) < 1e-12\n    try:\n        exponential_inverse_cdf(lam, 1.0)\n        assert False, \"u = 1 must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_memorylessness_and_simulation():\n    import random\n    for lam in (0.5, 1.5, 3.0):\n        for s in (0.0, 1.0, 5.0):\n            for t in (0.5, 2.0):\n                assert memoryless_check(lam, s, t) is True\n    # simulate and compare against the CDF\n    rng = random.Random(1958)\n    lam = 2.0\n    samples = sorted(sample_exponential(lam, rng.random()) for _ in range(200000))\n    for x in (0.1, 0.5, 1.0, 2.0):\n        empirical = sum(1 for v in samples if v <= x) / len(samples)\n        assert abs(empirical - exponential_cdf(lam, x)) < 0.01, x\n    # the sample mean is 1/lambda\n    assert abs(sum(samples) / len(samples) - 1 / lam) < 0.01\n    try:\n        memoryless_check(1.0, -1.0, 1.0)\n        assert False, \"a negative time must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import exp, log\n\n\ndef uniform_pdf(a, b, x):\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    return 1.0 / (b - a) if a <= x <= b else 0.0\n\n\ndef uniform_cdf(a, b, x):\n    \"\"\"Bug: forgets to subtract a, so the CDF is wrong unless a is zero.\"\"\"\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    if x < a:\n        return 0.0\n    if x > b:\n        return 1.0\n    return x / (b - a)\n\n\ndef exponential_pdf(lam, x):\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    return lam * exp(-lam * x) if x >= 0 else 0.0\n\n\ndef exponential_cdf(lam, x):\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    return 1 - exp(-lam * x) if x >= 0 else 0.0\n\n\ndef exponential_inverse_cdf(lam, u):\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    if not 0 <= u < 1:\n        raise ValueError(\"u must lie in [0, 1)\")\n    return -log(1 - u) / lam\n\n\ndef sample_exponential(lam, u):\n    return exponential_inverse_cdf(lam, u)\n\n\ndef memoryless_check(lam, s, t):\n    if s < 0 or t < 0:\n        raise ValueError(\"s and t must be non-negative\")\n    survive = lambda x: exp(-lam * x)\n    conditional = survive(s + t) / survive(s)\n    return abs(conditional - survive(t)) < 1e-12\n", "from math import exp, log\n\n\ndef uniform_pdf(a, b, x):\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    return 1.0 / (b - a) if a <= x <= b else 0.0\n\n\ndef uniform_cdf(a, b, x):\n    if a >= b:\n        raise ValueError(\"require a < b\")\n    if x < a:\n        return 0.0\n    if x > b:\n        return 1.0\n    return (x - a) / (b - a)\n\n\ndef exponential_pdf(lam, x):\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    return lam * exp(-lam * x) if x >= 0 else 0.0\n\n\ndef exponential_cdf(lam, x):\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    return 1 - exp(-lam * x) if x >= 0 else 0.0\n\n\ndef exponential_inverse_cdf(lam, u):\n    \"\"\"Bug: multiplies by lambda instead of dividing, scaling the wrong way.\"\"\"\n    if lam <= 0:\n        raise ValueError(\"lambda must be positive\")\n    if not 0 <= u < 1:\n        raise ValueError(\"u must lie in [0, 1)\")\n    return -log(1 - u) * lam\n\n\ndef sample_exponential(lam, u):\n    return exponential_inverse_cdf(lam, u)\n\n\ndef memoryless_check(lam, s, t):\n    if s < 0 or t < 0:\n        raise ValueError(\"s and t must be non-negative\")\n    survive = lambda x: exp(-lam * x)\n    conditional = survive(s + t) / survive(s)\n    return abs(conditional - survive(t)) < 1e-12\n"], "hints": ["The uniform CDF measures how far along the interval you are: `(x - a) / (b - a)`.", "Inverting `1 - exp(-lam x) = u` gives `x = -log(1-u) / lam`. The lambda divides."], "level": "core", "title": "Continuous distributions and the inverse CDF"}, "m34-ex3-joint": {"starter": "def is_valid_joint(joint):\n    \"\"\"True when the joint PMF is valid.\"\"\"\n    return False\n\n\ndef marginal_x(joint):\n    \"\"\"Marginal distribution of X.\"\"\"\n    return {}\n\n\ndef marginal_y(joint):\n    \"\"\"Marginal distribution of Y.\"\"\"\n    return {}\n\n\ndef conditional_y_given_x(joint, x):\n    \"\"\"Conditional distribution of Y given X = x.\"\"\"\n    return {}\n\n\ndef are_independent(joint, tol=1e-9):\n    \"\"\"True when the joint factorises.\"\"\"\n    return False\n\n\ndef covariance(joint):\n    \"\"\"E[XY] - E[X]E[Y].\"\"\"\n    return 0.0\n\n\ndef correlation(joint):\n    \"\"\"Covariance divided by the product of the standard deviations.\"\"\"\n    return 0.0\n", "solution": "from math import sqrt\n\n\ndef is_valid_joint(joint):\n    \"\"\"True when the joint PMF is valid.\"\"\"\n    if not joint:\n        return False\n    if any(v < 0 for v in joint.values()):\n        return False\n    return abs(sum(joint.values()) - 1.0) < 1e-9\n\n\ndef _check(joint):\n    if not is_valid_joint(joint):\n        raise ValueError(\"not a valid joint distribution\")\n\n\ndef marginal_x(joint):\n    \"\"\"Marginal distribution of X.\"\"\"\n    _check(joint)\n    out = {}\n    for (x, y), p in joint.items():\n        out[x] = out.get(x, 0.0) + p\n    return out\n\n\ndef marginal_y(joint):\n    \"\"\"Marginal distribution of Y.\"\"\"\n    _check(joint)\n    out = {}\n    for (x, y), p in joint.items():\n        out[y] = out.get(y, 0.0) + p\n    return out\n\n\ndef conditional_y_given_x(joint, x):\n    \"\"\"Conditional distribution of Y given X = x.\"\"\"\n    _check(joint)\n    px = marginal_x(joint).get(x, 0.0)\n    if px <= 0:\n        raise ValueError(\"cannot condition on an impossible value of X\")\n    return {y: p / px for (xx, y), p in joint.items() if xx == x}\n\n\ndef are_independent(joint, tol=1e-9):\n    \"\"\"True when the joint factorises.\"\"\"\n    _check(joint)\n    mx, my = marginal_x(joint), marginal_y(joint)\n    for x in mx:\n        for y in my:\n            if abs(joint.get((x, y), 0.0) - mx[x] * my[y]) > tol:\n                return False\n    return True\n\n\ndef _moments(joint):\n    mx, my = marginal_x(joint), marginal_y(joint)\n    ex = sum(x * p for x, p in mx.items())\n    ey = sum(y * p for y, p in my.items())\n    ex2 = sum(x * x * p for x, p in mx.items())\n    ey2 = sum(y * y * p for y, p in my.items())\n    exy = sum(x * y * p for (x, y), p in joint.items())\n    return ex, ey, ex2 - ex * ex, ey2 - ey * ey, exy\n\n\ndef covariance(joint):\n    \"\"\"E[XY] - E[X]E[Y].\"\"\"\n    ex, ey, _, _, exy = _moments(joint)\n    return exy - ex * ey\n\n\ndef correlation(joint):\n    \"\"\"Covariance divided by the product of the standard deviations.\"\"\"\n    _, _, vx, vy, _ = _moments(joint)\n    if vx <= 1e-15 or vy <= 1e-15:\n        raise ValueError(\"correlation is undefined when a variance vanishes\")\n    return covariance(joint) / sqrt(vx * vy)\n", "tests": "def test_marginals_and_validity():\n    joint = {(0, 0): 0.1, (0, 1): 0.2, (1, 0): 0.3, (1, 1): 0.4}\n    assert is_valid_joint(joint) is True\n    assert is_valid_joint({(0, 0): 0.5}) is False          # does not sum to 1\n    assert is_valid_joint({(0, 0): 1.5, (0, 1): -0.5}) is False\n    mx = marginal_x(joint)\n    my = marginal_y(joint)\n    assert abs(mx[0] - 0.3) < 1e-12 and abs(mx[1] - 0.7) < 1e-12\n    assert abs(my[0] - 0.4) < 1e-12 and abs(my[1] - 0.6) < 1e-12\n    assert abs(sum(mx.values()) - 1.0) < 1e-12\n\n\ndef test_independence_and_conditionals():\n    # an independent pair, built as a product\n    px = {0: 0.3, 1: 0.7}\n    py = {0: 0.4, 1: 0.6}\n    indep = {(x, y): px[x] * py[y] for x in px for y in py}\n    assert are_independent(indep) is True\n    assert abs(covariance(indep)) < 1e-12\n    # conditioning changes nothing when independent\n    cond = conditional_y_given_x(indep, 0)\n    for y in py:\n        assert abs(cond[y] - py[y]) < 1e-12\n    # a dependent pair\n    dep = {(0, 0): 0.5, (1, 1): 0.5}\n    assert are_independent(dep) is False\n    assert abs(correlation(dep) - 1.0) < 1e-9\n    try:\n        conditional_y_given_x(dep, 5)\n        assert False, \"an impossible x must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_zero_covariance_does_not_mean_independent():\n    # X in {-1, 0, 1} uniform, Y = X^2: covariance zero, utterly dependent\n    joint = {(-1, 1): 1 / 3, (0, 0): 1 / 3, (1, 1): 1 / 3}\n    assert abs(covariance(joint)) < 1e-12, \"the covariance vanishes\"\n    assert are_independent(joint) is False, \"yet they are not independent\"\n    # Y is a deterministic function of X\n    assert conditional_y_given_x(joint, 1) == {1: 1.0}\n    assert conditional_y_given_x(joint, 0) == {0: 1.0}\n    # perfect negative correlation\n    anti = {(0, 1): 0.5, (1, 0): 0.5}\n    assert abs(correlation(anti) + 1.0) < 1e-9\n    # correlation is undefined when a variable is constant\n    const = {(1, 0): 0.5, (1, 1): 0.5}\n    try:\n        correlation(const)\n        assert False, \"a zero variance must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt\n\n\ndef is_valid_joint(joint):\n    if not joint:\n        return False\n    if any(v < 0 for v in joint.values()):\n        return False\n    return abs(sum(joint.values()) - 1.0) < 1e-9\n\n\ndef _check(joint):\n    if not is_valid_joint(joint):\n        raise ValueError(\"not a valid joint distribution\")\n\n\ndef marginal_x(joint):\n    _check(joint)\n    out = {}\n    for (x, y), p in joint.items():\n        out[x] = out.get(x, 0.0) + p\n    return out\n\n\ndef marginal_y(joint):\n    \"\"\"Bug: keys the marginal by x, so it duplicates the X marginal.\"\"\"\n    _check(joint)\n    out = {}\n    for (x, y), p in joint.items():\n        out[x] = out.get(x, 0.0) + p\n    return out\n\n\ndef conditional_y_given_x(joint, x):\n    _check(joint)\n    px = marginal_x(joint).get(x, 0.0)\n    if px <= 0:\n        raise ValueError(\"cannot condition on an impossible value of X\")\n    return {y: p / px for (xx, y), p in joint.items() if xx == x}\n\n\ndef are_independent(joint, tol=1e-9):\n    _check(joint)\n    mx, my = marginal_x(joint), marginal_y(joint)\n    for x in mx:\n        for y in my:\n            if abs(joint.get((x, y), 0.0) - mx[x] * my[y]) > tol:\n                return False\n    return True\n\n\ndef _moments(joint):\n    mx, my = marginal_x(joint), marginal_y(joint)\n    ex = sum(x * p for x, p in mx.items())\n    ey = sum(y * p for y, p in my.items())\n    ex2 = sum(x * x * p for x, p in mx.items())\n    ey2 = sum(y * y * p for y, p in my.items())\n    exy = sum(x * y * p for (x, y), p in joint.items())\n    return ex, ey, ex2 - ex * ex, ey2 - ey * ey, exy\n\n\ndef covariance(joint):\n    ex, ey, _, _, exy = _moments(joint)\n    return exy - ex * ey\n\n\ndef correlation(joint):\n    _, _, vx, vy, _ = _moments(joint)\n    if vx <= 1e-15 or vy <= 1e-15:\n        raise ValueError(\"correlation is undefined when a variance vanishes\")\n    return covariance(joint) / sqrt(vx * vy)\n", "from math import sqrt\n\n\ndef is_valid_joint(joint):\n    if not joint:\n        return False\n    if any(v < 0 for v in joint.values()):\n        return False\n    return abs(sum(joint.values()) - 1.0) < 1e-9\n\n\ndef _check(joint):\n    if not is_valid_joint(joint):\n        raise ValueError(\"not a valid joint distribution\")\n\n\ndef marginal_x(joint):\n    _check(joint)\n    out = {}\n    for (x, y), p in joint.items():\n        out[x] = out.get(x, 0.0) + p\n    return out\n\n\ndef marginal_y(joint):\n    _check(joint)\n    out = {}\n    for (x, y), p in joint.items():\n        out[y] = out.get(y, 0.0) + p\n    return out\n\n\ndef conditional_y_given_x(joint, x):\n    \"\"\"Bug: forgets to divide by P(X = x), so it is not a distribution.\"\"\"\n    _check(joint)\n    px = marginal_x(joint).get(x, 0.0)\n    if px <= 0:\n        raise ValueError(\"cannot condition on an impossible value of X\")\n    return {y: p for (xx, y), p in joint.items() if xx == x}\n\n\ndef are_independent(joint, tol=1e-9):\n    \"\"\"Bug: concludes independence from zero covariance, which is not valid.\"\"\"\n    _check(joint)\n    mx, my = marginal_x(joint), marginal_y(joint)\n    ex = sum(x * p for x, p in mx.items())\n    ey = sum(y * p for y, p in my.items())\n    exy = sum(x * y * p for (x, y), p in joint.items())\n    return abs(exy - ex * ey) <= tol\n\n\ndef _moments(joint):\n    mx, my = marginal_x(joint), marginal_y(joint)\n    ex = sum(x * p for x, p in mx.items())\n    ey = sum(y * p for y, p in my.items())\n    ex2 = sum(x * x * p for x, p in mx.items())\n    ey2 = sum(y * y * p for y, p in my.items())\n    exy = sum(x * y * p for (x, y), p in joint.items())\n    return ex, ey, ex2 - ex * ex, ey2 - ey * ey, exy\n\n\ndef covariance(joint):\n    ex, ey, _, _, exy = _moments(joint)\n    return exy - ex * ey\n\n\ndef correlation(joint):\n    _, _, vx, vy, _ = _moments(joint)\n    if vx <= 1e-15 or vy <= 1e-15:\n        raise ValueError(\"correlation is undefined when a variance vanishes\")\n    return covariance(joint) / sqrt(vx * vy)\n"], "hints": ["The Y marginal sums over X, so it must be keyed by `y`.", "Zero covariance does not imply independence. Independence requires the joint to factorise at *every* pair."], "level": "core", "title": "Joint distributions, covariance and correlation"}, "m34-ex4-inequalities": {"starter": "def markov_bound(mean, a):\n    \"\"\"Markov's bound on P(X >= a).\"\"\"\n    return 0.0\n\n\ndef chebyshev_bound(k):\n    \"\"\"Chebyshev's bound on P(|X - mu| >= k sigma).\"\"\"\n    return 0.0\n\n\ndef hoeffding_bound(n, t, span=1.0):\n    \"\"\"Hoeffding's bound on the deviation of a bounded sum.\"\"\"\n    return 0.0\n\n\ndef empirical_tail(samples, threshold):\n    \"\"\"Fraction of samples at or above the threshold.\"\"\"\n    return 0.0\n\n\ndef wlln_bound(variance, n, eps):\n    \"\"\"Chebyshev's bound for the sample mean.\"\"\"\n    return 0.0\n", "solution": "from math import exp\n\n\ndef markov_bound(mean, a):\n    \"\"\"Markov's bound on P(X >= a).\"\"\"\n    if a <= 0:\n        raise ValueError(\"the threshold must be positive\")\n    if mean < 0:\n        raise ValueError(\"Markov's inequality needs a non-negative variable\")\n    return min(1.0, mean / a)\n\n\ndef chebyshev_bound(k):\n    \"\"\"Chebyshev's bound on P(|X - mu| >= k sigma).\"\"\"\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    return min(1.0, 1.0 / (k * k))\n\n\ndef hoeffding_bound(n, t, span=1.0):\n    \"\"\"Hoeffding's bound on the deviation of a bounded sum.\"\"\"\n    if n <= 0 or t <= 0 or span <= 0:\n        raise ValueError(\"n, t and span must be positive\")\n    return min(1.0, 2 * exp(-2 * t * t / (n * span * span)))\n\n\ndef empirical_tail(samples, threshold):\n    \"\"\"Fraction of samples at or above the threshold.\"\"\"\n    if not samples:\n        raise ValueError(\"there must be at least one sample\")\n    return sum(1 for s in samples if s >= threshold) / len(samples)\n\n\ndef wlln_bound(variance, n, eps):\n    \"\"\"Chebyshev's bound for the sample mean.\"\"\"\n    if variance < 0 or n <= 0 or eps <= 0:\n        raise ValueError(\"variance must be non-negative, n and eps positive\")\n    return min(1.0, variance / (n * eps * eps))\n", "tests": "def test_markov_and_chebyshev_are_valid_bounds():\n    import random\n    from math import log\n    rng = random.Random(1867)\n    # The bound must be the right NUMBER, not merely a valid one. A bound that\n    # always returns 1.0 is technically correct and completely useless, so pin\n    # the arithmetic down first.\n    assert abs(markov_bound(2.0, 8.0) - 0.25) < 1e-12\n    assert abs(markov_bound(1.0, 4.0) - 0.25) < 1e-12\n    assert abs(markov_bound(3.0, 5.0) - 0.6) < 1e-12\n    # a larger threshold gives a tighter bound\n    assert markov_bound(1.0, 10.0) < markov_bound(1.0, 2.0) < markov_bound(1.0, 1.5)\n    # and it saturates at 1 rather than exceeding it\n    assert markov_bound(5.0, 1.0) == 1.0\n    # exponential with mean 1: check Markov really holds, and is non-trivial\n    samples = [-log(rng.random() or 1e-12) for _ in range(20000)]\n    mean = sum(samples) / len(samples)\n    for a in (2.0, 5.0, 10.0):\n        actual = empirical_tail(samples, a)\n        bound = markov_bound(mean, a)\n        assert actual <= bound + 0.01, (a, actual, bound)\n        assert bound < 1.0, f\"the bound at a = {a} must say something\"\n    # Chebyshev on a normal: the bound is valid and loose\n    normals = [rng.gauss(0, 1) for _ in range(20000)]\n    for k in (1.0, 2.0, 3.0):\n        actual = sum(1 for x in normals if abs(x) >= k) / len(normals)\n        assert actual <= chebyshev_bound(k) + 0.01, k\n    # for a normal the true tail at k = 2 is about 4.6%, far below 25%\n    actual2 = sum(1 for x in normals if abs(x) >= 2) / len(normals)\n    assert actual2 < 0.06 and chebyshev_bound(2.0) == 0.25\n\n\ndef test_hoeffding_is_exponentially_tighter():\n    import random\n    rng = random.Random(1963)\n    n = 200\n    # sum of n coin flips, deviation from the mean of n/2\n    trials = 4000\n    deviations = []\n    for _ in range(trials):\n        s = sum(1 if rng.random() < 0.5 else 0 for _ in range(n))\n        deviations.append(abs(s - n / 2))\n    for t in (15.0, 20.0, 30.0):\n        actual = sum(1 for d in deviations if d >= t) / trials\n        bound = hoeffding_bound(n, t)\n        assert actual <= bound + 0.01, (t, actual, bound)\n    # Hoeffding decays exponentially in t, Chebyshev only polynomially\n    assert hoeffding_bound(n, 30.0) < hoeffding_bound(n, 20.0) < hoeffding_bound(n, 15.0)\n    assert hoeffding_bound(n, 30.0) < 0.01\n    try:\n        hoeffding_bound(0, 1.0)\n        assert False, \"n = 0 must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_weak_law_bound_shrinks_with_n():\n    # Chebyshev's bound on the sample mean falls like 1/n\n    var, eps = 1.0, 0.1\n    bounds = [wlln_bound(var, n, eps) for n in (100, 1000, 10000, 100000)]\n    assert all(a > b for a, b in zip(bounds, bounds[1:]))\n    assert abs(bounds[0] - 1.0) < 1e-12          # 1/(100 * 0.01) = 1\n    assert abs(bounds[2] - 0.01) < 1e-12\n    # it really bounds the observed failure rate\n    import random\n    rng = random.Random(1930)\n    n = 1000\n    fails = 0\n    for _ in range(2000):\n        m = sum(rng.gauss(0, 1) for _ in range(n)) / n\n        if abs(m) >= eps:\n            fails += 1\n    assert fails / 2000 <= wlln_bound(var, n, eps) + 0.01\n    for bad in (lambda: markov_bound(-1.0, 1.0), lambda: chebyshev_bound(0.0),\n                lambda: wlln_bound(1.0, 0, 0.1)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["from math import exp\n\n\ndef markov_bound(mean, a):\n    \"\"\"Bug: inverts the ratio, so the bound is a/mean.\"\"\"\n    if a <= 0:\n        raise ValueError(\"the threshold must be positive\")\n    if mean < 0:\n        raise ValueError(\"Markov's inequality needs a non-negative variable\")\n    return min(1.0, a / mean) if mean > 0 else 0.0\n\n\ndef chebyshev_bound(k):\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    return min(1.0, 1.0 / (k * k))\n\n\ndef hoeffding_bound(n, t, span=1.0):\n    if n <= 0 or t <= 0 or span <= 0:\n        raise ValueError(\"n, t and span must be positive\")\n    return min(1.0, 2 * exp(-2 * t * t / (n * span * span)))\n\n\ndef empirical_tail(samples, threshold):\n    if not samples:\n        raise ValueError(\"there must be at least one sample\")\n    return sum(1 for s in samples if s >= threshold) / len(samples)\n\n\ndef wlln_bound(variance, n, eps):\n    if variance < 0 or n <= 0 or eps <= 0:\n        raise ValueError(\"variance must be non-negative, n and eps positive\")\n    return min(1.0, variance / (n * eps * eps))\n", "from math import exp\n\n\ndef markov_bound(mean, a):\n    if a <= 0:\n        raise ValueError(\"the threshold must be positive\")\n    if mean < 0:\n        raise ValueError(\"Markov's inequality needs a non-negative variable\")\n    return min(1.0, mean / a)\n\n\ndef chebyshev_bound(k):\n    \"\"\"Bug: uses 1/k rather than 1/k^2.\"\"\"\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    return min(1.0, 1.0 / k)\n\n\ndef hoeffding_bound(n, t, span=1.0):\n    \"\"\"Bug: the exponent lacks the factor of 2, weakening it, and the\n    deviation is not squared, so it decays far too slowly.\"\"\"\n    if n <= 0 or t <= 0 or span <= 0:\n        raise ValueError(\"n, t and span must be positive\")\n    return min(1.0, 2 * exp(-t / (n * span * span)))\n\n\ndef empirical_tail(samples, threshold):\n    if not samples:\n        raise ValueError(\"there must be at least one sample\")\n    return sum(1 for s in samples if s >= threshold) / len(samples)\n\n\ndef wlln_bound(variance, n, eps):\n    \"\"\"Bug: omits the n, so the bound never improves with more data.\"\"\"\n    if variance < 0 or n <= 0 or eps <= 0:\n        raise ValueError(\"variance must be non-negative, n and eps positive\")\n    return min(1.0, variance / (eps * eps))\n"], "hints": ["Markov says `P(X >= a) <= E[X]/a`: the mean is on top.", "Chebyshev's bound is `1/k^2`, and the weak law divides the variance by `n`, which is why more data helps."], "level": "core", "title": "Markov, Chebyshev, Hoeffding and the weak law"}, "m34-ex5-clt-and-tails": {"starter": "def box_muller(u1, u2):\n    \"\"\"Two independent standard normals from two uniforms.\"\"\"\n    return (0.0, 0.0)\n\n\ndef standard_error(sigma, n):\n    \"\"\"Standard deviation of the sample mean.\"\"\"\n    return 0.0\n\n\ndef monte_carlo_integrate(f, a, b, samples):\n    \"\"\"Estimate the integral of f over [a, b].\"\"\"\n    return 0.0\n\n\ndef pareto_sample(alpha, u, xm=1.0):\n    \"\"\"One Pareto sample by inverse CDF.\"\"\"\n    return 0.0\n\n\ndef pareto_mean(alpha, xm=1.0):\n    \"\"\"The mean, or None when it does not exist.\"\"\"\n    return None\n\n\ndef tail_index_has_finite_variance(alpha):\n    \"\"\"True when the variance exists.\"\"\"\n    return False\n", "solution": "from math import sqrt, log, cos, sin, pi\n\n\ndef box_muller(u1, u2):\n    \"\"\"Two independent standard normals from two uniforms.\"\"\"\n    if not 0 < u1 <= 1:\n        raise ValueError(\"u1 must lie in (0, 1]\")\n    if not 0 <= u2 <= 1:\n        raise ValueError(\"u2 must lie in [0, 1]\")\n    r = sqrt(-2 * log(u1))\n    return (r * cos(2 * pi * u2), r * sin(2 * pi * u2))\n\n\ndef standard_error(sigma, n):\n    \"\"\"Standard deviation of the sample mean.\"\"\"\n    if sigma < 0:\n        raise ValueError(\"sigma must be non-negative\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return sigma / sqrt(n)\n\n\ndef monte_carlo_integrate(f, a, b, samples):\n    \"\"\"Estimate the integral of f over [a, b].\"\"\"\n    if not samples:\n        raise ValueError(\"there must be at least one sample\")\n    if b < a:\n        raise ValueError(\"require a <= b\")\n    total = sum(f(a + (b - a) * u) for u in samples)\n    return (b - a) * total / len(samples)\n\n\ndef pareto_sample(alpha, u, xm=1.0):\n    \"\"\"One Pareto sample by inverse CDF.\"\"\"\n    if alpha <= 0 or xm <= 0:\n        raise ValueError(\"alpha and xm must be positive\")\n    if not 0 < u <= 1:\n        raise ValueError(\"u must lie in (0, 1]\")\n    return xm * u ** (-1.0 / alpha)\n\n\ndef pareto_mean(alpha, xm=1.0):\n    \"\"\"The mean, or None when it does not exist.\"\"\"\n    if alpha <= 0 or xm <= 0:\n        raise ValueError(\"alpha and xm must be positive\")\n    if alpha <= 1:\n        return None\n    return alpha * xm / (alpha - 1)\n\n\ndef tail_index_has_finite_variance(alpha):\n    \"\"\"True when the variance exists.\"\"\"\n    if alpha <= 0:\n        raise ValueError(\"alpha must be positive\")\n    return alpha > 2\n", "tests": "def test_box_muller_produces_standard_normals():\n    import random\n    rng = random.Random(1958)\n    vals = []\n    for _ in range(100000):\n        u1 = rng.random()\n        while u1 == 0.0:\n            u1 = rng.random()\n        z1, z2 = box_muller(u1, rng.random())\n        vals.append(z1)\n        vals.append(z2)\n    m = sum(vals) / len(vals)\n    v = sum((x - m) ** 2 for x in vals) / (len(vals) - 1)\n    assert abs(m) < 0.02, m\n    assert abs(v - 1.0) < 0.02, v\n    # about 68% lie within one standard deviation, 95% within two\n    within1 = sum(1 for x in vals if abs(x) <= 1) / len(vals)\n    within2 = sum(1 for x in vals if abs(x) <= 2) / len(vals)\n    assert 0.66 < within1 < 0.70, within1\n    assert 0.94 < within2 < 0.96, within2\n    try:\n        box_muller(0.0, 0.5)\n        assert False, \"u1 = 0 must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_standard_error_and_monte_carlo():\n    import random\n    from math import sqrt, sin, cos\n    assert abs(standard_error(2.0, 100) - 0.2) < 1e-12\n    # quadrupling the data halves the error\n    assert abs(standard_error(1.0, 400) - standard_error(1.0, 100) / 2) < 1e-12\n    rng = random.Random(1946)\n    # integral of x^2 over [0, 1] is 1/3\n    for n in (1000, 100000):\n        draws = [rng.random() for _ in range(n)]\n        est = monte_carlo_integrate(lambda x: x * x, 0.0, 1.0, draws)\n        assert abs(est - 1 / 3) < 4.0 / sqrt(n), (n, est)\n    # a bigger sample is usually better: compare the average error\n    errs = {}\n    for n in (100, 10000):\n        total = 0.0\n        for _ in range(200):\n            draws = [rng.random() for _ in range(n)]\n            total += abs(monte_carlo_integrate(lambda x: x * x, 0.0, 1.0, draws) - 1 / 3)\n        errs[n] = total / 200\n    assert 6.0 < errs[100] / errs[10000] < 15.0, errs\n\n\ndef test_pareto_and_the_existence_of_moments():\n    import random\n    rng = random.Random(1896)\n    # the inverse CDF really produces the Pareto tail\n    alpha = 2.5\n    samples = [pareto_sample(alpha, rng.random() or 1e-12) for _ in range(200000)]\n    for x in (1.5, 2.0, 4.0):\n        empirical = sum(1 for s in samples if s > x) / len(samples)\n        theory = x ** (-alpha)\n        assert abs(empirical - theory) < 0.01, x\n    assert all(s >= 1.0 for s in samples), \"the support starts at xm\"\n    # the mean exists only for alpha > 1\n    assert pareto_mean(0.8) is None\n    assert pareto_mean(1.0) is None\n    assert abs(pareto_mean(3.0) - 1.5) < 1e-12\n    assert abs(pareto_mean(2.5) - 2.5 / 1.5) < 1e-12\n    # the variance exists only for alpha > 2\n    assert tail_index_has_finite_variance(1.5) is False\n    assert tail_index_has_finite_variance(2.0) is False\n    assert tail_index_has_finite_variance(3.0) is True\n    # with alpha = 3 the sample mean converges; with alpha = 0.8 it does not\n    m3 = [sum(pareto_sample(3.0, rng.random() or 1e-12) for _ in range(n)) / n\n          for n in (10000, 100000)]\n    assert abs(m3[-1] - 1.5) < 0.05\n    try:\n        pareto_sample(2.0, 0.0)\n        assert False, \"u = 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt, log, cos, sin, pi\n\n\ndef box_muller(u1, u2):\n    \"\"\"Bug: forgets the factor of 2 inside the square root, so the variance\n    comes out at one half.\"\"\"\n    if not 0 < u1 <= 1:\n        raise ValueError(\"u1 must lie in (0, 1]\")\n    if not 0 <= u2 <= 1:\n        raise ValueError(\"u2 must lie in [0, 1]\")\n    r = sqrt(-log(u1))\n    return (r * cos(2 * pi * u2), r * sin(2 * pi * u2))\n\n\ndef standard_error(sigma, n):\n    if sigma < 0:\n        raise ValueError(\"sigma must be non-negative\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return sigma / sqrt(n)\n\n\ndef monte_carlo_integrate(f, a, b, samples):\n    if not samples:\n        raise ValueError(\"there must be at least one sample\")\n    if b < a:\n        raise ValueError(\"require a <= b\")\n    total = sum(f(a + (b - a) * u) for u in samples)\n    return (b - a) * total / len(samples)\n\n\ndef pareto_sample(alpha, u, xm=1.0):\n    if alpha <= 0 or xm <= 0:\n        raise ValueError(\"alpha and xm must be positive\")\n    if not 0 < u <= 1:\n        raise ValueError(\"u must lie in (0, 1]\")\n    return xm * u ** (-1.0 / alpha)\n\n\ndef pareto_mean(alpha, xm=1.0):\n    if alpha <= 0 or xm <= 0:\n        raise ValueError(\"alpha and xm must be positive\")\n    if alpha <= 1:\n        return None\n    return alpha * xm / (alpha - 1)\n\n\ndef tail_index_has_finite_variance(alpha):\n    if alpha <= 0:\n        raise ValueError(\"alpha must be positive\")\n    return alpha > 2\n", "from math import sqrt, log, cos, sin, pi\n\n\ndef box_muller(u1, u2):\n    if not 0 < u1 <= 1:\n        raise ValueError(\"u1 must lie in (0, 1]\")\n    if not 0 <= u2 <= 1:\n        raise ValueError(\"u2 must lie in [0, 1]\")\n    r = sqrt(-2 * log(u1))\n    return (r * cos(2 * pi * u2), r * sin(2 * pi * u2))\n\n\ndef standard_error(sigma, n):\n    \"\"\"Bug: divides by n rather than by its square root.\"\"\"\n    if sigma < 0:\n        raise ValueError(\"sigma must be non-negative\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return sigma / n\n\n\ndef monte_carlo_integrate(f, a, b, samples):\n    \"\"\"Bug: omits the width factor, so the estimate is only an average.\"\"\"\n    if not samples:\n        raise ValueError(\"there must be at least one sample\")\n    if b < a:\n        raise ValueError(\"require a <= b\")\n    return sum(f(a + (b - a) * u) for u in samples) / len(samples)\n\n\ndef pareto_sample(alpha, u, xm=1.0):\n    if alpha <= 0 or xm <= 0:\n        raise ValueError(\"alpha and xm must be positive\")\n    if not 0 < u <= 1:\n        raise ValueError(\"u must lie in (0, 1]\")\n    return xm * u ** (-1.0 / alpha)\n\n\ndef pareto_mean(alpha, xm=1.0):\n    \"\"\"Bug: reports a mean even when alpha <= 1, where none exists.\"\"\"\n    if alpha <= 0 or xm <= 0:\n        raise ValueError(\"alpha and xm must be positive\")\n    return alpha * xm / (alpha - 1) if alpha != 1 else 0.0\n\n\ndef tail_index_has_finite_variance(alpha):\n    \"\"\"Bug: the boundary is at 1 rather than 2.\"\"\"\n    if alpha <= 0:\n        raise ValueError(\"alpha must be positive\")\n    return alpha > 1\n"], "hints": ["Box-Muller uses `sqrt(-2 ln u1)`; the factor of 2 is what makes the variance 1.", "A Pareto has a finite mean only when alpha exceeds 1, and a finite variance only when it exceeds 2."], "level": "boss", "title": "The CLT, Monte Carlo and heavy tails"}}, "demos": {"m34-distributions-two-ways": {"code": "import random\nfrom math import exp, log, sqrt, factorial, pi\n\nrng = random.Random(1733)\nN = 200000\n\n\ndef sample_mean_var(sampler, n=N):\n    total = 0.0\n    total_sq = 0.0\n    for _ in range(n):\n        x = sampler()\n        total += x\n        total_sq += x * x\n    mean = total / n\n    return mean, total_sq / n - mean * mean\n\n\nprint(f\"{'distribution':>22} {'mean (theory)':>15} {'measured':>12} \"\n      f\"{'var (theory)':>14} {'measured':>12}\")\n\n# Bernoulli\np = 0.3\nm, v = sample_mean_var(lambda: 1.0 if rng.random() < p else 0.0)\nprint(f\"{'Bernoulli(0.3)':>22} {p:>15.4f} {m:>12.4f} {p * (1 - p):>14.4f} {v:>12.4f}\")\nassert abs(m - p) < 0.01 and abs(v - p * (1 - p)) < 0.01\n\n# Binomial\nn_trials, p = 20, 0.4\nm, v = sample_mean_var(lambda: float(sum(1 for _ in range(n_trials) if rng.random() < p)), 50000)\nprint(f\"{'Binomial(20, 0.4)':>22} {n_trials * p:>15.4f} {m:>12.4f} \"\n      f\"{n_trials * p * (1 - p):>14.4f} {v:>12.4f}\")\nassert abs(m - n_trials * p) < 0.05\nassert abs(v - n_trials * p * (1 - p)) < 0.15\n\n# Geometric: trials until the first success\np = 0.25\ndef geometric():\n    k = 1\n    while rng.random() >= p:\n        k += 1\n    return float(k)\nm, v = sample_mean_var(geometric, 100000)\nprint(f\"{'Geometric(0.25)':>22} {1 / p:>15.4f} {m:>12.4f} \"\n      f\"{(1 - p) / (p * p):>14.4f} {v:>12.4f}\")\nassert abs(m - 1 / p) < 0.1\nassert abs(v - (1 - p) / (p * p)) < 2.0\n\n# Uniform on [2, 8]\na, b = 2.0, 8.0\nm, v = sample_mean_var(lambda: rng.uniform(a, b))\nprint(f\"{'Uniform(2, 8)':>22} {(a + b) / 2:>15.4f} {m:>12.4f} \"\n      f\"{(b - a) ** 2 / 12:>14.4f} {v:>12.4f}\")\nassert abs(m - (a + b) / 2) < 0.02\nassert abs(v - (b - a) ** 2 / 12) < 0.05\n\n# Exponential by inverse CDF\nlam = 1.5\ndef exponential():\n    u = rng.random()\n    while u == 0.0:\n        u = rng.random()\n    return -log(u) / lam\nm, v = sample_mean_var(exponential)\nprint(f\"{'Exponential(1.5)':>22} {1 / lam:>15.4f} {m:>12.4f} \"\n      f\"{1 / (lam * lam):>14.4f} {v:>12.4f}\")\nassert abs(m - 1 / lam) < 0.01\nassert abs(v - 1 / (lam * lam)) < 0.02\n\n# Normal by Box-Muller\nmu, sigma = 3.0, 2.0\ndef normal():\n    u1 = rng.random()\n    while u1 == 0.0:\n        u1 = rng.random()\n    u2 = rng.random()\n    import math\n    return mu + sigma * sqrt(-2 * log(u1)) * math.cos(2 * pi * u2)\nm, v = sample_mean_var(normal)\nprint(f\"{'Normal(3, 4)':>22} {mu:>15.4f} {m:>12.4f} {sigma * sigma:>14.4f} {v:>12.4f}\")\nassert abs(m - mu) < 0.03\nassert abs(v - sigma * sigma) < 0.08\n\n# --- the inverse CDF really produces the right distribution ---\nprint()\nprint(\"exponential samples versus the theoretical CDF 1 - e^(-lam x)\")\nsamples = sorted(exponential() for _ in range(200000))\nworst = 0.0\nfor x in (0.1, 0.25, 0.5, 1.0, 2.0, 3.0):\n    empirical = sum(1 for s in samples if s <= x) / len(samples)\n    theory = 1 - exp(-lam * x)\n    worst = max(worst, abs(empirical - theory))\n    print(f\"  x = {x:<5} empirical {empirical:.5f}   theory {theory:.5f}\")\nassert worst < 0.01, \"the inverse-CDF sampler must match its own CDF\"\n\n# memorylessness, measured\ncond = [s - 1.0 for s in samples if s > 1.0]\ntail_frac = sum(1 for c in cond if c > 0.5) / len(cond)\nplain_frac = sum(1 for s in samples if s > 0.5) / len(samples)\nprint()\nprint(\"memorylessness: P(X > 1.5 | X > 1) =\", round(tail_frac, 4),\n      \" and P(X > 0.5) =\", round(plain_frac, 4))\nassert abs(tail_frac - plain_frac) < 0.01, \"the exponential must be memoryless\"\n\n# Poisson as the limit of a binomial with np fixed\nlam_p = 2.0\nprint()\nprint(\"Poisson(2) pmf versus a Binomial(n, 2/n) for growing n\")\ndef poisson_pmf(k, lam):\n    return exp(-lam) * lam ** k / factorial(k)\ndef binom_pmf(k, n, p):\n    from math import comb\n    return comb(n, k) * p ** k * (1 - p) ** (n - k)\nfor n in (20, 200, 2000):\n    gap = max(abs(binom_pmf(k, n, lam_p / n) - poisson_pmf(k, lam_p)) for k in range(8))\n    print(f\"  n = {n:>5}: largest pmf gap {gap:.6f}\")\nassert max(abs(binom_pmf(k, 2000, lam_p / 2000) - poisson_pmf(k, lam_p))\n           for k in range(8)) < 1e-3\n", "mutants": ["import random\nfrom math import exp, log\n\nrng = random.Random(1733)\nlam = 1.5\n\n\ndef exponential():\n    \"\"\"Bug: multiplies by lambda instead of dividing, so the scale is wrong.\"\"\"\n    u = rng.random()\n    while u == 0.0:\n        u = rng.random()\n    return -log(u) * lam\n\n\nsamples = sorted(exponential() for _ in range(200000))\nworst = 0.0\nfor x in (0.1, 0.25, 0.5, 1.0, 2.0, 3.0):\n    empirical = sum(1 for s in samples if s <= x) / len(samples)\n    theory = 1 - exp(-lam * x)\n    worst = max(worst, abs(empirical - theory))\n    print(f\"  x = {x:<5} empirical {empirical:.5f}   theory {theory:.5f}\")\nassert worst < 0.01, \"the inverse-CDF sampler must match its own CDF\"\n"]}, "m34-clt-and-heavy-tails": {"code": "import random\nfrom math import sqrt\n\nrng = random.Random(1810)\nREPS = 4000\n\n# --- the CLT on a very non-normal source: a single fair coin flip ---\nprint(f\"averaging n Bernoulli(0.5) draws, {REPS} times over\")\nprint(f\"{'n':>5} {'mean':>9} {'sd of the mean':>16} {'sigma/sqrt(n)':>14} \"\n      f\"{'frac within 1 sd':>18}\")\nsds = {}\nfor n in (1, 4, 16, 64):\n    means = [sum(1 if rng.random() < 0.5 else 0 for _ in range(n)) / n\n             for _ in range(REPS)]\n    m = sum(means) / REPS\n    sd = sqrt(sum((x - m) ** 2 for x in means) / (REPS - 1))\n    sds[n] = sd\n    predicted = 0.5 / sqrt(n)\n    within = sum(1 for x in means if abs(x - m) <= sd) / REPS\n    print(f\"{n:>5} {m:>9.5f} {sd:>16.5f} {predicted:>14.5f} {within:>18.4f}\")\n    assert abs(sd - predicted) < 0.05 * predicted, \"sd must be sigma/sqrt(n)\"\n    if n >= 16:\n        # for a normal about 68% lie within one standard deviation; at n = 4\n        # the sum still has only 5 possible values and sits at 0.63\n        assert 0.64 < within < 0.72, f\"the shape must become normal, got {within}\"\n\nprint()\nprint(\"predicted: the spread of the mean falls like 1/sqrt(n), so going from\")\nprint(\"           n = 4 to n = 64 (16x the data) should improve it 4x, not 16x\")\nprint(f\"measured : sd(4) / sd(64) = {sds[4] / sds[64]:.3f}\")\nassert 3.6 < sds[4] / sds[64] < 4.4, \"16x the data buys 4x the accuracy\"\nprint(\"           the shape approaches a normal whatever the source was\")\n\n# --- heavy tails: a Pareto whose mean does not exist ---\ndef pareto(alpha, xm=1.0):\n    u = rng.random() or 1e-12\n    return xm * u ** (-1.0 / alpha)\n\n\nprint()\nprint(\"Pareto with alpha = 0.8: the mean does NOT exist (alpha <= 1).\")\nprint(\"Eight INDEPENDENT runs, each of 20000 samples - same size every time:\")\nprint(f\"{'run':>5} {'sample mean':>14} {'median':>10}\")\nmeans, medians = [], []\nfor run in range(1, 9):\n    vals = sorted(pareto(0.8) for _ in range(20000))\n    mean = sum(vals) / len(vals)\n    median = vals[len(vals) // 2]\n    means.append(mean)\n    medians.append(median)\n    print(f\"{run:>5} {mean:>14.1f} {median:>10.4f}\")\n\nmean_spread = max(means) / min(means)\nmedian_spread = max(medians) / min(medians)\nprint()\nprint(\"predicted: the sample mean is irreproducible; the median is not\")\nprint(f\"measured : the means differ by a factor of {mean_spread:.2f}\")\nprint(f\"measured : the medians differ by a factor of {median_spread:.3f}\")\nassert mean_spread > 1.5, \"the sample mean must refuse to settle\"\nassert median_spread < 1.15, \"the median is stable across every run\"\n\n# With alpha = 3 the mean and variance both exist, and everything behaves.\nprint()\nprint(\"Pareto with alpha = 3: mean and variance both exist, so the law applies\")\nmeans3 = []\nfor n in (2000, 20000):\n    vals = [pareto(3.0) for _ in range(n)]\n    means3.append(sum(vals) / len(vals))\n    print(f\"  n = {n:>6}: sample mean {means3[-1]:.4f}   theory {3.0 / (3.0 - 1):.4f}\")\nassert abs(means3[-1] - 1.5) < 0.05, \"with alpha = 3 the sample mean converges\"\nassert max(means3) / min(means3) < 1.1, \"and it is stable across sample sizes\"\n\n# --- Meera's dashboard ---\nprint()\nprint(\"Meera's latencies: a mixture, mostly fast with a thin slow tail\")\ndef latency():\n    r = rng.random()\n    if r < 0.80:\n        return rng.gauss(40, 8)\n    if r < 0.98:\n        return rng.gauss(200, 40)\n    return 1000 + 2000 * rng.random()\n\n\nlat = sorted(max(1.0, latency()) for _ in range(50000))\nmean = sum(lat) / len(lat)\nmedian = lat[len(lat) // 2]\np95 = lat[int(0.95 * len(lat))]\np99 = lat[int(0.99 * len(lat))]\nprint(f\"  mean {mean:.1f} ms   median {median:.1f} ms   \"\n      f\"p95 {p95:.1f} ms   p99 {p99:.1f} ms\")\nfrac_below_mean = sum(1 for x in lat if x < mean) / len(lat)\nprint(f\"  fraction of requests FASTER than the mean: {frac_below_mean:.3f}\")\nassert mean > median * 1.5, \"the mean sits far above the typical request\"\nassert frac_below_mean > 0.75, \"most requests are faster than the average\"\nassert p99 > 10 * median, \"and the tail is an order of magnitude worse\"\n", "mutants": ["import random\nfrom math import sqrt\n\nrng = random.Random(1810)\nREPS = 4000\n\nprint(f\"{'n':>5} {'sd of the mean':>16} {'predicted':>12}\")\nfor n in (1, 4, 16, 64):\n    means = [sum(1 if rng.random() < 0.5 else 0 for _ in range(n)) / n\n             for _ in range(REPS)]\n    m = sum(means) / REPS\n    sd = sqrt(sum((x - m) ** 2 for x in means) / (REPS - 1))\n    # Wrong theory: claims the spread falls like 1/n rather than 1/sqrt(n).\n    predicted = 0.5 / n\n    print(f\"{n:>5} {sd:>16.5f} {predicted:>12.5f}\")\n    assert abs(sd - predicted) < 0.05 * predicted, \"sd must be sigma/n\"\n"]}}, "cards": [{"q": "Why can the mean be a bad summary?", "a": "A heavy tail drags it above almost every observation. For skewed data the median and high quantiles describe reality; the mean describes nobody."}, {"q": "When does the law of large numbers fail?", "a": "When the mean does not exist, as for a Pareto with alpha at most 1 or a Cauchy. The sample mean then never settles."}, {"q": "What does the central limit theorem require?", "a": "Independent identically distributed variables with FINITE variance. The shape of the original distribution is irrelevant."}, {"q": "Does zero correlation imply independence?", "a": "No. Correlation measures linear association only. X uniform on {-1,0,1} and Y = X^2 have zero covariance and Y is a function of X."}, {"q": "Give the standard error of a sample mean and its practical consequence.", "a": "sigma over root n. To halve the error you need four times the data."}, {"q": "State Markov's and Chebyshev's inequalities and what each assumes.", "a": "Markov: P(X >= a) <= E[X]/a, needing only non-negativity. Chebyshev: P(|X-mu| >= k sigma) <= 1/k^2, needing a finite variance. Chebyshev follows from Markov applied to the squared deviation."}, {"q": "What makes Hoeffding stronger than Chebyshev?", "a": "It assumes bounded variables and in exchange gives an exponentially small bound rather than a polynomial one."}, {"q": "How does the inverse CDF method work, and when can you not use it?", "a": "If U is uniform then F inverse of U has CDF F. It needs an invertible CDF, which the normal lacks \u2014 hence Box-Muller."}, {"q": "Why is Monte Carlo integration used in high dimensions?", "a": "Its error falls like 1/sqrt(n) independently of dimension, while grid methods need exponentially many points."}, {"q": "What is special about the exponential distribution?", "a": "It is memoryless: having waited tells you nothing about the remaining wait. It is the only continuous distribution with that property."}], "title": "Probability theory"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

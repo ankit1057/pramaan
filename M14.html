@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M14 Sequences and series</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M14">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 9-10 · ~3h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M14</p><h1>Sequences and series</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M05.html">M05</a></div><div><b>Covers:</b> NCERT 10: Arithmetic Progressions, NCERT 11: Sequences and Series, NCERT 9 (Ganita Manjari I): Sequences and Progressions</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>arithmetic progressions: nth term and sum (Gauss&#x27;s pairing proof)</li><li>geometric progressions: nth term, finite sum, infinite sum and when it converges</li><li>AM-GM inequality</li><li>sums of 1..n, squares and cubes by induction</li><li>telescoping sums</li><li>why doubling a dynamic array costs O(1) amortised (a geometric series)</li><li>explicit versus recursive rules for a sequence</li><li>fractals by iteration: Sierpinski triangle and carpet, Koch snowflake (perimeter grows without bound while area stays finite)</li><li>Madhava&#x27;s series pi/4 = 1 - 1/3 + 1/5 - ... and how slowly it converges</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>A clever man comes to the king's court with a chessboard. "Your Majesty, I ask a small reward. One grain of rice on the first square. Two on the second. Four on the third. Keep doubling, square by square, to the sixty-fourth."</p>
+<p>The king is delighted. Rice! Grains! He has elephants and palaces, and this man wants crumbs. He agrees at once.</p>
+<p>The counting begins. The first row uses a spoonful. The second row, a bowl. By the end of the third row the servants bring a sack. By the fifth row they are bringing carts.</p>
+<p>The king stops the counting and asks the court mathematician to finish it on paper. She works for a while and then says, very quietly, that the last square alone needs more rice than the kingdom has ever grown, and that the whole board needs more rice than exists in the world.</p>
+<p>Here is the surprise, and it is not that the numbers got big. It is <em>where</em> they got big. Nothing alarming happens for half the board. The king makes his decision based on a spoonful, and the spoonful is honest — it really is what the first squares cost. Doubling hides its size until very suddenly it does not.</p>
+<p>The same shape governs a cup of tea cooling, a loan compounding, and a list in your program quietly growing.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>sequence</strong> is an ordered list of numbers. A <strong>series</strong> is what you get when you add a sequence up.</p>
+<p>Two patterns cover an enormous amount of ground. In an <strong>arithmetic progression</strong> you <em>add</em> a fixed step each time: 3, 7, 11, 15. In a <strong>geometric progression</strong> you <em>multiply</em> by a fixed ratio: 3, 6, 12, 24. Arithmetic growth is a straight line; geometric growth is the chessboard.</p>
+<p>For both, there is a closed form — a formula that jumps straight to the $n$-th term or to the total without walking through every step. Finding such a formula is the whole game, because walking takes $n$ steps and a formula takes one.</p>
+<p>The one-line takeaway: a geometric series with ratio below 1 adds up to a <em>finite</em> total even with infinitely many terms, and that single fact explains everything from Zeno's paradox to why appending to a list is cheap.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Arithmetic progressions</h2>
+<p>An <strong>arithmetic progression</strong> (AP) has first term $a$ and common difference $d$, so the terms are $a, a+d, a+2d, \dots$ The $n$-th term and the sum of the first $n$ terms are</p>
+<p>$$a_n = a + (n-1)d, \qquad S_n = \frac{n}{2}\left(2a + (n-1)d\right) = \frac{n}{2}(a + a_n)$$</p>
+<p>The second form says it plainly: the sum is the number of terms times the average of the first and last.</p>
+<h2>Geometric progressions</h2>
+<p>A <strong>geometric progression</strong> (GP) has first term $a$ and common ratio $r \neq 0$:</p>
+<p>$$a_n = ar^{n-1}, \qquad S_n = a\frac{r^n - 1}{r - 1} \quad (r \neq 1), \qquad S_n = na \quad (r = 1)$$</p>
+<p>When $|r| &lt; 1$ the terms shrink and the sum of <em>infinitely</em> many of them converges:</p>
+<p>$$S_\infty = \frac{a}{1-r}, \qquad |r| &lt; 1$$</p>
+<p>When $|r| \ge 1$ the infinite series diverges. The condition $|r| &lt; 1$ is not a technicality — it is the entire difference between the chessboard and a cup of tea.</p>
+<h2>Standard sums</h2>
+<p>$$\sum_{k=1}^{n} k = \frac{n(n+1)}{2}, \qquad \sum_{k=1}^{n} k^2 = \frac{n(n+1)(2n+1)}{6}, \qquad \sum_{k=1}^{n} k^3 = \left(\frac{n(n+1)}{2}\right)^2$$</p>
+<p>The last is startling: the sum of the first $n$ cubes is the <em>square</em> of the sum of the first $n$ numbers.</p>
+<h2>Telescoping</h2>
+<p>A <strong>telescoping sum</strong> is one where each term splits into two pieces that cancel against its neighbours. The standard example uses partial fractions:</p>
+<p>$$\sum_{k=1}^{n} \frac{1}{k(k+1)} = \sum_{k=1}^{n}\left(\frac{1}{k} - \frac{1}{k+1}\right) = 1 - \frac{1}{n+1} = \frac{n}{n+1}$$</p>
+<p>Everything in the middle cancels and only the two ends survive. Telescoping is the discrete cousin of the Fundamental Theorem of Calculus.</p>
+<h2>AM-GM</h2>
+<p>For non-negative reals $x_1,\dots,x_n$, the arithmetic mean is at least the geometric mean:</p>
+<p>$$\frac{x_1+\dots+x_n}{n} \ \ge\ \sqrt[n]{x_1 x_2 \cdots x_n}$$</p>
+<p>with equality exactly when all the $x_i$ are equal.</p>
+<h2>Explicit versus recursive rules</h2>
+<p>An <strong>explicit</strong> rule gives $a_n$ directly from $n$: $a_n = 3n+1$. A <strong>recursive</strong> rule gives it from earlier terms plus a base case: $a_1 = 4$, $a_n = a_{n-1} + 3$. Both describe the same sequence. Explicit rules are $O(1)$ to evaluate; recursive ones are natural to state and often easier to prove things about. Converting between them is a recurring skill, and M28 does it in general.</p>
+<h2>A pinch of history</h2>
+<p>The formula for the sum of an AP is often told through a story about the young Carl Friedrich Gauss summing 1 to 100 instantly by pairing the ends; the anecdote is traditional and its details are not reliable, but the pairing argument is genuinely the clean proof.</p>
+<p>The deepest result named in this module is Indian. <strong>Madhava of Sangamagrama</strong> (c. 1340–1425), founder of the Kerala school of astronomy and mathematics, obtained infinite series for the arctangent, sine and cosine roughly two centuries before Gregory and Leibniz in Europe. The series</p>
+<p>$$\frac{\pi}{4} = 1 - \frac{1}{3} + \frac{1}{5} - \frac{1}{7} + \dots$$</p>
+<p>is the arctangent series at $x=1$ and is known as the Madhava-Leibniz series. Madhava's work survives mainly through later Kerala-school writers such as Nilakantha Somayaji and the <em>Yuktibhasa</em> of Jyesthadeva (c. 1530). Remarkably, Madhava also gave <em>correction terms</em> to accelerate this series, having evidently understood how slowly it converges on its own — which is exactly what the experiment below measures.</p>
+<p>The chessboard-and-rice story is told in many cultures and is at least a thousand years old; it is a parable, not a historical record.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: the sum of an AP, by Gauss's pairing.</strong></p>
+<ol>
+<li>Write the sum forwards: $S = a + (a+d) + \dots + (a+(n-1)d)$.</li>
+<li>Write it backwards underneath: $S = (a+(n-1)d) + \dots + (a+d) + a$.</li>
+<li>Add the two lines term by term. <strong>The non-obvious step:</strong> every column sums to the <em>same</em> thing, $2a + (n-1)d$, because as one line steps up by $d$ the other steps down by $d$.</li>
+<li>There are $n$ columns, so $2S = n\left(2a+(n-1)d\right)$.</li>
+<li>Divide by 2.</li>
+</ol>
+<p><strong>Result 2: the sum of a GP, by the shift-and-subtract trick.</strong></p>
+<ol>
+<li>Let $S = a + ar + ar^2 + \dots + ar^{n-1}$.</li>
+<li>Multiply by $r$: $rS = ar + ar^2 + \dots + ar^{n}$.</li>
+<li>Subtract. Every term except two cancels: $rS - S = ar^n - a$.</li>
+<li>Factor: $S(r-1) = a(r^n - 1)$, so $S = a\frac{r^n-1}{r-1}$, provided $r \neq 1$.</li>
+<li>If $|r| &lt; 1$ then $r^n \to 0$ as $n$ grows, so $S_n \to \frac{a(0-1)}{r-1} = \frac{a}{1-r}$.</li>
+</ol>
+<p>Step 3 is a telescoping in disguise, which is why these two ideas keep meeting.</p>
+<p><strong>Result 3: sum of the first $n$ squares, by induction.</strong></p>
+<ol>
+<li><em>Base case.</em> For $n=1$: the left side is 1, and $\frac{1 \cdot 2 \cdot 3}{6} = 1$. True.</li>
+<li><em>Inductive hypothesis.</em> Assume $\sum_{k=1}^{m} k^2 = \frac{m(m+1)(2m+1)}{6}$ for some $m \ge 1$.</li>
+<li><em>Inductive step.</em> Then $\sum_{k=1}^{m+1}k^2 = \frac{m(m+1)(2m+1)}{6} + (m+1)^2$.</li>
+<li>Factor out $\frac{m+1}{6}$: $\frac{m+1}{6}\left(m(2m+1) + 6(m+1)\right) = \frac{m+1}{6}\left(2m^2+7m+6\right)$.</li>
+<li>Factor the quadratic: $2m^2+7m+6 = (m+2)(2m+3)$.</li>
+<li>So the sum is $\frac{(m+1)(m+2)(2m+3)}{6}$, which is the formula with $n = m+1$.</li>
+<li>By induction it holds for every $n \ge 1$.</li>
+</ol>
+<p><strong>Result 4: why doubling an array gives $O(1)$ amortised appends.</strong></p>
+<ol>
+<li>Suppose the array doubles its capacity whenever it is full, and that growing from capacity $c$ costs $c$ copies.</li>
+<li>Starting from capacity 1 and appending $n$ items, the copies happen at capacities $1, 2, 4, \dots$ up to the last power of two below $n$.</li>
+<li>The total number of copies is $1 + 2 + 4 + \dots \le 2n$, by the GP sum with $r=2$.</li>
+<li>So $n$ appends cost at most $2n$ copies in total, which is an average of 2 per append — a constant, independent of $n$.</li>
+<li><strong>The non-obvious step</strong> is step 3: <em>most of the cost sits in the final doubling</em>. All the earlier copies together are less than the last one. That is the chessboard observation read backwards, and it is why the growth factor must be a constant multiple. Growing by a fixed <em>amount</em> instead gives $1+2+3+\dots = \Theta(n^2)$ total copies, which is $\Theta(n)$ per append.</li>
+</ol></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle checks every closed form in this module against the one thing that cannot be wrong about a sum: actually adding the terms up, one at a time, in a loop.</p>
+<p>The closed forms jump to the answer in a single expression; the loops know nothing except how to accumulate. They share no helper. If a formula has an off-by-one, a wrong denominator or a misplaced factor, the loop will disagree at some $n$ and the comparison will catch it. The mutant below uses $\frac{n(n+1)(2n+1)}{3}$ for the sum of squares — a plausible slip, since a 6 and a 3 are easy to confuse when you half-remember the formula.</p>
+<div class="lab demo" data-demo="m14-closed-forms-vs-loops">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Every closed form, checked against brute-force addition</h3></div>
+
+<textarea class="code" spellcheck="false">from fractions import Fraction
+
+
+def ap_sum_closed(a, d, n):
+    return Fraction(n * (2 * a + (n - 1) * d), 2)
+
+
+def ap_sum_loop(a, d, n):
+    return sum(Fraction(a + k * d) for k in range(n))
+
+
+def gp_sum_closed(a, r, n):
+    if r == 1:
+        return Fraction(n * a)
+    return Fraction(a) * (r ** n - 1) / (r - 1)
+
+
+def gp_sum_loop(a, r, n):
+    return sum(Fraction(a) * r ** k for k in range(n))
+
+
+def squares_closed(n):
+    return Fraction(n * (n + 1) * (2 * n + 1), 6)
+
+
+def cubes_closed(n):
+    return Fraction(n * (n + 1), 2) ** 2
+
+
+def telescope_closed(n):
+    return Fraction(n, n + 1)
+
+
+def telescope_loop(n):
+    return sum(Fraction(1, k * (k + 1)) for k in range(1, n + 1))
+
+
+for n in range(1, 60):
+    assert ap_sum_closed(3, 7, n) == ap_sum_loop(3, 7, n)
+    assert ap_sum_closed(-5, 2, n) == ap_sum_loop(-5, 2, n)
+    assert gp_sum_closed(3, Fraction(1, 2), n) == gp_sum_loop(3, Fraction(1, 2), n)
+    assert gp_sum_closed(2, 3, n) == gp_sum_loop(2, 3, n)
+    assert gp_sum_closed(5, 1, n) == gp_sum_loop(5, 1, n)
+    assert squares_closed(n) == sum(Fraction(k * k) for k in range(1, n + 1))
+    assert cubes_closed(n) == sum(Fraction(k ** 3) for k in range(1, n + 1))
+    assert telescope_closed(n) == telescope_loop(n)
+
+print(&quot;every closed form matched brute-force addition for n = 1..59 (exact arithmetic)&quot;)
+
+# The sum of cubes is the square of the sum of the first n numbers.
+n = 12
+print(&quot;sum of first&quot;, n, &quot;cubes:&quot;, cubes_closed(n), &quot; square of their sum:&quot;, Fraction(n * (n + 1), 2) ** 2)
+assert cubes_closed(n) == (Fraction(n * (n + 1), 2)) ** 2
+
+# The chessboard: 2^64 - 1 grains.
+total = gp_sum_closed(1, 2, 64)
+print(&quot;grains on the whole chessboard:&quot;, total)
+assert total == 2 ** 64 - 1
+print(&quot;grains on the last square alone:&quot;, 2 ** 63, &quot;which exceeds the first 63 squares:&quot;, 2 ** 63 - 1)
+assert 2 ** 63 &gt; 2 ** 63 - 1
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Two predictions, both measurable.</p>
+<p><strong>First, Madhava's series.</strong> The alternating series $\frac{\pi}{4} = 1 - \frac{1}{3} + \frac{1}{5} - \dots$ converges, but theory says it converges <em>dreadfully</em> slowly: for an alternating series whose terms shrink to zero, the error after $n$ terms is smaller than the first omitted term, and here that is about $\frac{1}{2n}$. So to gain one more correct decimal digit you need ten times as many terms. We predict the error after $n$ terms is close to $\frac{1}{4n}$ for the estimate of $\pi$ itself (since we multiply the series by 4, and the bound $\frac{1}{2n}$ on $\frac{\pi}{4}$ becomes $\frac{2}{n}$ on $\pi$ — the midpoint behaviour makes the true error about half the bound). We simply measure it.</p>
+<p><strong>Second, amortised doubling.</strong> Theory says $n$ appends into a doubling array cost fewer than $2n$ element copies in total. We simulate the array and count every copy.</p>
+<div class="lab demo" data-demo="m14-madhava-convergence">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>How slowly does Madhava&#x27;s series converge?</h3></div>
+
+<textarea class="code" spellcheck="false">from math import pi
+
+
+def madhava(terms):
+    &quot;&quot;&quot;pi = 4 * (1 - 1/3 + 1/5 - 1/7 + ...)&quot;&quot;&quot;
+    total = 0.0
+    for k in range(terms):
+        total += (-1) ** k / (2 * k + 1)
+    return 4 * total
+
+
+print(f&quot;{&#x27;terms&#x27;:&gt;10} {&#x27;estimate&#x27;:&gt;18} {&#x27;error&#x27;:&gt;12} {&#x27;predicted 1/n&#x27;:&gt;15}&quot;)
+errors = {}
+for n in (10, 100, 1000, 10000):
+    est = madhava(n)
+    err = abs(est - pi)
+    errors[n] = err
+    print(f&quot;{n:&gt;10} {est:&gt;18.10f} {err:&gt;12.2e} {1.0 / n:&gt;15.2e}&quot;)
+
+print()
+print(&quot;predicted: error falls like 1/n, so 10x the terms buys ONE decimal digit&quot;)
+print(&quot;measured : error(10)/error(100)   =&quot;, round(errors[10] / errors[100], 2))
+print(&quot;measured : error(100)/error(1000) =&quot;, round(errors[100] / errors[1000], 2))
+
+for n in errors:
+    assert errors[n] &lt; 2.0 / n, &quot;the error must be bounded by about 1/n&quot;
+    assert errors[n] &gt; 0.2 / n, &quot;and it must not be much better than 1/n either&quot;
+assert 8 &lt; errors[10] / errors[100] &lt; 12, &quot;ten times the terms should cut the error about tenfold&quot;
+assert 8 &lt; errors[100] / errors[1000] &lt; 12
+
+# Four thousand terms still does not pin down the third decimal place reliably.
+print()
+print(&quot;estimate after 4000 terms:&quot;, round(madhava(4000), 6), &quot; true pi:&quot;, round(pi, 6))
+assert abs(madhava(4000) - pi) &gt; 1e-5, &quot;even 4000 terms leaves a visible error&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<div class="lab demo" data-demo="m14-amortised-doubling">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Counting every copy a growing array makes</h3></div>
+
+<textarea class="code" spellcheck="false">def simulate_appends(n, growth=&quot;double&quot;):
+    &quot;&quot;&quot;Return the total number of element copies made while appending n items.&quot;&quot;&quot;
+    capacity = 1
+    size = 0
+    copies = 0
+    for _ in range(n):
+        if size == capacity:
+            copies += size                 # copy everything into the new buffer
+            capacity = capacity * 2 if growth == &quot;double&quot; else capacity + 4
+        size += 1
+    return copies
+
+
+print(f&quot;{&#x27;n&#x27;:&gt;8} {&#x27;copies (doubling)&#x27;:&gt;20} {&#x27;predicted &lt; 2n&#x27;:&gt;16} {&#x27;copies (+4 each time)&#x27;:&gt;24}&quot;)
+for n in (1000, 10000, 100000):
+    d = simulate_appends(n, &quot;double&quot;)
+    f = simulate_appends(n, &quot;fixed&quot;)
+    print(f&quot;{n:&gt;8} {d:&gt;20} {2 * n:&gt;16} {f:&gt;24}&quot;)
+    assert d &lt; 2 * n, &quot;doubling must cost fewer than 2n copies in total&quot;
+
+print()
+print(&quot;predicted: doubling gives a CONSTANT average cost per append&quot;)
+for n in (1000, 10000, 100000):
+    per_append = simulate_appends(n, &quot;double&quot;) / n
+    print(f&quot;  n = {n:&gt;6}  copies per append = {per_append:.3f}&quot;)
+    assert per_append &lt; 2.0
+
+print()
+print(&quot;predicted: growing by a fixed amount gives a cost per append that GROWS with n&quot;)
+ratios = []
+for n in (1000, 10000, 100000):
+    ratios.append(simulate_appends(n, &quot;fixed&quot;) / n)
+    print(f&quot;  n = {n:&gt;6}  copies per append = {ratios[-1]:.1f}&quot;)
+assert ratios[0] &lt; ratios[1] &lt; ratios[2], &quot;fixed growth must get worse as n grows&quot;
+assert ratios[2] &gt; 10 * ratios[0], &quot;and much worse, because the total is quadratic&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the Madhava error does not fall on a smooth $\frac{1}{n}$ curve; it oscillates, because an alternating series overshoots and undershoots the limit in turn. That is why the assertions above use a band rather than a point. The practical lesson is the one Madhava himself drew: this series is a beautiful proof that $\pi$ has a simple closed form, and a terrible way to actually compute it. He supplied correction terms for exactly that reason, and modern computation uses entirely different series that gain many digits per term.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m14-ex1-arithmetic" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Arithmetic progressions</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>ap_term(a, d, n)</code> returning the <code>n</code>-th term of the AP with first term <code>a</code> and common difference <code>d</code>, where <code>n</code> counts from 1. Write <code>ap_sum(a, d, n)</code> returning the sum of the first <code>n</code> terms using the closed form, not a loop. Write <code>ap_find_n(a, d, value)</code> returning the 1-based position of <code>value</code> in the AP, or <code>None</code> when it does not occur. All must raise <code>ValueError</code> when <code>n</code> is not a positive integer, and <code>ap_find_n</code> must raise <code>ValueError</code> when <code>d</code> is zero and <code>value</code> differs from <code>a</code>.</p></div>
+<textarea class="code" spellcheck="false">def ap_term(a, d, n):
+    &quot;&quot;&quot;The n-th term of an arithmetic progression, counting from 1.&quot;&quot;&quot;
+    return 0
+
+
+def ap_sum(a, d, n):
+    &quot;&quot;&quot;Sum of the first n terms, by closed form.&quot;&quot;&quot;
+    return 0
+
+
+def ap_find_n(a, d, value):
+    &quot;&quot;&quot;1-based position of value in the AP, or None.&quot;&quot;&quot;
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_terms_hand_checked():
+    # 3, 7, 11, 15, ...
+    assert ap_term(3, 4, 1) == 3
+    assert ap_term(3, 4, 4) == 15
+    # decreasing progression
+    assert ap_term(10, -2, 6) == 0
+
+
+def test_sum_matches_direct_addition():
+    for a, d, n in ((3, 4, 10), (-5, 2, 7), (100, -3, 20), (0, 1, 50)):
+        direct = sum(ap_term(a, d, k) for k in range(1, n + 1))
+        assert abs(ap_sum(a, d, n) - direct) &lt; 1e-9
+    # Gauss&#x27;s schoolboy sum
+    assert ap_sum(1, 1, 100) == 5050
+
+
+def test_find_n_and_errors():
+    assert ap_find_n(3, 4, 15) == 4
+    assert ap_find_n(3, 4, 16) is None       # not in the progression
+    assert ap_find_n(3, 4, 1) is None        # before the start
+    try:
+        ap_term(3, 4, 0)
+        assert False, &quot;n = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        ap_find_n(5, 0, 5)
+        assert False, &quot;d = 0 with a matching value must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m14-ex2-geometric" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Geometric progressions, finite and infinite</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>gp_term(a, r, n)</code> for the <code>n</code>-th term counting from 1. Write <code>gp_sum(a, r, n)</code> for the sum of the first <code>n</code> terms, handling <code>r == 1</code> separately. Write <code>gp_sum_infinite(a, r)</code> returning the sum of the infinite series when <code>abs(r) &lt; 1</code>, and raising <code>ValueError</code> otherwise, because the series diverges. All must raise <code>ValueError</code> when <code>n</code> is not a positive integer or when <code>r</code> is zero.</p></div>
+<textarea class="code" spellcheck="false">def gp_term(a, r, n):
+    &quot;&quot;&quot;The n-th term of a geometric progression.&quot;&quot;&quot;
+    return 0
+
+
+def gp_sum(a, r, n):
+    &quot;&quot;&quot;Sum of the first n terms.&quot;&quot;&quot;
+    return 0
+
+
+def gp_sum_infinite(a, r):
+    &quot;&quot;&quot;Sum of the infinite series, when it converges.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_terms_and_the_chessboard():
+    assert gp_term(1, 2, 1) == 1
+    assert gp_term(1, 2, 64) == 2 ** 63
+    assert gp_sum(1, 2, 64) == 2 ** 64 - 1
+    # the last square alone beats everything before it
+    assert gp_term(1, 2, 64) &gt; gp_sum(1, 2, 63)
+
+
+def test_sum_matches_direct_addition():
+    for a, r, n in ((3, 0.5, 20), (2, 3, 10), (5, 1, 7), (1, -2, 9)):
+        direct = sum(gp_term(a, r, k) for k in range(1, n + 1))
+        assert abs(gp_sum(a, r, n) - direct) &lt; 1e-9
+
+
+def test_infinite_sum_and_divergence():
+    # 1 + 1/2 + 1/4 + ... = 2  (Zeno)
+    assert abs(gp_sum_infinite(1, 0.5) - 2.0) &lt; 1e-12
+    # 0.9 + 0.09 + 0.009 + ... = 1
+    assert abs(gp_sum_infinite(0.9, 0.1) - 1.0) &lt; 1e-12
+    # the partial sums really do approach it
+    assert abs(gp_sum(1, 0.5, 60) - gp_sum_infinite(1, 0.5)) &lt; 1e-12
+    for bad_r in (1, -1, 2, -3):
+        try:
+            gp_sum_infinite(1, bad_r)
+            assert False, &quot;a divergent ratio must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m14-ex3-standard-sums" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Standard sums and telescoping</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>sum_naturals(n)</code>, <code>sum_squares(n)</code> and <code>sum_cubes(n)</code> returning the closed-form values of the first <code>n</code> natural numbers, their squares and their cubes, as exact integers. Write <code>telescope(n)</code> returning the exact value of the sum of <code>1/(k*(k+1))</code> for <code>k</code> from 1 to <code>n</code>, as a <code>fractions.Fraction</code>. All must raise <code>ValueError</code> when <code>n</code> is not a positive integer.</p></div>
+<textarea class="code" spellcheck="false">def sum_naturals(n):
+    &quot;&quot;&quot;1 + 2 + ... + n.&quot;&quot;&quot;
+    return 0
+
+
+def sum_squares(n):
+    &quot;&quot;&quot;1^2 + 2^2 + ... + n^2.&quot;&quot;&quot;
+    return 0
+
+
+def sum_cubes(n):
+    &quot;&quot;&quot;1^3 + 2^3 + ... + n^3.&quot;&quot;&quot;
+    return 0
+
+
+def telescope(n):
+    &quot;&quot;&quot;Sum of 1/(k(k+1)) for k = 1..n, exactly.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_closed_forms_match_brute_force():
+    for n in range(1, 40):
+        assert sum_naturals(n) == sum(range(1, n + 1))
+        assert sum_squares(n) == sum(k * k for k in range(1, n + 1))
+        assert sum_cubes(n) == sum(k ** 3 for k in range(1, n + 1))
+
+
+def test_cubes_are_the_square_of_the_sum():
+    for n in (1, 5, 12, 30):
+        assert sum_cubes(n) == sum_naturals(n) ** 2
+    # hand-checked: 1 + 8 + 27 = 36 = 6^2
+    assert sum_cubes(3) == 36
+
+
+def test_telescoping_and_errors():
+    from fractions import Fraction
+    for n in range(1, 30):
+        brute = sum(Fraction(1, k * (k + 1)) for k in range(1, n + 1))
+        assert telescope(n) == brute
+    assert telescope(1) == Fraction(1, 2)
+    assert telescope(3) == Fraction(3, 4)
+    try:
+        sum_squares(0)
+        assert False, &quot;n = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m14-ex4-am-gm" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>The AM-GM inequality</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>arithmetic_mean(values)</code> and <code>geometric_mean(values)</code> for a non-empty list of non-negative numbers, the geometric mean being the <code>n</code>-th root of the product. Write <code>am_gm_holds(values)</code> returning <code>True</code> when the arithmetic mean is at least the geometric mean, allowing a tolerance of 1e-9 for floating-point error. Write <code>equality_case(values)</code> returning <code>True</code> when all the values are equal within 1e-12, which is exactly when AM-GM holds with equality. All must raise <code>ValueError</code> on an empty list or any negative value.</p></div>
+<textarea class="code" spellcheck="false">def arithmetic_mean(values):
+    &quot;&quot;&quot;The ordinary average.&quot;&quot;&quot;
+    return 0.0
+
+
+def geometric_mean(values):
+    &quot;&quot;&quot;The n-th root of the product.&quot;&quot;&quot;
+    return 0.0
+
+
+def am_gm_holds(values):
+    &quot;&quot;&quot;True when AM &gt;= GM.&quot;&quot;&quot;
+    return False
+
+
+def equality_case(values):
+    &quot;&quot;&quot;True when every value is the same.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_hand_checked_means():
+    # 2 and 8: AM = 5, GM = 4
+    assert abs(arithmetic_mean([2, 8]) - 5.0) &lt; 1e-12
+    assert abs(geometric_mean([2, 8]) - 4.0) &lt; 1e-12
+    # 1, 2, 4: AM = 7/3, GM = 2
+    assert abs(geometric_mean([1, 2, 4]) - 2.0) &lt; 1e-12
+
+
+def test_inequality_holds_on_many_random_lists():
+    import random
+    rng = random.Random(1425)
+    for _ in range(400):
+        n = rng.randint(1, 8)
+        vals = [rng.uniform(0.01, 100) for _ in range(n)]
+        assert am_gm_holds(vals) is True
+        assert arithmetic_mean(vals) &gt;= geometric_mean(vals) - 1e-9
+
+
+def test_equality_exactly_when_all_equal_and_errors():
+    assert equality_case([5, 5, 5]) is True
+    assert abs(arithmetic_mean([5, 5, 5]) - geometric_mean([5, 5, 5])) &lt; 1e-9
+    assert equality_case([5, 5, 6]) is False
+    # strict gap when the values differ
+    assert arithmetic_mean([2, 8]) - geometric_mean([2, 8]) &gt; 0.5
+    # a zero drags the geometric mean to zero
+    assert geometric_mean([0, 7, 9]) == 0.0
+    try:
+        geometric_mean([1, -2])
+        assert False, &quot;a negative value must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m14-ex5-growth-and-fractals" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Amortised growth and the Koch snowflake</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>copies_for_appends(n, factor)</code> simulating a dynamic array that starts at capacity 1 and, whenever it is full, grows its capacity to <code>max(capacity + 1, int(capacity * factor))</code> at a cost of <code>capacity</code> element copies; return the total copies after <code>n</code> appends. Raise <code>ValueError</code> when <code>factor &lt;= 1</code> or <code>n</code> is not a positive integer. Write <code>koch(iterations, side=1.0)</code> returning the tuple <code>(perimeter, area)</code> of a Koch snowflake built from an equilateral triangle of the given side: each iteration replaces every edge by four edges of one third the length, and adds one new small triangle per edge. Use <code>perimeter = 3 * side * (4/3)**iterations</code> and build the area by accumulating the added triangles. Raise <code>ValueError</code> when <code>iterations</code> is negative.</p></div>
+<textarea class="code" spellcheck="false">def copies_for_appends(n, factor):
+    &quot;&quot;&quot;Total element copies made while appending n items.&quot;&quot;&quot;
+    return 0
+
+
+def koch(iterations, side=1.0):
+    &quot;&quot;&quot;Return (perimeter, area) of the Koch snowflake.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_doubling_is_amortised_constant():
+    for n in (100, 1000, 10000):
+        total = copies_for_appends(n, 2.0)
+        assert total &lt; 2 * n
+    # the average cost does not grow with n
+    a = copies_for_appends(1000, 2.0) / 1000
+    b = copies_for_appends(100000, 2.0) / 100000
+    assert abs(a - b) &lt; 0.5
+    assert b &lt; 2.0
+
+
+def test_smaller_growth_factor_still_constant_but_dearer():
+    # A 1.5x factor is still geometric, so still amortised O(1), but costs more.
+    per_two = copies_for_appends(100000, 2.0) / 100000
+    per_one_five = copies_for_appends(100000, 1.5) / 100000
+    assert per_one_five &gt; per_two
+    assert per_one_five &lt; 4.0
+    try:
+        copies_for_appends(100, 1.0)
+        assert False, &quot;factor 1.0 must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_koch_perimeter_grows_while_area_stays_bounded():
+    from math import sqrt
+    p0, a0 = koch(0)
+    # iteration 0 is just the triangle
+    assert abs(p0 - 3.0) &lt; 1e-12
+    assert abs(a0 - sqrt(3) / 4) &lt; 1e-12
+    # perimeter multiplies by 4/3 every time, without bound
+    p1, a1 = koch(1)
+    assert abs(p1 - 4.0) &lt; 1e-12
+    assert koch(20)[0] &gt; 100 * p0
+    # area increases but converges to 8/5 of the original triangle
+    limit = (8 / 5) * (sqrt(3) / 4)
+    for k in range(1, 15):
+        assert koch(k)[1] &lt; limit + 1e-12
+    assert abs(koch(25)[1] - limit) &lt; 1e-9
+    assert a1 &gt; a0
+    try:
+        koch(-1)
+        assert False, &quot;negative iterations must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"An infinite sum must be infinite."</strong> Only if the terms fail to shrink fast enough. $1 + \frac12 + \frac14 + \dots$ is infinitely many positive numbers adding to exactly 2. This is the resolution of Zeno's paradox.</li>
+<li><strong>"If the terms go to zero, the sum converges."</strong> False, and the harmonic series $1 + \frac12 + \frac13 + \dots$ is the counterexample: its terms go to zero and it still diverges to infinity. Shrinking terms are necessary, not sufficient.</li>
+<li><strong>"$0.999\ldots$ is slightly less than 1."</strong> It is a geometric series with $a = 0.9$ and $r = 0.1$, whose sum is exactly $\frac{0.9}{0.9} = 1$. They are two names for one number.</li>
+<li><strong>"Doubling an array is wasteful; grow it by a fixed chunk instead."</strong> Fixed chunks make the total copying quadratic, so each append costs $\Theta(n)$ on average. The "waste" of doubling is exactly what buys constant amortised time.</li>
+<li><strong>"Amortised O(1) means every append is fast."</strong> It means the <em>average over a sequence</em> is constant. Individual appends that trigger a growth are $\Theta(n)$, which matters very much if you have a frame deadline.</li>
+<li><strong>"A shape with finite area has finite perimeter."</strong> The Koch snowflake has an area strictly below $\frac{8}{5}$ of its starting triangle and a perimeter that grows by $\frac43$ forever, without bound.</li>
+<li><strong>"Madhava's series is a good way to compute pi."</strong> It is a beautiful theorem and a hopeless algorithm: the error falls like $\frac1n$, so a thousand terms buys about three decimal places.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>The closed forms assume the pattern continues forever and exactly. Real sequences — measurements, prices, response times — are only approximately arithmetic or geometric, and extrapolating a GP far beyond the data is how people predict absurdities.</p>
+<p>The infinite geometric sum needs $|r| &lt; 1$ with no exceptions. At $r = 1$ the series is $a + a + a + \dots$; at $r = -1$ it is $a - a + a - \dots$, whose partial sums oscillate between $a$ and $0$ and never settle. Writing $1 - 1 + 1 - 1 + \dots = \frac12$ by substituting into $\frac{a}{1-r}$ is the classic fallacy — it is a <em>summation method</em>, not the ordinary sum, and the formula is simply not applicable.</p>
+<p>In floating point, summing a long series accumulates rounding error, and adding from the largest term to the smallest is worse than the other way round, because the small terms vanish beneath the running total. The Madhava demo gets away with it because it only needs a few digits; serious summation uses Kahan's algorithm, which is in M35.</p>
+<p>The amortised argument assumes copying costs are proportional to the number of elements and that memory is always available. Neither holds unconditionally: reallocation may fail, and a large copy may blow a latency budget even if the average is fine.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>The amortised doubling result is the specification of <code>List</code> in Dart, <code>ArrayList</code> in Java, <code>vector</code> in C++ and <code>list</code> in Python, and the growth factors differ deliberately — roughly 1.5 to 2 — trading memory against copying. The latency caveat above is the practically important one: an append that triggers a reallocation of a large list is not free, and doing it during a frame is a real source of jank. <code>List.filled</code> or an explicit initial capacity exists precisely to avoid this. Geometric series also set exponential backoff for retries, where the sum tells you the total wait before giving up, and compound interest is the same formula with a different name.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Give the sum of an arithmetic progression and the one-line reason it is true.</p></div><div class="a" hidden><p>n/2 times (first + last). Writing the sum forwards and backwards and adding makes every column identical.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>When does an infinite geometric series converge, and to what?</p></div><div class="a" hidden><p>Exactly when the magnitude of the ratio is below 1, and then the sum is a/(1-r).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>The terms of a series tend to zero. Does it converge?</p></div><div class="a" hidden><p>Not necessarily. The harmonic series is the standard counterexample: its terms tend to zero and it diverges.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why is appending to a doubling array O(1) amortised?</p></div><div class="a" hidden><p>Because the total copies over n appends form a geometric series bounded by 2n, so the average per append is constant. Most of the cost is in the final doubling.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What goes wrong if an array grows by a fixed number of slots instead of a fixed factor?</p></div><div class="a" hidden><p>The total copying becomes 1+2+3+... which is quadratic, so each append costs linear time on average.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is a telescoping sum?</p></div><div class="a" hidden><p>One where each term splits into pieces that cancel against neighbouring terms, leaving only the two ends.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>State AM-GM and its equality condition.</p></div><div class="a" hidden><p>The arithmetic mean of non-negative numbers is at least their geometric mean, with equality exactly when all the numbers are equal.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>What is remarkable about the Koch snowflake's perimeter and area?</p></div><div class="a" hidden><p>The perimeter grows by a factor of 4/3 each iteration and is unbounded, while the area converges to 8/5 of the starting triangle.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Who found the series pi/4 = 1 - 1/3 + 1/5 - ... and what did he also understand about it?</p></div><div class="a" hidden><p>Madhava of Sangamagrama, around 1400, in the Kerala school. He also gave correction terms, showing he knew how slowly it converges.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain the chessboard to a child and say exactly where the surprise lives, you can derive the AP sum by pairing and the GP sum by shift-and-subtract without looking them up, you can prove the sum of squares by induction, you pass the boss exercise without hints, and you can explain to another engineer why a list doubles rather than growing by a fixed chunk, including what amortised does <em>not</em> promise.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 10, chapter on Arithmetic Progressions.</li>
+<li>NCERT, <em>Mathematics</em> Class 11, chapter on Sequences and Series.</li>
+<li>Jyesthadeva, <em>Yuktibhasa</em>, c. 1530 (the Kerala-school derivations of the arctangent series).</li>
+<li>Kim Plofker, <em>Mathematics in India</em>, Princeton University Press, 2009.</li>
+<li>Cormen, Leiserson, Rivest and Stein, <em>Introduction to Algorithms</em>, chapter on amortised analysis.</li>
+</ul></section>
+<footer class="pager"><a href="M10.html">&larr; M10 Probability I: chance and outcomes</a>
+<a href="P01.html">P01 Bits, bytes and number representations &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M14", "packages": [], "exercises": {"m14-ex1-arithmetic": {"starter": "def ap_term(a, d, n):\n    \"\"\"The n-th term of an arithmetic progression, counting from 1.\"\"\"\n    return 0\n\n\ndef ap_sum(a, d, n):\n    \"\"\"Sum of the first n terms, by closed form.\"\"\"\n    return 0\n\n\ndef ap_find_n(a, d, value):\n    \"\"\"1-based position of value in the AP, or None.\"\"\"\n    return None\n", "solution": "def ap_term(a, d, n):\n    \"\"\"The n-th term of an arithmetic progression, counting from 1.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return a + (n - 1) * d\n\n\ndef ap_sum(a, d, n):\n    \"\"\"Sum of the first n terms, by closed form.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return n * (2 * a + (n - 1) * d) / 2\n\n\ndef ap_find_n(a, d, value):\n    \"\"\"1-based position of value in the AP, or None.\"\"\"\n    if d == 0:\n        if value == a:\n            raise ValueError(\"every position matches when d is zero\")\n        return None\n    offset = (value - a) / d\n    if offset < 0 or offset != int(offset):\n        return None\n    return int(offset) + 1\n", "tests": "def test_terms_hand_checked():\n    # 3, 7, 11, 15, ...\n    assert ap_term(3, 4, 1) == 3\n    assert ap_term(3, 4, 4) == 15\n    # decreasing progression\n    assert ap_term(10, -2, 6) == 0\n\n\ndef test_sum_matches_direct_addition():\n    for a, d, n in ((3, 4, 10), (-5, 2, 7), (100, -3, 20), (0, 1, 50)):\n        direct = sum(ap_term(a, d, k) for k in range(1, n + 1))\n        assert abs(ap_sum(a, d, n) - direct) < 1e-9\n    # Gauss's schoolboy sum\n    assert ap_sum(1, 1, 100) == 5050\n\n\ndef test_find_n_and_errors():\n    assert ap_find_n(3, 4, 15) == 4\n    assert ap_find_n(3, 4, 16) is None       # not in the progression\n    assert ap_find_n(3, 4, 1) is None        # before the start\n    try:\n        ap_term(3, 4, 0)\n        assert False, \"n = 0 must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        ap_find_n(5, 0, 5)\n        assert False, \"d = 0 with a matching value must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def ap_term(a, d, n):\n    \"\"\"Bug: off by one, using n*d instead of (n-1)*d.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return a + n * d\n\n\ndef ap_sum(a, d, n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return n * (2 * a + (n - 1) * d) / 2\n\n\ndef ap_find_n(a, d, value):\n    if d == 0:\n        if value == a:\n            raise ValueError(\"every position matches when d is zero\")\n        return None\n    offset = (value - a) / d\n    if offset < 0 or offset != int(offset):\n        return None\n    return int(offset) + 1\n", "def ap_term(a, d, n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return a + (n - 1) * d\n\n\ndef ap_sum(a, d, n):\n    \"\"\"Bug: forgets to halve, so every sum is doubled.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return n * (2 * a + (n - 1) * d)\n\n\ndef ap_find_n(a, d, value):\n    if d == 0:\n        if value == a:\n            raise ValueError(\"every position matches when d is zero\")\n        return None\n    offset = (value - a) / d\n    if offset < 0 or offset != int(offset):\n        return None\n    return int(offset) + 1\n"], "hints": ["The first term is `a`, so by the time you reach the n-th term you have added `d` only `n-1` times.", "The sum is the number of terms times the average of the first and last term."], "level": "warmup", "title": "Arithmetic progressions"}, "m14-ex2-geometric": {"starter": "def gp_term(a, r, n):\n    \"\"\"The n-th term of a geometric progression.\"\"\"\n    return 0\n\n\ndef gp_sum(a, r, n):\n    \"\"\"Sum of the first n terms.\"\"\"\n    return 0\n\n\ndef gp_sum_infinite(a, r):\n    \"\"\"Sum of the infinite series, when it converges.\"\"\"\n    return 0\n", "solution": "def gp_term(a, r, n):\n    \"\"\"The n-th term of a geometric progression.\"\"\"\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return a * r ** (n - 1)\n\n\ndef gp_sum(a, r, n):\n    \"\"\"Sum of the first n terms.\"\"\"\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if r == 1:\n        return a * n\n    numerator = a * (r ** n - 1)\n    denominator = r - 1\n    # Stay in exact integer arithmetic when we can; the chessboard total\n    # is 2**64 - 1, which a float cannot represent.\n    if isinstance(numerator, int) and isinstance(denominator, int) and numerator % denominator == 0:\n        return numerator // denominator\n    return numerator / denominator\n\n\ndef gp_sum_infinite(a, r):\n    \"\"\"Sum of the infinite series, when it converges.\"\"\"\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if abs(r) >= 1:\n        raise ValueError(\"the series diverges unless abs(r) < 1\")\n    return a / (1 - r)\n", "tests": "def test_terms_and_the_chessboard():\n    assert gp_term(1, 2, 1) == 1\n    assert gp_term(1, 2, 64) == 2 ** 63\n    assert gp_sum(1, 2, 64) == 2 ** 64 - 1\n    # the last square alone beats everything before it\n    assert gp_term(1, 2, 64) > gp_sum(1, 2, 63)\n\n\ndef test_sum_matches_direct_addition():\n    for a, r, n in ((3, 0.5, 20), (2, 3, 10), (5, 1, 7), (1, -2, 9)):\n        direct = sum(gp_term(a, r, k) for k in range(1, n + 1))\n        assert abs(gp_sum(a, r, n) - direct) < 1e-9\n\n\ndef test_infinite_sum_and_divergence():\n    # 1 + 1/2 + 1/4 + ... = 2  (Zeno)\n    assert abs(gp_sum_infinite(1, 0.5) - 2.0) < 1e-12\n    # 0.9 + 0.09 + 0.009 + ... = 1\n    assert abs(gp_sum_infinite(0.9, 0.1) - 1.0) < 1e-12\n    # the partial sums really do approach it\n    assert abs(gp_sum(1, 0.5, 60) - gp_sum_infinite(1, 0.5)) < 1e-12\n    for bad_r in (1, -1, 2, -3):\n        try:\n            gp_sum_infinite(1, bad_r)\n            assert False, \"a divergent ratio must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["def gp_term(a, r, n):\n    \"\"\"Bug: uses r**n instead of r**(n-1).\"\"\"\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return a * r ** n\n\n\ndef gp_sum(a, r, n):\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if r == 1:\n        return a * n\n    numerator = a * (r ** n - 1)\n    denominator = r - 1\n    # Stay in exact integer arithmetic when we can; the chessboard total\n    # is 2**64 - 1, which a float cannot represent.\n    if isinstance(numerator, int) and isinstance(denominator, int) and numerator % denominator == 0:\n        return numerator // denominator\n    return numerator / denominator\n\n\ndef gp_sum_infinite(a, r):\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if abs(r) >= 1:\n        raise ValueError(\"the series diverges unless abs(r) < 1\")\n    return a / (1 - r)\n", "def gp_term(a, r, n):\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return a * r ** (n - 1)\n\n\ndef gp_sum(a, r, n):\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if r == 1:\n        return a * n\n    numerator = a * (r ** n - 1)\n    denominator = r - 1\n    # Stay in exact integer arithmetic when we can; the chessboard total\n    # is 2**64 - 1, which a float cannot represent.\n    if isinstance(numerator, int) and isinstance(denominator, int) and numerator % denominator == 0:\n        return numerator // denominator\n    return numerator / denominator\n\n\ndef gp_sum_infinite(a, r):\n    \"\"\"Bug: tests r < 1 rather than abs(r) < 1, accepting divergent negatives.\"\"\"\n    if r == 0:\n        raise ValueError(\"the common ratio must not be zero\")\n    if r >= 1:\n        raise ValueError(\"the series diverges unless abs(r) < 1\")\n    return a / (1 - r)\n"], "hints": ["The first term is `a * r**0`, so the n-th term uses the exponent `n-1`.", "An infinite geometric series converges exactly when the *magnitude* of the ratio is below 1, so `r = -2` diverges even though it is less than 1."], "level": "core", "title": "Geometric progressions, finite and infinite"}, "m14-ex3-standard-sums": {"starter": "def sum_naturals(n):\n    \"\"\"1 + 2 + ... + n.\"\"\"\n    return 0\n\n\ndef sum_squares(n):\n    \"\"\"1^2 + 2^2 + ... + n^2.\"\"\"\n    return 0\n\n\ndef sum_cubes(n):\n    \"\"\"1^3 + 2^3 + ... + n^3.\"\"\"\n    return 0\n\n\ndef telescope(n):\n    \"\"\"Sum of 1/(k(k+1)) for k = 1..n, exactly.\"\"\"\n    return 0\n", "solution": "from fractions import Fraction\n\n\ndef _check(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n\n\ndef sum_naturals(n):\n    \"\"\"1 + 2 + ... + n.\"\"\"\n    _check(n)\n    return n * (n + 1) // 2\n\n\ndef sum_squares(n):\n    \"\"\"1^2 + 2^2 + ... + n^2.\"\"\"\n    _check(n)\n    return n * (n + 1) * (2 * n + 1) // 6\n\n\ndef sum_cubes(n):\n    \"\"\"1^3 + 2^3 + ... + n^3.\"\"\"\n    _check(n)\n    return (n * (n + 1) // 2) ** 2\n\n\ndef telescope(n):\n    \"\"\"Sum of 1/(k(k+1)) for k = 1..n, exactly.\"\"\"\n    _check(n)\n    return Fraction(n, n + 1)\n", "tests": "def test_closed_forms_match_brute_force():\n    for n in range(1, 40):\n        assert sum_naturals(n) == sum(range(1, n + 1))\n        assert sum_squares(n) == sum(k * k for k in range(1, n + 1))\n        assert sum_cubes(n) == sum(k ** 3 for k in range(1, n + 1))\n\n\ndef test_cubes_are_the_square_of_the_sum():\n    for n in (1, 5, 12, 30):\n        assert sum_cubes(n) == sum_naturals(n) ** 2\n    # hand-checked: 1 + 8 + 27 = 36 = 6^2\n    assert sum_cubes(3) == 36\n\n\ndef test_telescoping_and_errors():\n    from fractions import Fraction\n    for n in range(1, 30):\n        brute = sum(Fraction(1, k * (k + 1)) for k in range(1, n + 1))\n        assert telescope(n) == brute\n    assert telescope(1) == Fraction(1, 2)\n    assert telescope(3) == Fraction(3, 4)\n    try:\n        sum_squares(0)\n        assert False, \"n = 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from fractions import Fraction\n\n\ndef _check(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n\n\ndef sum_naturals(n):\n    _check(n)\n    return n * (n + 1) // 2\n\n\ndef sum_squares(n):\n    \"\"\"Bug: divides by 3 rather than 6.\"\"\"\n    _check(n)\n    return n * (n + 1) * (2 * n + 1) // 3\n\n\ndef sum_cubes(n):\n    _check(n)\n    return (n * (n + 1) // 2) ** 2\n\n\ndef telescope(n):\n    _check(n)\n    return Fraction(n, n + 1)\n", "from fractions import Fraction\n\n\ndef _check(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n\n\ndef sum_naturals(n):\n    _check(n)\n    return n * (n + 1) // 2\n\n\ndef sum_squares(n):\n    _check(n)\n    return n * (n + 1) * (2 * n + 1) // 6\n\n\ndef sum_cubes(n):\n    \"\"\"Bug: cubes the sum instead of squaring it.\"\"\"\n    _check(n)\n    return (n * (n + 1) // 2) ** 3\n\n\ndef telescope(n):\n    \"\"\"Bug: off by one in the telescoped result.\"\"\"\n    _check(n)\n    return Fraction(n + 1, n + 2)\n"], "hints": ["For the telescoping sum, split `1/(k(k+1))` into `1/k - 1/(k+1)` and write out the first few terms to see what survives.", "The sum of the first n cubes is the *square* of the sum of the first n naturals, not the cube."], "level": "core", "title": "Standard sums and telescoping"}, "m14-ex4-am-gm": {"starter": "def arithmetic_mean(values):\n    \"\"\"The ordinary average.\"\"\"\n    return 0.0\n\n\ndef geometric_mean(values):\n    \"\"\"The n-th root of the product.\"\"\"\n    return 0.0\n\n\ndef am_gm_holds(values):\n    \"\"\"True when AM >= GM.\"\"\"\n    return False\n\n\ndef equality_case(values):\n    \"\"\"True when every value is the same.\"\"\"\n    return False\n", "solution": "def _check(values):\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    for v in values:\n        if v < 0:\n            raise ValueError(\"values must be non-negative\")\n\n\ndef arithmetic_mean(values):\n    \"\"\"The ordinary average.\"\"\"\n    _check(values)\n    return sum(values) / len(values)\n\n\ndef geometric_mean(values):\n    \"\"\"The n-th root of the product.\"\"\"\n    _check(values)\n    product = 1.0\n    for v in values:\n        product *= v\n    if product == 0:\n        return 0.0\n    return product ** (1.0 / len(values))\n\n\ndef am_gm_holds(values):\n    \"\"\"True when AM >= GM.\"\"\"\n    return arithmetic_mean(values) >= geometric_mean(values) - 1e-9\n\n\ndef equality_case(values):\n    \"\"\"True when every value is the same.\"\"\"\n    _check(values)\n    first = values[0]\n    return all(abs(v - first) < 1e-12 for v in values)\n", "tests": "def test_hand_checked_means():\n    # 2 and 8: AM = 5, GM = 4\n    assert abs(arithmetic_mean([2, 8]) - 5.0) < 1e-12\n    assert abs(geometric_mean([2, 8]) - 4.0) < 1e-12\n    # 1, 2, 4: AM = 7/3, GM = 2\n    assert abs(geometric_mean([1, 2, 4]) - 2.0) < 1e-12\n\n\ndef test_inequality_holds_on_many_random_lists():\n    import random\n    rng = random.Random(1425)\n    for _ in range(400):\n        n = rng.randint(1, 8)\n        vals = [rng.uniform(0.01, 100) for _ in range(n)]\n        assert am_gm_holds(vals) is True\n        assert arithmetic_mean(vals) >= geometric_mean(vals) - 1e-9\n\n\ndef test_equality_exactly_when_all_equal_and_errors():\n    assert equality_case([5, 5, 5]) is True\n    assert abs(arithmetic_mean([5, 5, 5]) - geometric_mean([5, 5, 5])) < 1e-9\n    assert equality_case([5, 5, 6]) is False\n    # strict gap when the values differ\n    assert arithmetic_mean([2, 8]) - geometric_mean([2, 8]) > 0.5\n    # a zero drags the geometric mean to zero\n    assert geometric_mean([0, 7, 9]) == 0.0\n    try:\n        geometric_mean([1, -2])\n        assert False, \"a negative value must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _check(values):\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    for v in values:\n        if v < 0:\n            raise ValueError(\"values must be non-negative\")\n\n\ndef arithmetic_mean(values):\n    _check(values)\n    return sum(values) / len(values)\n\n\ndef geometric_mean(values):\n    \"\"\"Bug: takes the square root rather than the n-th root.\"\"\"\n    _check(values)\n    product = 1.0\n    for v in values:\n        product *= v\n    if product == 0:\n        return 0.0\n    return product ** 0.5\n\n\ndef am_gm_holds(values):\n    return arithmetic_mean(values) >= geometric_mean(values) - 1e-9\n\n\ndef equality_case(values):\n    _check(values)\n    first = values[0]\n    return all(abs(v - first) < 1e-12 for v in values)\n", "def _check(values):\n    if not values:\n        raise ValueError(\"values must not be empty\")\n    for v in values:\n        if v < 0:\n            raise ValueError(\"values must be non-negative\")\n\n\ndef arithmetic_mean(values):\n    \"\"\"Bug: divides by len - 1, which inflates the mean.\"\"\"\n    _check(values)\n    n = len(values)\n    return sum(values) / (n - 1) if n > 1 else sum(values)\n\n\ndef geometric_mean(values):\n    _check(values)\n    product = 1.0\n    for v in values:\n        product *= v\n    if product == 0:\n        return 0.0\n    return product ** (1.0 / len(values))\n\n\ndef am_gm_holds(values):\n    return arithmetic_mean(values) >= geometric_mean(values) - 1e-9\n\n\ndef equality_case(values):\n    _check(values)\n    first = values[0]\n    return all(abs(v - first) < 1e-12 for v in values)\n"], "hints": ["The geometric mean of n numbers is the product raised to the power `1/n`, not the square root.", "Equality in AM-GM happens exactly when all the values coincide; any spread at all makes the arithmetic mean strictly larger."], "level": "core", "title": "The AM-GM inequality"}, "m14-ex5-growth-and-fractals": {"starter": "def copies_for_appends(n, factor):\n    \"\"\"Total element copies made while appending n items.\"\"\"\n    return 0\n\n\ndef koch(iterations, side=1.0):\n    \"\"\"Return (perimeter, area) of the Koch snowflake.\"\"\"\n    return (0.0, 0.0)\n", "solution": "from math import sqrt\n\n\ndef copies_for_appends(n, factor):\n    \"\"\"Total element copies made while appending n items.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if factor <= 1:\n        raise ValueError(\"factor must exceed 1 for amortised constant cost\")\n    capacity = 1\n    size = 0\n    copies = 0\n    for _ in range(n):\n        if size == capacity:\n            copies += size\n            capacity = max(capacity + 1, int(capacity * factor))\n        size += 1\n    return copies\n\n\ndef koch(iterations, side=1.0):\n    \"\"\"Return (perimeter, area) of the Koch snowflake.\"\"\"\n    if not isinstance(iterations, int) or iterations < 0:\n        raise ValueError(\"iterations must be a non-negative integer\")\n    perimeter = 3 * side * (4 / 3) ** iterations\n    # Start with the triangle's own area.\n    area = (sqrt(3) / 4) * side * side\n    edges = 3\n    edge_len = side\n    for _ in range(iterations):\n        edge_len /= 3\n        # each edge sprouts one new equilateral triangle of the new edge length\n        area += edges * (sqrt(3) / 4) * edge_len * edge_len\n        edges *= 4\n    return (perimeter, area)\n", "tests": "def test_doubling_is_amortised_constant():\n    for n in (100, 1000, 10000):\n        total = copies_for_appends(n, 2.0)\n        assert total < 2 * n\n    # the average cost does not grow with n\n    a = copies_for_appends(1000, 2.0) / 1000\n    b = copies_for_appends(100000, 2.0) / 100000\n    assert abs(a - b) < 0.5\n    assert b < 2.0\n\n\ndef test_smaller_growth_factor_still_constant_but_dearer():\n    # A 1.5x factor is still geometric, so still amortised O(1), but costs more.\n    per_two = copies_for_appends(100000, 2.0) / 100000\n    per_one_five = copies_for_appends(100000, 1.5) / 100000\n    assert per_one_five > per_two\n    assert per_one_five < 4.0\n    try:\n        copies_for_appends(100, 1.0)\n        assert False, \"factor 1.0 must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_koch_perimeter_grows_while_area_stays_bounded():\n    from math import sqrt\n    p0, a0 = koch(0)\n    # iteration 0 is just the triangle\n    assert abs(p0 - 3.0) < 1e-12\n    assert abs(a0 - sqrt(3) / 4) < 1e-12\n    # perimeter multiplies by 4/3 every time, without bound\n    p1, a1 = koch(1)\n    assert abs(p1 - 4.0) < 1e-12\n    assert koch(20)[0] > 100 * p0\n    # area increases but converges to 8/5 of the original triangle\n    limit = (8 / 5) * (sqrt(3) / 4)\n    for k in range(1, 15):\n        assert koch(k)[1] < limit + 1e-12\n    assert abs(koch(25)[1] - limit) < 1e-9\n    assert a1 > a0\n    try:\n        koch(-1)\n        assert False, \"negative iterations must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt\n\n\ndef copies_for_appends(n, factor):\n    \"\"\"Bug: grows by a fixed amount, losing the amortised guarantee.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if factor <= 1:\n        raise ValueError(\"factor must exceed 1 for amortised constant cost\")\n    capacity = 1\n    size = 0\n    copies = 0\n    for _ in range(n):\n        if size == capacity:\n            copies += size\n            capacity = capacity + 4\n        size += 1\n    return copies\n\n\ndef koch(iterations, side=1.0):\n    if not isinstance(iterations, int) or iterations < 0:\n        raise ValueError(\"iterations must be a non-negative integer\")\n    perimeter = 3 * side * (4 / 3) ** iterations\n    area = (sqrt(3) / 4) * side * side\n    edges = 3\n    edge_len = side\n    for _ in range(iterations):\n        edge_len /= 3\n        area += edges * (sqrt(3) / 4) * edge_len * edge_len\n        edges *= 4\n    return (perimeter, area)\n", "from math import sqrt\n\n\ndef copies_for_appends(n, factor):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if factor <= 1:\n        raise ValueError(\"factor must exceed 1 for amortised constant cost\")\n    capacity = 1\n    size = 0\n    copies = 0\n    for _ in range(n):\n        if size == capacity:\n            copies += size\n            capacity = max(capacity + 1, int(capacity * factor))\n        size += 1\n    return copies\n\n\ndef koch(iterations, side=1.0):\n    \"\"\"Bug: quadruples the edge count before adding the new triangles.\"\"\"\n    if not isinstance(iterations, int) or iterations < 0:\n        raise ValueError(\"iterations must be a non-negative integer\")\n    perimeter = 3 * side * (4 / 3) ** iterations\n    area = (sqrt(3) / 4) * side * side\n    edges = 3\n    edge_len = side\n    for _ in range(iterations):\n        edge_len /= 3\n        edges *= 4\n        area += edges * (sqrt(3) / 4) * edge_len * edge_len\n    return (perimeter, area)\n"], "hints": ["For the array, the copies happen only when the buffer is full, and the cost of each growth is the number of elements currently stored.", "For the snowflake, count the edges *before* you sprout the new triangles: at iteration k there are 3 times 4 to the power (k-1) edges each sprouting one triangle."], "level": "boss", "title": "Amortised growth and the Koch snowflake"}}, "demos": {"m14-closed-forms-vs-loops": {"code": "from fractions import Fraction\n\n\ndef ap_sum_closed(a, d, n):\n    return Fraction(n * (2 * a + (n - 1) * d), 2)\n\n\ndef ap_sum_loop(a, d, n):\n    return sum(Fraction(a + k * d) for k in range(n))\n\n\ndef gp_sum_closed(a, r, n):\n    if r == 1:\n        return Fraction(n * a)\n    return Fraction(a) * (r ** n - 1) / (r - 1)\n\n\ndef gp_sum_loop(a, r, n):\n    return sum(Fraction(a) * r ** k for k in range(n))\n\n\ndef squares_closed(n):\n    return Fraction(n * (n + 1) * (2 * n + 1), 6)\n\n\ndef cubes_closed(n):\n    return Fraction(n * (n + 1), 2) ** 2\n\n\ndef telescope_closed(n):\n    return Fraction(n, n + 1)\n\n\ndef telescope_loop(n):\n    return sum(Fraction(1, k * (k + 1)) for k in range(1, n + 1))\n\n\nfor n in range(1, 60):\n    assert ap_sum_closed(3, 7, n) == ap_sum_loop(3, 7, n)\n    assert ap_sum_closed(-5, 2, n) == ap_sum_loop(-5, 2, n)\n    assert gp_sum_closed(3, Fraction(1, 2), n) == gp_sum_loop(3, Fraction(1, 2), n)\n    assert gp_sum_closed(2, 3, n) == gp_sum_loop(2, 3, n)\n    assert gp_sum_closed(5, 1, n) == gp_sum_loop(5, 1, n)\n    assert squares_closed(n) == sum(Fraction(k * k) for k in range(1, n + 1))\n    assert cubes_closed(n) == sum(Fraction(k ** 3) for k in range(1, n + 1))\n    assert telescope_closed(n) == telescope_loop(n)\n\nprint(\"every closed form matched brute-force addition for n = 1..59 (exact arithmetic)\")\n\n# The sum of cubes is the square of the sum of the first n numbers.\nn = 12\nprint(\"sum of first\", n, \"cubes:\", cubes_closed(n), \" square of their sum:\", Fraction(n * (n + 1), 2) ** 2)\nassert cubes_closed(n) == (Fraction(n * (n + 1), 2)) ** 2\n\n# The chessboard: 2^64 - 1 grains.\ntotal = gp_sum_closed(1, 2, 64)\nprint(\"grains on the whole chessboard:\", total)\nassert total == 2 ** 64 - 1\nprint(\"grains on the last square alone:\", 2 ** 63, \"which exceeds the first 63 squares:\", 2 ** 63 - 1)\nassert 2 ** 63 > 2 ** 63 - 1\n", "mutants": ["from fractions import Fraction\n\n\ndef ap_sum_closed(a, d, n):\n    return Fraction(n * (2 * a + (n - 1) * d), 2)\n\n\ndef ap_sum_loop(a, d, n):\n    return sum(Fraction(a + k * d) for k in range(n))\n\n\ndef squares_closed(n):\n    \"\"\"Bug: divides by 3 instead of 6.\"\"\"\n    return Fraction(n * (n + 1) * (2 * n + 1), 3)\n\n\ndef cubes_closed(n):\n    return Fraction(n * (n + 1), 2) ** 2\n\n\nfor n in range(1, 60):\n    assert ap_sum_closed(3, 7, n) == ap_sum_loop(3, 7, n)\n    assert squares_closed(n) == sum(Fraction(k * k) for k in range(1, n + 1))\n    assert cubes_closed(n) == sum(Fraction(k ** 3) for k in range(1, n + 1))\n\nprint(\"every closed form matched brute-force addition for n = 1..59 (exact arithmetic)\")\n"]}, "m14-madhava-convergence": {"code": "from math import pi\n\n\ndef madhava(terms):\n    \"\"\"pi = 4 * (1 - 1/3 + 1/5 - 1/7 + ...)\"\"\"\n    total = 0.0\n    for k in range(terms):\n        total += (-1) ** k / (2 * k + 1)\n    return 4 * total\n\n\nprint(f\"{'terms':>10} {'estimate':>18} {'error':>12} {'predicted 1/n':>15}\")\nerrors = {}\nfor n in (10, 100, 1000, 10000):\n    est = madhava(n)\n    err = abs(est - pi)\n    errors[n] = err\n    print(f\"{n:>10} {est:>18.10f} {err:>12.2e} {1.0 / n:>15.2e}\")\n\nprint()\nprint(\"predicted: error falls like 1/n, so 10x the terms buys ONE decimal digit\")\nprint(\"measured : error(10)/error(100)   =\", round(errors[10] / errors[100], 2))\nprint(\"measured : error(100)/error(1000) =\", round(errors[100] / errors[1000], 2))\n\nfor n in errors:\n    assert errors[n] < 2.0 / n, \"the error must be bounded by about 1/n\"\n    assert errors[n] > 0.2 / n, \"and it must not be much better than 1/n either\"\nassert 8 < errors[10] / errors[100] < 12, \"ten times the terms should cut the error about tenfold\"\nassert 8 < errors[100] / errors[1000] < 12\n\n# Four thousand terms still does not pin down the third decimal place reliably.\nprint()\nprint(\"estimate after 4000 terms:\", round(madhava(4000), 6), \" true pi:\", round(pi, 6))\nassert abs(madhava(4000) - pi) > 1e-5, \"even 4000 terms leaves a visible error\"\n", "mutants": ["from math import pi\n\n\ndef madhava(terms):\n    total = 0.0\n    for k in range(terms):\n        total += (-1) ** k / (2 * k + 1)\n    return 4 * total\n\n\nerrors = {}\nfor n in (10, 100, 1000, 10000):\n    est = madhava(n)\n    errors[n] = abs(est - pi)\n    print(f\"  terms={n:>6} error={errors[n]:.3e}\")\n\nprint(\"predicted under the WRONG theory: error falls like 1/n^2\")\nprint(\"measured ratio for 10x the terms:\", round(errors[10] / errors[100], 2))\n\n# Wrong theory: claims quadratic convergence, so 10x terms should cut error 100x.\nassert 80 < errors[10] / errors[100] < 120, \"ten times the terms should cut the error 100-fold\"\n"]}, "m14-amortised-doubling": {"code": "def simulate_appends(n, growth=\"double\"):\n    \"\"\"Return the total number of element copies made while appending n items.\"\"\"\n    capacity = 1\n    size = 0\n    copies = 0\n    for _ in range(n):\n        if size == capacity:\n            copies += size                 # copy everything into the new buffer\n            capacity = capacity * 2 if growth == \"double\" else capacity + 4\n        size += 1\n    return copies\n\n\nprint(f\"{'n':>8} {'copies (doubling)':>20} {'predicted < 2n':>16} {'copies (+4 each time)':>24}\")\nfor n in (1000, 10000, 100000):\n    d = simulate_appends(n, \"double\")\n    f = simulate_appends(n, \"fixed\")\n    print(f\"{n:>8} {d:>20} {2 * n:>16} {f:>24}\")\n    assert d < 2 * n, \"doubling must cost fewer than 2n copies in total\"\n\nprint()\nprint(\"predicted: doubling gives a CONSTANT average cost per append\")\nfor n in (1000, 10000, 100000):\n    per_append = simulate_appends(n, \"double\") / n\n    print(f\"  n = {n:>6}  copies per append = {per_append:.3f}\")\n    assert per_append < 2.0\n\nprint()\nprint(\"predicted: growing by a fixed amount gives a cost per append that GROWS with n\")\nratios = []\nfor n in (1000, 10000, 100000):\n    ratios.append(simulate_appends(n, \"fixed\") / n)\n    print(f\"  n = {n:>6}  copies per append = {ratios[-1]:.1f}\")\nassert ratios[0] < ratios[1] < ratios[2], \"fixed growth must get worse as n grows\"\nassert ratios[2] > 10 * ratios[0], \"and much worse, because the total is quadratic\"\n", "mutants": ["def simulate_appends(n, growth=\"double\"):\n    capacity = 1\n    size = 0\n    copies = 0\n    for _ in range(n):\n        if size == capacity:\n            copies += size\n            capacity = capacity * 2 if growth == \"double\" else capacity + 4\n        size += 1\n    return copies\n\n\nprint(\"counting copies for fixed-amount growth\")\nratios = []\nfor n in (1000, 10000, 100000):\n    ratios.append(simulate_appends(n, \"fixed\") / n)\n    print(f\"  n = {n:>6}  copies per append = {ratios[-1]:.1f}\")\n\nprint(\"predicted under the WRONG theory: growing by a fixed amount is also constant\")\n# Wrong theory: claims fixed-amount growth is amortised O(1) too.\nassert ratios[2] < 2 * ratios[0], \"fixed growth should also give a constant average\"\n"]}}, "cards": [{"q": "Give the sum of an arithmetic progression and the one-line reason it is true.", "a": "n/2 times (first + last). Writing the sum forwards and backwards and adding makes every column identical."}, {"q": "When does an infinite geometric series converge, and to what?", "a": "Exactly when the magnitude of the ratio is below 1, and then the sum is a/(1-r)."}, {"q": "The terms of a series tend to zero. Does it converge?", "a": "Not necessarily. The harmonic series is the standard counterexample: its terms tend to zero and it diverges."}, {"q": "Why is appending to a doubling array O(1) amortised?", "a": "Because the total copies over n appends form a geometric series bounded by 2n, so the average per append is constant. Most of the cost is in the final doubling."}, {"q": "What goes wrong if an array grows by a fixed number of slots instead of a fixed factor?", "a": "The total copying becomes 1+2+3+... which is quadratic, so each append costs linear time on average."}, {"q": "What is a telescoping sum?", "a": "One where each term splits into pieces that cancel against neighbouring terms, leaving only the two ends."}, {"q": "State AM-GM and its equality condition.", "a": "The arithmetic mean of non-negative numbers is at least their geometric mean, with equality exactly when all the numbers are equal."}, {"q": "What is remarkable about the Koch snowflake's perimeter and area?", "a": "The perimeter grows by a factor of 4/3 each iteration and is unbounded, while the area converges to 8/5 of the starting triangle."}, {"q": "Who found the series pi/4 = 1 - 1/3 + 1/5 - ... and what did he also understand about it?", "a": "Madhava of Sangamagrama, around 1400, in the Kerala school. He also gave correction terms, showing he knew how slowly it converges."}], "title": "Sequences and series"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

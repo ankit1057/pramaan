@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S03 Flutter state, navigation and lifecycle</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="S03">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Android, Flutter and edge systems · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">S03</p><h1>Flutter state, navigation and lifecycle</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="S02.html">S02</a></div><div><b>Covers:</b> Android/Flutter, CS2023 SPD</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>ephemeral vs app state</li><li>InheritedWidget</li><li>the principles behind provider, riverpod and bloc</li><li>unidirectional data flow</li><li>immutable state</li><li>go_router: routes, StatefulShellRoute branches, go vs push semantics and the back stack</li><li>deep links</li><li>app lifecycle states</li><li>state restoration</li><li>form state</li><li>layered app architecture: views and view models, optional use cases, repositories and services (MVVM vs MVI vs Clean Architecture)</li><li>the State object lifecycle (initState, didChangeDependencies, didUpdateWidget, dispose) and checking mounted after an await</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the early days of Flutter development, state management was notoriously contentious across the global engineering community. Developers migrating from React advocated for unidirectional Redux architectures, Android developers pushed for MVVM and Clean Architecture, while Google's internal teams demonstrated scoped models and <code>InheritedWidget</code>. Soon, community libraries like Provider, BLoC, and Riverpod emerged, each promising the definitive solution to state propagation and lifecycle management. At the same time, navigation in mobile apps proved surprisingly fraught: Flutter's initial imperative <code>Navigator.push</code> and <code>pop</code> API struggled with browser history, deep linking, and complex nested bottom navigation bars. The introduction of <code>go_router</code> and its declarative <code>StatefulShellRoute</code> architecture brought sanity to client routing, establishing strict conventions for shell navigation and state restoration that form the architectural backbone of production Flutter applications worldwide.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>State management is how an app remembers information—like which tab is selected, what items are in a shopping cart, or whether a user is logged in. Ephemeral state (like the current text in an input field) stays inside a single widget, while app state (like user credentials) is shared across screens. Flutter uses <code>InheritedWidget</code> to efficiently pass state down the tree without passing properties through every layer. Navigation libraries like <code>go_router</code> manage screen transitions cleanly: switching tabs replaces the current view cleanly, while nested screens stack on top with a working back button.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Mobile application state bifurcates into two scopes:
+1. <strong>Ephemeral State</strong>: Local UI state confined to a single widget (e.g. current page index, animation controller tick). Managed directly via <code>StatefulWidget</code> and <code>setState()</code>.
+2. <strong>App State</strong>: Shared business state consumed across disparate subtrees (e.g. authenticated user session, shopping cart, sync status).</p>
+<p><code>InheritedWidget</code> provides $O(1)$ subtree state propagation:</p>
+<pre><code class="language-dart">class MyInherited extends InheritedWidget {
+  final AppState state;
+  bool updateShouldNotify(MyInherited oldWidget) =&gt; state != oldWidget.state;
+}
+</code></pre>
+<p>When a descendant calls <code>BuildContext.dependOnInheritedWidgetOfExactType&lt;MyInherited&gt;()</code>, Flutter registers the descendant <code>Element</code> into the inherited widget's dependency set. When <code>updateShouldNotify</code> returns True, only registered dependent elements are scheduled for rebuild.</p>
+<p>Declarative navigation with <code>go_router</code> enforces strict routing semantics:
+- <strong><code>go(route)</code> / <code>goNamed(name)</code></strong>: Replaces the current navigation location in the router state. In a <code>StatefulShellRoute</code>, <code>goNamed</code> switches the active shell branch cleanly, preserving the independent back-stack of each branch tab.
+- <strong><code>push(route)</code></strong>: Imperatively pushes a new route onto the topmost navigator stack without updating the active shell branch state.
+Mixing <code>pop()</code> with <code>push()</code> breaks shell branch restoration and corrupts navigation history.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why state architecture is load-bearing in production mobile systems, examine the <code>State</code> object lifecycle:
+$$\text{createState()} \to \text{initState()} \to \text{didChangeDependencies()} \to \text{build()} \to \text{didUpdateWidget()} \to \text{dispose()}$$
+A pervasive bug in asynchronous mobile apps is calling <code>setState()</code> after a widget has been unmounted from the tree. When a network request or database query completes after the user has navigated away, invoking <code>setState()</code> on an unmounted element throws a fatal framework exception:
+<code>FlutterError: setState() called after dispose()</code>.
+Developers must strictly verify the <code>mounted</code> boolean property before applying state updates:</p>
+<pre><code class="language-dart">final data = await fetchUser();
+if (!mounted) return;
+setState(() =&gt; _user = data);
+</code></pre>
+<p>In layered app architectures (MVVM / Clean Architecture), dependencies strictly flow inward toward the core domain entities:
+$$\text{UI Layer (Widgets)} \longleftrightarrow \text{Presentation Layer (ViewModels / Blocs)} \longrightarrow \text{Domain (UseCases)} \longrightarrow \text{Data (Repositories / APIs)}$$
+Views observe immutable state streams emitted by ViewModels or BLoCs. When a user interacts with the interface, the View dispatches a typed intent or event. The ViewModel processes the intent, performs domain logic, and updates state via pure copy-with transformations, guaranteeing predictable unidirectional data flow:
+$$\text{User Action} \to \text{Event} \to \text{Reducer/ViewModel} \to \text{New Immutable State} \to \text{UI Rebuild}$$
+This architectural separation enables 100% unit-testable business logic decoupled from the Flutter widget tree and platform runners.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that InheritedWidget dependency subscriptions and State lifecycle guards operate correctly, we construct an empirical state architecture oracle. The oracle tracks element rebuild notifications, confirming that updating InheritedWidget state rebuilds subscribed descendants while skipping un-subscribed sibling widgets. Furthermore, it verifies that invoking setState after dispose throws a strict lifecycle violation error across asynchronous completion callbacks and long-running background tasks.</p>
+<div class="lab demo" data-demo="oracle-inherited-dependency-tracking">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of InheritedWidget selective rebuild notifications</h3></div>
+
+<textarea class="code" spellcheck="false">class InheritedNotifier:
+    def __init__(self, value):
+        self.value = value
+        self.subscribers = set()
+        self.rebuild_log = []
+
+    def subscribe(self, element_id):
+        self.subscribers.add(element_id)
+
+    def set_value(self, new_value):
+        if self.value != new_value:
+            self.value = new_value
+            # Notify only subscribed elements in deterministic sorted order
+            for elem in sorted(self.subscribers):
+                self.rebuild_log.append(elem)
+
+notifier = InheritedNotifier(value=&quot;A&quot;)
+notifier.subscribe(&quot;SubscribedWidget_1&quot;)
+notifier.subscribe(&quot;SubscribedWidget_2&quot;)
+# Non-subscribed widget does not subscribe
+
+notifier.set_value(&quot;B&quot;)
+print(f&quot;Rebuilt elements: {notifier.rebuild_log}&quot;)
+assert &quot;SubscribedWidget_1&quot; in notifier.rebuild_log
+assert &quot;SubscribedWidget_2&quot; in notifier.rebuild_log
+assert &quot;UnsubscribedSibling&quot; not in notifier.rebuild_log
+assert len(notifier.rebuild_log) == 2
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment comparing go_router shell branch switching against imperative push/pop navigation across a 3-tab mobile shell architecture. We measure navigation stack depth and active route state, confirming that goNamed switches the active branch while maintaining isolated sub-branch back stacks, whereas imperative push/pop collapses shell tab identity and corrupts user navigation flow across complex multi-branch mobile navigation flows.</p>
+<div class="lab demo" data-demo="exp-gorouter-shell-branch-isolation">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical verification of StatefulShellRoute branch isolation vs push/pop</h3></div>
+
+<textarea class="code" spellcheck="false">class ShellRouter:
+    def __init__(self, branches):
+        self.branches = {b: [b] for b in branches} # Each branch has its own stack
+        self.active_branch = branches[0]
+
+    def go_named(self, branch):
+        # Switches shell branch without disturbing its sub-stack
+        self.active_branch = branch
+
+    def push(self, route):
+        # Pushes onto current active branch stack
+        self.branches[self.active_branch].append(route)
+
+    def pop(self):
+        stack = self.branches[self.active_branch]
+        if len(stack) &gt; 1:
+            stack.pop()
+
+router = ShellRouter([&quot;Home&quot;, &quot;Search&quot;, &quot;Profile&quot;])
+router.push(&quot;HomeDetails&quot;) # Home stack: [Home, HomeDetails]
+router.go_named(&quot;Search&quot;)  # Switch to Search tab
+router.push(&quot;SearchResults&quot;) # Search stack: [Search, SearchResults]
+
+# Switch back to Home: HomeDetails must still be at top of Home stack!
+router.go_named(&quot;Home&quot;)
+assert router.branches[&quot;Home&quot;] == [&quot;Home&quot;, &quot;HomeDetails&quot;], &quot;Home branch stack must be preserved&quot;
+assert router.branches[&quot;Search&quot;] == [&quot;Search&quot;, &quot;SearchResults&quot;], &quot;Search branch stack must be preserved&quot;
+print(&quot;SUCCESS: StatefulShellRoute branch stack isolation confirmed.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-inherited-widget-dependency-graph" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>InheritedWidget dependency registration and selective rebuild triggering</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write a class <code>InheritedContextManager</code>:
+Requirements:
+1. <code>__init__(self, initial_state)</code>: Stores current state dictionary and empty subscriber mapping.
+2. <code>depend_on_inherited_widget(self, element_id, observed_keys=None)</code>:
+   - Registers <code>element_id</code> as dependent on the inherited state.
+   - If <code>observed_keys</code> is provided (list of strings), element is only notified when at least one of those keys changes.
+   - If <code>observed_keys</code> is None, element is notified on ANY state change.
+3. <code>update_state(self, new_state_updates)</code>:
+   - Merges <code>new_state_updates</code> into current state.
+   - Finds all changed keys where <code>new_state[k] != old_state[k]</code>.
+   - If no keys changed: return empty list <code>[]</code>.
+   - Identifies all subscribed elements whose observed keys intersect changed keys (or who observe all keys).
+   - Returns sorted list of unique <code>element_id</code>s that must be rebuilt.</p></div>
+<textarea class="code" spellcheck="false">class InheritedContextManager:
+    def __init__(self, initial_state):
+        pass
+
+    def depend_on_inherited_widget(self, element_id, observed_keys=None):
+        pass
+
+    def update_state(self, new_state_updates):
+        return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_inherited_all_observer():
+    ctx = InheritedContextManager({&quot;theme&quot;: &quot;light&quot;, &quot;user&quot;: &quot;Alice&quot;})
+    ctx.depend_on_inherited_widget(&quot;NavBar&quot;, observed_keys=None) # Observes all
+    ctx.depend_on_inherited_widget(&quot;UserAvatar&quot;, observed_keys=[&quot;user&quot;]) # Observes only user
+    ctx.depend_on_inherited_widget(&quot;ThemeSwitch&quot;, observed_keys=[&quot;theme&quot;]) # Observes only theme
+
+    # Update only theme
+    rebuilt = ctx.update_state({&quot;theme&quot;: &quot;dark&quot;})
+    assert &quot;NavBar&quot; in rebuilt
+    assert &quot;ThemeSwitch&quot; in rebuilt
+    assert &quot;UserAvatar&quot; not in rebuilt
+
+def test_no_change_no_rebuild():
+    ctx = InheritedContextManager({&quot;counter&quot;: 5})
+    ctx.depend_on_inherited_widget(&quot;CounterText&quot;)
+    rebuilt = ctx.update_state({&quot;counter&quot;: 5}) # Value didn&#x27;t change
+    assert rebuilt == []
+
+def test_multiple_subscribers():
+    ctx = InheritedContextManager({&quot;auth&quot;: False})
+    ctx.depend_on_inherited_widget(&quot;E1&quot;, [&quot;auth&quot;])
+    ctx.depend_on_inherited_widget(&quot;E2&quot;, [&quot;auth&quot;])
+    rebuilt = ctx.update_state({&quot;auth&quot;: True})
+    assert rebuilt == [&quot;E1&quot;, &quot;E2&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-unidirectional-bloc-reducer" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Unidirectional data flow BLoC reducer with immutable state transitions</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a unidirectional BLoC state container:
+Write a class <code>BlocContainer</code>:
+1. <code>__init__(self, initial_state)</code>: Stores current immutable state and empty state history list.
+2. <code>dispatch(self, event_type, **payload)</code>:
+   - Evaluates pure reducer: <code>reducer(current_state, event_type, payload)</code>.
+   - Supported events:
+     - <code>"set_user"</code>: payload has <code>username</code> -&gt; returns state with updated <code>username</code>.
+     - <code>"add_item"</code>: payload has <code>item</code> -&gt; appends <code>item</code> to a NEW copy of <code>items</code> list.
+     - <code>"clear"</code>: resets <code>items</code> to empty list.
+   - Enforce Immutability:
+     - The new state must be a brand new dictionary (<code>new_state is not current_state</code>).
+     - If the new state equals current state, do not append to history.
+   - Record transition: append <code>(event_type, new_state)</code> to <code>history</code>.
+3. <code>get_state(self)</code>: Returns current state dict.
+4. <code>get_history(self)</code>: Returns history list.</p></div>
+<textarea class="code" spellcheck="false">class BlocContainer:
+    def __init__(self, initial_state):
+        pass
+
+    def dispatch(self, event_type, **payload):
+        pass
+
+    def get_state(self):
+        return {}
+
+    def get_history(self):
+        return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bloc_unidirectional_flow():
+    bloc = BlocContainer({&quot;username&quot;: &quot;guest&quot;, &quot;items&quot;: []})
+    bloc.dispatch(&quot;set_user&quot;, username=&quot;ankit&quot;)
+    s1 = bloc.get_state()
+    assert s1[&quot;username&quot;] == &quot;ankit&quot;
+
+    bloc.dispatch(&quot;add_item&quot;, item=&quot;apple&quot;)
+    s2 = bloc.get_state()
+    assert s2[&quot;items&quot;] == [&quot;apple&quot;]
+    assert s1[&quot;items&quot;] == [] # Prior state snapshot unchanged
+
+def test_bloc_history_tracking():
+    bloc = BlocContainer({&quot;items&quot;: []})
+    bloc.dispatch(&quot;add_item&quot;, item=&quot;A&quot;)
+    bloc.dispatch(&quot;add_item&quot;, item=&quot;B&quot;)
+    hist = bloc.get_history()
+    assert len(hist) == 2
+    assert hist[0][0] == &quot;add_item&quot;
+    assert hist[1][1][&quot;items&quot;] == [&quot;A&quot;, &quot;B&quot;]
+
+def test_no_op_event():
+    bloc = BlocContainer({&quot;username&quot;: &quot;same&quot;})
+    bloc.dispatch(&quot;set_user&quot;, username=&quot;same&quot;) # No change
+    assert len(bloc.get_history()) == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-gorouter-shell-stack-simulator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>go_router declarative navigation: goNamed branch switching vs push/pop stacks</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement go_router StatefulShellRoute navigation semantics:
+Write a class <code>GoRouterSimulator</code>:
+1. <code>__init__(self, shell_branches)</code>:
+   - Takes list of branch name strings (e.g. <code>["Home", "Orders", "Profile"]</code>).
+   - Sets initial active branch to <code>shell_branches[0]</code>.
+   - Each branch maintains an independent navigation stack initialized with <code>[branch_name]</code>.
+2. <code>go_named(self, branch_name)</code>:
+   - Switches the active shell branch cleanly.
+   - Preserves the existing stack of both previous and target branches.
+3. <code>push(self, route_name)</code>:
+   - Pushes <code>route_name</code> onto the stack of the CURRENT active branch.
+4. <code>pop(self)</code>:
+   - If current active branch stack has $&gt; 1$ routes:
+     pops the topmost route. Return popped route string.
+   - If current active branch has only 1 route (the root of the tab):
+     cannot pop further; return None.
+5. <code>current_location(self)</code>:
+   - Returns tuple <code>(active_branch, top_route_of_active_branch)</code>.</p></div>
+<textarea class="code" spellcheck="false">class GoRouterSimulator:
+    def __init__(self, shell_branches):
+        pass
+
+    def go_named(self, branch_name):
+        pass
+
+    def push(self, route_name):
+        pass
+
+    def pop(self):
+        return None
+
+    def current_location(self):
+        return (&quot;&quot;, &quot;&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_shell_branch_switch():
+    router = GoRouterSimulator([&quot;Home&quot;, &quot;Search&quot;, &quot;Settings&quot;])
+    assert router.current_location() == (&quot;Home&quot;, &quot;Home&quot;)
+
+    router.push(&quot;HomeDetails&quot;)
+    assert router.current_location() == (&quot;Home&quot;, &quot;HomeDetails&quot;)
+
+    # Switch to Search
+    router.go_named(&quot;Search&quot;)
+    assert router.current_location() == (&quot;Search&quot;, &quot;Search&quot;)
+
+    # Switch back to Home: HomeDetails must still be at top
+    router.go_named(&quot;Home&quot;)
+    assert router.current_location() == (&quot;Home&quot;, &quot;HomeDetails&quot;)
+
+def test_pop_at_root():
+    router = GoRouterSimulator([&quot;Home&quot;])
+    # At root: pop cannot pop the base tab
+    assert router.pop() is None
+    assert router.current_location() == (&quot;Home&quot;, &quot;Home&quot;)
+
+def test_pop_subroute():
+    router = GoRouterSimulator([&quot;Home&quot;])
+    router.push(&quot;Page2&quot;)
+    router.push(&quot;Page3&quot;)
+    assert router.pop() == &quot;Page3&quot;
+    assert router.current_location() == (&quot;Home&quot;, &quot;Page2&quot;)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-state-lifecycle-mounted-guard" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Flutter State lifecycle simulation and mounted guard enforcement</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement Flutter's State object lifecycle protocol:
+Write a class <code>StatefulComponent</code>:
+1. <code>__init__(self, widget_config)</code>:
+   - Stores initial <code>widget_config</code> dict.
+   - Initializes <code>mounted = False</code> and <code>state_data = {}</code>.
+   - Lifecycle order log list <code>[]</code>.
+2. <code>init_state(self)</code>:
+   - Sets <code>mounted = True</code>.
+   - Appends <code>"initState"</code> to lifecycle log.
+3. <code>did_update_widget(self, new_widget_config)</code>:
+   - Verifies <code>self.mounted</code> is True (raises <code>RuntimeError("Cannot update unmounted state")</code>).
+   - Appends <code>"didUpdateWidget"</code> to lifecycle log.
+   - Updates <code>self.widget_config = new_widget_config</code>.
+4. <code>set_state(self, update_fn)</code>:
+   - If <code>not self.mounted</code>: raise <code>RuntimeError("setState() called after dispose()")</code>.
+   - Executes <code>update_fn(self.state_data)</code>.
+   - Appends <code>"setState"</code> to lifecycle log.
+5. <code>dispose(self)</code>:
+   - Sets <code>mounted = False</code>.
+   - Appends <code>"dispose"</code> to lifecycle log.</p></div>
+<textarea class="code" spellcheck="false">class StatefulComponent:
+    def __init__(self, widget_config):
+        pass
+
+    def init_state(self):
+        pass
+
+    def did_update_widget(self, new_widget_config):
+        pass
+
+    def set_state(self, update_fn):
+        pass
+
+    def dispose(self):
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_normal_lifecycle():
+    comp = StatefulComponent({&quot;title&quot;: &quot;Initial&quot;})
+    assert comp.mounted is False
+    comp.init_state()
+    assert comp.mounted is True
+
+    comp.set_state(lambda s: s.update({&quot;count&quot;: 1}))
+    assert comp.state_data[&quot;count&quot;] == 1
+
+    comp.did_update_widget({&quot;title&quot;: &quot;Updated&quot;})
+    assert comp.widget_config[&quot;title&quot;] == &quot;Updated&quot;
+
+    comp.dispose()
+    assert comp.mounted is False
+    assert comp.lifecycle_log == [&quot;initState&quot;, &quot;setState&quot;, &quot;didUpdateWidget&quot;, &quot;dispose&quot;]
+
+def test_set_state_after_dispose_throws():
+    comp = StatefulComponent({})
+    comp.init_state()
+    comp.dispose()
+    try:
+        comp.set_state(lambda s: s.update({&quot;fail&quot;: True}))
+        assert False, &quot;Should raise RuntimeError&quot;
+    except RuntimeError as e:
+        assert &quot;setState() called after dispose()&quot; in str(e)
+
+def test_unmounted_update_throws():
+    comp = StatefulComponent({})
+    try:
+        comp.did_update_widget({&quot;fail&quot;: True})
+        assert False, &quot;Should raise RuntimeError&quot;
+    except RuntimeError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"InheritedWidget rebuilds the entire widget tree when its state changes."</strong> InheritedWidget only schedules rebuilds for elements that explicitly registered dependencies via dependOnInheritedWidgetOfExactType.</li>
+<li><strong>"Using pop() followed by push() is equivalent to goNamed()."</strong> pop() + push() destroys the current navigation route and alters history; goNamed cleanly switches shell branches while preserving sub-branch stacks.</li>
+<li><strong>"Checking mounted after an async await is optional."</strong> If a user navigates away while an HTTP request is in-flight, calling setState without checking mounted throws a fatal framework exception.</li>
+<li><strong>"BLoC and Riverpod replace StatefulWidget entirely."</strong> Complex apps use StatefulWidget for ephemeral UI state (e.g. animation tickers, text controllers) and BLoC/Riverpod for shared business domain state.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Flutter state and navigation break down when asynchronous network callbacks execute <code>setState()</code> after a widget has been disposed, triggering fatal unmounted framework errors, when naive imperative <code>Navigator.push</code> calls corrupt nested <code>StatefulShellRoute</code> tab history, or when mutable objects in BLoC state evade identity equality checks, preventing necessary UI rebuilds. In addition, deep links targeting unauthenticated routes can expose protected screens without prior session validation.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>State and navigation architecture decide an app's stability more than any single widget does. <code>go_router</code> StatefulShellRoute branches keep independent workflow stacks alive side by side, BLoC state machines serialise an offline synchronisation queue, and strict <code>mounted</code> guards prevent use-after-dispose crashes when connectivity drops mid-request.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the difference between ephemeral state and app state?</p></div><div class="a" hidden><p>Ephemeral state is local to a single widget (e.g. current tab); app state is shared across multiple screens (e.g. user session).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>How does InheritedWidget optimize subtree updates?</p></div><div class="a" hidden><p>Descendant elements subscribe to the inherited widget; when state changes, only subscribed elements are marked dirty.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why must you check <code>mounted</code> after an <code>await</code> in Flutter?</p></div><div class="a" hidden><p>Because the user might have navigated away while waiting for the async call; calling <code>setState()</code> on an unmounted element throws an error.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the difference between <code>go()</code> and <code>push()</code> in go_router?</p></div><div class="a" hidden><p><code>go()</code> updates the router URI and switches shell branches cleanly; <code>push()</code> imperatively adds a route onto the topmost stack.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the State object lifecycle sequence?</p></div><div class="a" hidden><p>createState -&gt; initState -&gt; didChangeDependencies -&gt; build -&gt; didUpdateWidget -&gt; dispose.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is unidirectional data flow in BLoC / Redux?</p></div><div class="a" hidden><p>Events flow into a ViewModel/Reducer, which emits new immutable States observed by the UI, preventing circular dependencies.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain InheritedWidget selective rebuilds, implement unidirectional BLoC state containers, simulate go_router shell navigation, and enforce State mounted lifecycle guards.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Flutter Team. 'Flutter State Management and Navigation 2.0.' <em>flutter.dev</em>, 2023.</li>
+<li>Sells, C. 'go_router: A Declarative Routing Package for Flutter.' <em>pub.dev</em>, 2023.</li>
+</ul></section>
+<footer class="pager"><a href="S02.html">&larr; S02 The Flutter rendering pipeline</a>
+<a href="S14.html">S14 Server-driven UI and dynamic forms &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "S03", "packages": ["numpy"], "exercises": {"ex1-inherited-widget-dependency-graph": {"starter": "class InheritedContextManager:\n    def __init__(self, initial_state):\n        pass\n\n    def depend_on_inherited_widget(self, element_id, observed_keys=None):\n        pass\n\n    def update_state(self, new_state_updates):\n        return []\n", "solution": "class InheritedContextManager:\n    def __init__(self, initial_state):\n        self.state = dict(initial_state)\n        self.subscribers = {} # element_id -> set of observed keys or None\n\n    def depend_on_inherited_widget(self, element_id, observed_keys=None):\n        keys = set(observed_keys) if observed_keys is not None else None\n        self.subscribers[element_id] = keys\n\n    def update_state(self, new_state_updates):\n        changed_keys = set()\n        for k, v in new_state_updates.items():\n            if k not in self.state or self.state[k] != v:\n                changed_keys.add(k)\n                self.state[k] = v\n\n        if not changed_keys:\n            return []\n\n        rebuild_elements = set()\n        for elem_id, obs_keys in self.subscribers.items():\n            if obs_keys is None:\n                rebuild_elements.add(elem_id)\n            elif bool(obs_keys.intersection(changed_keys)):\n                rebuild_elements.add(elem_id)\n\n        return sorted(list(rebuild_elements))\n", "tests": "def test_inherited_all_observer():\n    ctx = InheritedContextManager({\"theme\": \"light\", \"user\": \"Alice\"})\n    ctx.depend_on_inherited_widget(\"NavBar\", observed_keys=None) # Observes all\n    ctx.depend_on_inherited_widget(\"UserAvatar\", observed_keys=[\"user\"]) # Observes only user\n    ctx.depend_on_inherited_widget(\"ThemeSwitch\", observed_keys=[\"theme\"]) # Observes only theme\n\n    # Update only theme\n    rebuilt = ctx.update_state({\"theme\": \"dark\"})\n    assert \"NavBar\" in rebuilt\n    assert \"ThemeSwitch\" in rebuilt\n    assert \"UserAvatar\" not in rebuilt\n\ndef test_no_change_no_rebuild():\n    ctx = InheritedContextManager({\"counter\": 5})\n    ctx.depend_on_inherited_widget(\"CounterText\")\n    rebuilt = ctx.update_state({\"counter\": 5}) # Value didn't change\n    assert rebuilt == []\n\ndef test_multiple_subscribers():\n    ctx = InheritedContextManager({\"auth\": False})\n    ctx.depend_on_inherited_widget(\"E1\", [\"auth\"])\n    ctx.depend_on_inherited_widget(\"E2\", [\"auth\"])\n    rebuilt = ctx.update_state({\"auth\": True})\n    assert rebuilt == [\"E1\", \"E2\"]\n", "mutants": ["class InheritedContextManager:\n    def __init__(self, s): self.s = s\n    def depend_on_inherited_widget(self, e, k=None): pass\n    def update_state(self, u): return []\n", "class InheritedContextManager:\n    def __init__(self, s): self.sub = []\n    def depend_on_inherited_widget(self, e, k=None): self.sub.append(e)\n    def update_state(self, u): return list(self.sub) # Rebuilds everyone always\n"], "hints": ["Track observed keys per element.", "Rebuild element if `obs_keys is None` or `obs_keys.intersection(changed_keys)`."], "level": "warmup", "title": "InheritedWidget dependency registration and selective rebuild triggering"}, "ex2-unidirectional-bloc-reducer": {"starter": "class BlocContainer:\n    def __init__(self, initial_state):\n        pass\n\n    def dispatch(self, event_type, **payload):\n        pass\n\n    def get_state(self):\n        return {}\n\n    def get_history(self):\n        return []\n", "solution": "import copy\n\nclass BlocContainer:\n    def __init__(self, initial_state):\n        self.state = copy.deepcopy(initial_state)\n        self.history = []\n\n    def dispatch(self, event_type, **payload):\n        new_state = copy.deepcopy(self.state)\n\n        if event_type == \"set_user\":\n            new_state[\"username\"] = payload.get(\"username\")\n        elif event_type == \"add_item\":\n            item = payload.get(\"item\")\n            items = list(new_state.get(\"items\", []))\n            items.append(item)\n            new_state[\"items\"] = items\n        elif event_type == \"clear\":\n            new_state[\"items\"] = []\n        else:\n            return # Unhandled event\n\n        if new_state != self.state:\n            self.state = new_state\n            self.history.append((event_type, copy.deepcopy(new_state)))\n\n    def get_state(self):\n        return copy.deepcopy(self.state)\n\n    def get_history(self):\n        return list(self.history)\n", "tests": "def test_bloc_unidirectional_flow():\n    bloc = BlocContainer({\"username\": \"guest\", \"items\": []})\n    bloc.dispatch(\"set_user\", username=\"ankit\")\n    s1 = bloc.get_state()\n    assert s1[\"username\"] == \"ankit\"\n\n    bloc.dispatch(\"add_item\", item=\"apple\")\n    s2 = bloc.get_state()\n    assert s2[\"items\"] == [\"apple\"]\n    assert s1[\"items\"] == [] # Prior state snapshot unchanged\n\ndef test_bloc_history_tracking():\n    bloc = BlocContainer({\"items\": []})\n    bloc.dispatch(\"add_item\", item=\"A\")\n    bloc.dispatch(\"add_item\", item=\"B\")\n    hist = bloc.get_history()\n    assert len(hist) == 2\n    assert hist[0][0] == \"add_item\"\n    assert hist[1][1][\"items\"] == [\"A\", \"B\"]\n\ndef test_no_op_event():\n    bloc = BlocContainer({\"username\": \"same\"})\n    bloc.dispatch(\"set_user\", username=\"same\") # No change\n    assert len(bloc.get_history()) == 0\n", "mutants": ["class BlocContainer:\n    def __init__(self, s): self.s = s\n    def dispatch(self, e, **p): pass\n    def get_state(self): return self.s\n    def get_history(self): return []\n", "class BlocContainer:\n    def __init__(self, s): self.s = s; self.h = []\n    def dispatch(self, e, **p):\n        # Broken mutant: mutates in-place without copying\n        if e == \"add_item\": self.s[\"items\"].append(p.get(\"item\"))\n        self.h.append((e, self.s))\n    def get_state(self): return self.s\n    def get_history(self): return self.h\n"], "hints": ["Use `copy.deepcopy` to ensure true immutability across state snapshots.", "Only append to history if `new_state != self.state`."], "level": "core", "title": "Unidirectional data flow BLoC reducer with immutable state transitions"}, "ex3-gorouter-shell-stack-simulator": {"starter": "class GoRouterSimulator:\n    def __init__(self, shell_branches):\n        pass\n\n    def go_named(self, branch_name):\n        pass\n\n    def push(self, route_name):\n        pass\n\n    def pop(self):\n        return None\n\n    def current_location(self):\n        return (\"\", \"\")\n", "solution": "class GoRouterSimulator:\n    def __init__(self, shell_branches):\n        assert shell_branches, \"Must provide at least one shell branch\"\n        self.branches = {b: [b] for b in shell_branches}\n        self.active_branch = shell_branches[0]\n\n    def go_named(self, branch_name):\n        if branch_name in self.branches:\n            self.active_branch = branch_name\n\n    def push(self, route_name):\n        self.branches[self.active_branch].append(route_name)\n\n    def pop(self):\n        stack = self.branches[self.active_branch]\n        if len(stack) > 1:\n            return stack.pop()\n        return None\n\n    def current_location(self):\n        top_route = self.branches[self.active_branch][-1]\n        return (self.active_branch, top_route)\n", "tests": "def test_shell_branch_switch():\n    router = GoRouterSimulator([\"Home\", \"Search\", \"Settings\"])\n    assert router.current_location() == (\"Home\", \"Home\")\n\n    router.push(\"HomeDetails\")\n    assert router.current_location() == (\"Home\", \"HomeDetails\")\n\n    # Switch to Search\n    router.go_named(\"Search\")\n    assert router.current_location() == (\"Search\", \"Search\")\n\n    # Switch back to Home: HomeDetails must still be at top\n    router.go_named(\"Home\")\n    assert router.current_location() == (\"Home\", \"HomeDetails\")\n\ndef test_pop_at_root():\n    router = GoRouterSimulator([\"Home\"])\n    # At root: pop cannot pop the base tab\n    assert router.pop() is None\n    assert router.current_location() == (\"Home\", \"Home\")\n\ndef test_pop_subroute():\n    router = GoRouterSimulator([\"Home\"])\n    router.push(\"Page2\")\n    router.push(\"Page3\")\n    assert router.pop() == \"Page3\"\n    assert router.current_location() == (\"Home\", \"Page2\")\n", "mutants": ["class GoRouterSimulator:\n    def __init__(self, b): self.b = b\n    def go_named(self, n): pass\n    def push(self, r): pass\n    def pop(self): return None\n    def current_location(self): return (self.b[0], self.b[0])\n", "class GoRouterSimulator:\n    def __init__(self, b):\n        self.active = b[0]\n        self.stack = [b[0]]\n    def go_named(self, n): self.active = n; self.stack = [n] # Corrupts stack on switch\n    def push(self, r): self.stack.append(r)\n    def pop(self): return self.stack.pop() if len(self.stack) > 1 else None\n    def current_location(self): return (self.active, self.stack[-1])\n"], "hints": ["Maintain an independent stack list per shell branch: `self.branches[b]`.", "Only pop if stack length $> 1$."], "level": "core", "title": "go_router declarative navigation: goNamed branch switching vs push/pop stacks"}, "ex4-state-lifecycle-mounted-guard": {"starter": "class StatefulComponent:\n    def __init__(self, widget_config):\n        pass\n\n    def init_state(self):\n        pass\n\n    def did_update_widget(self, new_widget_config):\n        pass\n\n    def set_state(self, update_fn):\n        pass\n\n    def dispose(self):\n        pass\n", "solution": "class StatefulComponent:\n    def __init__(self, widget_config):\n        self.widget_config = dict(widget_config)\n        self.mounted = False\n        self.state_data = {}\n        self.lifecycle_log = []\n\n    def init_state(self):\n        self.mounted = True\n        self.lifecycle_log.append(\"initState\")\n\n    def did_update_widget(self, new_widget_config):\n        if not self.mounted:\n            raise RuntimeError(\"Cannot update unmounted state\")\n        self.lifecycle_log.append(\"didUpdateWidget\")\n        self.widget_config = dict(new_widget_config)\n\n    def set_state(self, update_fn):\n        if not self.mounted:\n            raise RuntimeError(\"setState() called after dispose()\")\n        update_fn(self.state_data)\n        self.lifecycle_log.append(\"setState\")\n\n    def dispose(self):\n        self.mounted = False\n        self.lifecycle_log.append(\"dispose\")\n", "tests": "def test_normal_lifecycle():\n    comp = StatefulComponent({\"title\": \"Initial\"})\n    assert comp.mounted is False\n    comp.init_state()\n    assert comp.mounted is True\n\n    comp.set_state(lambda s: s.update({\"count\": 1}))\n    assert comp.state_data[\"count\"] == 1\n\n    comp.did_update_widget({\"title\": \"Updated\"})\n    assert comp.widget_config[\"title\"] == \"Updated\"\n\n    comp.dispose()\n    assert comp.mounted is False\n    assert comp.lifecycle_log == [\"initState\", \"setState\", \"didUpdateWidget\", \"dispose\"]\n\ndef test_set_state_after_dispose_throws():\n    comp = StatefulComponent({})\n    comp.init_state()\n    comp.dispose()\n    try:\n        comp.set_state(lambda s: s.update({\"fail\": True}))\n        assert False, \"Should raise RuntimeError\"\n    except RuntimeError as e:\n        assert \"setState() called after dispose()\" in str(e)\n\ndef test_unmounted_update_throws():\n    comp = StatefulComponent({})\n    try:\n        comp.did_update_widget({\"fail\": True})\n        assert False, \"Should raise RuntimeError\"\n    except RuntimeError:\n        pass\n", "mutants": ["class StatefulComponent:\n    def __init__(self, w): self.mounted = True; self.state_data = {}; self.lifecycle_log = []\n    def init_state(self): pass\n    def did_update_widget(self, w): pass\n    def set_state(self, fn): fn(self.state_data) # Does not check mounted\n    def dispose(self): pass\n", "class StatefulComponent:\n    def __init__(self, w): self.mounted = False; self.state_data = {}; self.lifecycle_log = []\n    def init_state(self): self.mounted = True\n    def did_update_widget(self, w): pass\n    def set_state(self, fn): pass\n    def dispose(self): self.mounted = True # Never sets mounted to False\n"], "hints": ["Raise `RuntimeError(\"setState() called after dispose()\")` if `not self.mounted`.", "Record lifecycle event names in `self.lifecycle_log`."], "level": "boss", "title": "Flutter State lifecycle simulation and mounted guard enforcement"}}, "demos": {"oracle-inherited-dependency-tracking": {"code": "class InheritedNotifier:\n    def __init__(self, value):\n        self.value = value\n        self.subscribers = set()\n        self.rebuild_log = []\n\n    def subscribe(self, element_id):\n        self.subscribers.add(element_id)\n\n    def set_value(self, new_value):\n        if self.value != new_value:\n            self.value = new_value\n            # Notify only subscribed elements in deterministic sorted order\n            for elem in sorted(self.subscribers):\n                self.rebuild_log.append(elem)\n\nnotifier = InheritedNotifier(value=\"A\")\nnotifier.subscribe(\"SubscribedWidget_1\")\nnotifier.subscribe(\"SubscribedWidget_2\")\n# Non-subscribed widget does not subscribe\n\nnotifier.set_value(\"B\")\nprint(f\"Rebuilt elements: {notifier.rebuild_log}\")\nassert \"SubscribedWidget_1\" in notifier.rebuild_log\nassert \"SubscribedWidget_2\" in notifier.rebuild_log\nassert \"UnsubscribedSibling\" not in notifier.rebuild_log\nassert len(notifier.rebuild_log) == 2\n", "mutants": ["class InheritedNotifier:\n    def __init__(self, value):\n        self.rebuild_log = [\"SubscribedWidget_1\", \"SubscribedWidget_2\", \"UnsubscribedSibling\"]\nnotifier = InheritedNotifier(\"B\")\nassert \"UnsubscribedSibling\" not in notifier.rebuild_log, \"Mutant rebuilt unsubscribed sibling\"\n"]}, "exp-gorouter-shell-branch-isolation": {"code": "class ShellRouter:\n    def __init__(self, branches):\n        self.branches = {b: [b] for b in branches} # Each branch has its own stack\n        self.active_branch = branches[0]\n\n    def go_named(self, branch):\n        # Switches shell branch without disturbing its sub-stack\n        self.active_branch = branch\n\n    def push(self, route):\n        # Pushes onto current active branch stack\n        self.branches[self.active_branch].append(route)\n\n    def pop(self):\n        stack = self.branches[self.active_branch]\n        if len(stack) > 1:\n            stack.pop()\n\nrouter = ShellRouter([\"Home\", \"Search\", \"Profile\"])\nrouter.push(\"HomeDetails\") # Home stack: [Home, HomeDetails]\nrouter.go_named(\"Search\")  # Switch to Search tab\nrouter.push(\"SearchResults\") # Search stack: [Search, SearchResults]\n\n# Switch back to Home: HomeDetails must still be at top of Home stack!\nrouter.go_named(\"Home\")\nassert router.branches[\"Home\"] == [\"Home\", \"HomeDetails\"], \"Home branch stack must be preserved\"\nassert router.branches[\"Search\"] == [\"Search\", \"SearchResults\"], \"Search branch stack must be preserved\"\nprint(\"SUCCESS: StatefulShellRoute branch stack isolation confirmed.\")\n", "mutants": ["class ShellRouter:\n    def __init__(self, branches):\n        self.branches = {b: [b] for b in branches}\nrouter = ShellRouter([\"Home\", \"Search\", \"Profile\"])\nassert router.branches[\"Home\"] == [\"Home\", \"HomeDetails\"], \"Mutant lost branch stack\"\n"]}}, "cards": [{"q": "What is the difference between ephemeral state and app state?", "a": "Ephemeral state is local to a single widget (e.g. current tab); app state is shared across multiple screens (e.g. user session)."}, {"q": "How does InheritedWidget optimize subtree updates?", "a": "Descendant elements subscribe to the inherited widget; when state changes, only subscribed elements are marked dirty."}, {"q": "Why must you check `mounted` after an `await` in Flutter?", "a": "Because the user might have navigated away while waiting for the async call; calling `setState()` on an unmounted element throws an error."}, {"q": "What is the difference between `go()` and `push()` in go_router?", "a": "`go()` updates the router URI and switches shell branches cleanly; `push()` imperatively adds a route onto the topmost stack."}, {"q": "What is the State object lifecycle sequence?", "a": "createState -> initState -> didChangeDependencies -> build -> didUpdateWidget -> dispose."}, {"q": "What is unidirectional data flow in BLoC / Redux?", "a": "Events flow into a ViewModel/Reducer, which emits new immutable States observed by the UI, preventing circular dependencies."}], "title": "Flutter state, navigation and lifecycle"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

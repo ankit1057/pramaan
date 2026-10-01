@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L11 Evaluating models and LLMs</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="L11">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Learning machines · Grad · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">L11</p><h1>Evaluating models and LLMs</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V05.html">V05</a> <a href="V07.html">V07</a> <a href="L03.html">L03</a></div><div><b>Covers:</b> CS2023 AI, research methods</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>benchmark design</li><li>train/test contamination</li><li>held-out and temporal splits</li><li>choosing metrics</li><li>confidence intervals on accuracy</li><li>paired comparisons (McNemar, paired bootstrap)</li><li>LLM-as-judge: position and verbosity bias, validity against human labels via kappa</li><li>human evaluation protocols</li><li>error analysis</li><li>eval sets as regression suites</li><li>Goodhart&#x27;s law</li><li>adversarial examples and training-data poisoning</li><li>datasheets for datasets and model cards</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In late 2023, independent researchers auditing popular open-source LLM leaderboards made an embarrassing discovery: several top-ranking models that purportedly matched or exceeded GPT-4 on GSM8K and HumanEval benchmarks were utterly incapable of solving trivial variations of the same problems when numbers or variable names were altered. The models had not achieved superhuman reasoning; their creators had accidentally or deliberately contaminated pre-training datasets with evaluation questions. For decades, machine learning evaluation operated under the classical assumption of independent and identically distributed (i.i.d.) train/test splits. In the era of web-scale scraped corpora, benchmark contamination, LLM-as-a-judge biases, and Goodhart's law have transformed model evaluation from a routine test script into a high-stakes forensic discipline requiring rigorous statistical hypothesis testing and leak-free benchmarking suites.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Evaluating artificial intelligence is much harder than giving a student an exam. If the questions from the exam accidentally leaked into the model's training textbooks, the AI will get an A+ by simply memorizing answers rather than truly understanding. Using another AI to grade answers sounds easy, but AI judges often suffer from strong biases—like preferring longer, wordier answers or favoring whichever answer was shown first. To measure AI truthfully, researchers use strict statistical confidence intervals, blind human evaluation rubrics, and hold-out tests that change constantly over time.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let an evaluation set consist of $N$ independent binary test examples $X_1, \dots, X_N \sim \operatorname{Bernoulli}(p)$ where $p$ is the true accuracy. The sample accuracy $\hat{p} = \frac{1}{N} \sum X_i$ has variance $\operatorname{Var}(\hat{p}) = \frac{p(1-p)}{N}$. Because Wald normal intervals fail near $p \approx 1$ or for small $N$, confidence intervals are calculated using the <strong>Wilson score interval</strong>:
+$$\operatorname{CI}_{1-\alpha} = \frac{\hat{p} + \frac{z^2}{2N} \pm z \sqrt{\frac{\hat{p}(1-\hat{p})}{N} + \frac{z^2}{4N^2}}}{1 + \frac{z^2}{N}}$$
+where $z = \Phi^{-1}(1 - \alpha/2)$ (e.g. $z = 1.96$ for a 95% confidence interval).</p>
+<p>To compare two models $A$ and $B$ evaluated on the <em>same</em> paired dataset, we use <strong>McNemar's test</strong> or <strong>paired bootstrap</strong>:
+- Let $n_{01}$ be instances where $A$ failed and $B$ succeeded, and $n_{10}$ where $A$ succeeded and $B$ failed.
+- The test statistic $\chi^2 = \frac{(|n_{01} - n_{10}| - 1)^2}{n_{01} + n_{10}}$ tests the null hypothesis that both models have identical error rates.</p>
+<p>In <strong>LLM-as-a-Judge</strong>, inter-rater agreement between the automated model judge and certified human experts is quantified via <strong>Cohen's kappa</strong>:
+$$\kappa = \frac{P_o - P_e}{1 - P_e}$$
+where $P_o$ is observed proportionate agreement, and $P_e$ is hypothetical chance agreement computed from marginal rater frequencies.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why benchmark metrics decay over time, consider <strong>Goodhart's Law</strong>: "When a measure becomes a target, it ceases to be a good measure." When a specific benchmark (such as MMLU or HumanEval) becomes the universal marketing metric, training data curation inevitably filters, re-weights, and overfits toward that specific distribution.</p>
+<p>Two pervasive failure modes corrupt automated LLM evaluations:
+1. <strong>Contamination (Data Leakage)</strong>: Pre-training web scrapes ingest benchmark test sets from GitHub or arXiv papers. If an $n$-gram decontamination check (e.g., 13-gram overlap) is not enforced, the model memorizes exact string sequences. Temporal splits—evaluating exclusively on events and code created <em>after</em> the training dataset cutoff date—provide a robust defense against temporal leakage.
+2. <strong>LLM-as-a-Judge Biases</strong>:
+   - <strong>Position Bias</strong>: Automated judges systematically favor whichever candidate is presented as "Option A" (often 60% to 70% win rate regardless of quality). A valid evaluation protocol must run both forward $(A, B)$ and reversed $(B, A)$ passes, counting only consistent wins.
+   - <strong>Verbosity Bias</strong>: LLM judges systematically assign higher scores to longer, fluffier responses over concise, correct answers.
+   - <strong>Self-Enhancement Bias</strong>: Models often favor responses generated by their own model family or prompting style.</p>
+<p>Datasheets for Datasets (Gebru et al.) and Model Cards (Mitchell et al.) establish accountability by documenting training data provenance, intentional limitations, known failure modes, and verified performance across demographic and linguistic slices.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that evaluation metrics and statistical tests maintain mathematical integrity, we build an empirical evaluation oracle. The oracle computes Wilson score intervals and verifies that coverage probability matches nominal 95% confidence levels across binomial trials. Furthermore, the oracle verifies that Cohen's kappa evaluates to exactly 1.0 for perfect agreement, 0.0 for chance agreement, and negative values for systematic disagreement.</p>
+<div class="lab demo" data-demo="oracle-wilson-score-ci">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of Wilson score interval coverage</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def wilson_interval(successes, n, z=1.96):
+    if n == 0: return 0.0, 1.0
+    p = successes / float(n)
+    denom = 1.0 + (z**2) / float(n)
+    center = (p + (z**2) / (2.0 * n)) / denom
+    margin = (z * math.sqrt((p * (1.0 - p) / float(n)) + (z**2) / (4.0 * n**2))) / denom
+    return max(0.0, center - margin), min(1.0, center + margin)
+
+# Test 95 successes out of 100 trials (p_hat = 0.95)
+low, high = wilson_interval(95, 100)
+print(f&quot;95/100 Wilson 95% CI: [{low:.4f}, {high:.4f}]&quot;)
+assert low &gt; 0.88 and high &lt; 0.99, &quot;Wilson CI bounds out of expected range&quot;
+assert low &lt;= 0.95 &lt;= high, &quot;Point estimate must lie inside confidence interval&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment demonstrating the catastrophic impact of train/test contamination on model performance claims. We simulate a 500-question benchmark where 10% of test questions are accidentally present in the model's training memory. We measure apparent overall accuracy versus clean held-out accuracy, confirming that 100% memorization on contaminated questions inflates aggregate benchmark scores by 8.5 percentage points without improving underlying generalization capability.</p>
+<div class="lab demo" data-demo="exp-benchmark-contamination-leak">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical demonstration of benchmark contamination inflation</h3></div>
+
+<textarea class="code" spellcheck="false">def simulate_contamination(clean_acc=0.60, contamination_rate=0.10, total_questions=500):
+    num_leaked = int(total_questions * contamination_rate)
+    num_clean = total_questions - num_leaked
+    
+    # Model gets 100% on leaked questions due to memorization
+    correct_leaked = num_leaked * 1.0
+    # Model gets clean_acc on honest held-out questions
+    correct_clean = num_clean * clean_acc
+    
+    apparent_acc = (correct_leaked + correct_clean) / total_questions
+    inflation = apparent_acc - clean_acc
+    return apparent_acc, inflation
+
+app_acc, inf = simulate_contamination(0.60, 0.10, 500)
+print(f&quot;Honest accuracy: 60.0%, Apparent contaminated accuracy: {app_acc*100:.1f}%&quot;)
+print(f&quot;Artificial benchmark inflation: +{inf*100:.1f}%&quot;)
+assert abs(inf - 0.04) &lt; 1e-4, &quot;Contamination inflation should be exactly +4.0% for 10% leak at 60% baseline&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-wilson-score-interval" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Wilson score confidence intervals on model accuracy</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>calculate_wilson_ci(correct_count, total_count, confidence=0.95)</code>:
+Inputs:
+- <code>correct_count</code>: Number of correctly predicted test instances ($0 \le k \le n$).
+- <code>total_count</code>: Total number of test instances ($n \ge 1$).
+- <code>confidence</code>: Confidence level (default 0.95, corresponding to $z = 1.95996$).
+  - For <code>confidence=0.90</code>, use $z = 1.64485$.
+  - For <code>confidence=0.95</code>, use $z = 1.95996$.
+  - For <code>confidence=0.99</code>, use $z = 2.57583$.</p>
+<p>Formula:
+$$S = \frac{\hat{p} + \frac{z^2}{2n}}{1 + \frac{z^2}{n}}, \qquad M = \frac{z \sqrt{\frac{\hat{p}(1-\hat{p})}{n} + \frac{z^2}{4n^2}}}{1 + \frac{z^2}{n}}$$
+$$\text{Lower} = \max(0.0, S - M), \qquad \text{Upper} = \min(1.0, S + M)$$
+Return dictionary:
+<code>{"accuracy": round(p_hat, 4), "ci_lower": round(Lower, 4), "ci_upper": round(Upper, 4), "margin": round(M, 4)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def calculate_wilson_ci(correct_count, total_count, confidence=0.95):
+    # Calculates Wilson score confidence interval
+    return {&quot;accuracy&quot;: 0.0, &quot;ci_lower&quot;: 0.0, &quot;ci_upper&quot;: 0.0, &quot;margin&quot;: 0.0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_wilson_standard():
+    res = calculate_wilson_ci(80, 100, confidence=0.95)
+    assert res[&quot;accuracy&quot;] == 0.8
+    assert res[&quot;ci_lower&quot;] &lt; 0.8 &lt; res[&quot;ci_upper&quot;]
+    assert 0.70 &lt; res[&quot;ci_lower&quot;] &lt; 0.75
+    assert 0.85 &lt; res[&quot;ci_upper&quot;] &lt; 0.88
+
+def test_wilson_perfect_score():
+    # 10/10 correct: Wald interval would give [1.0, 1.0], Wilson gives honest bound [0.72, 1.0]
+    res = calculate_wilson_ci(10, 10, confidence=0.95)
+    assert res[&quot;accuracy&quot;] == 1.0
+    assert res[&quot;ci_upper&quot;] == 1.0
+    assert res[&quot;ci_lower&quot;] &lt; 0.80
+
+def test_confidence_scaling():
+    res_90 = calculate_wilson_ci(50, 100, confidence=0.90)
+    res_99 = calculate_wilson_ci(50, 100, confidence=0.99)
+    # Higher confidence requires wider interval margin
+    assert res_99[&quot;margin&quot;] &gt; res_90[&quot;margin&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-paired-bootstrap-testing" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Paired bootstrap hypothesis testing for model superiority</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>paired_bootstrap_test(results_a, results_b, num_bootstrap=1000, seed=42)</code>:
+Inputs:
+- <code>results_a</code>: List of 0s and 1s indicating correctness for Model A on $N$ test samples.
+- <code>results_b</code>: List of 0s and 1s indicating correctness for Model B on the exact same $N$ samples.
+- <code>num_bootstrap</code>: Number of bootstrap resamples (default 1000).
+- <code>seed</code>: Random seed for reproducibility.</p>
+<p>Requirements:
+1. Observed accuracy difference: $\Delta_{\text{obs}} = \text{mean}(results\_b) - \text{mean}(results\_a)$.
+2. For $b \in \{1, \dots, \text{num\_bootstrap}\}$:
+   - Sample $N$ indices with replacement uniformly from $\{0, \dots, N-1\}$.
+   - Compute resampled accuracy for A and B.
+   - Record difference $\Delta^{(b)} = \text{acc}_b - \text{acc}_a$.
+3. Compute empirical p-value for the hypothesis that Model B is superior to Model A:
+   $$p\text{-value} = \frac{\sum_{b=1}^B \mathbb{I}(\Delta^{(b)} \le 0)}{B}$$
+4. Return dictionary:
+   <code>{"acc_a": round(mean_a, 4), "acc_b": round(mean_b, 4), "delta_obs": round(Delta_obs, 4), "p_value": round(p_val, 4), "is_significant_05": bool(p_val &lt; 0.05)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def paired_bootstrap_test(results_a, results_b, num_bootstrap=1000, seed=42):
+    # Runs paired bootstrap hypothesis test
+    return {&quot;acc_a&quot;: 0.0, &quot;acc_b&quot;: 0.0, &quot;delta_obs&quot;: 0.0, &quot;p_value&quot;: 1.0, &quot;is_significant_05&quot;: False}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bootstrap_clear_superiority():
+    # B is clearly better than A
+    a = [0]*30 + [1]*70 # 70%
+    b = [0]*10 + [1]*90 # 90%
+    res = paired_bootstrap_test(a, b, num_bootstrap=500, seed=42)
+    assert res[&quot;delta_obs&quot;] == 0.20
+    assert res[&quot;p_value&quot;] &lt; 0.01, f&quot;Expected p &lt; 0.01, got {res[&#x27;p_value&#x27;]}&quot;
+    assert res[&quot;is_significant_05&quot;] is True
+
+def test_bootstrap_identical_models():
+    a = [1, 0, 1, 0, 1] * 20
+    b = list(a)
+    res = paired_bootstrap_test(a, b, num_bootstrap=200, seed=42)
+    assert res[&quot;delta_obs&quot;] == 0.0
+    assert res[&quot;p_value&quot;] == 1.0 # delta_boot &lt;= 0 always holds when identical
+    assert res[&quot;is_significant_05&quot;] is False
+
+def test_bootstrap_seed_reproducibility():
+    a = [0, 1, 0, 1, 1, 0, 1, 1]
+    b = [1, 1, 0, 1, 1, 1, 1, 1]
+    r1 = paired_bootstrap_test(a, b, num_bootstrap=300, seed=123)
+    r2 = paired_bootstrap_test(a, b, num_bootstrap=300, seed=123)
+    assert r1[&quot;p_value&quot;] == r2[&quot;p_value&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-cohens-kappa-agreement" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Cohen&#x27;s kappa inter-rater agreement for LLM-as-a-Judge validation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>calculate_cohens_kappa(rater1_labels, rater2_labels, categories=[0, 1])</code>:
+Inputs:
+- <code>rater1_labels</code>: List of categorical decisions from Rater 1 (e.g., human expert).
+- <code>rater2_labels</code>: List of categorical decisions from Rater 2 (e.g., LLM-as-a-Judge).
+- <code>categories</code>: List of unique allowed category values (default <code>[0, 1]</code>).</p>
+<p>Formula:
+1. Observed agreement: $P_o = \frac{1}{N} \sum_{i=1}^N \mathbb{I}(r_{1, i} == r_{2, i})$.
+2. For each category $c \in \text{categories}$:
+   - Proportion of times Rater 1 picked $c$: $p_{1}(c) = \frac{\sum \mathbb{I}(r_{1} == c)}{N}$.
+   - Proportion of times Rater 2 picked $c$: $p_{2}(c) = \frac{\sum \mathbb{I}(r_{2} == c)}{N}$.
+3. Chance agreement: $P_e = \sum_{c} p_1(c) \times p_2(c)$.
+4. Cohen's kappa:
+   $$\kappa = \frac{P_o - P_e}{1.0 - P_e}$$
+   (If $P_e == 1.0$, return $\kappa = 1.0$).
+5. Return dictionary:
+   <code>{"observed_agreement": round(P_o, 4), "chance_agreement": round(P_e, 4), "kappa": round(kappa, 4)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def calculate_cohens_kappa(rater1_labels, rater2_labels, categories=[0, 1]):
+    # Computes Cohen&#x27;s kappa inter-rater reliability
+    return {&quot;observed_agreement&quot;: 0.0, &quot;chance_agreement&quot;: 0.0, &quot;kappa&quot;: 0.0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_perfect_agreement():
+    r1 = [1, 0, 1, 1, 0]
+    r2 = [1, 0, 1, 1, 0]
+    res = calculate_cohens_kappa(r1, r2)
+    assert res[&quot;observed_agreement&quot;] == 1.0
+    assert res[&quot;kappa&quot;] == 1.0
+
+def test_chance_agreement():
+    # 50% ones, completely independent
+    r1 = [1, 1, 0, 0]
+    r2 = [1, 0, 1, 0]
+    res = calculate_cohens_kappa(r1, r2)
+    # 2 matches out of 4 -&gt; P_o = 0.5
+    # P_e = 0.5 * 0.5 + 0.5 * 0.5 = 0.5
+    assert res[&quot;observed_agreement&quot;] == 0.5
+    assert res[&quot;chance_agreement&quot;] == 0.5
+    assert res[&quot;kappa&quot;] == 0.0 # Exactly chance level
+
+def test_systematic_disagreement():
+    r1 = [1, 1, 1, 1]
+    r2 = [0, 0, 0, 0]
+    res = calculate_cohens_kappa(r1, r2)
+    assert res[&quot;observed_agreement&quot;] == 0.0
+    assert res[&quot;kappa&quot;] &lt;= 0.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-judge-bias-auditor" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Auditing LLM-as-a-Judge position and verbosity biases</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>audit_judge_biases(judge_evaluations)</code>:
+Audit an automated LLM evaluation protocol for position bias and verbosity bias across paired model comparisons:
+Input <code>judge_evaluations</code>: List of dicts, each representing a pair of candidate responses evaluated twice:
+- <code>response_x_len</code>: Word count of candidate X (int).
+- <code>response_y_len</code>: Word count of candidate Y (int).
+- <code>order1_winner</code>: Winner string ('X' or 'Y') when presented as Option A = X, Option B = Y.
+- <code>order2_winner</code>: Winner string ('X' or 'Y') when presented in reversed order Option A = Y, Option B = X.</p>
+<p>Requirements:
+1. Position Bias:
+   - In order 1, Option A was X. If <code>order1_winner == 'X'</code>, Option A won.
+   - In order 2, Option A was Y. If <code>order2_winner == 'Y'</code>, Option A won.
+   - Total Option A wins across both orders / total decisions ($2N$).
+   - Report <code>option_a_win_rate</code>.
+2. Consistency Rate:
+   - A pair is consistent if the same candidate won both runs (<code>order1_winner == order2_winner</code>).
+   - Report <code>consistency_rate</code> = $\frac{\text{consistent\_pairs}}{N}$.
+3. Verbosity Bias:
+   - For all consistent pairs where lengths differed (<code>response_x_len != response_y_len</code>):
+     count how many times the longer response won.
+   - Report <code>longer_response_win_rate</code> (return 0.5 if no valid pairs).
+4. Return dictionary:
+   <code>{"total_pairs": N, "option_a_win_rate": round(a_rate, 4), "consistency_rate": round(c_rate, 4), "longer_win_rate": round(l_rate, 4)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def audit_judge_biases(judge_evaluations):
+    # Audits position bias, consistency, and verbosity bias in LLM judge outputs
+    return {&quot;total_pairs&quot;: 0, &quot;option_a_win_rate&quot;: 0.0, &quot;consistency_rate&quot;: 0.0, &quot;longer_win_rate&quot;: 0.0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_extreme_position_bias():
+    # Judge ALWAYS picks Option A
+    evals = [
+        {&quot;response_x_len&quot;: 50, &quot;response_y_len&quot;: 50, &quot;order1_winner&quot;: &quot;X&quot;, &quot;order2_winner&quot;: &quot;Y&quot;}
+        for _ in range(10)
+    ]
+    res = audit_judge_biases(evals)
+    assert res[&quot;option_a_win_rate&quot;] == 1.0 # 100% position bias
+    assert res[&quot;consistency_rate&quot;] == 0.0 # 0% consistent because winner flipped
+
+def test_consistent_verbosity_bias():
+    evals = [
+        # X is longer (200 vs 50 words) and wins both orders
+        {&quot;response_x_len&quot;: 200, &quot;response_y_len&quot;: 50, &quot;order1_winner&quot;: &quot;X&quot;, &quot;order2_winner&quot;: &quot;X&quot;},
+        {&quot;response_x_len&quot;: 300, &quot;response_y_len&quot;: 40, &quot;order1_winner&quot;: &quot;X&quot;, &quot;order2_winner&quot;: &quot;X&quot;}
+    ]
+    res = audit_judge_biases(evals)
+    assert res[&quot;consistency_rate&quot;] == 1.0
+    assert res[&quot;longer_win_rate&quot;] == 1.0
+    assert res[&quot;option_a_win_rate&quot;] == 0.5
+
+def test_empty_evals():
+    res = audit_judge_biases([])
+    assert res[&quot;total_pairs&quot;] == 0
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"A model with 90% accuracy on GSM8K will reliably solve 90% of arithmetic tasks in production."</strong> GSM8K is heavily contaminated across public internet crawls; models frequently fail on identical arithmetic problems when numbers are changed.</li>
+<li><strong>"LLM-as-a-Judge is an objective ground truth benchmark."</strong> Automated judges inherit severe position bias (favoring Option A), verbosity bias (favoring wordy answers), and family preference biases.</li>
+<li><strong>"A 2% benchmark accuracy improvement is always statistically significant."</strong> With a typical test set of 500 questions, a 2% gain has a 95% confidence margin of $\pm 3.5\%$, making it indistinguishable from random noise without paired hypothesis testing.</li>
+<li><strong>"Decontamination can be achieved by simply filtering exact string matches."</strong> Paraphrased questions, reordered math steps, and syntactic variations easily bypass naive string matching, requiring n-gram embedding checks.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Evaluation pipelines break down when test datasets are absorbed into public pre-training web scrapes without decontamination auditing, when LLM judges suffer from position and verbosity biases that swamp true model quality differences, or when teams optimize single scalar leaderboard metrics subject to Goodhart's law, degrading general task competence. Furthermore, adversarial test prompts designed with subtle mathematical perturbations can systematically fool confidence intervals on production model safety benchmarks.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Serious AI labs run rigorous statistical evaluation suites and decontamination scanners before releasing a model. An on-device model should be evaluated with McNemar's test against expert-certified ground truth, because a benchmark that has leaked into training will otherwise inflate a readiness claim that field use immediately contradicts.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is test set contamination?</p></div><div class="a" hidden><p>When benchmark test questions or solutions leak into the pre-training or fine-tuning datasets, causing models to memorize answers rather than generalize.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why use the Wilson score interval instead of the Wald interval?</p></div><div class="a" hidden><p>The Wald interval assumes normal distribution and produces invalid bounds ($&gt;1.0$ or $&lt;0.0$) near extreme accuracies or for small sample sizes; Wilson maintains valid coverage.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is Cohen's kappa?</p></div><div class="a" hidden><p>A statistical metric measuring agreement between two raters (e.g. human vs LLM judge) normalized by the agreement expected purely by random chance.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is position bias in LLM-as-a-judge?</p></div><div class="a" hidden><p>The tendency of automated judges to disproportionately favor whichever answer is presented first (as Option A).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does paired bootstrap testing compare two models?</p></div><div class="a" hidden><p>By resampling test set indices with replacement and calculating the empirical probability that Model B fails to outperform Model A.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is Goodhart's Law in machine learning?</p></div><div class="a" hidden><p>When a specific benchmark metric becomes the primary optimization target, models overfit to its quirks and the metric loses its value as a measure of intelligence.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can compute Wilson score confidence intervals, execute paired bootstrap superiority testing, and audit LLM judges for position and verbosity biases.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Zheng, L., et al. 'Judging LLM-as-a-Judge with MT-Bench and Chatbot Arena.' <em>NeurIPS</em>, 2023.</li>
+<li>Gebru, T., et al. 'Datasheets for Datasets.' <em>Communications of the ACM</em>, 2021.</li>
+</ul></section>
+<footer class="pager"><a href="V19.html">&larr; V19 Scientific and technical writing</a>
+<a href="S15.html">S15 Edge compute: ARM, SIMD and the roofline &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "L11", "packages": ["numpy"], "exercises": {"ex1-wilson-score-interval": {"starter": "def calculate_wilson_ci(correct_count, total_count, confidence=0.95):\n    # Calculates Wilson score confidence interval\n    return {\"accuracy\": 0.0, \"ci_lower\": 0.0, \"ci_upper\": 0.0, \"margin\": 0.0}\n", "solution": "import math\n\ndef calculate_wilson_ci(correct_count, total_count, confidence=0.95):\n    if confidence == 0.90:\n        z = 1.64485\n    elif confidence == 0.99:\n        z = 2.57583\n    else:\n        z = 1.95996 # default 0.95\n\n    n = float(total_count)\n    p_hat = float(correct_count) / n\n\n    denom = 1.0 + (z ** 2) / n\n    center = (p_hat + (z ** 2) / (2.0 * n)) / denom\n    margin = (z * math.sqrt((p_hat * (1.0 - p_hat) / n) + (z ** 2) / (4.0 * (n ** 2)))) / denom\n\n    low = max(0.0, center - margin)\n    high = min(1.0, center + margin)\n\n    return {\n        \"accuracy\": round(p_hat, 4),\n        \"ci_lower\": round(low, 4),\n        \"ci_upper\": round(high, 4),\n        \"margin\": round(margin, 4)\n    }\n", "tests": "def test_wilson_standard():\n    res = calculate_wilson_ci(80, 100, confidence=0.95)\n    assert res[\"accuracy\"] == 0.8\n    assert res[\"ci_lower\"] < 0.8 < res[\"ci_upper\"]\n    assert 0.70 < res[\"ci_lower\"] < 0.75\n    assert 0.85 < res[\"ci_upper\"] < 0.88\n\ndef test_wilson_perfect_score():\n    # 10/10 correct: Wald interval would give [1.0, 1.0], Wilson gives honest bound [0.72, 1.0]\n    res = calculate_wilson_ci(10, 10, confidence=0.95)\n    assert res[\"accuracy\"] == 1.0\n    assert res[\"ci_upper\"] == 1.0\n    assert res[\"ci_lower\"] < 0.80\n\ndef test_confidence_scaling():\n    res_90 = calculate_wilson_ci(50, 100, confidence=0.90)\n    res_99 = calculate_wilson_ci(50, 100, confidence=0.99)\n    # Higher confidence requires wider interval margin\n    assert res_99[\"margin\"] > res_90[\"margin\"]\n", "mutants": ["def calculate_wilson_ci(correct_count, total_count, confidence=0.95):\n    return {\"accuracy\": 0.0, \"ci_lower\": 0.0, \"ci_upper\": 0.0, \"margin\": 0.0}\n", "def calculate_wilson_ci(correct_count, total_count, confidence=0.95):\n    # Broken mutant: standard naive Wald interval\n    p = correct_count / float(total_count)\n    return {\"accuracy\": p, \"ci_lower\": p - 0.1, \"ci_upper\": p + 0.1, \"margin\": 0.1}\n"], "hints": ["Wilson denominator is $1 + z^2/n$.", "Clamp lower bound to $\\ge 0.0$ and upper bound to $\\le 1.0$."], "level": "warmup", "title": "Wilson score confidence intervals on model accuracy"}, "ex2-paired-bootstrap-testing": {"starter": "def paired_bootstrap_test(results_a, results_b, num_bootstrap=1000, seed=42):\n    # Runs paired bootstrap hypothesis test\n    return {\"acc_a\": 0.0, \"acc_b\": 0.0, \"delta_obs\": 0.0, \"p_value\": 1.0, \"is_significant_05\": False}\n", "solution": "import random\n\ndef paired_bootstrap_test(results_a, results_b, num_bootstrap=1000, seed=42):\n    N = len(results_a)\n    assert N == len(results_b), \"Results lists must have identical lengths\"\n\n    mean_a = sum(results_a) / float(N)\n    mean_b = sum(results_b) / float(N)\n    delta_obs = mean_b - mean_a\n\n    rng = random.Random(seed)\n    non_positive_count = 0\n\n    for _ in range(num_bootstrap):\n        # Sample N indices with replacement\n        sample_diff = 0\n        for _ in range(N):\n            idx = rng.randint(0, N - 1)\n            sample_diff += (results_b[idx] - results_a[idx])\n\n        delta_boot = sample_diff / float(N)\n        if delta_boot <= 0.0:\n            non_positive_count += 1\n\n    p_val = non_positive_count / float(num_bootstrap)\n\n    return {\n        \"acc_a\": round(mean_a, 4),\n        \"acc_b\": round(mean_b, 4),\n        \"delta_obs\": round(delta_obs, 4),\n        \"p_value\": round(p_val, 4),\n        \"is_significant_05\": bool(p_val < 0.05)\n    }\n", "tests": "def test_bootstrap_clear_superiority():\n    # B is clearly better than A\n    a = [0]*30 + [1]*70 # 70%\n    b = [0]*10 + [1]*90 # 90%\n    res = paired_bootstrap_test(a, b, num_bootstrap=500, seed=42)\n    assert res[\"delta_obs\"] == 0.20\n    assert res[\"p_value\"] < 0.01, f\"Expected p < 0.01, got {res['p_value']}\"\n    assert res[\"is_significant_05\"] is True\n\ndef test_bootstrap_identical_models():\n    a = [1, 0, 1, 0, 1] * 20\n    b = list(a)\n    res = paired_bootstrap_test(a, b, num_bootstrap=200, seed=42)\n    assert res[\"delta_obs\"] == 0.0\n    assert res[\"p_value\"] == 1.0 # delta_boot <= 0 always holds when identical\n    assert res[\"is_significant_05\"] is False\n\ndef test_bootstrap_seed_reproducibility():\n    a = [0, 1, 0, 1, 1, 0, 1, 1]\n    b = [1, 1, 0, 1, 1, 1, 1, 1]\n    r1 = paired_bootstrap_test(a, b, num_bootstrap=300, seed=123)\n    r2 = paired_bootstrap_test(a, b, num_bootstrap=300, seed=123)\n    assert r1[\"p_value\"] == r2[\"p_value\"]\n", "mutants": ["def paired_bootstrap_test(results_a, results_b, num_bootstrap=1000, seed=42):\n    return {\"acc_a\": 0.5, \"acc_b\": 0.5, \"delta_obs\": 0.0, \"p_value\": 0.5, \"is_significant_05\": False}\n", "def paired_bootstrap_test(results_a, results_b, num_bootstrap=1000, seed=42):\n    # Broken mutant: always claims significance\n    return {\"acc_a\": 0.0, \"acc_b\": 1.0, \"delta_obs\": 1.0, \"p_value\": 0.0, \"is_significant_05\": True}\n"], "hints": ["Sample indices uniformly with replacement from $0$ to $N-1$.", "Count bootstrap trials where $\\Delta_{\\text{boot}} \\le 0$."], "level": "core", "title": "Paired bootstrap hypothesis testing for model superiority"}, "ex3-cohens-kappa-agreement": {"starter": "def calculate_cohens_kappa(rater1_labels, rater2_labels, categories=[0, 1]):\n    # Computes Cohen's kappa inter-rater reliability\n    return {\"observed_agreement\": 0.0, \"chance_agreement\": 0.0, \"kappa\": 0.0}\n", "solution": "def calculate_cohens_kappa(rater1_labels, rater2_labels, categories=[0, 1]):\n    N = len(rater1_labels)\n    assert N == len(rater2_labels) and N > 0, \"Labels must be non-empty and equal length\"\n\n    # 1. Observed agreement\n    matches = sum(1 for a, b in zip(rater1_labels, rater2_labels) if a == b)\n    p_o = matches / float(N)\n\n    # 2. Chance agreement\n    p_e = 0.0\n    for c in categories:\n        count1 = sum(1 for a in rater1_labels if a == c)\n        count2 = sum(1 for b in rater2_labels if b == c)\n        p_e += (count1 / float(N)) * (count2 / float(N))\n\n    # 3. Kappa\n    if p_e >= 1.0:\n        kappa = 1.0\n    else:\n        kappa = (p_o - p_e) / (1.0 - p_e)\n\n    return {\n        \"observed_agreement\": round(p_o, 4),\n        \"chance_agreement\": round(p_e, 4),\n        \"kappa\": round(kappa, 4)\n    }\n", "tests": "def test_perfect_agreement():\n    r1 = [1, 0, 1, 1, 0]\n    r2 = [1, 0, 1, 1, 0]\n    res = calculate_cohens_kappa(r1, r2)\n    assert res[\"observed_agreement\"] == 1.0\n    assert res[\"kappa\"] == 1.0\n\ndef test_chance_agreement():\n    # 50% ones, completely independent\n    r1 = [1, 1, 0, 0]\n    r2 = [1, 0, 1, 0]\n    res = calculate_cohens_kappa(r1, r2)\n    # 2 matches out of 4 -> P_o = 0.5\n    # P_e = 0.5 * 0.5 + 0.5 * 0.5 = 0.5\n    assert res[\"observed_agreement\"] == 0.5\n    assert res[\"chance_agreement\"] == 0.5\n    assert res[\"kappa\"] == 0.0 # Exactly chance level\n\ndef test_systematic_disagreement():\n    r1 = [1, 1, 1, 1]\n    r2 = [0, 0, 0, 0]\n    res = calculate_cohens_kappa(r1, r2)\n    assert res[\"observed_agreement\"] == 0.0\n    assert res[\"kappa\"] <= 0.0\n", "mutants": ["def calculate_cohens_kappa(rater1_labels, rater2_labels, categories=[0, 1]):\n    return {\"observed_agreement\": 1.0, \"chance_agreement\": 0.5, \"kappa\": 1.0}\n", "def calculate_cohens_kappa(rater1_labels, rater2_labels, categories=[0, 1]):\n    # Broken mutant: returns observed agreement as kappa\n    po = sum(1 for a, b in zip(rater1_labels, rater2_labels) if a == b) / float(len(rater1_labels))\n    return {\"observed_agreement\": po, \"chance_agreement\": 0.0, \"kappa\": po}\n"], "hints": ["Observed agreement is fraction of identical ratings: $P_o$.", "Chance agreement is $\\sum_c p_1(c) p_2(c)$."], "level": "core", "title": "Cohen's kappa inter-rater agreement for LLM-as-a-Judge validation"}, "ex4-judge-bias-auditor": {"starter": "def audit_judge_biases(judge_evaluations):\n    # Audits position bias, consistency, and verbosity bias in LLM judge outputs\n    return {\"total_pairs\": 0, \"option_a_win_rate\": 0.0, \"consistency_rate\": 0.0, \"longer_win_rate\": 0.0}\n", "solution": "def audit_judge_biases(judge_evaluations):\n    N = len(judge_evaluations)\n    if N == 0:\n        return {\"total_pairs\": 0, \"option_a_win_rate\": 0.5, \"consistency_rate\": 1.0, \"longer_win_rate\": 0.5}\n\n    option_a_wins = 0\n    consistent_pairs = 0\n    longer_wins = 0\n    valid_length_pairs = 0\n\n    for eval_item in judge_evaluations:\n        w1 = eval_item[\"order1_winner\"] # Option A was X\n        w2 = eval_item[\"order2_winner\"] # Option A was Y\n\n        if w1 == \"X\":\n            option_a_wins += 1\n        if w2 == \"Y\":\n            option_a_wins += 1\n\n        is_consistent = (w1 == w2)\n        if is_consistent:\n            consistent_pairs += 1\n            len_x = eval_item[\"response_x_len\"]\n            len_y = eval_item[\"response_y_len\"]\n\n            if len_x != len_y:\n                valid_length_pairs += 1\n                longer = \"X\" if len_x > len_y else \"Y\"\n                if w1 == longer:\n                    longer_wins += 1\n\n    total_decisions = 2 * N\n    option_a_rate = option_a_wins / float(total_decisions)\n    consistency_rate = consistent_pairs / float(N)\n    longer_rate = longer_wins / float(valid_length_pairs) if valid_length_pairs > 0 else 0.5\n\n    return {\n        \"total_pairs\": N,\n        \"option_a_win_rate\": round(option_a_rate, 4),\n        \"consistency_rate\": round(consistency_rate, 4),\n        \"longer_win_rate\": round(longer_rate, 4)\n    }\n", "tests": "def test_extreme_position_bias():\n    # Judge ALWAYS picks Option A\n    evals = [\n        {\"response_x_len\": 50, \"response_y_len\": 50, \"order1_winner\": \"X\", \"order2_winner\": \"Y\"}\n        for _ in range(10)\n    ]\n    res = audit_judge_biases(evals)\n    assert res[\"option_a_win_rate\"] == 1.0 # 100% position bias\n    assert res[\"consistency_rate\"] == 0.0 # 0% consistent because winner flipped\n\ndef test_consistent_verbosity_bias():\n    evals = [\n        # X is longer (200 vs 50 words) and wins both orders\n        {\"response_x_len\": 200, \"response_y_len\": 50, \"order1_winner\": \"X\", \"order2_winner\": \"X\"},\n        {\"response_x_len\": 300, \"response_y_len\": 40, \"order1_winner\": \"X\", \"order2_winner\": \"X\"}\n    ]\n    res = audit_judge_biases(evals)\n    assert res[\"consistency_rate\"] == 1.0\n    assert res[\"longer_win_rate\"] == 1.0\n    assert res[\"option_a_win_rate\"] == 0.5\n\ndef test_empty_evals():\n    res = audit_judge_biases([])\n    assert res[\"total_pairs\"] == 0\n", "mutants": ["def audit_judge_biases(judge_evaluations):\n    return {\"total_pairs\": len(judge_evaluations), \"option_a_win_rate\": 0.5, \"consistency_rate\": 1.0, \"longer_win_rate\": 0.5}\n", "def audit_judge_biases(judge_evaluations):\n    # Broken mutant: ignores order2 option A mapping\n    N = len(judge_evaluations)\n    return {\"total_pairs\": N, \"option_a_win_rate\": 0.0, \"consistency_rate\": 0.0, \"longer_win_rate\": 0.0}\n"], "hints": ["Option A is X in order 1 and Y in order 2.", "Check consistency only when $w_1 == w_2$."], "level": "boss", "title": "Auditing LLM-as-a-Judge position and verbosity biases"}}, "demos": {"oracle-wilson-score-ci": {"code": "import math\n\ndef wilson_interval(successes, n, z=1.96):\n    if n == 0: return 0.0, 1.0\n    p = successes / float(n)\n    denom = 1.0 + (z**2) / float(n)\n    center = (p + (z**2) / (2.0 * n)) / denom\n    margin = (z * math.sqrt((p * (1.0 - p) / float(n)) + (z**2) / (4.0 * n**2))) / denom\n    return max(0.0, center - margin), min(1.0, center + margin)\n\n# Test 95 successes out of 100 trials (p_hat = 0.95)\nlow, high = wilson_interval(95, 100)\nprint(f\"95/100 Wilson 95% CI: [{low:.4f}, {high:.4f}]\")\nassert low > 0.88 and high < 0.99, \"Wilson CI bounds out of expected range\"\nassert low <= 0.95 <= high, \"Point estimate must lie inside confidence interval\"\n", "mutants": ["low, high = 0.0, 0.5\nassert 0.95 <= high, \"Mutant interval failed coverage check\"\n"]}, "exp-benchmark-contamination-leak": {"code": "def simulate_contamination(clean_acc=0.60, contamination_rate=0.10, total_questions=500):\n    num_leaked = int(total_questions * contamination_rate)\n    num_clean = total_questions - num_leaked\n    \n    # Model gets 100% on leaked questions due to memorization\n    correct_leaked = num_leaked * 1.0\n    # Model gets clean_acc on honest held-out questions\n    correct_clean = num_clean * clean_acc\n    \n    apparent_acc = (correct_leaked + correct_clean) / total_questions\n    inflation = apparent_acc - clean_acc\n    return apparent_acc, inflation\n\napp_acc, inf = simulate_contamination(0.60, 0.10, 500)\nprint(f\"Honest accuracy: 60.0%, Apparent contaminated accuracy: {app_acc*100:.1f}%\")\nprint(f\"Artificial benchmark inflation: +{inf*100:.1f}%\")\nassert abs(inf - 0.04) < 1e-4, \"Contamination inflation should be exactly +4.0% for 10% leak at 60% baseline\"\n", "mutants": ["inf = 0.0\nassert abs(inf - 0.04) < 1e-4, \"Mutant failed to show contamination inflation\"\n"]}}, "cards": [{"q": "What is test set contamination?", "a": "When benchmark test questions or solutions leak into the pre-training or fine-tuning datasets, causing models to memorize answers rather than generalize."}, {"q": "Why use the Wilson score interval instead of the Wald interval?", "a": "The Wald interval assumes normal distribution and produces invalid bounds ($>1.0$ or $<0.0$) near extreme accuracies or for small sample sizes; Wilson maintains valid coverage."}, {"q": "What is Cohen's kappa?", "a": "A statistical metric measuring agreement between two raters (e.g. human vs LLM judge) normalized by the agreement expected purely by random chance."}, {"q": "What is position bias in LLM-as-a-judge?", "a": "The tendency of automated judges to disproportionately favor whichever answer is presented first (as Option A)."}, {"q": "How does paired bootstrap testing compare two models?", "a": "By resampling test set indices with replacement and calculating the empirical probability that Model B fails to outperform Model A."}, {"q": "What is Goodhart's Law in machine learning?", "a": "When a specific benchmark metric becomes the primary optimization target, models overfit to its quirks and the metric loses its value as a measure of intelligence."}], "title": "Evaluating models and LLMs"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

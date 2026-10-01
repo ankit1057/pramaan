@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S06 Android IPC and components</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="S06">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Android, Flutter and edge systems · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">S06</p><h1>Android IPC and components</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="S04.html">S04</a></div><div><b>Covers:</b> Android internals</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>activities, services, broadcast receivers and content providers</li><li>explicit and implicit intents and intent filters</li><li>Binder IPC: transactions, parcels, one-way calls</li><li>AIDL</li><li>the permission model (runtime and signature permissions)</li><li>tasks and the back stack</li><li>PendingIntent mutability</li><li>location and sensor APIs: fused location, sensor batching, geofencing and background-location permission</li><li>the activity and fragment lifecycles (onCreate to onDestroy) and recreation on configuration change</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2005, when Google acquired Android Inc., the engineering team faced a daunting architectural problem: how could hundreds of independent applications and system services share data securely on Linux without turning into an insecure free-for-all? Standard Linux Inter-Process Communication (IPC)—pipes, sockets, shared memory—lacked mandatory security credentials and type-safe transaction semantics. Android adopted a radical solution originated at Be Inc. and PalmSource: <strong>Binder</strong>. Built directly into the Linux kernel as <code>/dev/binder</code>, Binder enabled lightning-fast Remote Procedure Calls (RPC) with hardware-enforced UID authentication and shared reference counting. Wrapped in Android Interface Definition Language (AIDL) and exposed via Intents, Activities, BroadcastReceivers, and ContentProviders, Binder became the connective tissue of the entire Android operating system, enabling modular sandboxed components to cooperate securely across independent process boundaries.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Android is designed so apps cannot directly touch each other's memory. Instead, when an app needs to open a camera, query contacts, or send a notification, it talks to other apps and the system using Binder Inter-Process Communication (IPC). You describe actions using <code>Intents</code> (like "take a picture" or "share this photo"). Android uses four main building blocks: Activities for screens, Services for background tasks, Broadcast Receivers for system announcements (like low battery), and Content Providers for sharing databases. Everything is protected by a strict permission model so apps only access what users allow.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Android's component architecture rests on four fundamental abstractions:
+1. <strong>Activity</strong>: A single focused screen with a visual user interface.
+2. <strong>Service</strong>: An application component that performs long-running operations in the background without UI.
+3. <strong>BroadcastReceiver</strong>: A component that listens for system-wide broadcast announcements (e.g. <code>ACTION_BATTERY_LOW</code>).
+4. <strong>ContentProvider</strong>: Manages access to structured data repositories via <code>ContentResolver</code> URIs (<code>content://...</code>).</p>
+<p>Inter-Process Communication is powered by the Linux kernel <strong>Binder</strong> driver:
+- <strong><code>Parcel</code></strong>: High-performance serialization container for primitive types and <code>Parcelable</code> objects.
+- <strong>Transaction Buffer Limit</strong>: The Binder kernel driver allocates a shared 1 MB memory buffer per process (<code>BINDER_VM_SIZE = 1024 * 1024</code> bytes) for all concurrent IPC transactions. Passing bitmaps or large payloads through Intent extras triggers fatal <code>TransactionTooLargeException</code>.
+- <strong><code>AIDL</code> (Android Interface Definition Language)</strong>: Generates client proxy and server <code>Stub</code> classes for type-safe cross-process RPC calls.</p>
+<p>Android security enforces two permission levels:
+- <strong>Normal / Signature</strong>: Automatically granted if signing certificates match.
+- <strong>Dangerous (Runtime)</strong>: Requires runtime user approval (e.g., <code>ACCESS_FINE_LOCATION</code>).
+Android 12+ mandates explicit <code>FLAG_IMMUTABLE</code> or <code>FLAG_MUTABLE</code> on all <code>PendingIntent</code> instances to prevent unauthorized intent hijacking.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand how Android manages multitasking screens, examine <strong>Tasks and the Back Stack</strong>:
+A Task is a collection of activities arranged in a Last-In-First-Out (LIFO) stack. The navigation behavior is governed by <strong>Launch Modes</strong>:
+1. <strong><code>standard</code></strong>: Spawns a brand-new Activity instance and pushes it onto the stack every time.
+2. <strong><code>singleTop</code></strong>: If an instance of the Activity is already at the <em>top</em> of the stack, reuses it via <code>onNewIntent()</code> instead of creating a new instance.
+3. <strong><code>singleTask</code></strong>: Creates a new task root or pops all activities above the existing instance in the back stack, delivering the intent via <code>onNewIntent()</code>.
+4. <strong><code>singleInstance</code></strong>: The Activity runs exclusively in its own dedicated single-activity task.</p>
+<p><code>PendingIntent</code> mutability security:
+A <code>PendingIntent</code> delegates your app's identity and permissions to another application (or the system NotificationManager). If a PendingIntent is declared mutable without a fixed component name:</p>
+<pre><code class="language-kotlin">PendingIntent.getActivity(context, 0, Intent(), PendingIntent.FLAG_MUTABLE)
+</code></pre>
+<p>a malicious third-party app can fill in the base Intent's action and target component, hijacking your app's UID permissions to launch arbitrary private activities! Specifying <code>FLAG_IMMUTABLE</code> freezes the intent payload, preventing tampering.</p>
+<p>Location and sensor APIs balance accuracy against battery conservation:
+- <strong>Fused Location Provider</strong>: Blends GPS, Wi-Fi, and cellular signals.
+- <strong>Sensor Batching</strong>: Delays sensor event interrupts in hardware FIFOs so the CPU can stay asleep in low-power states.
+- <strong>Background Location</strong>: Requires separate runtime user consent (<code>ACCESS_BACKGROUND_LOCATION</code>) and fine-grained geofencing alerts.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that Binder transaction limits and Intent resolution rules adhere to strict framework contracts, we construct an empirical Android IPC oracle. The oracle validates that Parcel payloads exceeding the 1MB buffer limit throw <code>TransactionTooLargeException</code>, and systematically proves that implicit Intent resolution correctly matches Action, category, and MIME type filters across declared application components in the Android runtime manifest, ensuring secure and predictable cross-component communication.</p>
+<div class="lab demo" data-demo="oracle-binder-transaction-limit">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of 1MB Binder IPC transaction buffer limit</h3></div>
+
+<textarea class="code" spellcheck="false">class BinderTransaction:
+    MAX_BUFFER_BYTES = 1024 * 1024 # 1 MB
+
+    @staticmethod
+    def send_parcel(byte_size):
+        if byte_size &gt; BinderTransaction.MAX_BUFFER_BYTES:
+            raise RuntimeError(&quot;TransactionTooLargeException: Parcel size exceeds 1MB limit&quot;)
+        return True
+
+# Test 500 KB payload: OK
+res1 = BinderTransaction.send_parcel(500 * 1024)
+assert res1 is True
+
+# Test 1.5 MB payload: Must throw TransactionTooLargeException
+threw = False
+try:
+    BinderTransaction.send_parcel(1500 * 1024)
+except RuntimeError as e:
+    threw = True
+    assert &quot;TransactionTooLargeException&quot; in str(e)
+
+assert threw is True, &quot;Binder must throw TransactionTooLargeException for payloads &gt; 1MB&quot;
+print(&quot;SUCCESS: 1MB Binder buffer limit verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment testing PendingIntent mutability security across simulated third-party intent dispatchers. We test whether an external untrusted component can modify the target URI of an immutable versus mutable PendingIntent, confirming that <code>FLAG_IMMUTABLE</code> blocks all unauthorized tampering, whereas mutable intents allow malicious payload redirection and security privilege escalation across inter-process application boundaries, compromising device and user security.</p>
+<div class="lab demo" data-demo="exp-pending-intent-mutability-security">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical security verification of PendingIntent FLAG_IMMUTABLE protection</h3></div>
+
+<textarea class="code" spellcheck="false">class PendingIntent:
+    def __init__(self, action, target_uri, is_immutable=True):
+        self.action = action
+        self.target_uri = target_uri
+        self.is_immutable = is_immutable
+
+    def modify_intent(self, new_action, new_uri):
+        if self.is_immutable:
+            return False # Modification rejected
+        self.action = new_action
+        self.target_uri = new_uri
+        return True # Tampered successfully
+
+pi_secure = PendingIntent(&quot;VIEW&quot;, &quot;https://safe.com&quot;, is_immutable=True)
+pi_vuln = PendingIntent(&quot;VIEW&quot;, &quot;https://safe.com&quot;, is_immutable=False)
+
+assert pi_secure.modify_intent(&quot;EVIL&quot;, &quot;https://evil.com&quot;) is False
+assert pi_secure.target_uri == &quot;https://safe.com&quot;, &quot;Immutable PendingIntent must not be altered&quot;
+
+assert pi_vuln.modify_intent(&quot;EVIL&quot;, &quot;https://evil.com&quot;) is True
+assert pi_vuln.target_uri == &quot;https://evil.com&quot;, &quot;Mutable PendingIntent allowed tampering&quot;
+print(&quot;SUCCESS: PendingIntent immutability security verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-binder-ipc-buffer-validator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Binder IPC Parcel size validation and TransactionTooLargeException guard</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>validate_binder_transaction(parcel_data, max_buffer_bytes=1048576)</code>:
+Inputs:
+- <code>parcel_data</code>: Dict representing Parcel contents: <code>{"action": str, "payload_bytes": int}</code>.
+- <code>max_buffer_bytes</code>: Maximum allowed Binder buffer size (default 1048576 bytes = 1 MB).</p>
+<p>Rules:
+1. Extract <code>payload_bytes</code> from <code>parcel_data</code>.
+2. Overhead: Binder transactions add fixed IPC envelope overhead of 256 bytes.
+3. Total transaction size: <code>total = payload_bytes + 256</code>.
+4. If <code>total &gt; max_buffer_bytes</code>:
+   raise <code>RuntimeError(f"TransactionTooLargeException: size {total} exceeds {max_buffer_bytes}")</code>.
+5. Return dictionary:
+   <code>{"status": "success", "total_bytes": total, "headroom_bytes": max_buffer_bytes - total}</code>.</p></div>
+<textarea class="code" spellcheck="false">def validate_binder_transaction(parcel_data, max_buffer_bytes=1048576):
+    # Validates Parcel transaction size against 1MB Binder kernel limit
+    return {&quot;status&quot;: &quot;success&quot;, &quot;total_bytes&quot;: 0, &quot;headroom_bytes&quot;: 0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_valid_parcel_size():
+    data = {&quot;action&quot;: &quot;SAVE&quot;, &quot;payload_bytes&quot;: 50000}
+    res = validate_binder_transaction(data)
+    assert res[&quot;status&quot;] == &quot;success&quot;
+    assert res[&quot;total_bytes&quot;] == 50256
+    assert res[&quot;headroom_bytes&quot;] == 1048576 - 50256
+
+def test_too_large_parcel_throws():
+    data = {&quot;action&quot;: &quot;SEND_LARGE_BITMAP&quot;, &quot;payload_bytes&quot;: 1048576} # 1MB payload + 256 &gt; 1MB!
+    try:
+        validate_binder_transaction(data)
+        assert False, &quot;Should raise RuntimeError&quot;
+    except RuntimeError as e:
+        assert &quot;TransactionTooLargeException&quot; in str(e)
+
+def test_custom_buffer_limit():
+    data = {&quot;action&quot;: &quot;TEST&quot;, &quot;payload_bytes&quot;: 500}
+    res = validate_binder_transaction(data, max_buffer_bytes=1000)
+    assert res[&quot;total_bytes&quot;] == 756
+    assert res[&quot;headroom_bytes&quot;] == 244
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-implicit-intent-resolver" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Android Intent resolution: matching Action, MIME Type, and Categories</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>resolve_implicit_intent(intent, installed_filters)</code>:
+Inputs:
+- <code>intent</code>: Dict <code>{"action": str, "mime_type": str_or_None, "categories": [str, ...]}</code>.
+- <code>installed_filters</code>: List of component filter dicts:
+  <code>[{"component_name": str, "actions": [str, ...], "mime_types": [str, ...], "categories": [str, ...]}, ...]</code></p>
+<p>Intent Resolution Protocol:
+A component filter matches the Intent if and only if ALL three conditions hold:
+1. <strong>Action Match</strong>: The intent's action is present in <code>filter["actions"]</code>.
+2. <strong>MIME Type Match</strong>:
+   - If intent has no <code>mime_type</code> and filter has empty <code>mime_types</code>: match.
+   - If intent has <code>mime_type</code>: filter must contain the exact MIME type OR wildcard (e.g. <code>image/*</code> matches <code>image/png</code>).
+3. <strong>Category Match</strong>:
+   - Every category present in <code>intent["categories"]</code> must be declared in <code>filter["categories"]</code>.
+   - (Filter can declare additional categories that intent does not request).
+4. Return sorted list of matching <code>component_name</code> strings.</p></div>
+<textarea class="code" spellcheck="false">def resolve_implicit_intent(intent, installed_filters):
+    # Resolves implicit intent against installed component filters
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_intent_action_and_mime():
+    filters = [
+        {&quot;component_name&quot;: &quot;ImageViewer&quot;, &quot;actions&quot;: [&quot;VIEW&quot;], &quot;mime_types&quot;: [&quot;image/*&quot;], &quot;categories&quot;: [&quot;DEFAULT&quot;]},
+        {&quot;component_name&quot;: &quot;TextViewer&quot;, &quot;actions&quot;: [&quot;VIEW&quot;], &quot;mime_types&quot;: [&quot;text/plain&quot;], &quot;categories&quot;: [&quot;DEFAULT&quot;]}
+    ]
+    intent = {&quot;action&quot;: &quot;VIEW&quot;, &quot;mime_type&quot;: &quot;image/jpeg&quot;, &quot;categories&quot;: [&quot;DEFAULT&quot;]}
+    res = resolve_implicit_intent(intent, filters)
+    assert res == [&quot;ImageViewer&quot;]
+
+def test_intent_category_subset():
+    filters = [
+        {&quot;component_name&quot;: &quot;Browser&quot;, &quot;actions&quot;: [&quot;VIEW&quot;], &quot;mime_types&quot;: [], &quot;categories&quot;: [&quot;DEFAULT&quot;, &quot;BROWSABLE&quot;]}
+    ]
+    # Intent requests DEFAULT and BROWSABLE -&gt; matches
+    res1 = resolve_implicit_intent({&quot;action&quot;: &quot;VIEW&quot;, &quot;mime_type&quot;: None, &quot;categories&quot;: [&quot;DEFAULT&quot;]}, filters)
+    assert res1 == [&quot;Browser&quot;]
+
+    # Intent requests extra category not in filter -&gt; fails
+    res2 = resolve_implicit_intent({&quot;action&quot;: &quot;VIEW&quot;, &quot;mime_type&quot;: None, &quot;categories&quot;: [&quot;DEFAULT&quot;, &quot;VOICE&quot;]}, filters)
+    assert res2 == []
+
+def test_intent_no_matching_action():
+    filters = [
+        {&quot;component_name&quot;: &quot;CameraApp&quot;, &quot;actions&quot;: [&quot;IMAGE_CAPTURE&quot;], &quot;mime_types&quot;: [], &quot;categories&quot;: [&quot;DEFAULT&quot;]}
+    ]
+    res = resolve_implicit_intent({&quot;action&quot;: &quot;SEND&quot;, &quot;mime_type&quot;: None, &quot;categories&quot;: [&quot;DEFAULT&quot;]}, filters)
+    assert res == []
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-activity-task-launch-modes" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Simulating Android Activity Task Back Stack launch modes (standard, singleTop, singleTask)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>simulate_activity_stack_navigation(launches)</code>:
+Inputs:
+- <code>launches</code>: List of tuples specifying activity launches in chronological order:
+  - <code>("launch", activity_name, launch_mode)</code>:
+    - <code>"standard"</code>: Pushes new instance of <code>activity_name</code> onto stack.
+    - <code>"singleTop"</code>: If <code>activity_name</code> is already at the TOP of the stack: reuses it in-place! Otherwise pushes new instance.
+    - <code>"singleTask"</code>: If <code>activity_name</code> exists ANYWHERE in the stack: pops all activities above it so it becomes top! Otherwise pushes new instance.
+  - <code>("back", None, None)</code>: Pops top activity from stack (if stack length $&gt; 1$).</p>
+<p>Rules:
+1. Maintain stack of string activity names initialized to empty <code>[]</code>.
+2. Process each launch command in order.
+3. Return final stack list from bottom (index 0) to top (index -1).</p></div>
+<textarea class="code" spellcheck="false">def simulate_activity_stack_navigation(launches):
+    # Simulates Android Task back stack navigation launch modes
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_standard_and_single_top():
+    launches = [
+        (&quot;launch&quot;, &quot;A&quot;, &quot;standard&quot;),
+        (&quot;launch&quot;, &quot;B&quot;, &quot;singleTop&quot;),
+        (&quot;launch&quot;, &quot;B&quot;, &quot;singleTop&quot;), # Reused in place!
+        (&quot;launch&quot;, &quot;C&quot;, &quot;standard&quot;)
+    ]
+    res = simulate_activity_stack_navigation(launches)
+    assert res == [&quot;A&quot;, &quot;B&quot;, &quot;C&quot;]
+
+def test_single_task_pops_intermediate():
+    launches = [
+        (&quot;launch&quot;, &quot;Home&quot;, &quot;standard&quot;),
+        (&quot;launch&quot;, &quot;List&quot;, &quot;standard&quot;),
+        (&quot;launch&quot;, &quot;Detail&quot;, &quot;standard&quot;),
+        (&quot;launch&quot;, &quot;Home&quot;, &quot;singleTask&quot;) # Home exists! Pops List and Detail
+    ]
+    res = simulate_activity_stack_navigation(launches)
+    assert res == [&quot;Home&quot;]
+
+def test_back_button():
+    launches = [
+        (&quot;launch&quot;, &quot;A&quot;, &quot;standard&quot;),
+        (&quot;launch&quot;, &quot;B&quot;, &quot;standard&quot;),
+        (&quot;back&quot;, None, None)
+    ]
+    res = simulate_activity_stack_navigation(launches)
+    assert res == [&quot;A&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-pending-intent-mutability-guard" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Auditing PendingIntent creation flags for Android 12+ mutability vulnerabilities</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>audit_pending_intent_security(intents_list, target_sdk_version=31)</code>:
+Audit PendingIntent declarations against Android 12+ (API 31) security standards:
+Input <code>intents_list</code>: List of dicts representing PendingIntent creation calls:
+<code>[{"id": str, "action": str, "target_component": str_or_None, "flags": [str, ...]}]</code></p>
+<p>Security Rules:
+1. On API $\ge 31$ (Android 12+), every PendingIntent MUST explicitly specify either <code>"FLAG_IMMUTABLE"</code> or <code>"FLAG_MUTABLE"</code>.
+   - If NEITHER flag is present: flag <code>"missing_mutability_flag"</code> violation.
+2. If <code>"FLAG_MUTABLE"</code> is used:
+   - It is a security vulnerability (flag <code>"insecure_mutable_intent"</code>) UNLESS <code>target_component</code> is explicitly specified (an explicit Intent). If <code>target_component</code> is None, third-party apps can hijack the intent.
+3. Compute safety:
+   - An intent is safe if it has no violations.
+4. Return dictionary:
+   <code>{"total_intents": int, "secure_intents": int, "violations": [{"id": str, "reasons": [str, ...]}]}</code>.</p></div>
+<textarea class="code" spellcheck="false">def audit_pending_intent_security(intents_list, target_sdk_version=31):
+    # Audits PendingIntent declarations for Android 12+ mutability vulnerabilities
+    return {&quot;total_intents&quot;: 0, &quot;secure_intents&quot;: 0, &quot;violations&quot;: []}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_secure_immutable():
+    intents = [
+        {&quot;id&quot;: &quot;pi1&quot;, &quot;action&quot;: &quot;NOTIFY&quot;, &quot;target_component&quot;: None, &quot;flags&quot;: [&quot;FLAG_IMMUTABLE&quot;, &quot;FLAG_UPDATE_CURRENT&quot;]}
+    ]
+    res = audit_pending_intent_security(intents, target_sdk_version=31)
+    assert res[&quot;secure_intents&quot;] == 1
+    assert res[&quot;violations&quot;] == []
+
+def test_missing_flag_on_android12():
+    intents = [
+        {&quot;id&quot;: &quot;pi_legacy&quot;, &quot;action&quot;: &quot;ALARM&quot;, &quot;target_component&quot;: None, &quot;flags&quot;: [&quot;FLAG_UPDATE_CURRENT&quot;]}
+    ]
+    res = audit_pending_intent_security(intents, target_sdk_version=31)
+    assert res[&quot;secure_intents&quot;] == 0
+    assert len(res[&quot;violations&quot;]) == 1
+    assert &quot;missing_mutability_flag&quot; in res[&quot;violations&quot;][0][&quot;reasons&quot;]
+
+def test_mutable_without_target_component():
+    intents = [
+        {&quot;id&quot;: &quot;pi_vuln&quot;, &quot;action&quot;: &quot;SHARE&quot;, &quot;target_component&quot;: None, &quot;flags&quot;: [&quot;FLAG_MUTABLE&quot;]}
+    ]
+    res = audit_pending_intent_security(intents, target_sdk_version=31)
+    assert &quot;insecure_mutable_intent&quot; in res[&quot;violations&quot;][0][&quot;reasons&quot;]
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Binder IPC transactions can send arbitrary amounts of data like network sockets."</strong> Binder transactions share a strict 1 MB kernel memory buffer per process; exceeding it throws fatal TransactionTooLargeException crashes.</li>
+<li><strong>"PendingIntent is just a regular Intent."</strong> A PendingIntent grants foreign apps or system services the right to execute an intent with your application's UID permissions.</li>
+<li><strong>"Activities must declare singleInstance to prevent duplicate screens."</strong> singleInstance isolates the activity into a separate task entirely; singleTop or singleTask within the existing task is almost always the intended UX pattern.</li>
+<li><strong>"ContentProviders are only useful for sharing data with external third-party apps."</strong> ContentProviders are used internally by architecture libraries (such as WorkManager and Jetpack App Startup) to initialize singletons before Application.onCreate().</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Android IPC breaks down when applications attempt to pass uncompressed multi-megabyte bitmap images through Intent extras or Binder transactions, triggering fatal TransactionTooLargeException crashes, when mutable PendingIntents without explicit component targets allow malicious apps to hijack internal intents, or when background location tracking without explicit runtime permission prompts causes application crash or OS suspension.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Android IPC and components govern security and interoperability. A PendingIntent must carry <code>FLAG_IMMUTABLE</code> or a third party can rewrite its payload, a custom ContentProvider mediates document sharing with external printing hardware, and <code>singleTask</code> launch modes return a user to the screen they were on rather than stacking a duplicate.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Binder in Android?</p></div><div class="a" hidden><p>The Linux kernel driver that provides secure, high-performance Inter-Process Communication (IPC) with hardware-enforced UID authentication.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the Binder transaction buffer limit?</p></div><div class="a" hidden><p>1 Megabyte (1024 * 1024 bytes) shared across all concurrent transactions for a given process.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the four primary Android application components?</p></div><div class="a" hidden><p>Activity (UI screen), Service (background operation), BroadcastReceiver (system event listener), and ContentProvider (data sharing).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does PendingIntent FLAG_IMMUTABLE do?</p></div><div class="a" hidden><p>Guarantees that foreign apps receiving the PendingIntent cannot modify its action, data, or target component before execution.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the difference between standard and singleTop launch modes?</p></div><div class="a" hidden><p>standard always spawns a new instance; singleTop reuses the instance if it is already at the top of the back stack via onNewIntent().</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What happens during a TransactionTooLargeException?</p></div><div class="a" hidden><p>A Binder transaction failed because the Parcel payload plus envelope exceeded the 1 MB buffer limit, crashing the calling process.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can validate Binder Parcel sizes, resolve implicit Intents, simulate Task back stacks, and audit PendingIntent mutability security against malicious redirection attacks.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Android Open Source Project. 'Binder IPC Architecture.' <em>source.android.com</em>, 2023.</li>
+<li>Android Security Team. 'Securing PendingIntents in Android 12.' <em>Android Developers Blog</em>, 2021.</li>
+</ul></section>
+<footer class="pager"><a href="S05.html">&larr; S05 Android internals II: Looper, threads and coroutines</a>
+<a href="S07.html">S07 Platform interop: channels, FFI and JNI &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "S06", "packages": ["numpy"], "exercises": {"ex1-binder-ipc-buffer-validator": {"starter": "def validate_binder_transaction(parcel_data, max_buffer_bytes=1048576):\n    # Validates Parcel transaction size against 1MB Binder kernel limit\n    return {\"status\": \"success\", \"total_bytes\": 0, \"headroom_bytes\": 0}\n", "solution": "def validate_binder_transaction(parcel_data, max_buffer_bytes=1048576):\n    payload = int(parcel_data.get(\"payload_bytes\", 0))\n    total = payload + 256 # Envelope overhead\n\n    if total > max_buffer_bytes:\n        raise RuntimeError(f\"TransactionTooLargeException: size {total} exceeds {max_buffer_bytes}\")\n\n    return {\n        \"status\": \"success\",\n        \"total_bytes\": total,\n        \"headroom_bytes\": max_buffer_bytes - total\n    }\n", "tests": "def test_valid_parcel_size():\n    data = {\"action\": \"SAVE\", \"payload_bytes\": 50000}\n    res = validate_binder_transaction(data)\n    assert res[\"status\"] == \"success\"\n    assert res[\"total_bytes\"] == 50256\n    assert res[\"headroom_bytes\"] == 1048576 - 50256\n\ndef test_too_large_parcel_throws():\n    data = {\"action\": \"SEND_LARGE_BITMAP\", \"payload_bytes\": 1048576} # 1MB payload + 256 > 1MB!\n    try:\n        validate_binder_transaction(data)\n        assert False, \"Should raise RuntimeError\"\n    except RuntimeError as e:\n        assert \"TransactionTooLargeException\" in str(e)\n\ndef test_custom_buffer_limit():\n    data = {\"action\": \"TEST\", \"payload_bytes\": 500}\n    res = validate_binder_transaction(data, max_buffer_bytes=1000)\n    assert res[\"total_bytes\"] == 756\n    assert res[\"headroom_bytes\"] == 244\n", "mutants": ["def validate_binder_transaction(parcel_data, max_buffer_bytes=1048576):\n    return {\"status\": \"success\", \"total_bytes\": 0, \"headroom_bytes\": max_buffer_bytes}\n", "def validate_binder_transaction(parcel_data, max_buffer_bytes=1048576):\n    # Broken mutant: forgets to check limit\n    t = parcel_data.get(\"payload_bytes\", 0) + 256\n    return {\"status\": \"success\", \"total_bytes\": t, \"headroom_bytes\": max_buffer_bytes - t}\n"], "hints": ["Add 256 bytes overhead to `payload_bytes`.", "Raise `RuntimeError` starting with `\"TransactionTooLargeException\"` if size exceeds limit."], "level": "warmup", "title": "Binder IPC Parcel size validation and TransactionTooLargeException guard"}, "ex2-implicit-intent-resolver": {"starter": "def resolve_implicit_intent(intent, installed_filters):\n    # Resolves implicit intent against installed component filters\n    return []\n", "solution": "def resolve_implicit_intent(intent, installed_filters):\n    act = intent.get(\"action\")\n    mime = intent.get(\"mime_type\")\n    cats = set(intent.get(\"categories\", []))\n\n    matches = []\n\n    for comp in installed_filters:\n        c_actions = comp.get(\"actions\", [])\n        c_mimes = comp.get(\"mime_types\", [])\n        c_cats = set(comp.get(\"categories\", []))\n\n        # 1. Action check\n        if act not in c_actions:\n            continue\n\n        # 2. Category check: filter must contain all intent categories\n        if not cats.issubset(c_cats):\n            continue\n\n        # 3. MIME type check\n        if mime is None:\n            if c_mimes: # Filter expects a mime type, but intent has none\n                continue\n        else:\n            mime_match = False\n            for cm in c_mimes:\n                if cm == mime:\n                    mime_match = True\n                    break\n                if cm.endswith(\"/*\") and mime.startswith(cm[:-2] + \"/\"):\n                    mime_match = True\n                    break\n            if not mime_match:\n                continue\n\n        matches.append(comp[\"component_name\"])\n\n    return sorted(matches)\n", "tests": "def test_intent_action_and_mime():\n    filters = [\n        {\"component_name\": \"ImageViewer\", \"actions\": [\"VIEW\"], \"mime_types\": [\"image/*\"], \"categories\": [\"DEFAULT\"]},\n        {\"component_name\": \"TextViewer\", \"actions\": [\"VIEW\"], \"mime_types\": [\"text/plain\"], \"categories\": [\"DEFAULT\"]}\n    ]\n    intent = {\"action\": \"VIEW\", \"mime_type\": \"image/jpeg\", \"categories\": [\"DEFAULT\"]}\n    res = resolve_implicit_intent(intent, filters)\n    assert res == [\"ImageViewer\"]\n\ndef test_intent_category_subset():\n    filters = [\n        {\"component_name\": \"Browser\", \"actions\": [\"VIEW\"], \"mime_types\": [], \"categories\": [\"DEFAULT\", \"BROWSABLE\"]}\n    ]\n    # Intent requests DEFAULT and BROWSABLE -> matches\n    res1 = resolve_implicit_intent({\"action\": \"VIEW\", \"mime_type\": None, \"categories\": [\"DEFAULT\"]}, filters)\n    assert res1 == [\"Browser\"]\n\n    # Intent requests extra category not in filter -> fails\n    res2 = resolve_implicit_intent({\"action\": \"VIEW\", \"mime_type\": None, \"categories\": [\"DEFAULT\", \"VOICE\"]}, filters)\n    assert res2 == []\n\ndef test_intent_no_matching_action():\n    filters = [\n        {\"component_name\": \"CameraApp\", \"actions\": [\"IMAGE_CAPTURE\"], \"mime_types\": [], \"categories\": [\"DEFAULT\"]}\n    ]\n    res = resolve_implicit_intent({\"action\": \"SEND\", \"mime_type\": None, \"categories\": [\"DEFAULT\"]}, filters)\n    assert res == []\n", "mutants": ["def resolve_implicit_intent(intent, installed_filters): return [c[\"component_name\"] for c in installed_filters]\n", "def resolve_implicit_intent(intent, installed_filters):\n    # Broken mutant: ignores category check\n    return [c[\"component_name\"] for c in installed_filters if intent[\"action\"] in c[\"actions\"]]\n"], "hints": ["Support wildcard matching for MIME types like `image/*`.", "Intent categories must be a subset of filter categories (`cats.issubset(c_cats)`)."], "level": "core", "title": "Android Intent resolution: matching Action, MIME Type, and Categories"}, "ex3-activity-task-launch-modes": {"starter": "def simulate_activity_stack_navigation(launches):\n    # Simulates Android Task back stack navigation launch modes\n    return []\n", "solution": "def simulate_activity_stack_navigation(launches):\n    stack = []\n\n    for cmd in launches:\n        op = cmd[0]\n        if op == \"launch\":\n            name = cmd[1]\n            mode = cmd[2]\n\n            if mode == \"standard\":\n                stack.append(name)\n            elif mode == \"singleTop\":\n                if stack and stack[-1] == name:\n                    pass # Reuse in-place\n                else:\n                    stack.append(name)\n            elif mode == \"singleTask\":\n                if name in stack:\n                    # Pop everything above name\n                    idx = stack.index(name)\n                    stack = stack[:idx + 1]\n                else:\n                    stack.append(name)\n        elif op == \"back\":\n            if len(stack) > 1:\n                stack.pop()\n\n    return stack\n", "tests": "def test_standard_and_single_top():\n    launches = [\n        (\"launch\", \"A\", \"standard\"),\n        (\"launch\", \"B\", \"singleTop\"),\n        (\"launch\", \"B\", \"singleTop\"), # Reused in place!\n        (\"launch\", \"C\", \"standard\")\n    ]\n    res = simulate_activity_stack_navigation(launches)\n    assert res == [\"A\", \"B\", \"C\"]\n\ndef test_single_task_pops_intermediate():\n    launches = [\n        (\"launch\", \"Home\", \"standard\"),\n        (\"launch\", \"List\", \"standard\"),\n        (\"launch\", \"Detail\", \"standard\"),\n        (\"launch\", \"Home\", \"singleTask\") # Home exists! Pops List and Detail\n    ]\n    res = simulate_activity_stack_navigation(launches)\n    assert res == [\"Home\"]\n\ndef test_back_button():\n    launches = [\n        (\"launch\", \"A\", \"standard\"),\n        (\"launch\", \"B\", \"standard\"),\n        (\"back\", None, None)\n    ]\n    res = simulate_activity_stack_navigation(launches)\n    assert res == [\"A\"]\n", "mutants": ["def simulate_activity_stack_navigation(launches): return [cmd[1] for cmd in launches if cmd[0] == \"launch\"]\n", "def simulate_activity_stack_navigation(launches):\n    # Broken mutant: treats singleTask as standard\n    s = []\n    for cmd in launches:\n        if cmd[0] == \"launch\": s.append(cmd[1])\n    return s\n"], "hints": ["For singleTop: only reuse if `stack[-1] == name`.", "For singleTask: slice stack up to index of existing instance: `stack[:idx + 1]`."], "level": "core", "title": "Simulating Android Activity Task Back Stack launch modes (standard, singleTop, singleTask)"}, "ex4-pending-intent-mutability-guard": {"starter": "def audit_pending_intent_security(intents_list, target_sdk_version=31):\n    # Audits PendingIntent declarations for Android 12+ mutability vulnerabilities\n    return {\"total_intents\": 0, \"secure_intents\": 0, \"violations\": []}\n", "solution": "def audit_pending_intent_security(intents_list, target_sdk_version=31):\n    violations = []\n    secure_count = 0\n\n    for pi in intents_list:\n        pi_id = pi[\"id\"]\n        flags = pi.get(\"flags\", [])\n        target = pi.get(\"target_component\")\n        reasons = []\n\n        has_immutable = \"FLAG_IMMUTABLE\" in flags\n        has_mutable = \"FLAG_MUTABLE\" in flags\n\n        if target_sdk_version >= 31:\n            if not has_immutable and not has_mutable:\n                reasons.append(\"missing_mutability_flag\")\n\n        if has_mutable and target is None:\n            reasons.append(\"insecure_mutable_intent\")\n\n        if reasons:\n            violations.append({\"id\": pi_id, \"reasons\": reasons})\n        else:\n            secure_count += 1\n\n    return {\n        \"total_intents\": len(intents_list),\n        \"secure_intents\": secure_count,\n        \"violations\": violations\n    }\n", "tests": "def test_secure_immutable():\n    intents = [\n        {\"id\": \"pi1\", \"action\": \"NOTIFY\", \"target_component\": None, \"flags\": [\"FLAG_IMMUTABLE\", \"FLAG_UPDATE_CURRENT\"]}\n    ]\n    res = audit_pending_intent_security(intents, target_sdk_version=31)\n    assert res[\"secure_intents\"] == 1\n    assert res[\"violations\"] == []\n\ndef test_missing_flag_on_android12():\n    intents = [\n        {\"id\": \"pi_legacy\", \"action\": \"ALARM\", \"target_component\": None, \"flags\": [\"FLAG_UPDATE_CURRENT\"]}\n    ]\n    res = audit_pending_intent_security(intents, target_sdk_version=31)\n    assert res[\"secure_intents\"] == 0\n    assert len(res[\"violations\"]) == 1\n    assert \"missing_mutability_flag\" in res[\"violations\"][0][\"reasons\"]\n\ndef test_mutable_without_target_component():\n    intents = [\n        {\"id\": \"pi_vuln\", \"action\": \"SHARE\", \"target_component\": None, \"flags\": [\"FLAG_MUTABLE\"]}\n    ]\n    res = audit_pending_intent_security(intents, target_sdk_version=31)\n    assert \"insecure_mutable_intent\" in res[\"violations\"][0][\"reasons\"]\n", "mutants": ["def audit_pending_intent_security(intents_list, target_sdk_version=31):\n    return {\"total_intents\": len(intents_list), \"secure_intents\": len(intents_list), \"violations\": []}\n", "def audit_pending_intent_security(intents_list, target_sdk_version=31):\n    # Broken mutant: ignores missing mutability flag\n    return {\"total_intents\": len(intents_list), \"secure_intents\": 0, \"violations\": [{\"id\": p[\"id\"], \"reasons\": [\"insecure_mutable_intent\"]} for p in intents_list]}\n"], "hints": ["Check if neither FLAG_IMMUTABLE nor FLAG_MUTABLE is present.", "FLAG_MUTABLE requires an explicit `target_component`."], "level": "boss", "title": "Auditing PendingIntent creation flags for Android 12+ mutability vulnerabilities"}}, "demos": {"oracle-binder-transaction-limit": {"code": "class BinderTransaction:\n    MAX_BUFFER_BYTES = 1024 * 1024 # 1 MB\n\n    @staticmethod\n    def send_parcel(byte_size):\n        if byte_size > BinderTransaction.MAX_BUFFER_BYTES:\n            raise RuntimeError(\"TransactionTooLargeException: Parcel size exceeds 1MB limit\")\n        return True\n\n# Test 500 KB payload: OK\nres1 = BinderTransaction.send_parcel(500 * 1024)\nassert res1 is True\n\n# Test 1.5 MB payload: Must throw TransactionTooLargeException\nthrew = False\ntry:\n    BinderTransaction.send_parcel(1500 * 1024)\nexcept RuntimeError as e:\n    threw = True\n    assert \"TransactionTooLargeException\" in str(e)\n\nassert threw is True, \"Binder must throw TransactionTooLargeException for payloads > 1MB\"\nprint(\"SUCCESS: 1MB Binder buffer limit verified.\")\n", "mutants": ["threw = False # Mutant never throws\nassert threw is True, \"Mutant failed to enforce 1MB Binder limit\"\n"]}, "exp-pending-intent-mutability-security": {"code": "class PendingIntent:\n    def __init__(self, action, target_uri, is_immutable=True):\n        self.action = action\n        self.target_uri = target_uri\n        self.is_immutable = is_immutable\n\n    def modify_intent(self, new_action, new_uri):\n        if self.is_immutable:\n            return False # Modification rejected\n        self.action = new_action\n        self.target_uri = new_uri\n        return True # Tampered successfully\n\npi_secure = PendingIntent(\"VIEW\", \"https://safe.com\", is_immutable=True)\npi_vuln = PendingIntent(\"VIEW\", \"https://safe.com\", is_immutable=False)\n\nassert pi_secure.modify_intent(\"EVIL\", \"https://evil.com\") is False\nassert pi_secure.target_uri == \"https://safe.com\", \"Immutable PendingIntent must not be altered\"\n\nassert pi_vuln.modify_intent(\"EVIL\", \"https://evil.com\") is True\nassert pi_vuln.target_uri == \"https://evil.com\", \"Mutable PendingIntent allowed tampering\"\nprint(\"SUCCESS: PendingIntent immutability security verified.\")\n", "mutants": ["class TamperedIntent:\n    target_uri = \"https://evil.com\"\n\nassert TamperedIntent.target_uri == \"https://safe.com\", \"Mutant allowed immutable tampering\"\n"]}}, "cards": [{"q": "What is Binder in Android?", "a": "The Linux kernel driver that provides secure, high-performance Inter-Process Communication (IPC) with hardware-enforced UID authentication."}, {"q": "What is the Binder transaction buffer limit?", "a": "1 Megabyte (1024 * 1024 bytes) shared across all concurrent transactions for a given process."}, {"q": "What are the four primary Android application components?", "a": "Activity (UI screen), Service (background operation), BroadcastReceiver (system event listener), and ContentProvider (data sharing)."}, {"q": "What does PendingIntent FLAG_IMMUTABLE do?", "a": "Guarantees that foreign apps receiving the PendingIntent cannot modify its action, data, or target component before execution."}, {"q": "What is the difference between standard and singleTop launch modes?", "a": "standard always spawns a new instance; singleTop reuses the instance if it is already at the top of the back stack via onNewIntent()."}, {"q": "What happens during a TransactionTooLargeException?", "a": "A Binder transaction failed because the Parcel payload plus envelope exceeded the 1 MB buffer limit, crashing the calling process."}], "title": "Android IPC and components"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

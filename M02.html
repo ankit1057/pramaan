@@ -1,0 +1,365 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M02 Factors, primes and divisibility</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M02">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 6-8 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M02</p><h1>Factors, primes and divisibility</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M01.html">M01</a></div><div><b>Covers:</b> NCERT 6: Prime Time, NCERT 10: Real Numbers, CS2023 MSF</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>factors and multiples</li><li>divisibility rules and why each one works</li><li>primes and composites</li><li>the sieve of Eratosthenes</li><li>prime factorisation</li><li>HCF and LCM and HCF x LCM = product</li><li>Euclid&#x27;s division lemma and the Euclidean algorithm</li><li>the Fundamental Theorem of Arithmetic (existence and uniqueness)</li><li>Euclid&#x27;s proof that there are infinitely many primes</li><li>proof that sqrt(2) and sqrt(p) are irrational</li><li>co-prime numbers (HCF = 1)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Around 300 BCE, in the Great Library of Alexandria, Euclid of Alexandria penned Proposition 20 in Book IX of the <em>Elements</em>: a proof so elegant, simple, and profound that it remains one of the crowning intellectual achievements of humanity. Euclid proved that prime numbers—the indivisible atomic building blocks of arithmetic—can never run out. Rather than attempting to list every prime, he used proof by contradiction: suppose there were only finitely many primes $p_1, p_2, \dots, p_k$. Form their product and add one: $N = p_1 p_2 \dots p_k + 1$. Either $N$ is prime itself, or it must be divisible by some prime not in our original list, because dividing $N$ by any $p_i$ leaves a remainder of one. In either case, a new prime must exist, destroying the assumption of finiteness.</p>
+<p>Primes had puzzled ancient thinkers since Eratosthenes of Cyrene, third chief librarian of Alexandria, devised his ingenious mechanical sieve: writing integers in a grid and sequentially crossing out multiples of $2$, $3$, $5$, leaving behind only the pure primes. For two thousand years, prime numbers were considered the purest, most abstract branch of pure mathematics, celebrated by G. H. Hardy in <em>A Mathematician's Apology</em> as completely useless for practical human warfare or commerce. Yet in the late twentieth century, with the dawn of digital computing and public-key cryptography (RSA), Euclid's prime numbers became the very foundation of global digital security. Every encrypted credit card transaction, secure banking session, and confidential communication on Earth relies directly on the asymmetry of prime numbers: while multiplying two large primes together takes microseconds, finding the prime factors of their product takes millennia of supercomputer time.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Every whole number greater than one is either a prime number or a composite number built by multiplying primes together. Primes are the atoms of mathematics: numbers like 2, 3, 5, 7, and 11 that cannot be broken down into smaller whole-number factors. The Fundamental Theorem of Arithmetic guarantees that every integer has a single, unique prime factorization—a cryptographic DNA unique to that number. Finding whether one number divides another can be done instantly using divisibility rules, such as checking whether the sum of digits is a multiple of three or nine. Euclid's ancient division algorithm allows us to find the Highest Common Factor (HCF) and Lowest Common Multiple (LCM) of any two numbers in milliseconds by repeatedly taking remainders, revealing that the product of two numbers always equals the product of their HCF and LCM.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal theorems, algebraic structures, and algorithmic procedures of divisibility and prime number theory are defined as follows:</p>
+<ol>
+<li>
+<p><strong>Euclid's Division Lemma and Algorithm</strong>:
+For any integers $a$ and $b$ with $b &gt; 0$, there exist unique integers $q$ (quotient) and $r$ (remainder) such that:
+$$a = b \cdot q + r \quad \text{where } 0 \le r &lt; b$$
+The Euclidean algorithm computes the greatest common divisor $\gcd(a, b)$:
+$$\gcd(a, b) = \gcd(b, a \bmod b) \quad \text{with base case } \gcd(a, 0) = a$$
+The algorithm runs in $O(\log(\min(a, b)))$ steps (Lamé's Theorem: the number of division steps is at most five times the number of decimal digits of the smaller number).</p>
+</li>
+<li>
+<p><strong>The Fundamental Theorem of Arithmetic</strong>:
+Every integer $n &gt; 1$ can be represented uniquely (up to the order of factors) as a product of prime powers:
+$$n = \prod_{i=1}^{k} p_i^{\alpha_i} = p_1^{\alpha_1} p_2^{\alpha_2} \dots p_k^{\alpha_k}$$
+where $p_1 &lt; p_2 &lt; \dots &lt; p_k$ are distinct primes and $\alpha_i \ge 1$ are positive integers.</p>
+</li>
+<li>
+<p><strong>HCF, LCM, and Product Duality</strong>:
+Given prime factorizations of $a$ and $b$:
+$$\gcd(a, b) = \prod_{i=1}^k p_i^{\min(\alpha_i, \beta_i)}, \quad \operatorname{lcm}(a, b) = \prod_{i=1}^k p_i^{\max(\alpha_i, \beta_i)}$$
+Because for any two real numbers $\min(x, y) + \max(x, y) = x + y$:
+$$\gcd(a, b) \times \operatorname{lcm}(a, b) = a \times b$$
+Two numbers $a, b$ are defined as <strong>co-prime</strong> (or relatively prime) if and only if $\gcd(a, b) = 1$.</p>
+</li>
+<li>
+<p><strong>Irrationality of $\sqrt{2}$ and $\sqrt{p}$</strong>:
+Suppose $\sqrt{p} = \frac{a}{b}$ where $a, b \in \mathbb{Z}^+$ are co-prime ($\gcd(a, b) = 1$).
+$$p = \frac{a^2}{b^2} \implies a^2 = p \cdot b^2$$
+Therefore $p \mid a^2$. By Euclid's Lemma, if prime $p \mid a^2$, then $p \mid a$.
+Let $a = p \cdot k$. Substituting:
+$$(p k)^2 = p \cdot b^2 \implies p^2 k^2 = p \cdot b^2 \implies b^2 = p \cdot k^2$$
+Hence $p \mid b^2 \implies p \mid b$.
+Thus $p$ divides both $a$ and $b$, contradicting the premise that $\gcd(a, b) = 1$. Therefore $\sqrt{p}$ is irrational.</p>
+</li>
+<li>
+<p><strong>Divisibility Rules Mechanics</strong>:
+In base 10, $10 \equiv 1 \pmod 9$ and $10 \equiv 1 \pmod 3$, so:
+$$\sum d_i 10^i \equiv \sum d_i \pmod 9 \implies \text{a number is divisible by 9 iff sum of digits is divisible by 9}$$
+Similarly, $10 \equiv -1 \pmod{11}$, so a number is divisible by 11 iff the alternating sum of its digits $\sum (-1)^i d_i$ is divisible by 11.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Number theory and divisibility form the mathematical scaffolding for modern computer science, distributed storage, and information security. Prime numbers are the fundamental building blocks of asymmetric cryptography: algorithms such as RSA, Diffie-Hellman key exchange, and elliptic curve cryptography (ECC) depend entirely on the algebraic properties of prime Galois fields $\mathbb{F}_p$. In hashing and hash tables, choosing hash table capacities as prime numbers minimizes clustering and catastrophic collisions by ensuring that common step sizes are co-prime to the table size.</p>
+<p>Furthermore, the Euclidean algorithm is the prototype for efficient algorithmic design. While naive trial division takes exponential time $O(\min(a, b))$, Euclid's algorithm replaces subtraction with remainder computation, executing exponentially faster in logarithmic steps. The Extended Euclidean Algorithm directly computes modular multiplicative inverses, which are essential for decoding Reed-Solomon error-correcting codes in QR codes and satellite communications.</p>
+<p>Understanding divisibility rules also teaches formal modular arithmetic: why testing the last two digits works for 4 ($100 \equiv 0 \pmod 4$), why the sum of digits works for 3 and 9 ($10 \equiv 1 \pmod 9$), and why alternating digit sums work for 11 ($10 \equiv -1 \pmod{11}$). Mastering these principles grounds software engineers in rigorous proof techniques—contradiction, infinite descent, and mathematical induction.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates the Euclidean division algorithm and the fundamental product duality between greatest common divisors and least common multiples. The oracle computes the step-by-step remainder chain for $\gcd(a, b)$, derives the least common multiple $\operatorname{lcm}(a, b)$, and verifies that the product of the HCF and LCM strictly equals the arithmetic product of the original integers.</p>
+<div class="lab demo" data-demo="m02-oracle-euclidean-algorithm-and-product">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Euclidean Division Algorithm and HCF-LCM Duality Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def euclidean_gcd(a: int, b: int) -&gt; tuple[int, list[tuple[int, int, int, int]]]:
+    if a &lt; 0 or b &lt; 0:
+        raise ValueError(&quot;Inputs must be non-negative integers&quot;)
+    steps = []
+    r0, r1 = max(a, b), min(a, b)
+    while r1 != 0:
+        q = r0 // r1
+        r = r0 % r1
+        steps.append((r0, r1, q, r))
+        r0, r1 = r1, r
+    return r0, steps
+
+def compute_lcm(a: int, b: int) -&gt; int:
+    if a == 0 or b == 0:
+        return 0
+    g, _ = euclidean_gcd(a, b)
+    return (a * b) // g
+
+# Test Euclidean algorithm on 252 and 105:
+# 252 = 105 * 2 + 42
+# 105 = 42 * 2 + 21
+# 42 = 21 * 2 + 0 -&gt; GCD is 21!
+gcd_val, step_log = euclidean_gcd(252, 105)
+lcm_val = compute_lcm(252, 105)
+
+print(f&quot;GCD(252, 105) = {gcd_val}&quot;)
+print(f&quot;LCM(252, 105) = {lcm_val}&quot;)
+print(&quot;Step log:&quot;, step_log)
+
+assert gcd_val == 21
+assert lcm_val == 1260
+# Verify fundamental theorem: GCD x LCM == a x b
+assert gcd_val * lcm_val == 252 * 105
+assert len(step_log) == 3
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment evaluates the Sieve of Eratosthenes algorithm for finding all prime numbers up to a specified limit N. The experiment tracks the prime counting function $\pi(N)$ across logarithmic intervals, verifies that prime factorizations reconstruct composite numbers uniquely, verifies primality for all discovered primes, and demonstrates that the number of primes up to N asymptotically follows the Prime Number Theorem density estimate.</p>
+<div class="lab demo" data-demo="m02-experiment-sieve-of-eratosthenes">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Sieve of Eratosthenes Prime Generation Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def sieve_of_eratosthenes(limit: int) -&gt; list[int]:
+    if limit &lt; 2:
+        return []
+    is_prime = [True] * (limit + 1)
+    is_prime[0] = is_prime[1] = False
+    
+    p = 2
+    while p * p &lt;= limit:
+        if is_prime[p]:
+            for multiple in range(p * p, limit + 1, p):
+                is_prime[multiple] = False
+        p += 1
+        
+    return [i for i, prime in enumerate(is_prime) if prime]
+
+# Primes up to 100: there are exactly 25 primes
+primes_100 = sieve_of_eratosthenes(100)
+print(f&quot;Primes up to 100 ({len(primes_100)} primes):&quot;, primes_100)
+assert len(primes_100) == 25
+assert primes_100[0] == 2
+assert primes_100[-1] == 97
+
+# Primes up to 1000: exactly 168 primes
+primes_1000 = sieve_of_eratosthenes(1000)
+print(f&quot;pi(1000) = {len(primes_1000)}&quot;)
+assert len(primes_1000) == 168
+
+# Verify that all generated numbers have no factors other than 1 and itself
+for p in primes_100:
+    for d in range(2, int(p**0.5) + 1):
+        assert p % d != 0, f&quot;{p} must be prime&quot;
+
+print(&quot;All prime sieve invariants verified successfully!&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-divisibility-rules-and-factors" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Divisibility Rules Engine and Factor Enumerator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement check_divisibility_rules to evaluate divisibility across classic base-10 divisors using mathematical digit properties, and enumerate all distinct factors of a positive integer.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict, List
+
+def check_divisibility_rules(n: int) -&gt; Dict[int, bool]:
+    pass
+
+def get_all_factors(n: int) -&gt; List[int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_divisibility_rules_792():
+    # 792: 7+9+2 = 18 -&gt; div by 2, 3, 4 (92/4=23), 6, 8 (792/8=99), 9 (18/9=2), 11 (2 - 9 + 7 = 0)
+    res = check_divisibility_rules(792)
+    assert res[2]
+    assert res[3]
+    assert res[4]
+    assert not res[5]
+    assert res[6]
+    assert res[8]
+    assert res[9]
+    assert not res[10]
+    assert res[11]
+
+def test_divisibility_rules_100():
+    res = check_divisibility_rules(100)
+    assert res[2]
+    assert not res[3]
+    assert res[4]
+    assert res[5]
+    assert res[10]
+    assert not res[11]
+
+def test_all_factors():
+    assert get_all_factors(28) == [1, 2, 4, 7, 14, 28] # Perfect number
+    assert get_all_factors(13) == [1, 13] # Prime
+    assert get_all_factors(1) == [1]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-prime-factorization-and-fundamental-theorem" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Prime Factorization and Fundamental Theorem of Arithmetic</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement prime_factorize to compute the unique prime power decomposition of positive integers and reconstruct numbers from their factor dictionaries under the Fundamental Theorem of Arithmetic.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict
+
+def prime_factorize(n: int) -&gt; Dict[int, int]:
+    pass
+
+def reconstruct_from_factors(factors: Dict[int, int]) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_prime_factorization_360():
+    # 360 = 2^3 * 3^2 * 5^1
+    fac = prime_factorize(360)
+    assert fac == {2: 3, 3: 2, 5: 1}
+    assert reconstruct_from_factors(fac) == 360
+
+def test_prime_factorization_primes_and_powers():
+    # Prime number 17
+    assert prime_factorize(17) == {17: 1}
+    # Power of two 64 = 2^6
+    assert prime_factorize(64) == {2: 6}
+    # Semiprime 77 = 7 * 11
+    assert prime_factorize(77) == {7: 1, 11: 1}
+
+def test_reconstruct_and_validation():
+    assert reconstruct_from_factors({2: 4, 3: 1}) == 48
+    try:
+        prime_factorize(1)
+        assert False, &quot;Should raise ValueError for n &lt;= 1&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-extended-gcd-and-coprime-verifier" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Extended Euclidean Algorithm and Bézout Identity Coefficients</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement extended_gcd to compute greatest common divisors along with integer Bézout coefficients satisfying a<em>x + b</em>y = gcd(a, b), and verify co-primality between integer pairs.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Tuple
+
+def extended_gcd(a: int, b: int) -&gt; Tuple[int, int, int]:
+    pass
+
+def are_coprime(a: int, b: int) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_extended_gcd_bezout_identity():
+    # gcd(240, 46) = 2
+    # 240 * (-9) + 46 * (47) = -2160 + 2162 = 2
+    g, x, y = extended_gcd(240, 46)
+    assert g == 2
+    assert 240 * x + 46 * y == g
+
+    # gcd(35, 15) = 5
+    g2, x2, y2 = extended_gcd(35, 15)
+    assert g2 == 5
+    assert 35 * x2 + 15 * y2 == g2
+
+def test_coprime_numbers():
+    assert are_coprime(14, 15) # Consecutive numbers are always coprime
+    assert are_coprime(17, 31) # Distinct primes
+    assert not are_coprime(21, 14) # Both divisible by 7
+
+def test_base_cases():
+    g, x, y = extended_gcd(10, 0)
+    assert g == 10
+    assert 10 * x + 0 * y == 10
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-sieve-of-eratosthenes-and-euclid-prime-generator" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Sieve of Eratosthenes and Euclid Infinitude of Primes Sequence</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement SievePrimeGenerator to efficiently generate prime arrays using boolean sieving and construct Euclid numbers N = p1<em>p2</em>...*pk + 1 to discover new prime factors that prove the infinitude of primes.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Dict, List, Optional
+
+class SievePrimeGenerator:
+    def __init__(self, limit: int = 1000):
+        pass
+
+    def get_primes(self) -&gt; List[int]:
+        pass
+
+    def is_prime(self, n: int) -&gt; bool:
+        pass
+
+    def euclid_next_prime_candidate(self, k: int) -&gt; Dict[str, Any]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_sieve_generator_primes_up_to_100():
+    gen = SievePrimeGenerator(limit=100)
+    primes = gen.get_primes()
+    assert len(primes) == 25
+    assert primes[0] == 2
+    assert primes[-1] == 97
+    assert gen.is_prime(73)
+    assert not gen.is_prime(91) # 91 = 7 * 13
+
+def test_euclid_construction_first_few():
+    gen = SievePrimeGenerator(limit=100)
+    # k = 1: p1 = 2 -&gt; N = 2 + 1 = 3 (Prime!)
+    res1 = gen.euclid_next_prime_candidate(k=1)
+    assert res1[&quot;euclid_number&quot;] == 3
+    assert res1[&quot;is_prime&quot;]
+    assert res1[&quot;smallest_prime_factor&quot;] == 3
+    assert res1[&quot;factor_is_new&quot;]
+
+    # k = 3: 2 * 3 * 5 + 1 = 31 (Prime!)
+    res3 = gen.euclid_next_prime_candidate(k=3)
+    assert res3[&quot;euclid_number&quot;] == 31
+    assert res3[&quot;is_prime&quot;]
+    assert res3[&quot;smallest_prime_factor&quot;] == 31
+
+def test_euclid_composite_produces_new_factor():
+    gen = SievePrimeGenerator(limit=100)
+    # k = 6: 2 * 3 * 5 * 7 * 11 * 13 + 1 = 30031 = 59 * 509 (Composite, but 59 is a NEW prime!)
+    res6 = gen.euclid_next_prime_candidate(k=6)
+    assert res6[&quot;euclid_number&quot;] == 30031
+    assert not res6[&quot;is_prime&quot;]
+    assert res6[&quot;smallest_prime_factor&quot;] == 59
+    assert res6[&quot;factor_is_new&quot;]
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"The number 1 is a prime number because its only factor is 1 and itself."</strong> The number 1 is defined as neither prime nor composite (it is a unit). If 1 were prime, the Fundamental Theorem of Arithmetic would fail, because every integer would have infinitely many prime factorizations (e.g. 6 = 2 x 3 = 1 x 2 x 3 = 1 x 1 x 2 x 3).</li>
+<li><strong>"To test if a number N is prime, you must check divisibility by all numbers up to N - 1."</strong> You only need to test primes up to the square root of N ($\sqrt{N}$). If N had a factor greater than $\sqrt{N}$, its corresponding factor pair would necessarily be smaller than $\sqrt{N}$.</li>
+<li><strong>"Euclid's proof of infinitely many primes claims that the product of the first k primes plus one (p1 x p2 x ... x pk + 1) is always a prime number."</strong> Euclid's proof makes no such claim. The number N = p1 x p2 x ... x pk + 1 may be composite (for example, 2 x 3 x 5 x 7 x 11 x 13 + 1 = 30031 = 59 x 509). Euclid's proof only proves that N's prime factors must be NEW primes not in the original finite set.</li>
+<li><strong>"Square roots of all numbers are either integers or fractions."</strong> The square root of any positive integer that is not a perfect square is strictly irrational (cannot be written as a fraction of integers a/b). For example, $\sqrt{2}, \sqrt{3}, \sqrt{5}$ have non-terminating, non-repeating decimal expansions.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Number-theoretic algorithms encounter severe computational bottlenecks at large scale:
+1. <strong>Integer Factorization Asymmetry in RSA Cryptography</strong>: While multiplying two 2048-bit prime numbers requires a single CPU clock cycle, factoring their 4096-bit product requires billions of core-hours using the General Number Field Sieve (GNFS), forming the basis of RSA security.
+2. <strong>Memory Exhaustion in the Sieve of Eratosthenes</strong>: Generating primes up to $10^{10}$ requires allocating gigabytes of memory for boolean arrays. In production systems, engineers use segmented sieves or wheel factorization to process primes in cache-friendly blocks.
+3. <strong>Worst-Case Fibonnaci Inputs in Euclid's Algorithm</strong>: Consecutive Fibonacci numbers ($F_n, F_{n+1}$) represent the absolute theoretical worst-case input for Euclid's algorithm, producing quotients of exactly 1 at every single step and achieving Lamé's upper bound on division steps.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Divisibility and prime factorization are foundational across software systems:
+- <strong>RSA Public-Key Encryption</strong>: OpenSSL and HTTPS TLS handshakes generate pairs of 2048-bit pseudo-random primes using Miller-Rabin probabilistic primality testing, multiplying them to create public encryption moduli.
+- <strong>Hash Table Sizing and Quadratic Probing</strong>: Database engines (PostgreSQL, SQLite) resize hash index buckets to prime numbers to ensure uniform key distribution across hash slots and prevent bucket collisions.
+- <strong>Bézout Coefficients in Extended GCD for Cryptographic Inverses</strong>: Cryptographic signatures (ECDSA) compute modular inverse operations $k^{-1} \pmod n$ using the Extended Euclidean Algorithm on private keys.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>How did Euclid prove that there are infinitely many prime numbers?</p></div><div class="a" hidden><p>By contradiction: assuming finitely many primes p1..pk, N = p1<em>...</em>pk + 1 leaves remainder 1 when divided by any pi, requiring a new prime factor.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does the Fundamental Theorem of Arithmetic state?</p></div><div class="a" hidden><p>Every integer greater than 1 can be represented uniquely as a product of prime powers, up to the order of factors.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the relationship between the HCF, LCM, and product of two numbers?</p></div><div class="a" hidden><p>HCF(a, b) x LCM(a, b) = a x b, because min(x, y) + max(x, y) = x + y for every prime factor's exponents.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why is the square root of 2 an irrational number?</p></div><div class="a" hidden><p>If sqrt(2) = a/b in lowest terms, then 2b^2 = a^2, forcing both a and b to be even, contradicting that a/b was in lowest terms.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the time complexity of Euclid's GCD algorithm?</p></div><div class="a" hidden><p>O(log(min(a, b))) division steps; by Lamé's theorem, the number of steps never exceeds five times the number of digits of the smaller number.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why does the divisibility rule for 9 work by summing decimal digits?</p></div><div class="a" hidden><p>Because 10 = 9 + 1 = 1 (mod 9), so each power 10^k = 1 (mod 9), making the entire number congruent to the sum of its digits mod 9.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can execute the Euclidean algorithm for GCD and LCM, verify divisibility rules, compute unique prime factorizations, calculate Bézout identity coefficients with Extended GCD, and generate primes with the Sieve of Eratosthenes.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Euclid (c. 300 BCE). Elements, Books VII and IX. Alexandria.</li>
+<li>Hardy, G. H., and Wright, E. M. (2008). An Introduction to the Theory of Numbers. Oxford University Press.</li>
+<li>Knuth, Donald E. (1997). The Art of Computer Programming, Volume 2: Seminumerical Algorithms. Addison-Wesley.</li>
+<li>Cormen, Thomas H., et al. (2022). Introduction to Algorithms (4th ed.), Chapter 31: Number-Theoretic Algorithms. MIT Press.</li>
+</ul></section>
+<footer class="pager"><a href="M01.html">&larr; M01 Numbers, place value and the other side of zero</a>
+<a href="M03.html">M03 Fractions, decimals, ratio and percentages &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M02", "packages": [], "exercises": {"ex1-divisibility-rules-and-factors": {"starter": "from typing import Any, Dict, List\n\ndef check_divisibility_rules(n: int) -> Dict[int, bool]:\n    pass\n\ndef get_all_factors(n: int) -> List[int]:\n    pass\n", "solution": "from typing import Any, Dict, List\n\ndef check_divisibility_rules(n: int) -> Dict[int, bool]:\n    if n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n        \n    s = str(n)\n    digits = [int(d) for d in s]\n    digit_sum = sum(digits)\n    last_digit = digits[-1]\n    \n    # Divisibility by 2: last digit even\n    d2 = (last_digit % 2 == 0)\n    \n    # Divisibility by 3: sum of digits divisible by 3\n    d3 = (digit_sum % 3 == 0)\n    \n    # Divisibility by 4: last 2 digits divisible by 4\n    last_two = int(s[-2:]) if len(s) >= 2 else n\n    d4 = (last_two % 4 == 0)\n    \n    # Divisibility by 5: last digit 0 or 5\n    d5 = (last_digit in (0, 5))\n    \n    # Divisibility by 6: divisible by both 2 and 3\n    d6 = (d2 and d3)\n    \n    # Divisibility by 8: last 3 digits divisible by 8\n    last_three = int(s[-3:]) if len(s) >= 3 else n\n    d8 = (last_three % 8 == 0)\n    \n    # Divisibility by 9: sum of digits divisible by 9\n    d9 = (digit_sum % 9 == 0)\n    \n    # Divisibility by 10: last digit is 0\n    d10 = (last_digit == 0)\n    \n    # Divisibility by 11: alternating sum of digits divisible by 11\n    alt_sum = sum((-1)**i * d for i, d in enumerate(reversed(digits)))\n    d11 = (alt_sum % 11 == 0)\n    \n    return {\n        2: d2, 3: d3, 4: d4, 5: d5, 6: d6, 8: d8, 9: d9, 10: d10, 11: d11\n    }\n\ndef get_all_factors(n: int) -> List[int]:\n    if n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    factors = set()\n    for d in range(1, int(n**0.5) + 1):\n        if n % d == 0:\n            factors.add(d)\n            factors.add(n // d)\n    return sorted(factors)\n", "tests": "def test_divisibility_rules_792():\n    # 792: 7+9+2 = 18 -> div by 2, 3, 4 (92/4=23), 6, 8 (792/8=99), 9 (18/9=2), 11 (2 - 9 + 7 = 0)\n    res = check_divisibility_rules(792)\n    assert res[2]\n    assert res[3]\n    assert res[4]\n    assert not res[5]\n    assert res[6]\n    assert res[8]\n    assert res[9]\n    assert not res[10]\n    assert res[11]\n\ndef test_divisibility_rules_100():\n    res = check_divisibility_rules(100)\n    assert res[2]\n    assert not res[3]\n    assert res[4]\n    assert res[5]\n    assert res[10]\n    assert not res[11]\n\ndef test_all_factors():\n    assert get_all_factors(28) == [1, 2, 4, 7, 14, 28] # Perfect number\n    assert get_all_factors(13) == [1, 13] # Prime\n    assert get_all_factors(1) == [1]\n", "mutants": ["def check_divisibility_rules(n: int): assert False, 'mutant injected'\ndef get_all_factors(n: int): assert False, 'mutant injected'\n", "def check_divisibility_rules(n: int):\n    # Mutant thinks all odd numbers fail divisibility by 3\n    return {2: n % 2 == 0, 3: False, 4: False, 5: False, 6: False, 8: False, 9: False, 10: False, 11: False}\ndef get_all_factors(n: int):\n    return [1, n]\n"], "hints": ["Evaluate digit sum for 3 and 9.", "Evaluate alternating sum from least significant digit for 11.", "Enumerate factors up to sqrt(n) and add paired factors."], "level": "warmup", "title": "Divisibility Rules Engine and Factor Enumerator"}, "ex2-prime-factorization-and-fundamental-theorem": {"starter": "from typing import Any, Dict\n\ndef prime_factorize(n: int) -> Dict[int, int]:\n    pass\n\ndef reconstruct_from_factors(factors: Dict[int, int]) -> int:\n    pass\n", "solution": "from typing import Any, Dict\n\ndef prime_factorize(n: int) -> Dict[int, int]:\n    if n <= 1:\n        raise ValueError(\"Prime factorization defined for integers n >= 2\")\n    factors = {}\n    curr = n\n    \n    # Factor out 2\n    count_2 = 0\n    while curr % 2 == 0:\n        count_2 += 1\n        curr //= 2\n    if count_2 > 0:\n        factors[2] = count_2\n        \n    # Factor out odd primes\n    d = 3\n    while d * d <= curr:\n        count_d = 0\n        while curr % d == 0:\n            count_d += 1\n            curr //= d\n        if count_d > 0:\n            factors[d] = count_d\n        d += 2\n        \n    if curr > 1:\n        factors[curr] = 1\n        \n    return factors\n\ndef reconstruct_from_factors(factors: Dict[int, int]) -> int:\n    if not factors:\n        return 1\n    val = 1\n    for p, exp in factors.items():\n        if exp < 0:\n            raise ValueError(\"Exponents must be non-negative\")\n        val *= (p ** exp)\n    return val\n", "tests": "def test_prime_factorization_360():\n    # 360 = 2^3 * 3^2 * 5^1\n    fac = prime_factorize(360)\n    assert fac == {2: 3, 3: 2, 5: 1}\n    assert reconstruct_from_factors(fac) == 360\n\ndef test_prime_factorization_primes_and_powers():\n    # Prime number 17\n    assert prime_factorize(17) == {17: 1}\n    # Power of two 64 = 2^6\n    assert prime_factorize(64) == {2: 6}\n    # Semiprime 77 = 7 * 11\n    assert prime_factorize(77) == {7: 1, 11: 1}\n\ndef test_reconstruct_and_validation():\n    assert reconstruct_from_factors({2: 4, 3: 1}) == 48\n    try:\n        prime_factorize(1)\n        assert False, \"Should raise ValueError for n <= 1\"\n    except ValueError:\n        pass\n", "mutants": ["def prime_factorize(n: int): assert False, 'mutant injected'\ndef reconstruct_from_factors(factors: dict): assert False, 'mutant injected'\n", "def prime_factorize(n: int):\n    # Mutant returns prime factors without counting multiplicity (exponents always 1)\n    if n <= 1: raise ValueError()\n    return {n: 1}\ndef reconstruct_from_factors(factors: dict):\n    return sum(p * exp for p, exp in factors.items())\n"], "hints": ["Factor out multiples of 2 first, then test odd numbers up to sqrt(n).", "If remaining value > 1, it is a prime factor with exponent 1.", "Reconstruct value using product of p**exp."], "level": "core", "title": "Prime Factorization and Fundamental Theorem of Arithmetic"}, "ex3-extended-gcd-and-coprime-verifier": {"starter": "from typing import Any, Tuple\n\ndef extended_gcd(a: int, b: int) -> Tuple[int, int, int]:\n    pass\n\ndef are_coprime(a: int, b: int) -> bool:\n    pass\n", "solution": "from typing import Any, Tuple\n\ndef extended_gcd(a: int, b: int) -> Tuple[int, int, int]:\n    if a < 0 or b < 0:\n        raise ValueError(\"Inputs must be non-negative integers\")\n        \n    old_r, r = a, b\n    old_s, s = 1, 0\n    old_t, t = 0, 1\n    \n    while r != 0:\n        quotient = old_r // r\n        old_r, r = r, old_r - quotient * r\n        old_s, s = s, old_s - quotient * s\n        old_t, t = t, old_t - quotient * t\n        \n    # Result: gcd = old_r, x = old_s, y = old_t such that a*x + b*y = gcd\n    return old_r, old_s, old_t\n\ndef are_coprime(a: int, b: int) -> bool:\n    g, _, _ = extended_gcd(abs(a), abs(b))\n    return g == 1\n", "tests": "def test_extended_gcd_bezout_identity():\n    # gcd(240, 46) = 2\n    # 240 * (-9) + 46 * (47) = -2160 + 2162 = 2\n    g, x, y = extended_gcd(240, 46)\n    assert g == 2\n    assert 240 * x + 46 * y == g\n\n    # gcd(35, 15) = 5\n    g2, x2, y2 = extended_gcd(35, 15)\n    assert g2 == 5\n    assert 35 * x2 + 15 * y2 == g2\n\ndef test_coprime_numbers():\n    assert are_coprime(14, 15) # Consecutive numbers are always coprime\n    assert are_coprime(17, 31) # Distinct primes\n    assert not are_coprime(21, 14) # Both divisible by 7\n\ndef test_base_cases():\n    g, x, y = extended_gcd(10, 0)\n    assert g == 10\n    assert 10 * x + 0 * y == 10\n", "mutants": ["def extended_gcd(a: int, b: int): assert False, 'mutant injected'\ndef are_coprime(a: int, b: int): return False\n", "def extended_gcd(a: int, b: int):\n    # Mutant returns gcd but incorrect coefficients x = 1, y = 1\n    import math\n    g = math.gcd(a, b)\n    return g, 1, 1\ndef are_coprime(a: int, b: int):\n    return (a % 2 != 0) and (b % 2 != 0)\n"], "hints": ["Maintain old_s, s and old_t, t to track B\u00e9zout coefficients through division steps.", "Verify invariant: a*x + b*y == gcd.", "Two numbers are coprime iff their gcd is 1."], "level": "core", "title": "Extended Euclidean Algorithm and B\u00e9zout Identity Coefficients"}, "ex4-sieve-of-eratosthenes-and-euclid-prime-generator": {"starter": "from typing import Any, Dict, List, Optional\n\nclass SievePrimeGenerator:\n    def __init__(self, limit: int = 1000):\n        pass\n\n    def get_primes(self) -> List[int]:\n        pass\n\n    def is_prime(self, n: int) -> bool:\n        pass\n\n    def euclid_next_prime_candidate(self, k: int) -> Dict[str, Any]:\n        pass\n", "solution": "from typing import Any, Dict, List, Optional\n\nclass SievePrimeGenerator:\n    def __init__(self, limit: int = 1000):\n        if limit < 2:\n            raise ValueError(\"limit must be >= 2\")\n        self.limit = limit\n        self._sieve = [True] * (limit + 1)\n        self._sieve[0] = self._sieve[1] = False\n        \n        p = 2\n        while p * p <= limit:\n            if self._sieve[p]:\n                for m in range(p * p, limit + 1, p):\n                    self._sieve[m] = False\n            p += 1\n            \n        self._primes = [i for i, prime in enumerate(self._sieve) if prime]\n\n    def get_primes(self) -> List[int]:\n        return list(self._primes)\n\n    def is_prime(self, n: int) -> bool:\n        if n <= 1:\n            return False\n        if n <= self.limit:\n            return self._sieve[n]\n        # Trial division fallback for n > limit\n        d = 2\n        while d * d <= n:\n            if n % d == 0:\n                return False\n            d += 1\n        return True\n\n    def euclid_next_prime_candidate(self, k: int) -> Dict[str, Any]:\n        if k < 1 or k > len(self._primes):\n            raise ValueError(f\"k must be between 1 and {len(self._primes)}\")\n            \n        selected_primes = self._primes[:k]\n        product = 1\n        for p in selected_primes:\n            product *= p\n            \n        euclid_n = product + 1\n        \n        # Find smallest prime factor of euclid_n\n        d = 2\n        smallest_factor = euclid_n\n        while d * d <= euclid_n:\n            if euclid_n % d == 0:\n                smallest_factor = d\n                break\n            d += 1\n\n        is_euclid_prime = (smallest_factor == euclid_n)\n        return {\n            \"k_primes_used\": selected_primes,\n            \"euclid_number\": euclid_n,\n            \"is_prime\": is_euclid_prime,\n            \"smallest_prime_factor\": smallest_factor,\n            \"factor_is_new\": smallest_factor not in selected_primes\n        }\n", "tests": "def test_sieve_generator_primes_up_to_100():\n    gen = SievePrimeGenerator(limit=100)\n    primes = gen.get_primes()\n    assert len(primes) == 25\n    assert primes[0] == 2\n    assert primes[-1] == 97\n    assert gen.is_prime(73)\n    assert not gen.is_prime(91) # 91 = 7 * 13\n\ndef test_euclid_construction_first_few():\n    gen = SievePrimeGenerator(limit=100)\n    # k = 1: p1 = 2 -> N = 2 + 1 = 3 (Prime!)\n    res1 = gen.euclid_next_prime_candidate(k=1)\n    assert res1[\"euclid_number\"] == 3\n    assert res1[\"is_prime\"]\n    assert res1[\"smallest_prime_factor\"] == 3\n    assert res1[\"factor_is_new\"]\n\n    # k = 3: 2 * 3 * 5 + 1 = 31 (Prime!)\n    res3 = gen.euclid_next_prime_candidate(k=3)\n    assert res3[\"euclid_number\"] == 31\n    assert res3[\"is_prime\"]\n    assert res3[\"smallest_prime_factor\"] == 31\n\ndef test_euclid_composite_produces_new_factor():\n    gen = SievePrimeGenerator(limit=100)\n    # k = 6: 2 * 3 * 5 * 7 * 11 * 13 + 1 = 30031 = 59 * 509 (Composite, but 59 is a NEW prime!)\n    res6 = gen.euclid_next_prime_candidate(k=6)\n    assert res6[\"euclid_number\"] == 30031\n    assert not res6[\"is_prime\"]\n    assert res6[\"smallest_prime_factor\"] == 59\n    assert res6[\"factor_is_new\"]\n", "mutants": ["class SievePrimeGenerator:\n    def __init__(self, limit: int = 1000): pass\n    def get_primes(self): return []\n    def is_prime(self, n: int): return False\n    def euclid_next_prime_candidate(self, k: int): assert False, 'mutant injected'\n", "class SievePrimeGenerator:\n    def __init__(self, limit: int = 1000):\n        self.limit = limit\n        self._primes = [2, 3, 5, 7]\n    def get_primes(self): return list(self._primes)\n    def is_prime(self, n: int): return n in self._primes\n    def euclid_next_prime_candidate(self, k: int):\n        # Mutant always claims Euclid number is prime!\n        return {\"k_primes_used\": self._primes[:k], \"euclid_number\": 30031, \"is_prime\": True, \"smallest_prime_factor\": 30031, \"factor_is_new\": True}\n"], "hints": ["Allocate boolean array up to limit and eliminate multiples of primes starting from p*p.", "Compute product of first k primes and add 1.", "Smallest prime factor of Euclid number must not belong to the initial k primes."], "level": "boss", "title": "Sieve of Eratosthenes and Euclid Infinitude of Primes Sequence"}}, "demos": {"m02-oracle-euclidean-algorithm-and-product": {"code": "def euclidean_gcd(a: int, b: int) -> tuple[int, list[tuple[int, int, int, int]]]:\n    if a < 0 or b < 0:\n        raise ValueError(\"Inputs must be non-negative integers\")\n    steps = []\n    r0, r1 = max(a, b), min(a, b)\n    while r1 != 0:\n        q = r0 // r1\n        r = r0 % r1\n        steps.append((r0, r1, q, r))\n        r0, r1 = r1, r\n    return r0, steps\n\ndef compute_lcm(a: int, b: int) -> int:\n    if a == 0 or b == 0:\n        return 0\n    g, _ = euclidean_gcd(a, b)\n    return (a * b) // g\n\n# Test Euclidean algorithm on 252 and 105:\n# 252 = 105 * 2 + 42\n# 105 = 42 * 2 + 21\n# 42 = 21 * 2 + 0 -> GCD is 21!\ngcd_val, step_log = euclidean_gcd(252, 105)\nlcm_val = compute_lcm(252, 105)\n\nprint(f\"GCD(252, 105) = {gcd_val}\")\nprint(f\"LCM(252, 105) = {lcm_val}\")\nprint(\"Step log:\", step_log)\n\nassert gcd_val == 21\nassert lcm_val == 1260\n# Verify fundamental theorem: GCD x LCM == a x b\nassert gcd_val * lcm_val == 252 * 105\nassert len(step_log) == 3\n", "mutants": ["def euclidean_gcd(a: int, b: int):\n    # Mutant returns min(a, b) instead of calculating true GCD!\n    return min(a, b), [(a, b, 1, 0)]\n\ndef compute_lcm(a: int, b: int):\n    return (a * b) // min(a, b)\n\ng, _ = euclidean_gcd(252, 105)\nassert g == 21, \"Euclidean algorithm must calculate true GCD\"\n"]}, "m02-experiment-sieve-of-eratosthenes": {"code": "def sieve_of_eratosthenes(limit: int) -> list[int]:\n    if limit < 2:\n        return []\n    is_prime = [True] * (limit + 1)\n    is_prime[0] = is_prime[1] = False\n    \n    p = 2\n    while p * p <= limit:\n        if is_prime[p]:\n            for multiple in range(p * p, limit + 1, p):\n                is_prime[multiple] = False\n        p += 1\n        \n    return [i for i, prime in enumerate(is_prime) if prime]\n\n# Primes up to 100: there are exactly 25 primes\nprimes_100 = sieve_of_eratosthenes(100)\nprint(f\"Primes up to 100 ({len(primes_100)} primes):\", primes_100)\nassert len(primes_100) == 25\nassert primes_100[0] == 2\nassert primes_100[-1] == 97\n\n# Primes up to 1000: exactly 168 primes\nprimes_1000 = sieve_of_eratosthenes(1000)\nprint(f\"pi(1000) = {len(primes_1000)}\")\nassert len(primes_1000) == 168\n\n# Verify that all generated numbers have no factors other than 1 and itself\nfor p in primes_100:\n    for d in range(2, int(p**0.5) + 1):\n        assert p % d != 0, f\"{p} must be prime\"\n\nprint(\"All prime sieve invariants verified successfully!\")\n", "mutants": ["def sieve_of_eratosthenes(limit: int) -> list[int]:\n    # Mutant marks odd numbers as prime and forgets to eliminate multiples of 3, 5, etc.!\n    return [x for x in range(2, limit + 1) if x % 2 != 0 or x == 2]\n\nres = sieve_of_eratosthenes(100)\nassert len(res) == 25, \"Sieve must eliminate all composite numbers like 9, 15, 21\"\n"]}}, "cards": [{"q": "How did Euclid prove that there are infinitely many prime numbers?", "a": "By contradiction: assuming finitely many primes p1..pk, N = p1*...*pk + 1 leaves remainder 1 when divided by any pi, requiring a new prime factor."}, {"q": "What does the Fundamental Theorem of Arithmetic state?", "a": "Every integer greater than 1 can be represented uniquely as a product of prime powers, up to the order of factors."}, {"q": "What is the relationship between the HCF, LCM, and product of two numbers?", "a": "HCF(a, b) x LCM(a, b) = a x b, because min(x, y) + max(x, y) = x + y for every prime factor's exponents."}, {"q": "Why is the square root of 2 an irrational number?", "a": "If sqrt(2) = a/b in lowest terms, then 2b^2 = a^2, forcing both a and b to be even, contradicting that a/b was in lowest terms."}, {"q": "What is the time complexity of Euclid's GCD algorithm?", "a": "O(log(min(a, b))) division steps; by Lam\u00e9's theorem, the number of steps never exceeds five times the number of digits of the smaller number."}, {"q": "Why does the divisibility rule for 9 work by summing decimal digits?", "a": "Because 10 = 9 + 1 = 1 (mod 9), so each power 10^k = 1 (mod 9), making the entire number congruent to the sum of its digits mod 9."}], "title": "Factors, primes and divisibility"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

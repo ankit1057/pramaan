@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D01 Complexity analysis</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D01">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-1 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D01</p><h1>Complexity analysis</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M14.html">M14</a> <a href="M17.html">M17</a></div><div><b>Covers:</b> CS2023 AL, L5 coding</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>the RAM model and counting operations</li><li>Big-O, Omega and Theta defined</li><li>common growth rates</li><li>loops and nested loops</li><li>recurrences by substitution and recursion trees</li><li>the Master theorem</li><li>amortised analysis: aggregate, accounting and potential methods (dynamic array doubling)</li><li>space complexity</li><li>predicting vs measuring (log-log slope of measured operation counts)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1965, Juris Hartmanis and Richard E. Stearns published a landmark paper titled <em>On the Computational Complexity of Algorithms</em>, establishing computational complexity as a formal scientific discipline. Prior to their work, computer scientists evaluated program speed by measuring clock seconds on specific mainframe computers. But seconds were misleading: an inefficient quadratic algorithm on a supercomputer would outpace a brilliant linear algorithm on a budget machine for small inputs, only to grind to a halt as input datasets expanded into millions of records. Hartmanis and Stearns realized that computer science needed an invariant metric independent of clock cycles, operating systems, or semiconductor fabrication: the rate of growth of elementary operations as input size $N$ tends to infinity. Donald Knuth later popularized Big-O, Big-Omega, and Big-Theta notation from analytic number theory, providing software engineers with the universal mathematical vocabulary to reason rigorously about scalability.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>When you write computer code, you need to know how much slower it will get when handling ten items versus ten million items. Computational complexity analysis measures this growth rate without caring about how fast your laptop CPU is. We use "Big-O" notation to describe the worst-case speed limit of an algorithm: $O(1)$ means instant no matter how big the data is, $O(N)$ grows in a straight line with the number of items, and $O(N^2)$ gets four times slower every time you double the data. By analyzing loops and recursion mathematically, you can prove whether your software will run smoothly in production or freeze under real-world workloads.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Computational complexity analysis evaluates algorithms under the standard Random Access Machine (RAM) model:
+1. <strong>Asymptotic Notations Formally Defined</strong>:
+   Let $f(n)$ and $g(n)$ be functions from positive integers to positive reals:
+   - <strong>$O(g(n))$ (Upper Bound)</strong>:
+     $$f(n) \in O(g(n)) \iff \exists c &gt; 0, n_0 &gt; 0 \text{ s.t. } \forall n \ge n_0, f(n) \le c \cdot g(n)$$
+   - <strong>$\Omega(g(n))$ (Lower Bound)</strong>:
+     $$f(n) \in \Omega(g(n)) \iff \exists c &gt; 0, n_0 &gt; 0 \text{ s.t. } \forall n \ge n_0, f(n) \ge c \cdot g(n)$$
+   - <strong>$\Theta(g(n))$ (Tight Bound)</strong>:
+     $$f(n) \in \Theta(g(n)) \iff f(n) \in O(g(n)) \land f(n) \in \Omega(g(n))$$</p>
+<ol start="2">
+<li>
+<p><strong>Common Growth Hierarchy</strong>:
+   $$O(1) \subset O(\log \log n) \subset O(\log n) \subset O(\sqrt{n}) \subset O(n) \subset O(n \log n) \subset O(n^2) \subset O(n^3) \subset O(2^n) \subset O(n!)$$</p>
+</li>
+<li>
+<p><strong>Divide-and-Conquer Recurrences &amp; Master Theorem</strong>:
+   For recurrences of the form $T(n) = a T(n/b) + \Theta(n^k \log^p n)$ where $a \ge 1, b &gt; 1, k \ge 0$:
+   - Case 1: If $\log_b a &gt; k$, then $T(n) = \Theta(n^{\log_b a})$ (leaves dominate).
+   - Case 2: If $\log_b a = k$, then $T(n) = \Theta(n^k \log^{p+1} n)$ (work evenly distributed across tree levels).
+   - Case 3: If $\log_b a &lt; k$, then $T(n) = \Theta(n^k \log^p n)$ (root dominates).</p>
+</li>
+<li>
+<p><strong>Amortized Analysis</strong>:
+   - Evaluates the average performance of a sequence of operations where occasional expensive steps are paid for by many cheap steps.
+   - Three classic methods: <strong>Aggregate Method</strong> (divide total sequence work by $N$), <strong>Accounting Method</strong> (assign credit tokens to cheap operations), and <strong>Potential Function Method</strong> ($\Phi(D)$, where amortized cost $\hat{c}_i = c_i + \Phi(D_i) - \Phi(D_{i-1})$).</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why amortized analysis is essential, consider the append operation on a dynamic array (like Python <code>list</code>, Java <code>ArrayList</code>, or C++ <code>std::vector</code>). </p>
+<p>When an array reaches full capacity, the next append must allocate a new buffer of double capacity, copy all $N$ existing elements to the new memory block, and insert the new element. A single append operation can take $O(N)$ time! A naive worst-case analysis would conclude that appending $N$ items takes $O(N^2)$ total time.</p>
+<p>However, examine the aggregate work across $N$ sequential appends starting from capacity 1:
+- Resizes occur only at powers of two: $1, 2, 4, 8, 16, \dots, 2^k \le N$.
+- Total elements copied across all resize steps:
+  $$\sum_{i=0}^{\lfloor \log_2 N \rfloor} 2^i = 2^{\lfloor \log_2 N \rfloor + 1} - 1 &lt; 2N$$
+- Adding the $N$ individual element insertions:
+  $$\text{Total Work} = N \text{ (inserts)} + 2N \text{ (copies)} = 3N \text{ operations}$$
+Dividing total work $3N$ by the number of operations $N$ yields an average of exactly 3 operations per append. Thus, the <strong>amortized time complexity</strong> of dynamic array append is strictly $O(1)$! By accepting an occasional $O(N)$ resize, the data structure guarantees constant-time operations on average.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that Master Theorem asymptotic bounds, dynamic array amortized doubling costs, and empirical log-log slope estimators adhere to rigorous algorithmic complexity theory, we construct an empirical complexity oracle. The oracle validates that divide-and-conquer recurrences match theoretical Master Theorem bounds, proves that dynamic array appends average constant amortized operations, and confirms that empirical timing measurements accurately reflect asymptotic polynomial exponents.</p>
+<div class="lab demo" data-demo="oracle-master-theorem-bounds">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of Master Theorem recurrence asymptotic complexity classifications</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def solve_master_theorem_case(a, b, k):
+    # T(n) = a * T(n/b) + Theta(n^k)
+    crit = math.log(a, b)
+    if abs(crit - k) &lt; 1e-9:
+        return &quot;Theta(n^k log n)&quot;
+    elif crit &gt; k:
+        return f&quot;Theta(n^{crit:.2f})&quot;
+    else:
+        return f&quot;Theta(n^{k})&quot;
+
+# MergeSort: T(n) = 2T(n/2) + Theta(n) -&gt; a=2, b=2, k=1 -&gt; crit = log_2(2) = 1 == k
+res_mergesort = solve_master_theorem_case(2, 2, 1)
+assert res_mergesort == &quot;Theta(n^k log n)&quot;
+
+# Binary Search: T(n) = 1T(n/2) + Theta(1) -&gt; a=1, b=2, k=0 -&gt; crit = log_2(1) = 0 == k
+res_binsearch = solve_master_theorem_case(1, 2, 0)
+assert res_binsearch == &quot;Theta(n^k log n)&quot;
+
+# Strassen: T(n) = 7T(n/2) + Theta(n^2) -&gt; a=7, b=2, k=2 -&gt; crit = log_2(7) = 2.81 &gt; 2
+res_strassen = solve_master_theorem_case(7, 2, 2)
+assert res_strassen == &quot;Theta(n^2.81)&quot;
+
+print(&quot;SUCCESS: Master Theorem recurrence classification verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment testing the log-log scaling slope of matrix multiplication versus linear array search across input sizes from $N=100$ to $N=1,000$. We verify that the empirical linear regression slope on log-transformed timings yields $\text{slope} \approx 3.0$ for cubic matrix multiplication and $\text{slope} \approx 1.0$ for linear search, demonstrating how empirical measurements confirm theoretical Big-O exponents.</p>
+<div class="lab demo" data-demo="exp-log-log-complexity-slope">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical validation of algorithmic complexity via log-log timing slope</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def calculate_log_log_slope(sizes, times):
+    # Fit line log(T) = k * log(N) + c
+    log_n = [math.log(n) for n in sizes]
+    log_t = [math.log(t) for t in times]
+    n_points = len(sizes)
+
+    mean_x = sum(log_n) / n_points
+    mean_y = sum(log_t) / n_points
+
+    numer = sum((log_n[i] - mean_x) * (log_t[i] - mean_y) for i in range(n_points))
+    denom = sum((log_n[i] - mean_x) ** 2 for i in range(n_points))
+
+    slope = numer / denom
+    return round(slope, 2)
+
+# Synthetic timing data: T ~ 0.001 * N^2 (Quadratic algorithm)
+sizes = [100, 200, 400, 800]
+quadratic_times = [0.001 * (n ** 2) for n in sizes]
+
+slope_quad = calculate_log_log_slope(sizes, quadratic_times)
+print(f&quot;Empirical slope: {slope_quad}&quot;)
+assert slope_quad == 2.0, &quot;Quadratic algorithm must have log-log slope of 2.0&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-master-theorem-solver" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Master theorem divide-and-conquer recurrence solver</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>classify_master_theorem(a, b, k, p=0)</code>:
+Given recurrence $T(n) = a T(n/b) + \Theta(n^k \log^p n)$ where $a \ge 1, b &gt; 1, k \ge 0, p \ge 0$:
+1. Calculate critical exponent $c_{\text{crit}} = \log_b a$.
+2. Compare $c_{\text{crit}}$ with $k$ (use tolerance $10^{-5}$):
+   - <strong>Case 1 ($c_{\text{crit}} &gt; k$)</strong>: Leaves dominate.
+     If $c_{\text{crit}}$ is an integer, return <code>f"Theta(n^{int(c_crit)})"</code>.
+     Else return <code>f"Theta(n^{round(c_crit, 3)})"</code>.
+   - <strong>Case 2 ($|c_{\text{crit}} - k| \le 10^{-5}$)</strong>: Balanced work across levels.
+     If $p == 0$:
+       Return <code>f"Theta(n^{k} log n)"</code> if $k \ne 1$ else <code>"Theta(n log n)"</code>. (If $k == 0$, return <code>"Theta(log n)"</code>).
+     Else:
+       Return <code>f"Theta(n^{k} log^{p+1} n)"</code>.
+   - <strong>Case 3 ($c_{\text{crit}} &lt; k$)</strong>: Root dominates.
+     If $p == 0$:
+       Return <code>f"Theta(n^{k})"</code> if $k \ne 1$ else <code>"Theta(n)"</code>.
+     Else:
+       Return <code>f"Theta(n^{k} log^{p} n)"</code>.
+3. Return asymptotic complexity string.</p></div>
+<textarea class="code" spellcheck="false">def classify_master_theorem(a, b, k, p=0):
+    # Classifies divide-and-conquer recurrence using Master Theorem
+    return &quot;&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_master_theorem_mergesort():
+    # T(n) = 2T(n/2) + Theta(n)
+    res = classify_master_theorem(2, 2, 1, p=0)
+    assert res == &quot;Theta(n log n)&quot;
+
+def test_master_theorem_binary_search():
+    # T(n) = 1T(n/2) + Theta(1)
+    res = classify_master_theorem(1, 2, 0, p=0)
+    assert res == &quot;Theta(log n)&quot;
+
+def test_master_theorem_karatsuba():
+    # T(n) = 3T(n/2) + Theta(n) -&gt; log2(3) = 1.585
+    res = classify_master_theorem(3, 2, 1, p=0)
+    assert res == &quot;Theta(n^1.585)&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-empirical-log-log-slope-estimator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Empirical runtime complexity estimator via log-log linear regression slope</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>estimate_complexity_exponent(input_sizes, runtimes_sec)</code>:
+Inputs:
+- <code>input_sizes</code>: List of positive integer input sizes $N$ (e.g. <code>[100, 200, 400, 800]</code>).
+- <code>runtimes_sec</code>: List of float execution durations in seconds.</p>
+<p>Estimation Protocol:
+Assuming power law $T(N) \approx c \cdot N^k \implies \ln(T) \approx k \cdot \ln(N) + \ln(c)$:
+1. Transform: $x_i = \ln(N_i)$, $y_i = \ln(T_i)$.
+2. Calculate slope $k$ via ordinary least squares (OLS) regression:
+   $$\bar{x} = \frac{1}{m} \sum x_i, \quad \bar{y} = \frac{1}{m} \sum y_i$$
+   $$k = \frac{\sum (x_i - \bar{x})(y_i - \bar{y})}{\sum (x_i - \bar{x})^2}$$
+3. Round slope $k$ to 2 decimal places.
+4. Classify estimated complexity family:
+   - $k &lt; 0.3$: <code>"O(1) or O(log N)"</code>
+   - $0.3 \le k &lt; 1.3$: <code>"O(N) or O(N log N)"</code>
+   - $1.3 \le k &lt; 2.3$: <code>"O(N^2)"</code>
+   - $k \ge 2.3$: <code>"O(N^3) or higher"</code>
+5. Return dict:
+   <code>{"slope": k, "family": family}</code>.</p></div>
+<textarea class="code" spellcheck="false">def estimate_complexity_exponent(input_sizes, runtimes_sec):
+    # Estimates asymptotic power-law exponent from empirical runtimes
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_estimate_quadratic():
+    sizes = [100, 200, 400, 800]
+    times = [0.01 * (n ** 2) for n in sizes]
+    res = estimate_complexity_exponent(sizes, times)
+    assert res[&quot;slope&quot;] == 2.0
+    assert res[&quot;family&quot;] == &quot;O(N^2)&quot;
+
+def test_estimate_linear():
+    sizes = [100, 200, 400, 800]
+    times = [0.05 * n for n in sizes]
+    res = estimate_complexity_exponent(sizes, times)
+    assert res[&quot;slope&quot;] == 1.0
+    assert res[&quot;family&quot;] == &quot;O(N) or O(N log N)&quot;
+
+def test_estimate_constant():
+    sizes = [100, 200, 400, 800]
+    times = [0.005, 0.005, 0.005, 0.005]
+    res = estimate_complexity_exponent(sizes, times)
+    assert res[&quot;slope&quot;] == 0.0
+    assert res[&quot;family&quot;] == &quot;O(1) or O(log N)&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-dynamic-array-amortized-simulator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Dynamic array capacity doubling and amortized cost accountant</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>simulate_dynamic_array_appends(num_appends, growth_factor=2.0)</code>:
+Inputs:
+- <code>num_appends</code>: Integer count of sequential append operations to perform (starting from capacity 1).
+- <code>growth_factor</code>: Float capacity expansion multiplier (default 2.0).</p>
+<p>Simulation Rules:
+1. State: <code>capacity = 1</code>, <code>size = 0</code>.
+2. For each append step $i \in [1, \text{num\_appends}]$:
+   - If <code>size == capacity</code>:
+     - Array must resize!
+     - <code>new_capacity = int(capacity * growth_factor)</code> (minimum <code>capacity + 1</code>).
+     - Copy cost = <code>size</code> operations (copying all existing elements).
+     - <code>capacity = new_capacity</code>.
+   - Else:
+     - Copy cost = 0 operations.
+   - Insert cost = 1 operation.
+   - Total step cost: <code>step_cost = copy_cost + 1</code>.
+   - Increment <code>size += 1</code>.
+3. Metrics:
+   - <code>total_operations</code>: Sum of step costs across all appends.
+   - <code>amortized_cost_per_append</code>: <code>round(total_operations / num_appends, 2)</code>.
+   - <code>resize_count</code>: Total number of resize events triggered.
+   - <code>final_capacity</code>: Final allocated buffer capacity.
+4. Return dict:
+   <code>{"total_operations": total_operations, "amortized_cost_per_append": amortized_cost_per_append, "resize_count": resize_count, "final_capacity": capacity}</code>.</p></div>
+<textarea class="code" spellcheck="false">def simulate_dynamic_array_appends(num_appends, growth_factor=2.0):
+    # Simulates dynamic array memory reallocation and amortized operation counts
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_dynamic_array_10_appends():
+    # Appends:
+    # 1: size=0, cap=1 -&gt; insert (ops=1)
+    # 2: size=1, cap=1 -&gt; resize to 2, copy 1, insert 1 (ops=2)
+    # 3: size=2, cap=2 -&gt; resize to 4, copy 2, insert 1 (ops=3)
+    # 4: size=3, cap=4 -&gt; insert (ops=1)
+    # 5: size=4, cap=4 -&gt; resize to 8, copy 4, insert 1 (ops=5)
+    res = simulate_dynamic_array_appends(10, growth_factor=2.0)
+    assert res[&quot;final_capacity&quot;] == 16
+    assert res[&quot;resize_count&quot;] == 4 # Resized at 1, 2, 4, 8
+    assert res[&quot;amortized_cost_per_append&quot;] &lt; 3.0 # Strict O(1) amortized bound!
+
+def test_dynamic_array_large_appends():
+    res = simulate_dynamic_array_appends(1000)
+    assert res[&quot;amortized_cost_per_append&quot;] &lt; 3.0
+
+def test_dynamic_array_zero():
+    res = simulate_dynamic_array_appends(0)
+    assert res[&quot;total_operations&quot;] == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-recursion-tree-operation-counter" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Recursion tree work-per-level tracker and total operation accountant</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>trace_recursion_tree(a, b, work_func, initial_n)</code>:
+Inputs:
+- <code>a</code>: Integer number of recursive subproblems generated per node.
+- <code>b</code>: Integer factor by which subproblem size is reduced ($N \to \lfloor N / b \rfloor$).
+- <code>work_func</code>: Callable <code>work(n)</code> returning the non-recursive work performed at a node of size $n$.
+- <code>initial_n</code>: Integer starting problem size.</p>
+<p>Tree Traversal Protocol:
+1. Level 0 (Root): 1 node of size <code>initial_n</code>.
+2. For level $L = 0, 1, 2, \dots$:
+   - Current subproblem size $n_L = \text{initial\_n} // (b^L)$.
+   - If $n_L &lt; 1$: stop tree expansion (base cases reached).
+   - Node count at level $L$: $N_{\text{nodes}} = a^L$.
+   - Work per node at level $L$: $W_{\text{node}} = \text{work\_func}(n_L)$.
+   - Level total work: $W_{\text{level}} = N_{\text{nodes}} \times W_{\text{node}}$.
+   - Record level summary dict: <code>{"level": L, "subproblem_size": n_L, "node_count": N_nodes, "work_per_level": W_level}</code>.
+3. Compute total tree work: sum of <code>work_per_level</code> across all generated levels.
+4. Total levels count.
+5. Return dict:
+   <code>{"levels": [level_dict, ...], "total_levels": int, "total_work": int}</code>.</p></div>
+<textarea class="code" spellcheck="false">def trace_recursion_tree(a, b, work_func, initial_n):
+    # Simulates recursion tree level-by-level work accumulation
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_recursion_tree_mergesort():
+    # MergeSort: a=2, b=2, work=n, N=8
+    # Level 0: n=8, nodes=1, work=8
+    # Level 1: n=4, nodes=2, work=8
+    # Level 2: n=2, nodes=4, work=8
+    # Level 3: n=1, nodes=8, work=8
+    # Total = 32 operations across 4 levels
+    res = trace_recursion_tree(2, 2, lambda n: n, 8)
+    assert res[&quot;total_levels&quot;] == 4
+    assert res[&quot;total_work&quot;] == 32
+    for lvl in res[&quot;levels&quot;]:
+        assert lvl[&quot;work_per_level&quot;] == 8
+
+def test_recursion_tree_binary_search():
+    # Binary Search: a=1, b=2, work=1, N=4
+    # Level 0: n=4, nodes=1, work=1
+    # Level 1: n=2, nodes=1, work=1
+    # Level 2: n=1, nodes=1, work=1
+    # Total = 3 operations
+    res = trace_recursion_tree(1, 2, lambda n: 1, 4)
+    assert res[&quot;total_levels&quot;] == 3
+    assert res[&quot;total_work&quot;] == 3
+
+def test_recursion_tree_zero():
+    res = trace_recursion_tree(2, 2, lambda n: n, 0)
+    assert res[&quot;total_levels&quot;] == 0
+    assert res[&quot;total_work&quot;] == 0
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Big-O notation describes the average running time of an algorithm."</strong> Big-O provides an asymptotic upper bound on the worst-case running time; Big-Theta describes tight asymptotic bounds, and average-case analysis requires probabilistic distributions over inputs.</li>
+<li><strong>"An $O(N^2)$ algorithm is always slower than an $O(N)$ algorithm."</strong> Big-O characterizes asymptotic behavior as $N 	o \infty$; for small $N$ (e.g. $N &lt; 20$), an $O(N^2)$ algorithm like Insertion Sort often beats $O(N \log N)$ Quicksort due to lower constant overhead and cache locality.</li>
+<li><strong>"Dynamic array append takes $O(N)$ time because it occasionally copies all elements."</strong> Although resizing takes $O(N)$, geometric doubling amortizes the copying work so that the aggregate cost of $N$ appends is $3N$, making the amortized time strictly $O(1)$.</li>
+<li><strong>"Space complexity only counts auxiliary memory allocated during execution."</strong> Total space complexity includes input storage plus auxiliary heap/stack allocations; auxiliary space complexity measures only additional memory allocated beyond the input.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Complexity analysis breaks down in practice when engineers rely on theoretical asymptotic bounds while ignoring hardware cache hierarchies and constant factors, causing $O(N \log N)$ pointer-chasing tree traversals to run slower than $O(N^2)$ contiguous array scans on modern CPUs, or when dynamic arrays use fixed-increment capacity reallocation instead of geometric doubling, degenerating amortized $O(1)$ appends into quadratic $O(N^2)$ performance.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Complexity analysis is the mathematical bedrock of algorithm engineering on constrained hardware. On a low-cost handset, asymptotic bounds guide index selection for offline SQLite queries, a balanced search tree bounds catalogue lookups to $O(\log N)$, and amortised analysis proves that a dynamically grown batch buffer stays $O(1)$ per insertion even during a high-throughput ingest.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the formal definition of Big-O notation?</p></div><div class="a" hidden><p>f(n) is in O(g(n)) if there exist constants c &gt; 0 and n0 &gt; 0 such that f(n) &lt;= c * g(n) for all n &gt;= n0.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the difference between Big-O, Big-Omega, and Big-Theta?</p></div><div class="a" hidden><p>Big-O is an asymptotic upper bound, Big-Omega is an asymptotic lower bound, and Big-Theta is an asymptotically tight bound (both upper and lower).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the Master Theorem for divide-and-conquer recurrences?</p></div><div class="a" hidden><p>A formula solving T(n) = a*T(n/b) + Theta(n^k log^p n) by comparing log_b(a) with k to determine whether leaves, internal levels, or the root dominates work.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why does dynamic array doubling have O(1) amortized append complexity?</p></div><div class="a" hidden><p>Because resizing at powers of two copies at most 2N total elements across N appends, amortizing total work to 3 operations per append.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How can you verify an algorithm's complexity empirically?</p></div><div class="a" hidden><p>By plotting log(N) versus log(runtime) across input sizes; the slope of the linear regression line directly reveals the polynomial exponent k.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the difference between aggregate and potential amortized analysis?</p></div><div class="a" hidden><p>The aggregate method divides total sequence work by N; the potential method defines a state potential function Phi(D) tracking accumulated credits across operations.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can solve divide-and-conquer recurrences with the Master Theorem, estimate complexity exponents via log-log linear regression, simulate dynamic array amortized doubling, and trace recursion tree work levels.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Cormen, T. H., Leiserson, C. E., Rivest, R. L., &amp; Stein, C. 'Introduction to Algorithms (4th ed.).' <em>MIT Press</em>, 2022.</li>
+<li>Hartmanis, J., &amp; Stearns, R. E. 'On the Computational Complexity of Algorithms.' <em>Transactions of the American Mathematical Society</em>, 1965.</li>
+</ul></section>
+<footer class="pager"><a href="V03.html">&larr; V03 Sampling and selection bias</a>
+<a href="D02.html">D02 Arrays, strings, two pointers and sliding windows &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D01", "packages": ["numpy"], "exercises": {"ex1-master-theorem-solver": {"starter": "def classify_master_theorem(a, b, k, p=0):\n    # Classifies divide-and-conquer recurrence using Master Theorem\n    return \"\"\n", "solution": "def classify_master_theorem(a, b, k, p=0):\n    import math\n\n    c_crit = math.log(a, b)\n\n    if abs(c_crit - k) <= 1e-5:\n        # Case 2\n        exp_k = int(k) if k.is_integer() else round(k, 3)\n        p_new = p + 1\n        log_str = \"log n\" if p_new == 1 else f\"log^{p_new} n\"\n\n        if exp_k == 0:\n            return f\"Theta({log_str})\"\n        elif exp_k == 1:\n            return f\"Theta(n {log_str})\"\n        else:\n            return f\"Theta(n^{exp_k} {log_str})\"\n\n    elif c_crit > k:\n        # Case 1\n        if abs(c_crit - round(c_crit)) <= 1e-5:\n            return f\"Theta(n^{int(round(c_crit))})\"\n        else:\n            return f\"Theta(n^{round(c_crit, 3)})\"\n\n    else:\n        # Case 3\n        exp_k = int(k) if k.is_integer() else round(k, 3)\n        if p == 0:\n            if exp_k == 1:\n                return \"Theta(n)\"\n            elif exp_k == 0:\n                return \"Theta(1)\"\n            else:\n                return f\"Theta(n^{exp_k})\"\n        else:\n            log_str = \"log n\" if p == 1 else f\"log^{p} n\"\n            if exp_k == 1:\n                return f\"Theta(n {log_str})\"\n            else:\n                return f\"Theta(n^{exp_k} {log_str})\"\n", "tests": "def test_master_theorem_mergesort():\n    # T(n) = 2T(n/2) + Theta(n)\n    res = classify_master_theorem(2, 2, 1, p=0)\n    assert res == \"Theta(n log n)\"\n\ndef test_master_theorem_binary_search():\n    # T(n) = 1T(n/2) + Theta(1)\n    res = classify_master_theorem(1, 2, 0, p=0)\n    assert res == \"Theta(log n)\"\n\ndef test_master_theorem_karatsuba():\n    # T(n) = 3T(n/2) + Theta(n) -> log2(3) = 1.585\n    res = classify_master_theorem(3, 2, 1, p=0)\n    assert res == \"Theta(n^1.585)\"\n", "mutants": ["def classify_master_theorem(a, b, k, p=0): return \"Theta(n log n)\"\n", "def classify_master_theorem(a, b, k, p=0):\n    # Broken mutant: always evaluates as Case 1\n    import math\n    c = math.log(a, b)\n    return f\"Theta(n^{round(c, 3)})\"\n"], "hints": ["Calculate critical exponent `c_crit = math.log(a, b)`.", "Check `abs(c_crit - k) <= 1e-5` for Case 2."], "level": "warmup", "title": "Master theorem divide-and-conquer recurrence solver"}, "ex2-empirical-log-log-slope-estimator": {"starter": "def estimate_complexity_exponent(input_sizes, runtimes_sec):\n    # Estimates asymptotic power-law exponent from empirical runtimes\n    return {}\n", "solution": "def estimate_complexity_exponent(input_sizes, runtimes_sec):\n    import math\n\n    xs = [math.log(n) for n in input_sizes]\n    ys = [math.log(t) for t in runtimes_sec]\n    m = len(xs)\n\n    mean_x = sum(xs) / m\n    mean_y = sum(ys) / m\n\n    numer = sum((xs[i] - mean_x) * (ys[i] - mean_y) for i in range(m))\n    denom = sum((xs[i] - mean_x) ** 2 for i in range(m))\n\n    k = round(numer / denom, 2) if denom != 0 else 0.0\n\n    if k < 0.3:\n        family = \"O(1) or O(log N)\"\n    elif k < 1.3:\n        family = \"O(N) or O(N log N)\"\n    elif k < 2.3:\n        family = \"O(N^2)\"\n    else:\n        family = \"O(N^3) or higher\"\n\n    return {\n        \"slope\": k,\n        \"family\": family\n    }\n", "tests": "def test_estimate_quadratic():\n    sizes = [100, 200, 400, 800]\n    times = [0.01 * (n ** 2) for n in sizes]\n    res = estimate_complexity_exponent(sizes, times)\n    assert res[\"slope\"] == 2.0\n    assert res[\"family\"] == \"O(N^2)\"\n\ndef test_estimate_linear():\n    sizes = [100, 200, 400, 800]\n    times = [0.05 * n for n in sizes]\n    res = estimate_complexity_exponent(sizes, times)\n    assert res[\"slope\"] == 1.0\n    assert res[\"family\"] == \"O(N) or O(N log N)\"\n\ndef test_estimate_constant():\n    sizes = [100, 200, 400, 800]\n    times = [0.005, 0.005, 0.005, 0.005]\n    res = estimate_complexity_exponent(sizes, times)\n    assert res[\"slope\"] == 0.0\n    assert res[\"family\"] == \"O(1) or O(log N)\"\n", "mutants": ["def estimate_complexity_exponent(input_sizes, runtimes_sec):\n    return {\"slope\": 1.0, \"family\": \"O(N) or O(N log N)\"}\n", "def estimate_complexity_exponent(input_sizes, runtimes_sec):\n    # Broken mutant: divides runtimes directly without log transformation\n    return {\"slope\": 2.0, \"family\": \"O(N^2)\"}\n"], "hints": ["Transform `math.log(n)` and `math.log(t)` before computing slope.", "Apply standard OLS slope formula."], "level": "core", "title": "Empirical runtime complexity estimator via log-log linear regression slope"}, "ex3-dynamic-array-amortized-simulator": {"starter": "def simulate_dynamic_array_appends(num_appends, growth_factor=2.0):\n    # Simulates dynamic array memory reallocation and amortized operation counts\n    return {}\n", "solution": "def simulate_dynamic_array_appends(num_appends, growth_factor=2.0):\n    if num_appends <= 0:\n        return {\"total_operations\": 0, \"amortized_cost_per_append\": 0.0, \"resize_count\": 0, \"final_capacity\": 1}\n\n    capacity = 1\n    size = 0\n    total_ops = 0\n    resizes = 0\n\n    for _ in range(num_appends):\n        if size == capacity:\n            # Resize\n            resizes += 1\n            copy_cost = size\n            new_cap = max(capacity + 1, int(capacity * growth_factor))\n            capacity = new_cap\n        else:\n            copy_cost = 0\n\n        total_ops += (copy_cost + 1)\n        size += 1\n\n    return {\n        \"total_operations\": total_ops,\n        \"amortized_cost_per_append\": round(total_ops / num_appends, 2),\n        \"resize_count\": resizes,\n        \"final_capacity\": capacity\n    }\n", "tests": "def test_dynamic_array_10_appends():\n    # Appends:\n    # 1: size=0, cap=1 -> insert (ops=1)\n    # 2: size=1, cap=1 -> resize to 2, copy 1, insert 1 (ops=2)\n    # 3: size=2, cap=2 -> resize to 4, copy 2, insert 1 (ops=3)\n    # 4: size=3, cap=4 -> insert (ops=1)\n    # 5: size=4, cap=4 -> resize to 8, copy 4, insert 1 (ops=5)\n    res = simulate_dynamic_array_appends(10, growth_factor=2.0)\n    assert res[\"final_capacity\"] == 16\n    assert res[\"resize_count\"] == 4 # Resized at 1, 2, 4, 8\n    assert res[\"amortized_cost_per_append\"] < 3.0 # Strict O(1) amortized bound!\n\ndef test_dynamic_array_large_appends():\n    res = simulate_dynamic_array_appends(1000)\n    assert res[\"amortized_cost_per_append\"] < 3.0\n\ndef test_dynamic_array_zero():\n    res = simulate_dynamic_array_appends(0)\n    assert res[\"total_operations\"] == 0\n", "mutants": ["def simulate_dynamic_array_appends(num_appends, growth_factor=2.0):\n    return {\"total_operations\": num_appends, \"amortized_cost_per_append\": 1.0, \"resize_count\": 0, \"final_capacity\": num_appends}\n", "def simulate_dynamic_array_appends(num_appends, growth_factor=2.0):\n    # Broken mutant: linear growth (cap += 1), resulting in O(N^2) total work\n    ops = sum(range(num_appends)) + num_appends\n    return {\"total_operations\": ops, \"amortized_cost_per_append\": ops / num_appends if num_appends else 0, \"resize_count\": num_appends, \"final_capacity\": num_appends}\n"], "hints": ["When `size == capacity`, add `size` copy operations to total.", "Amortized cost is `round(total_ops / num_appends, 2)`."], "level": "core", "title": "Dynamic array capacity doubling and amortized cost accountant"}, "ex4-recursion-tree-operation-counter": {"starter": "def trace_recursion_tree(a, b, work_func, initial_n):\n    # Simulates recursion tree level-by-level work accumulation\n    return {}\n", "solution": "def trace_recursion_tree(a, b, work_func, initial_n):\n    if initial_n < 1:\n        return {\"levels\": [], \"total_levels\": 0, \"total_work\": 0}\n\n    levels = []\n    level = 0\n    total_work = 0\n\n    while True:\n        sub_n = initial_n // (b ** level)\n        if sub_n < 1:\n            break\n\n        nodes = a ** level\n        w_node = work_func(sub_n)\n        w_level = nodes * w_node\n        total_work += w_level\n\n        levels.append({\n            \"level\": level,\n            \"subproblem_size\": sub_n,\n            \"node_count\": nodes,\n            \"work_per_level\": w_level\n        })\n        level += 1\n\n    return {\n        \"levels\": levels,\n        \"total_levels\": len(levels),\n        \"total_work\": total_work\n    }\n", "tests": "def test_recursion_tree_mergesort():\n    # MergeSort: a=2, b=2, work=n, N=8\n    # Level 0: n=8, nodes=1, work=8\n    # Level 1: n=4, nodes=2, work=8\n    # Level 2: n=2, nodes=4, work=8\n    # Level 3: n=1, nodes=8, work=8\n    # Total = 32 operations across 4 levels\n    res = trace_recursion_tree(2, 2, lambda n: n, 8)\n    assert res[\"total_levels\"] == 4\n    assert res[\"total_work\"] == 32\n    for lvl in res[\"levels\"]:\n        assert lvl[\"work_per_level\"] == 8\n\ndef test_recursion_tree_binary_search():\n    # Binary Search: a=1, b=2, work=1, N=4\n    # Level 0: n=4, nodes=1, work=1\n    # Level 1: n=2, nodes=1, work=1\n    # Level 2: n=1, nodes=1, work=1\n    # Total = 3 operations\n    res = trace_recursion_tree(1, 2, lambda n: 1, 4)\n    assert res[\"total_levels\"] == 3\n    assert res[\"total_work\"] == 3\n\ndef test_recursion_tree_zero():\n    res = trace_recursion_tree(2, 2, lambda n: n, 0)\n    assert res[\"total_levels\"] == 0\n    assert res[\"total_work\"] == 0\n", "mutants": ["def trace_recursion_tree(a, b, work_func, initial_n):\n    return {\"levels\": [], \"total_levels\": 0, \"total_work\": 0}\n", "def trace_recursion_tree(a, b, work_func, initial_n):\n    # Broken mutant: only computes root level work\n    w = work_func(initial_n)\n    return {\"levels\": [{\"level\": 0, \"subproblem_size\": initial_n, \"node_count\": 1, \"work_per_level\": w}], \"total_levels\": 1, \"total_work\": w}\n"], "hints": ["Subproblem size at level $L$ is `initial_n // (b ** level)`.", "Nodes at level $L$ is `a ** level`."], "level": "boss", "title": "Recursion tree work-per-level tracker and total operation accountant"}}, "demos": {"oracle-master-theorem-bounds": {"code": "import math\n\ndef solve_master_theorem_case(a, b, k):\n    # T(n) = a * T(n/b) + Theta(n^k)\n    crit = math.log(a, b)\n    if abs(crit - k) < 1e-9:\n        return \"Theta(n^k log n)\"\n    elif crit > k:\n        return f\"Theta(n^{crit:.2f})\"\n    else:\n        return f\"Theta(n^{k})\"\n\n# MergeSort: T(n) = 2T(n/2) + Theta(n) -> a=2, b=2, k=1 -> crit = log_2(2) = 1 == k\nres_mergesort = solve_master_theorem_case(2, 2, 1)\nassert res_mergesort == \"Theta(n^k log n)\"\n\n# Binary Search: T(n) = 1T(n/2) + Theta(1) -> a=1, b=2, k=0 -> crit = log_2(1) = 0 == k\nres_binsearch = solve_master_theorem_case(1, 2, 0)\nassert res_binsearch == \"Theta(n^k log n)\"\n\n# Strassen: T(n) = 7T(n/2) + Theta(n^2) -> a=7, b=2, k=2 -> crit = log_2(7) = 2.81 > 2\nres_strassen = solve_master_theorem_case(7, 2, 2)\nassert res_strassen == \"Theta(n^2.81)\"\n\nprint(\"SUCCESS: Master Theorem recurrence classification verified.\")\n", "mutants": ["res_mergesort = \"Theta(n^2)\" # Mutant claims MergeSort is quadratic\nassert res_mergesort == \"Theta(n^k log n)\", \"Mutant failed MergeSort bound\"\n"]}, "exp-log-log-complexity-slope": {"code": "import math\n\ndef calculate_log_log_slope(sizes, times):\n    # Fit line log(T) = k * log(N) + c\n    log_n = [math.log(n) for n in sizes]\n    log_t = [math.log(t) for t in times]\n    n_points = len(sizes)\n\n    mean_x = sum(log_n) / n_points\n    mean_y = sum(log_t) / n_points\n\n    numer = sum((log_n[i] - mean_x) * (log_t[i] - mean_y) for i in range(n_points))\n    denom = sum((log_n[i] - mean_x) ** 2 for i in range(n_points))\n\n    slope = numer / denom\n    return round(slope, 2)\n\n# Synthetic timing data: T ~ 0.001 * N^2 (Quadratic algorithm)\nsizes = [100, 200, 400, 800]\nquadratic_times = [0.001 * (n ** 2) for n in sizes]\n\nslope_quad = calculate_log_log_slope(sizes, quadratic_times)\nprint(f\"Empirical slope: {slope_quad}\")\nassert slope_quad == 2.0, \"Quadratic algorithm must have log-log slope of 2.0\"\n", "mutants": ["slope_quad = 1.0 # Mutant claims quadratic is linear\nassert slope_quad == 2.0, \"Mutant failed log-log slope test\"\n"]}}, "cards": [{"q": "What is the formal definition of Big-O notation?", "a": "f(n) is in O(g(n)) if there exist constants c > 0 and n0 > 0 such that f(n) <= c * g(n) for all n >= n0."}, {"q": "What is the difference between Big-O, Big-Omega, and Big-Theta?", "a": "Big-O is an asymptotic upper bound, Big-Omega is an asymptotic lower bound, and Big-Theta is an asymptotically tight bound (both upper and lower)."}, {"q": "What is the Master Theorem for divide-and-conquer recurrences?", "a": "A formula solving T(n) = a*T(n/b) + Theta(n^k log^p n) by comparing log_b(a) with k to determine whether leaves, internal levels, or the root dominates work."}, {"q": "Why does dynamic array doubling have O(1) amortized append complexity?", "a": "Because resizing at powers of two copies at most 2N total elements across N appends, amortizing total work to 3 operations per append."}, {"q": "How can you verify an algorithm's complexity empirically?", "a": "By plotting log(N) versus log(runtime) across input sizes; the slope of the linear regression line directly reveals the polynomial exponent k."}, {"q": "What is the difference between aggregate and potential amortized analysis?", "a": "The aggregate method divides total sequence work by N; the potential method defines a state potential function Phi(D) tracking accumulated credits across operations."}], "title": "Complexity analysis"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

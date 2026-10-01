@@ -1,0 +1,869 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M28 Discrete maths: graphs, recurrences and generating functions</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M28">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-1 · ~5h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M28</p><h1>Discrete maths: graphs, recurrences and generating functions</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M17.html">M17</a> <a href="M18.html">M18</a></div><div><b>Covers:</b> CS2023 MSF, CS2023 AL</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>graphs, degree and the handshake lemma</li><li>paths, cycles and connectivity</li><li>trees and why they have n-1 edges</li><li>Euler paths and circuits</li><li>Hamiltonian cycles</li><li>bipartite graphs</li><li>planarity and Euler&#x27;s formula V-E+F=2</li><li>graph colouring</li><li>solving linear recurrences</li><li>generating functions</li><li>Catalan numbers</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the old Prussian city of Königsberg, the river split around two islands, and seven bridges joined the four pieces of land. The Sunday game was to find a walk that crossed every bridge exactly once.</p>
+<p>Everybody tried. Nobody managed it. The townspeople assumed they were not being clever enough.</p>
+<p>Leonhard Euler, in 1736, did something that looks like giving up. He threw away the city. He said the shape of the islands does not matter, the length of the bridges does not matter, and the distances do not matter. What matters is only: four pieces of land, and which pairs are joined, and how many times.</p>
+<p>He drew four dots and seven lines.</p>
+<p>Then he made the observation that ended the game. Think about any piece of land that is not where you start or finish. Every time you walk <em>into</em> it you must later walk <em>out</em> of it, on a different bridge. So its bridges get used in pairs — which means it must have an <strong>even</strong> number of bridges.</p>
+<p>He counted. All four pieces of land had an odd number. Not one of them, all four. So at most two could be allowed (the start and the end), and there were four.</p>
+<p>Here is the surprise: he did not fail to find a route. He proved that no route exists, for anyone, forever — and he did it by <em>deleting</em> almost all the information. The question was never about Königsberg. It was about four dots and seven lines, and the answer took one paragraph about parity.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>graph</strong> is dots (<strong>vertices</strong>) and lines (<strong>edges</strong>). That is the whole definition, and its emptiness is the point: anything that is "things, and connections between them" is a graph, so one theorem serves a road network, a social network, a dependency tree and a state machine.</p>
+<p>The <strong>degree</strong> of a vertex is how many edges touch it. Euler's parity argument generalises into a complete answer for which graphs can be traversed edge-by-edge without repetition.</p>
+<p>The second half of the module is about <strong>counting things that are defined in terms of themselves</strong>. A <strong>recurrence</strong> says what the $n$-th answer is in terms of earlier ones; solving it means finding a closed form you can evaluate in one step instead of $n$. <strong>Generating functions</strong> are the machine for doing that: you pack the whole infinite sequence into one algebraic object, do algebra on it, and read the answer back out.</p>
+<p>Both halves meet in the <strong>Catalan numbers</strong>, which count an astonishing variety of structures and which we will compute three independent ways.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Graphs</h2>
+<p>A <strong>graph</strong> $G=(V,E)$ has a vertex set $V$ and an edge set $E$ of unordered pairs. It is <strong>simple</strong> if it has no loops and no repeated edges. The <strong>degree</strong> $\deg(v)$ counts the edges at $v$.</p>
+<p><strong>Handshake lemma:</strong></p>
+<p>$$\sum_{v\in V}\deg(v) = 2|E|$$</p>
+<p>so the number of vertices of odd degree is always even.</p>
+<p>A <strong>walk</strong> is a sequence of adjacent vertices; a <strong>path</strong> repeats no vertex; a <strong>cycle</strong> is a closed path. $G$ is <strong>connected</strong> when every pair of vertices is joined by a path. A <strong>component</strong> is a maximal connected piece.</p>
+<p>A <strong>tree</strong> is a connected acyclic graph. Equivalent characterisations: connected with $|V|-1$ edges; acyclic with $|V|-1$ edges; exactly one path between every pair of vertices.</p>
+<h2>Traversals</h2>
+<p>An <strong>Euler circuit</strong> uses every <em>edge</em> exactly once and returns to the start; an <strong>Euler path</strong> does the same without returning.</p>
+<blockquote>
+<p>A connected graph has an Euler circuit <strong>iff</strong> every vertex has even degree, and an Euler path <strong>iff</strong> exactly zero or two vertices have odd degree.</p>
+</blockquote>
+<p>A <strong>Hamiltonian path/cycle</strong> visits every <em>vertex</em> exactly once. The resemblance is superficial: deciding Euler is linear time, while deciding Hamiltonian is <strong>NP-complete</strong>. One word changed, and the difficulty changed completely.</p>
+<h2>Bipartite and colouring</h2>
+<p>$G$ is <strong>bipartite</strong> when $V$ splits into two sets with every edge running between them. Equivalently: $G$ is 2-colourable; equivalently, $G$ contains <strong>no odd cycle</strong>.</p>
+<p>A <strong>proper colouring</strong> gives adjacent vertices different colours; the <strong>chromatic number</strong> $\chi(G)$ is the fewest colours needed. $\chi(G)=1$ iff there are no edges, $\chi(G)\le2$ iff bipartite. Deciding $\chi(G)\le3$ is NP-complete.</p>
+<h2>Planarity</h2>
+<p>A graph is <strong>planar</strong> if it can be drawn with no crossing edges. For a connected planar graph drawn in the plane, <strong>Euler's formula</strong>:</p>
+<p>$$V - E + F = 2$$</p>
+<p>counting the unbounded outer region as a face. Consequences for simple planar graphs with $V\ge3$: $E\le 3V-6$, and $E\le2V-4$ if also triangle-free. These rule out $K_5$ ($V=5$, $E=10&gt;9$) and $K_{3,3}$ ($V=6$, $E=9&gt;8$), and <strong>Kuratowski's theorem</strong> says those two are the only obstructions: a graph is planar iff it contains no subdivision of $K_5$ or $K_{3,3}$. Every planar graph is 4-colourable (Appel and Haken, 1976, the first major computer-assisted proof).</p>
+<h2>Recurrences</h2>
+<p>A <strong>linear homogeneous recurrence with constant coefficients</strong> of order $k$:</p>
+<p>$$a_n = c_1a_{n-1}+\dots+c_ka_{n-k}$$</p>
+<p>Substituting $a_n = r^n$ gives the <strong>characteristic equation</strong> $r^k = c_1r^{k-1}+\dots+c_k$. If its roots $r_1,\dots,r_k$ are distinct, the general solution is</p>
+<p>$$a_n = \alpha_1r_1^n+\dots+\alpha_kr_k^n$$</p>
+<p>with the $\alpha_i$ fixed by the initial conditions. A root of multiplicity $m$ contributes $(\alpha_0+\alpha_1n+\dots+\alpha_{m-1}n^{m-1})r^n$.</p>
+<p>For Fibonacci, $F_n = F_{n-1}+F_{n-2}$ gives $r^2=r+1$, with roots $\varphi = \frac{1+\sqrt5}{2}$ and $\psi = \frac{1-\sqrt5}{2}$, and <strong>Binet's formula</strong>:</p>
+<p>$$F_n = \frac{\varphi^n-\psi^n}{\sqrt5}$$</p>
+<h2>Generating functions</h2>
+<p>The <strong>ordinary generating function</strong> of $(a_n)$ is the formal power series</p>
+<p>$$A(x) = \sum_{n\ge0}a_nx^n$$</p>
+<p>"Formal" means convergence is not the point: $x$ is a bookkeeping symbol, and the series is a container for the whole sequence. Useful ones:</p>
+<p>$$\frac{1}{1-x} = \sum x^n, \qquad \frac{1}{1-ax} = \sum a^nx^n, \qquad \frac{1}{(1-x)^2} = \sum (n+1)x^n$$</p>
+<p>For Fibonacci, multiplying the recurrence by $x^n$ and summing gives</p>
+<p>$$F(x) = \frac{x}{1-x-x^2}$$</p>
+<p>and a partial-fraction split recovers Binet's formula. The method is mechanical: turn a recurrence into an equation for $A(x)$, solve the equation, expand.</p>
+<h2>Catalan numbers</h2>
+<p>$$C_n = \frac{1}{n+1}\binom{2n}{n}, \qquad C_{n+1} = \sum_{i=0}^{n}C_iC_{n-i}, \qquad C(x) = \frac{1-\sqrt{1-4x}}{2x}$$</p>
+<p>giving $1, 1, 2, 5, 14, 42, 132, \dots$ They count balanced bracket strings of length $2n$, binary trees with $n$ internal nodes, triangulations of a convex $(n+2)$-gon, monotone lattice paths below the diagonal, and dozens more.</p>
+<h2>A pinch of history</h2>
+<p>Euler's 1736 Königsberg paper is usually called the first in graph theory, and his polyhedron formula $V-E+F=2$ came in 1750–1752. Hamilton's "Icosian game" (1857) gave the Hamiltonian cycle its name. Kuratowski's planarity characterisation is from 1930. The four-colour theorem, conjectured in 1852, was finally proved by Appel and Haken in 1976 using extensive computer case-checking, which caused a genuine philosophical argument about what a proof is.</p>
+<p>The Catalan numbers are named for Eugène Catalan (1838) but are older: Minggatu, a Mongolian mathematician working in China, used them in the 1730s in series expansions, and Euler found them while counting triangulations of polygons.</p>
+<p>The Fibonacci recurrence appears in India well before Fibonacci's 1202 <em>Liber Abaci</em>: <strong>Virahanka</strong> (c. 600–800 CE) derived it while counting the ways to compose a metre of $n$ beats from syllables of length 1 and 2, and the rule is also attributed to Gopala and to Hemachandra (1150).</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: the handshake lemma.</strong> Count the pairs (vertex, edge touching it) in two ways. Grouping by vertex gives $\sum_v\deg(v)$; grouping by edge gives $2|E|$, since each edge has exactly two endpoints. Therefore they are equal. Counting one set two ways is the combinatorial proof technique of M18, and the immediate corollary — the number of odd-degree vertices is even — is what makes Euler's argument work.</p>
+<p><strong>Result 2: Euler's circuit condition.</strong></p>
+<p><em>Necessity.</em> Suppose a circuit exists. Each time it enters a vertex it must leave by a different, unused edge, so the edges at each vertex are consumed in pairs. The start vertex is left at the beginning and entered at the end, also pairing up. So every degree is even.</p>
+<p><em>Sufficiency</em> (sketch). Suppose the graph is connected with all degrees even. Start anywhere and walk without repeating edges. <strong>The non-obvious step:</strong> you can only get stuck at the vertex you started from — anywhere else, having entered an even-degree vertex an odd number of times, an unused edge must remain to leave by. So you always close a circuit. If edges remain, connectivity gives a vertex on your circuit with unused edges; build a second circuit from there and splice it in. Repeat until no edges remain.</p>
+<p>For an Euler <em>path</em>, add a temporary edge between the two odd vertices, apply the circuit result, then delete it.</p>
+<p><strong>Result 3: a tree on $n$ vertices has exactly $n-1$ edges</strong>, by induction on $n$.</p>
+<ol>
+<li><em>Base:</em> $n=1$, a single vertex, zero edges.</li>
+<li><em>Step:</em> let $T$ be a tree with $n\ge2$ vertices. $T$ has a <strong>leaf</strong> — a vertex of degree 1. (Otherwise every degree is at least 2, and following edges without immediately backtracking must eventually revisit a vertex, giving a cycle, contradiction.)</li>
+<li>Delete that leaf and its edge. The result is still connected (nothing routed through a degree-1 vertex) and still acyclic, so it is a tree on $n-1$ vertices.</li>
+<li>By the inductive hypothesis it has $n-2$ edges; restoring the leaf gives $n-1$.</li>
+</ol>
+<p>Step 2 is the part that does the work, and it is where acyclicity is used.</p>
+<p><strong>Result 4: bipartite iff no odd cycle.</strong></p>
+<p><em>Only if.</em> Colour the two sides black and white. Any walk alternates colours, so returning to the start needs an even number of steps. Hence every cycle is even.</p>
+<p><em>If.</em> Suppose no odd cycle, and take a connected component. Pick a root and colour each vertex by the parity of its distance from the root. If an edge joined two vertices of the same parity, combining their shortest paths to the root with that edge would produce a closed walk of odd length, which forces an odd cycle. So no such edge exists and the colouring is proper.</p>
+<p>That parity argument is exactly the 2-colouring algorithm: breadth-first search, alternating colours, and a conflict means an odd cycle.</p>
+<p><strong>Result 5: solving a linear recurrence.</strong> Try $a_n=r^n$ in $a_n=c_1a_{n-1}+c_2a_{n-2}$. Dividing by $r^{n-2}$ gives $r^2=c_1r+c_2$. Because the recurrence is <strong>linear</strong>, any combination $\alpha r_1^n+\beta r_2^n$ of solutions is a solution; because it is <strong>order 2</strong>, two initial values determine everything. Two unknowns, two equations, done. The characteristic equation is not a trick — it is what substituting a geometric sequence into a linear relation forces.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes the same quantities two or three genuinely independent ways.</p>
+<p>For <strong>Fibonacci</strong>: iterating the recurrence (pure addition, exact integers) against Binet's closed form (irrational arithmetic with $\sqrt5$). Nothing is shared; they agree only if the characteristic-root analysis is right.</p>
+<p>For <strong>Catalan numbers</strong>: the convolution recurrence, the binomial closed form, and a brute-force count of balanced bracket strings — three routes, one combinatorial, one algebraic, one by enumeration.</p>
+<p>For <strong>trees</strong>: the edge count $n-1$ against a direct cycle check and connectivity check.</p>
+<p>The mutant below uses $\frac{1+\sqrt5}{2}$ for both roots in Binet's formula, which is wrong but produces plausible-looking growth.</p>
+<div class="lab demo" data-demo="m28-recurrences-and-catalan">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Recurrences by iteration, by closed form, and by counting</h3></div>
+
+<textarea class="code" spellcheck="false">from math import sqrt, comb
+from itertools import product
+
+PHI = (1 + sqrt(5)) / 2
+PSI = (1 - sqrt(5)) / 2
+
+
+def fib_iterative(n):
+    &quot;&quot;&quot;Exact integer arithmetic. No formula.&quot;&quot;&quot;
+    a, b = 0, 1
+    for _ in range(n):
+        a, b = b, a + b
+    return a
+
+
+def fib_binet(n):
+    &quot;&quot;&quot;Closed form from the characteristic roots. No iteration.&quot;&quot;&quot;
+    return round((PHI ** n - PSI ** n) / sqrt(5))
+
+
+for n in range(0, 71):
+    assert fib_iterative(n) == fib_binet(n), f&quot;disagreement at n={n}&quot;
+print(&quot;Fibonacci: iteration and Binet&#x27;s formula agree for n = 0..70&quot;)
+print(&quot;  F(10) =&quot;, fib_iterative(10), &quot; F(30) =&quot;, fib_iterative(30), &quot; F(70) =&quot;, fib_iterative(70))
+assert fib_iterative(10) == 55 and fib_iterative(30) == 832040
+
+# The ratio of consecutive terms tends to the golden ratio.
+ratios = [fib_iterative(n + 1) / fib_iterative(n) for n in range(10, 40)]
+print(&quot;  F(n+1)/F(n) -&gt;&quot;, round(ratios[-1], 12), &quot; and phi =&quot;, round(PHI, 12))
+assert abs(ratios[-1] - PHI) &lt; 1e-12
+
+# A second-order recurrence with distinct roots: a_n = 5a_{n-1} - 6a_{n-2}
+# characteristic r^2 = 5r - 6, roots 2 and 3; with a0=0, a1=1 -&gt; a_n = 3^n - 2^n
+def rec_iterative(n):
+    a, b = 0, 1
+    if n == 0:
+        return 0
+    for _ in range(n - 1):
+        a, b = b, 5 * b - 6 * a
+    return b
+
+
+for n in range(0, 25):
+    assert rec_iterative(n) == 3 ** n - 2 ** n, f&quot;closed form failed at n={n}&quot;
+print(&quot;second-order recurrence matched its closed form 3^n - 2^n for n = 0..24&quot;)
+
+# --- Catalan numbers, three independent ways ---
+def catalan_recurrence(n):
+    c = [1]
+    for m in range(1, n + 1):
+        c.append(sum(c[i] * c[m - 1 - i] for i in range(m)))
+    return c[n]
+
+
+def catalan_closed(n):
+    return comb(2 * n, n) // (n + 1)
+
+
+def catalan_by_counting(n):
+    &quot;&quot;&quot;Count balanced bracket strings of length 2n by brute force.&quot;&quot;&quot;
+    total = 0
+    for bits in product(&quot;()&quot;, repeat=2 * n):
+        depth = 0
+        ok = True
+        for ch in bits:
+            depth += 1 if ch == &quot;(&quot; else -1
+            if depth &lt; 0:
+                ok = False
+                break
+        if ok and depth == 0:
+            total += 1
+    return total
+
+
+print()
+print(f&quot;{&#x27;n&#x27;:&gt;4} {&#x27;recurrence&#x27;:&gt;12} {&#x27;closed form&#x27;:&gt;13} {&#x27;brute count&#x27;:&gt;13}&quot;)
+for n in range(0, 9):
+    a = catalan_recurrence(n)
+    b = catalan_closed(n)
+    c = catalan_by_counting(n) if n &lt;= 7 else None
+    print(f&quot;{n:&gt;4} {a:&gt;12} {b:&gt;13} {str(c):&gt;13}&quot;)
+    assert a == b, f&quot;recurrence and closed form disagree at n={n}&quot;
+    if c is not None:
+        assert a == c, f&quot;brute-force count disagrees at n={n}&quot;
+
+assert [catalan_closed(n) for n in range(7)] == [1, 1, 2, 5, 14, 42, 132]
+
+# --- The handshake lemma and the tree edge count ---
+def degrees(n, edges):
+    d = [0] * n
+    for u, v in edges:
+        d[u] += 1
+        d[v] += 1
+    return d
+
+
+def is_connected(n, edges):
+    if n == 0:
+        return True
+    adj = {i: [] for i in range(n)}
+    for u, v in edges:
+        adj[u].append(v)
+        adj[v].append(u)
+    seen = {0}
+    stack = [0]
+    while stack:
+        x = stack.pop()
+        for y in adj[x]:
+            if y not in seen:
+                seen.add(y)
+                stack.append(y)
+    return len(seen) == n
+
+
+def has_cycle(n, edges):
+    parent = list(range(n))
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    for u, v in edges:
+        ru, rv = find(u), find(v)
+        if ru == rv:
+            return True
+        parent[ru] = rv
+    return False
+
+
+TREES = [
+    (1, []),
+    (2, [(0, 1)]),
+    (4, [(0, 1), (1, 2), (1, 3)]),
+    (6, [(0, 1), (0, 2), (2, 3), (2, 4), (4, 5)]),
+]
+print()
+for n, edges in TREES:
+    d = degrees(n, edges)
+    assert sum(d) == 2 * len(edges), &quot;handshake lemma must hold&quot;
+    assert sum(1 for x in d if x % 2 == 1) % 2 == 0, &quot;odd-degree vertices come in pairs&quot;
+    assert is_connected(n, edges) and not has_cycle(n, edges), &quot;must be a tree&quot;
+    assert len(edges) == n - 1, &quot;a tree on n vertices has n-1 edges&quot;
+print(&quot;handshake lemma and the n-1 edge count verified on&quot;, len(TREES), &quot;trees&quot;)
+
+# A graph with a cycle has at least n edges.
+cyclic = (4, [(0, 1), (1, 2), (2, 3), (3, 0)])
+assert has_cycle(*cyclic) and len(cyclic[1]) == cyclic[0]
+print(&quot;a 4-cycle has 4 vertices and 4 edges, so it is not a tree&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory makes a sharp, checkable claim about Euler traversals: a connected graph has an Euler circuit <strong>exactly</strong> when every degree is even, and an Euler path exactly when zero or two degrees are odd. That is a prediction about <em>every</em> graph, so we test it by brute force — exhaustively searching for a traversal on many small graphs and comparing the search's verdict with the degree test's.</p>
+<p>Then the contrast that matters for computing. The Euler test is a glance at the degrees; the Hamiltonian question has no such shortcut. We measure how the work grows for each as the graph gets bigger.</p>
+<p>Finally, Euler's formula $V-E+F=2$ on planar graphs.</p>
+<div class="lab demo" data-demo="m28-euler-vs-hamilton">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Does the degree test really decide it? And what does Hamilton cost?</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from itertools import permutations
+
+
+def degrees(n, edges):
+    d = [0] * n
+    for u, v in edges:
+        d[u] += 1
+        d[v] += 1
+    return d
+
+
+def connected_ignoring_isolated(n, edges):
+    if not edges:
+        return True
+    adj = {i: set() for i in range(n)}
+    for u, v in edges:
+        adj[u].add(v)
+        adj[v].add(u)
+    start = edges[0][0]
+    seen = {start}
+    stack = [start]
+    while stack:
+        x = stack.pop()
+        for y in adj[x]:
+            if y not in seen:
+                seen.add(y)
+                stack.append(y)
+    return all(len(adj[v]) == 0 or v in seen for v in range(n))
+
+
+def euler_by_degree_test(n, edges):
+    &quot;&quot;&quot;The theory: count odd degrees. One pass over the edges.&quot;&quot;&quot;
+    if not connected_ignoring_isolated(n, edges):
+        return (False, False)
+    odd = sum(1 for d in degrees(n, edges) if d % 2 == 1)
+    return (odd == 0, odd in (0, 2))
+
+
+def euler_by_search(n, edges):
+    &quot;&quot;&quot;Brute force: try to walk every edge exactly once. No theory used.&quot;&quot;&quot;
+    m = len(edges)
+    if m == 0:
+        return (True, True)
+    adj = {i: [] for i in range(n)}
+    for idx, (u, v) in enumerate(edges):
+        adj[u].append((v, idx))
+        adj[v].append((u, idx))
+
+    def walk(at, used, count):
+        if count == m:
+            return [at]
+        for (nxt, idx) in adj[at]:
+            if idx not in used:
+                used.add(idx)
+                tail = walk(nxt, used, count + 1)
+                used.discard(idx)
+                if tail is not None:
+                    return [at] + tail
+        return None
+
+    circuit = False
+    path = False
+    for start in range(n):
+        route = walk(start, set(), 0)
+        if route is not None:
+            path = True
+            if route[0] == route[-1]:
+                circuit = True
+    return (circuit, path)
+
+
+rng = random.Random(1736)
+tested = 0
+circuits = paths = 0
+for _ in range(400):
+    n = rng.randint(3, 6)
+    all_pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
+    edges = [e for e in all_pairs if rng.random() &lt; 0.55]
+    if not edges or len(edges) &gt; 9:
+        continue
+    predicted = euler_by_degree_test(n, edges)
+    measured = euler_by_search(n, edges)
+    assert predicted == measured, (n, edges, predicted, measured)
+    circuits += measured[0]
+    paths += measured[1]
+    tested += 1
+
+print(&quot;random graphs tested by both the degree test and exhaustive search:&quot;, tested)
+print(&quot;  with an Euler circuit:&quot;, circuits, &quot;  with an Euler path:&quot;, paths)
+assert tested &gt; 200
+assert 0 &lt; circuits &lt; tested, &quot;both outcomes must occur&quot;
+assert circuits &lt; paths &lt; tested, &quot;paths are strictly more common than circuits&quot;
+
+# Königsberg itself: four landmasses, seven bridges, every degree odd.
+KONIGSBERG = [(0, 1), (0, 1), (0, 2), (0, 2), (0, 3), (1, 3), (2, 3)]
+d = degrees(4, KONIGSBERG)
+print()
+print(&quot;Konigsberg degrees:&quot;, d, &quot; odd count:&quot;, sum(1 for x in d if x % 2))
+assert d == [5, 3, 3, 3]
+assert sum(d) == 2 * len(KONIGSBERG), &quot;handshake lemma&quot;
+assert sum(1 for x in d if x % 2 == 1) == 4
+print(&quot;  four odd vertices, so neither a circuit nor a path exists&quot;)
+assert euler_by_degree_test(4, KONIGSBERG) == (False, False)
+
+# --- Euler is cheap, Hamilton is not ---
+def hamiltonian_by_search(n, edge_set):
+    for perm in permutations(range(1, n)):
+        tour = (0,) + perm
+        if all(frozenset((tour[i], tour[i + 1])) in edge_set for i in range(n - 1)):
+            return True
+    return False
+
+
+print()
+print(&quot;work needed as the graph grows&quot;)
+print(f&quot;{&#x27;n&#x27;:&gt;4} {&#x27;Euler: edge scans&#x27;:&gt;20} {&#x27;Hamilton: permutations&#x27;:&gt;24}&quot;)
+from math import factorial
+for n in (6, 8, 10, 12, 20):
+    print(f&quot;{n:&gt;4} {n * (n - 1) // 2:&gt;20} {factorial(n - 1):&gt;24}&quot;)
+assert factorial(19) &gt; 10 ** 17, &quot;Hamilton&#x27;s brute force explodes&quot;
+assert 20 * 19 // 2 &lt; 200, &quot;Euler&#x27;s check stays trivial&quot;
+
+# A complete graph on 5 vertices: Hamiltonian, but no Euler circuit? K5 has
+# every degree 4, which is even, so it HAS an Euler circuit as well.
+k5_edges = [(i, j) for i in range(5) for j in range(i + 1, 5)]
+k5_set = {frozenset(e) for e in k5_edges}
+print()
+print(&quot;K5: degrees&quot;, degrees(5, k5_edges), &quot; Euler circuit:&quot;, euler_by_degree_test(5, k5_edges)[0],
+      &quot; Hamiltonian:&quot;, hamiltonian_by_search(5, k5_set))
+assert euler_by_degree_test(5, k5_edges)[0] is True
+assert hamiltonian_by_search(5, k5_set) is True
+
+# A path graph is Hamiltonian-path-able but has no Hamiltonian CYCLE, and a
+# star has an Euler path only when it has at most 2 edges.
+star = [(0, 1), (0, 2), (0, 3)]
+print(&quot;star with 3 edges: degrees&quot;, degrees(4, star),
+      &quot; Euler path:&quot;, euler_by_degree_test(4, star)[1])
+assert euler_by_degree_test(4, star)[1] is False, &quot;three odd leaves kill the path&quot;
+
+# --- Euler&#x27;s formula V - E + F = 2 on planar graphs ---
+print()
+print(f&quot;{&#x27;solid&#x27;:&gt;12} {&#x27;V&#x27;:&gt;4} {&#x27;E&#x27;:&gt;4} {&#x27;F&#x27;:&gt;4} {&#x27;V-E+F&#x27;:&gt;7}&quot;)
+for name, V, E, F in ((&quot;tetrahedron&quot;, 4, 6, 4), (&quot;cube&quot;, 8, 12, 6),
+                      (&quot;octahedron&quot;, 6, 12, 8), (&quot;dodecahedron&quot;, 20, 30, 12),
+                      (&quot;icosahedron&quot;, 12, 30, 20), (&quot;triangle&quot;, 3, 3, 2)):
+    print(f&quot;{name:&gt;12} {V:&gt;4} {E:&gt;4} {F:&gt;4} {V - E + F:&gt;7}&quot;)
+    assert V - E + F == 2, name
+
+# The planar edge bound rules out K5 and K3,3.
+print()
+for name, V, E, bound in ((&quot;K5&quot;, 5, 10, 3 * 5 - 6), (&quot;K3,3&quot;, 6, 9, 2 * 6 - 4)):
+    print(f&quot;  {name}: E = {E}, planar bound = {bound} -&gt; planar? {E &lt;= bound}&quot;)
+    assert E &gt; bound, f&quot;{name} must violate the planar bound&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the degree test and the exhaustive search agree on every graph tested, which is what a correct theorem looks like — but notice the asymmetry in cost. The degree test looked at each edge once; the search tried every ordering of edges from every starting vertex, and would have been hopeless on a graph with thirty edges. That gap <em>is</em> the value of the theorem: Euler replaced an exponential search with a parity check. The Hamiltonian table shows what it looks like when no such theorem is available — $19!$ is about $1.2\times10^{17}$, and no amount of cleverness in the search changes the fact that the problem is NP-complete. Two questions one word apart, with completely different computational fates.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m28-ex1-graph-basics" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Degrees, the handshake lemma and adjacency</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>A graph is <code>(n, edges)</code> with vertices <code>0..n-1</code> and <code>edges</code> a list of <code>(u, v)</code> pairs. Write <code>degree_sequence(n, edges)</code> returning the sorted list of degrees. Write <code>handshake_holds(n, edges)</code> checking that the degrees sum to twice the edge count. Write <code>odd_degree_count(n, edges)</code>. Write <code>adjacency(n, edges)</code> returning a dict from vertex to a sorted list of neighbours, counting repeated edges once. Write <code>is_simple(n, edges)</code> returning <code>False</code> when there is a loop or a repeated edge. Raise <code>ValueError</code> for an out-of-range endpoint.</p></div>
+<textarea class="code" spellcheck="false">def degree_sequence(n, edges):
+    &quot;&quot;&quot;Sorted degrees.&quot;&quot;&quot;
+    return []
+
+
+def handshake_holds(n, edges):
+    &quot;&quot;&quot;True when the degrees sum to 2|E|.&quot;&quot;&quot;
+    return False
+
+
+def odd_degree_count(n, edges):
+    &quot;&quot;&quot;How many vertices have odd degree.&quot;&quot;&quot;
+    return 0
+
+
+def adjacency(n, edges):
+    &quot;&quot;&quot;Vertex to sorted neighbour list.&quot;&quot;&quot;
+    return {}
+
+
+def is_simple(n, edges):
+    &quot;&quot;&quot;True when there are no loops and no repeated edges.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_degrees_and_handshake():
+    # a path 0-1-2
+    assert degree_sequence(3, [(0, 1), (1, 2)]) == [1, 1, 2]
+    assert handshake_holds(3, [(0, 1), (1, 2)]) is True
+    # a triangle
+    assert degree_sequence(3, [(0, 1), (1, 2), (2, 0)]) == [2, 2, 2]
+    # an isolated vertex has degree zero
+    assert degree_sequence(4, [(0, 1)]) == [0, 0, 1, 1]
+    try:
+        degree_sequence(3, [(0, 5)])
+        assert False, &quot;an out-of-range endpoint must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_odd_degree_vertices_come_in_pairs():
+    import random
+    rng = random.Random(1736)
+    for _ in range(300):
+        n = rng.randint(1, 8)
+        pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]
+        edges = [e for e in pairs if rng.random() &lt; 0.4]
+        assert handshake_holds(n, edges) is True
+        assert odd_degree_count(n, edges) % 2 == 0, &quot;a corollary of the handshake lemma&quot;
+    # Konigsberg has four odd vertices
+    k = [(0, 1), (0, 1), (0, 2), (0, 2), (0, 3), (1, 3), (2, 3)]
+    assert degree_sequence(4, k) == [3, 3, 3, 5]
+    assert odd_degree_count(4, k) == 4
+
+
+def test_adjacency_and_simplicity():
+    adj = adjacency(4, [(0, 1), (1, 2), (2, 3)])
+    assert adj == {0: [1], 1: [0, 2], 2: [1, 3], 3: [2]}
+    # repeated edges collapse in the adjacency view
+    assert adjacency(2, [(0, 1), (0, 1)]) == {0: [1], 1: [0]}
+    assert is_simple(2, [(0, 1)]) is True
+    assert is_simple(2, [(0, 1), (1, 0)]) is False       # repeated
+    assert is_simple(2, [(0, 0)]) is False               # loop
+    assert is_simple(4, [(0, 1), (1, 2), (2, 3)]) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m28-ex2-connectivity-trees" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Connectivity, cycles and trees</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>components(n, edges)</code> returning a list of sorted vertex lists, one per connected component, ordered by their smallest vertex. Write <code>is_connected(n, edges)</code>. Write <code>has_cycle(n, edges)</code> using union-find on a simple graph. Write <code>is_tree(n, edges)</code> returning <code>True</code> when the graph is connected and acyclic. Write <code>tree_edge_count_holds(n, edges)</code> returning <code>True</code> when a tree has exactly <code>n-1</code> edges. Raise <code>ValueError</code> for <code>n &lt;= 0</code>.</p></div>
+<textarea class="code" spellcheck="false">def components(n, edges):
+    &quot;&quot;&quot;Connected components as sorted vertex lists.&quot;&quot;&quot;
+    return []
+
+
+def is_connected(n, edges):
+    &quot;&quot;&quot;True when there is one component.&quot;&quot;&quot;
+    return False
+
+
+def has_cycle(n, edges):
+    &quot;&quot;&quot;True when the graph contains a cycle.&quot;&quot;&quot;
+    return False
+
+
+def is_tree(n, edges):
+    &quot;&quot;&quot;True when connected and acyclic.&quot;&quot;&quot;
+    return False
+
+
+def tree_edge_count_holds(n, edges):
+    &quot;&quot;&quot;True when a tree has exactly n-1 edges.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_components_and_connectivity():
+    # two separate edges plus an isolated vertex
+    assert components(5, [(0, 1), (2, 3)]) == [[0, 1], [2, 3], [4]]
+    assert is_connected(5, [(0, 1), (2, 3)]) is False
+    assert is_connected(3, [(0, 1), (1, 2)]) is True
+    assert components(1, []) == [[0]]
+    assert is_connected(1, []) is True
+    # Edges written with the higher index first must behave identically: the
+    # graph is undirected, so traversal has to follow edges both ways.
+    assert is_connected(3, [(1, 0), (2, 1)]) is True
+    assert components(3, [(1, 0), (2, 1)]) == [[0, 1, 2]]
+    assert components(4, [(3, 2), (1, 0)]) == [[0, 1], [2, 3]]
+    try:
+        components(0, [])
+        assert False, &quot;zero vertices must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_cycles_and_trees():
+    path = (4, [(0, 1), (1, 2), (2, 3)])
+    triangle = (3, [(0, 1), (1, 2), (2, 0)])
+    assert has_cycle(*path) is False
+    assert has_cycle(*triangle) is True
+    assert is_tree(*path) is True
+    assert is_tree(*triangle) is False
+    # a star is a tree
+    assert is_tree(4, [(0, 1), (0, 2), (0, 3)]) is True
+    # disconnected and acyclic is a forest, not a tree
+    assert is_tree(4, [(0, 1), (2, 3)]) is False
+    assert has_cycle(4, [(0, 1), (2, 3)]) is False
+
+
+def test_the_n_minus_one_edge_count():
+    trees = [
+        (1, []),
+        (2, [(0, 1)]),
+        (4, [(0, 1), (1, 2), (1, 3)]),
+        (6, [(0, 1), (0, 2), (2, 3), (2, 4), (4, 5)]),
+        (5, [(0, 1), (1, 2), (2, 3), (3, 4)]),
+    ]
+    for n, edges in trees:
+        assert is_tree(n, edges) is True
+        assert len(edges) == n - 1
+        assert tree_edge_count_holds(n, edges) is True
+    # adding any edge to a tree creates a cycle
+    n, edges = 4, [(0, 1), (1, 2), (1, 3)]
+    assert has_cycle(n, edges + [(0, 2)]) is True
+    # removing any edge from a tree disconnects it
+    assert is_connected(n, edges[:-1]) is False
+    # a non-tree fails the count check
+    assert tree_edge_count_holds(3, [(0, 1), (1, 2), (2, 0)]) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m28-ex3-euler-bipartite" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Euler traversals and bipartite graphs</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>euler_circuit_exists(n, edges)</code> and <code>euler_path_exists(n, edges)</code> using the degree conditions, requiring the graph to be connected when the isolated vertices are ignored. Write <code>two_colouring(n, edges)</code> returning a list of 0/1 colours when the graph is bipartite and <code>None</code> otherwise, using a breadth-first alternation. Write <code>is_bipartite(n, edges)</code>. Write <code>has_odd_cycle(n, edges)</code> returning the opposite of bipartiteness. Raise <code>ValueError</code> for <code>n &lt;= 0</code>.</p></div>
+<textarea class="code" spellcheck="false">def euler_circuit_exists(n, edges):
+    &quot;&quot;&quot;True when every edge can be walked once, returning to the start.&quot;&quot;&quot;
+    return False
+
+
+def euler_path_exists(n, edges):
+    &quot;&quot;&quot;True when every edge can be walked once.&quot;&quot;&quot;
+    return False
+
+
+def two_colouring(n, edges):
+    &quot;&quot;&quot;A 0/1 colouring, or None when impossible.&quot;&quot;&quot;
+    return None
+
+
+def is_bipartite(n, edges):
+    &quot;&quot;&quot;True when a 2-colouring exists.&quot;&quot;&quot;
+    return False
+
+
+def has_odd_cycle(n, edges):
+    &quot;&quot;&quot;True when the graph contains a cycle of odd length.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_euler_conditions():
+    # Konigsberg: four odd vertices, neither path nor circuit
+    k = [(0, 1), (0, 1), (0, 2), (0, 2), (0, 3), (1, 3), (2, 3)]
+    assert euler_circuit_exists(4, k) is False
+    assert euler_path_exists(4, k) is False
+    # a triangle: all degrees 2, so a circuit exists
+    assert euler_circuit_exists(3, [(0, 1), (1, 2), (2, 0)]) is True
+    # a path 0-1-2: two odd vertices, so a path but no circuit
+    assert euler_circuit_exists(3, [(0, 1), (1, 2)]) is False
+    assert euler_path_exists(3, [(0, 1), (1, 2)]) is True
+    # disconnected edges: neither
+    assert euler_path_exists(4, [(0, 1), (2, 3)]) is False
+
+
+def test_bipartite_detection():
+    # an even cycle is bipartite, an odd cycle is not
+    assert is_bipartite(4, [(0, 1), (1, 2), (2, 3), (3, 0)]) is True
+    assert is_bipartite(3, [(0, 1), (1, 2), (2, 0)]) is False
+    assert has_odd_cycle(3, [(0, 1), (1, 2), (2, 0)]) is True
+    assert has_odd_cycle(4, [(0, 1), (1, 2), (2, 3), (3, 0)]) is False
+    # every tree is bipartite
+    assert is_bipartite(4, [(0, 1), (1, 2), (1, 3)]) is True
+    # K3,3 is bipartite by construction
+    k33 = [(i, j) for i in range(3) for j in range(3, 6)]
+    assert is_bipartite(6, k33) is True
+
+
+def test_colouring_is_proper_and_errors():
+    cases = [
+        (4, [(0, 1), (1, 2), (2, 3), (3, 0)]),
+        (4, [(0, 1), (1, 2), (1, 3)]),
+        (6, [(i, j) for i in range(3) for j in range(3, 6)]),
+        (5, []),
+    ]
+    for n, edges in cases:
+        colour = two_colouring(n, edges)
+        assert colour is not None
+        assert len(colour) == n
+        for u, v in edges:
+            assert colour[u] != colour[v], &quot;adjacent vertices must differ&quot;
+    assert two_colouring(3, [(0, 1), (1, 2), (2, 0)]) is None
+    try:
+        is_bipartite(0, [])
+        assert False, &quot;zero vertices must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m28-ex4-recurrences" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Solving linear recurrences</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>solve_recurrence(coeffs, initial, n)</code> iterating <code>a_n = sum(coeffs[i] * a_{n-1-i})</code> from the given initial values, raising <code>ValueError</code> when the lengths disagree or <code>n</code> is negative. Write <code>characteristic_roots(c1, c2)</code> returning the two roots of <code>r^2 = c1 r + c2</code> as a sorted tuple, raising <code>ValueError</code> when the discriminant is negative. Write <code>closed_form_coefficients(roots, a0, a1)</code> returning <code>(alpha, beta)</code> with <code>alpha*r1^n + beta*r2^n</code> matching the initial values, raising <code>ValueError</code> for equal roots. Write <code>closed_form(coeffs2, initial2, n)</code> combining them.</p></div>
+<textarea class="code" spellcheck="false">def solve_recurrence(coeffs, initial, n):
+    &quot;&quot;&quot;Iterate the recurrence to the n-th term.&quot;&quot;&quot;
+    return 0
+
+
+def characteristic_roots(c1, c2):
+    &quot;&quot;&quot;Roots of r^2 = c1 r + c2.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def closed_form_coefficients(roots, a0, a1):
+    &quot;&quot;&quot;(alpha, beta) fitting the initial conditions.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def closed_form(coeffs2, initial2, n):
+    &quot;&quot;&quot;The n-th term by the closed form.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_fibonacci_by_iteration_and_closed_form():
+    # a_n = a_{n-1} + a_{n-2}, a0 = 0, a1 = 1
+    fibs = [solve_recurrence([1, 1], [0, 1], n) for n in range(15)]
+    assert fibs == [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377]
+    for n in range(0, 40):
+        a = solve_recurrence([1, 1], [0, 1], n)
+        b = closed_form([1, 1], [0, 1], n)
+        assert abs(a - b) &lt; 1e-6 * max(1.0, abs(a)), n
+
+
+def test_characteristic_roots_and_a_second_example():
+    from math import sqrt
+    # Fibonacci: r^2 = r + 1, roots (1 +- sqrt 5)/2
+    r1, r2 = characteristic_roots(1, 1)
+    assert abs(r2 - (1 + sqrt(5)) / 2) &lt; 1e-12
+    assert abs(r1 - (1 - sqrt(5)) / 2) &lt; 1e-12
+    # a_n = 5a_{n-1} - 6a_{n-2} has roots 2 and 3
+    r1, r2 = characteristic_roots(5, -6)
+    assert abs(r1 - 2.0) &lt; 1e-12 and abs(r2 - 3.0) &lt; 1e-12
+    # with a0 = 0, a1 = 1 the closed form is 3^n - 2^n
+    for n in range(0, 20):
+        assert abs(closed_form([5, -6], [0, 1], n) - (3 ** n - 2 ** n)) &lt; 1e-6
+        assert solve_recurrence([5, -6], [0, 1], n) == 3 ** n - 2 ** n
+
+
+def test_higher_order_and_errors():
+    # tribonacci: a_n = a_{n-1} + a_{n-2} + a_{n-3}
+    tri = [solve_recurrence([1, 1, 1], [0, 1, 1], n) for n in range(10)]
+    assert tri == [0, 1, 1, 2, 4, 7, 13, 24, 44, 81]
+    # a geometric sequence is an order-1 recurrence
+    assert solve_recurrence([3], [1], 5) == 243
+    try:
+        solve_recurrence([1, 1], [0], 5)
+        assert False, &quot;mismatched lengths must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        characteristic_roots(0, -1)
+        assert False, &quot;complex roots must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        closed_form_coefficients((2.0, 2.0), 1, 1)
+        assert False, &quot;equal roots must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m28-ex5-catalan" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Catalan numbers and generating functions</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>catalan_recurrence(n)</code> using the convolution <code>C_{n+1} = sum C_i C_{n-i}</code>. Write <code>catalan_closed(n)</code> using <code>C(2n, n) // (n+1)</code>. Write <code>count_balanced_brackets(n)</code> counting balanced strings of <code>n</code> pairs by dynamic programming over (position, depth). Write <code>count_binary_trees(n)</code> counting binary trees with <code>n</code> internal nodes by the same recurrence. Write <code>series_product(a, b, terms)</code> returning the first <code>terms</code> coefficients of the product of two power series given as coefficient lists. Write <code>geometric_series(ratio, terms)</code> returning the coefficients of <code>1/(1 - ratio*x)</code>. Raise <code>ValueError</code> for a negative <code>n</code> or a non-positive <code>terms</code>.</p></div>
+<textarea class="code" spellcheck="false">def catalan_recurrence(n):
+    &quot;&quot;&quot;C_n by the convolution recurrence.&quot;&quot;&quot;
+    return 0
+
+
+def catalan_closed(n):
+    &quot;&quot;&quot;C_n by the binomial formula.&quot;&quot;&quot;
+    return 0
+
+
+def count_balanced_brackets(n):
+    &quot;&quot;&quot;Balanced strings with n pairs.&quot;&quot;&quot;
+    return 0
+
+
+def count_binary_trees(n):
+    &quot;&quot;&quot;Binary trees with n internal nodes.&quot;&quot;&quot;
+    return 0
+
+
+def series_product(a, b, terms):
+    &quot;&quot;&quot;Coefficients of the product of two power series.&quot;&quot;&quot;
+    return []
+
+
+def geometric_series(ratio, terms):
+    &quot;&quot;&quot;Coefficients of 1/(1 - ratio x).&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_catalan_three_ways_agree():
+    expected = [1, 1, 2, 5, 14, 42, 132, 429, 1430, 4862]
+    for n in range(10):
+        assert catalan_recurrence(n) == expected[n], n
+        assert catalan_closed(n) == expected[n], n
+        assert count_balanced_brackets(n) == expected[n], n
+        assert count_binary_trees(n) == expected[n], n
+    # and they keep agreeing further out
+    for n in (12, 15, 18):
+        assert catalan_recurrence(n) == catalan_closed(n) == count_balanced_brackets(n)
+
+
+def test_brackets_and_trees_against_brute_force():
+    from itertools import product
+    for n in range(0, 7):
+        total = 0
+        for bits in product(&quot;()&quot;, repeat=2 * n):
+            depth = 0
+            ok = True
+            for ch in bits:
+                depth += 1 if ch == &quot;(&quot; else -1
+                if depth &lt; 0:
+                    ok = False
+                    break
+            if ok and depth == 0:
+                total += 1
+        assert count_balanced_brackets(n) == total, n
+    try:
+        catalan_closed(-1)
+        assert False, &quot;a negative n must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_generating_function_arithmetic():
+    # 1/(1-x) has all coefficients 1
+    assert geometric_series(1, 6) == [1, 1, 1, 1, 1, 1]
+    assert geometric_series(2, 5) == [1, 2, 4, 8, 16]
+    # 1/(1-x)^2 has coefficients n+1
+    squared = series_product(geometric_series(1, 8), geometric_series(1, 8), 8)
+    assert squared == [1, 2, 3, 4, 5, 6, 7, 8]
+    # multiplying by (1 - x) undoes the geometric series
+    back = series_product(geometric_series(1, 6), [1, -1], 6)
+    assert back == [1, 0, 0, 0, 0, 0]
+    # the Fibonacci generating function x/(1 - x - x^2):
+    # multiplying the Fibonacci coefficients by (1 - x - x^2) leaves just x
+    fib = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]
+    checked = series_product(fib, [1, -1, -1], 10)
+    assert checked[:8] == [0, 1, 0, 0, 0, 0, 0, 0]
+    try:
+        series_product([1], [1], 0)
+        assert False, &quot;zero terms must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Euler and Hamiltonian problems are similar."</strong> Euler is about edges and has a one-line criterion decidable in linear time; Hamiltonian is about vertices and is NP-complete. The superficial similarity of the statements hides a vast computational gap.</li>
+<li><strong>"A connected graph with all even degrees might still have no Euler circuit."</strong> The condition is <em>sufficient</em> as well as necessary — that is the content of the theorem, and the experiment verified it by exhaustive search.</li>
+<li><strong>"Bipartite means the two sides are the same size."</strong> It means every edge runs between the sides. A star with one centre and nine leaves is bipartite with sides of size 1 and 9.</li>
+<li><strong>"A tree is a graph that looks like a tree."</strong> A tree is <em>connected and acyclic</em>, and those two conditions plus any one of "has $n-1$ edges" determine the other. A disconnected acyclic graph is a forest, not a tree.</li>
+<li><strong>"Any graph can be drawn without crossings if you are clever."</strong> $K_5$ and $K_{3,3}$ cannot, and Kuratowski's theorem says they are the only obstructions.</li>
+<li><strong>"A generating function must converge."</strong> It is a <strong>formal</strong> power series: $x$ is a placeholder and convergence is irrelevant to the algebra. $\sum n!x^n$ converges nowhere and is still a perfectly good generating function.</li>
+<li><strong>"Binet's formula is the fast way to compute Fibonacci."</strong> It is $O(1)$ arithmetic but in floating point, and it loses accuracy for large $n$ — beyond about $n=70$ a double cannot represent $F_n$ exactly. Fast exact computation uses matrix exponentiation or fast doubling.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Everything in the graph half assumed <strong>undirected, unweighted, simple</strong> graphs. Directed graphs need in-degree and out-degree, and the Euler condition becomes "in-degree equals out-degree at every vertex, and the graph is strongly connected on its non-isolated part". Weighted graphs bring shortest paths and minimum spanning trees. Multigraphs allow parallel edges, which Königsberg genuinely has.</p>
+<p>The characteristic-root method needs <strong>constant</strong> coefficients and <strong>linearity</strong>. A recurrence such as $a_n = a_{n-1}^2+1$, or one with coefficients depending on $n$, is outside the method entirely, and most such recurrences have no closed form at all.</p>
+<p>Repeated roots change the form: $a_n = 2a_{n-1}-a_{n-2}$ has the double root 1, and the solution is $\alpha+\beta n$, not $\alpha+\beta$. The exercise deliberately refuses that case rather than returning a wrong answer. Complex roots are fine mathematically — they produce oscillating solutions via M19 — but the exercise's real-arithmetic implementation cannot represent them.</p>
+<p>Numerically, Binet's formula fails exactly where you would want it: for large $n$, $\varphi^n$ overflows and the rounding error exceeds 1 before that. And the brute-force bracket enumeration in the demo is $2^{2n}$, so it stops being usable around $n=10$ — the dynamic-programming version in the exercise is the one that scales.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Graphs are the natural model for dependency resolution (a build graph, a package manager, an import graph), and "is there a cycle" is the question behind every circular-dependency error. Topological sort — ordering a DAG so every edge points forwards — is the scheduling algorithm behind build systems and task runners.</p>
+<p>Bipartite detection by 2-colouring is matching: assigning jobs to workers, requests to servers. Graph colouring is register allocation in a compiler, and channel assignment in wireless. Connectivity and components are how you find isolated subsystems in a service mesh.</p>
+<p>Recurrences are the running time of recursive algorithms: $T(n)=2T(n/2)+n$ is mergesort, and solving it gives $n\log n$. The Catalan numbers count the shapes a binary tree can take, which is why they appear in parser and expression-tree analysis.</p>
+<p>And the Euler-versus-Hamilton contrast is the most practically important idea here. Before writing a search, ask whether a <em>structural</em> theorem decides the question — because the difference between a parity check and an exponential search is the difference between a feature and an outage.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>State the handshake lemma and one immediate corollary.</p></div><div class="a" hidden><p>The degrees sum to twice the number of edges. Therefore the number of odd-degree vertices is always even.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>When does a connected graph have an Euler circuit, and when an Euler path?</p></div><div class="a" hidden><p>A circuit exactly when every degree is even; a path exactly when zero or two vertices have odd degree.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why did Euler's argument settle Königsberg?</p></div><div class="a" hidden><p>All four landmasses had odd degree, and at most two odd vertices are permitted, so no traversal exists for anyone.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How do Euler and Hamiltonian problems differ computationally?</p></div><div class="a" hidden><p>Euler is decided in linear time by a degree check; deciding Hamiltonicity is NP-complete.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Give three equivalent definitions of a tree.</p></div><div class="a" hidden><p>Connected and acyclic; connected with n-1 edges; exactly one path between every pair of vertices.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What characterises a bipartite graph?</p></div><div class="a" hidden><p>It is 2-colourable, equivalently it contains no odd cycle.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>State Euler's formula for planar graphs and one consequence.</p></div><div class="a" hidden><p>V - E + F = 2 for a connected planar drawing. A consequence is E &lt;= 3V - 6, which rules out K5.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>How do you solve a linear recurrence with constant coefficients?</p></div><div class="a" hidden><p>Substitute r^n to get the characteristic equation, find its roots, and fit a combination of r_i^n to the initial conditions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>What does "formal" mean in formal power series?</p></div><div class="a" hidden><p>Convergence is irrelevant. The series is a container for the sequence, and x is bookkeeping, so divergent series are perfectly usable.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What do the Catalan numbers count, and what is the closed form?</p></div><div class="a" hidden><p>Balanced bracket strings, binary trees, polygon triangulations and much else. C_n = C(2n,n)/(n+1).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain Euler's Königsberg argument to a child, you can prove the handshake lemma by double counting and the n-1 edge count by induction, you can decide Euler traversability and bipartiteness by hand and say why neither has a Hamiltonian analogue, you can turn a linear recurrence into its characteristic equation and solve it, you pass the boss exercise without hints, and you habitually ask whether a structural theorem can replace a search.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Leonhard Euler, "Solutio problematis ad geometriam situs pertinentis", <em>Commentarii Academiae Scientiarum Petropolitanae</em>, 1736.</li>
+<li>Douglas B. West, <em>Introduction to Graph Theory</em>, 2nd edition, Pearson.</li>
+<li>Graham, Knuth and Patashnik, <em>Concrete Mathematics</em>, 2nd edition, Addison-Wesley (recurrences and generating functions).</li>
+<li>Herbert S. Wilf, <em>generatingfunctionology</em>, 2nd edition (freely available).</li>
+<li>Richard P. Stanley, <em>Catalan Numbers</em>, Cambridge University Press, 2015.</li>
+</ul></section>
+<footer class="pager"><a href="D06.html">&larr; D06 Sorting and searching</a>
+<a href="M29.html">M29 Number theory for computing &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M28", "packages": [], "exercises": {"m28-ex1-graph-basics": {"starter": "def degree_sequence(n, edges):\n    \"\"\"Sorted degrees.\"\"\"\n    return []\n\n\ndef handshake_holds(n, edges):\n    \"\"\"True when the degrees sum to 2|E|.\"\"\"\n    return False\n\n\ndef odd_degree_count(n, edges):\n    \"\"\"How many vertices have odd degree.\"\"\"\n    return 0\n\n\ndef adjacency(n, edges):\n    \"\"\"Vertex to sorted neighbour list.\"\"\"\n    return {}\n\n\ndef is_simple(n, edges):\n    \"\"\"True when there are no loops and no repeated edges.\"\"\"\n    return False\n", "solution": "def _check(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    for u, v in edges:\n        if not (0 <= u < n and 0 <= v < n):\n            raise ValueError(\"an edge endpoint is out of range\")\n\n\ndef degree_sequence(n, edges):\n    \"\"\"Sorted degrees.\"\"\"\n    _check(n, edges)\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return sorted(d)\n\n\ndef handshake_holds(n, edges):\n    \"\"\"True when the degrees sum to 2|E|.\"\"\"\n    return sum(degree_sequence(n, edges)) == 2 * len(edges)\n\n\ndef odd_degree_count(n, edges):\n    \"\"\"How many vertices have odd degree.\"\"\"\n    return sum(1 for d in degree_sequence(n, edges) if d % 2 == 1)\n\n\ndef adjacency(n, edges):\n    \"\"\"Vertex to sorted neighbour list.\"\"\"\n    _check(n, edges)\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        if u != v:\n            adj[u].add(v)\n            adj[v].add(u)\n    return {k: sorted(s) for k, s in adj.items()}\n\n\ndef is_simple(n, edges):\n    \"\"\"True when there are no loops and no repeated edges.\"\"\"\n    _check(n, edges)\n    seen = set()\n    for u, v in edges:\n        if u == v:\n            return False\n        key = frozenset((u, v))\n        if key in seen:\n            return False\n        seen.add(key)\n    return True\n", "tests": "def test_degrees_and_handshake():\n    # a path 0-1-2\n    assert degree_sequence(3, [(0, 1), (1, 2)]) == [1, 1, 2]\n    assert handshake_holds(3, [(0, 1), (1, 2)]) is True\n    # a triangle\n    assert degree_sequence(3, [(0, 1), (1, 2), (2, 0)]) == [2, 2, 2]\n    # an isolated vertex has degree zero\n    assert degree_sequence(4, [(0, 1)]) == [0, 0, 1, 1]\n    try:\n        degree_sequence(3, [(0, 5)])\n        assert False, \"an out-of-range endpoint must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_odd_degree_vertices_come_in_pairs():\n    import random\n    rng = random.Random(1736)\n    for _ in range(300):\n        n = rng.randint(1, 8)\n        pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]\n        edges = [e for e in pairs if rng.random() < 0.4]\n        assert handshake_holds(n, edges) is True\n        assert odd_degree_count(n, edges) % 2 == 0, \"a corollary of the handshake lemma\"\n    # Konigsberg has four odd vertices\n    k = [(0, 1), (0, 1), (0, 2), (0, 2), (0, 3), (1, 3), (2, 3)]\n    assert degree_sequence(4, k) == [3, 3, 3, 5]\n    assert odd_degree_count(4, k) == 4\n\n\ndef test_adjacency_and_simplicity():\n    adj = adjacency(4, [(0, 1), (1, 2), (2, 3)])\n    assert adj == {0: [1], 1: [0, 2], 2: [1, 3], 3: [2]}\n    # repeated edges collapse in the adjacency view\n    assert adjacency(2, [(0, 1), (0, 1)]) == {0: [1], 1: [0]}\n    assert is_simple(2, [(0, 1)]) is True\n    assert is_simple(2, [(0, 1), (1, 0)]) is False       # repeated\n    assert is_simple(2, [(0, 0)]) is False               # loop\n    assert is_simple(4, [(0, 1), (1, 2), (2, 3)]) is True\n", "mutants": ["def _check(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    for u, v in edges:\n        if not (0 <= u < n and 0 <= v < n):\n            raise ValueError(\"an edge endpoint is out of range\")\n\n\ndef degree_sequence(n, edges):\n    \"\"\"Bug: counts each edge once, at its first endpoint only.\"\"\"\n    _check(n, edges)\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n    return sorted(d)\n\n\ndef handshake_holds(n, edges):\n    return sum(degree_sequence(n, edges)) == 2 * len(edges)\n\n\ndef odd_degree_count(n, edges):\n    return sum(1 for d in degree_sequence(n, edges) if d % 2 == 1)\n\n\ndef adjacency(n, edges):\n    _check(n, edges)\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        if u != v:\n            adj[u].add(v)\n            adj[v].add(u)\n    return {k: sorted(s) for k, s in adj.items()}\n\n\ndef is_simple(n, edges):\n    _check(n, edges)\n    seen = set()\n    for u, v in edges:\n        if u == v:\n            return False\n        key = frozenset((u, v))\n        if key in seen:\n            return False\n        seen.add(key)\n    return True\n", "def _check(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    for u, v in edges:\n        if not (0 <= u < n and 0 <= v < n):\n            raise ValueError(\"an edge endpoint is out of range\")\n\n\ndef degree_sequence(n, edges):\n    _check(n, edges)\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return sorted(d)\n\n\ndef handshake_holds(n, edges):\n    return sum(degree_sequence(n, edges)) == 2 * len(edges)\n\n\ndef odd_degree_count(n, edges):\n    return sum(1 for d in degree_sequence(n, edges) if d % 2 == 1)\n\n\ndef adjacency(n, edges):\n    \"\"\"Bug: directed adjacency, so neighbours are only recorded one way.\"\"\"\n    _check(n, edges)\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        if u != v:\n            adj[u].add(v)\n    return {k: sorted(s) for k, s in adj.items()}\n\n\ndef is_simple(n, edges):\n    \"\"\"Bug: treats (u,v) and (v,u) as different edges.\"\"\"\n    _check(n, edges)\n    seen = set()\n    for u, v in edges:\n        if u == v:\n            return False\n        if (u, v) in seen:\n            return False\n        seen.add((u, v))\n    return True\n"], "hints": ["Each edge contributes 1 to the degree of *both* its endpoints, which is why the degrees sum to twice the edge count.", "In an undirected graph, `(u, v)` and `(v, u)` are the same edge, so use a frozenset as the key."], "level": "warmup", "title": "Degrees, the handshake lemma and adjacency"}, "m28-ex2-connectivity-trees": {"starter": "def components(n, edges):\n    \"\"\"Connected components as sorted vertex lists.\"\"\"\n    return []\n\n\ndef is_connected(n, edges):\n    \"\"\"True when there is one component.\"\"\"\n    return False\n\n\ndef has_cycle(n, edges):\n    \"\"\"True when the graph contains a cycle.\"\"\"\n    return False\n\n\ndef is_tree(n, edges):\n    \"\"\"True when connected and acyclic.\"\"\"\n    return False\n\n\ndef tree_edge_count_holds(n, edges):\n    \"\"\"True when a tree has exactly n-1 edges.\"\"\"\n    return False\n", "solution": "def _check(n):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n\n\ndef components(n, edges):\n    \"\"\"Connected components as sorted vertex lists.\"\"\"\n    _check(n)\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        adj[u].add(v)\n        adj[v].add(u)\n    seen = set()\n    out = []\n    for start in range(n):\n        if start in seen:\n            continue\n        comp = []\n        stack = [start]\n        seen.add(start)\n        while stack:\n            x = stack.pop()\n            comp.append(x)\n            for y in adj[x]:\n                if y not in seen:\n                    seen.add(y)\n                    stack.append(y)\n        out.append(sorted(comp))\n    return sorted(out, key=lambda c: c[0])\n\n\ndef is_connected(n, edges):\n    \"\"\"True when there is one component.\"\"\"\n    return len(components(n, edges)) == 1\n\n\ndef has_cycle(n, edges):\n    \"\"\"True when the graph contains a cycle.\"\"\"\n    _check(n)\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for u, v in edges:\n        if u == v:\n            return True\n        ru, rv = find(u), find(v)\n        if ru == rv:\n            return True\n        parent[ru] = rv\n    return False\n\n\ndef is_tree(n, edges):\n    \"\"\"True when connected and acyclic.\"\"\"\n    return is_connected(n, edges) and not has_cycle(n, edges)\n\n\ndef tree_edge_count_holds(n, edges):\n    \"\"\"True when a tree has exactly n-1 edges.\"\"\"\n    if not is_tree(n, edges):\n        return False\n    return len(edges) == n - 1\n", "tests": "def test_components_and_connectivity():\n    # two separate edges plus an isolated vertex\n    assert components(5, [(0, 1), (2, 3)]) == [[0, 1], [2, 3], [4]]\n    assert is_connected(5, [(0, 1), (2, 3)]) is False\n    assert is_connected(3, [(0, 1), (1, 2)]) is True\n    assert components(1, []) == [[0]]\n    assert is_connected(1, []) is True\n    # Edges written with the higher index first must behave identically: the\n    # graph is undirected, so traversal has to follow edges both ways.\n    assert is_connected(3, [(1, 0), (2, 1)]) is True\n    assert components(3, [(1, 0), (2, 1)]) == [[0, 1, 2]]\n    assert components(4, [(3, 2), (1, 0)]) == [[0, 1], [2, 3]]\n    try:\n        components(0, [])\n        assert False, \"zero vertices must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_cycles_and_trees():\n    path = (4, [(0, 1), (1, 2), (2, 3)])\n    triangle = (3, [(0, 1), (1, 2), (2, 0)])\n    assert has_cycle(*path) is False\n    assert has_cycle(*triangle) is True\n    assert is_tree(*path) is True\n    assert is_tree(*triangle) is False\n    # a star is a tree\n    assert is_tree(4, [(0, 1), (0, 2), (0, 3)]) is True\n    # disconnected and acyclic is a forest, not a tree\n    assert is_tree(4, [(0, 1), (2, 3)]) is False\n    assert has_cycle(4, [(0, 1), (2, 3)]) is False\n\n\ndef test_the_n_minus_one_edge_count():\n    trees = [\n        (1, []),\n        (2, [(0, 1)]),\n        (4, [(0, 1), (1, 2), (1, 3)]),\n        (6, [(0, 1), (0, 2), (2, 3), (2, 4), (4, 5)]),\n        (5, [(0, 1), (1, 2), (2, 3), (3, 4)]),\n    ]\n    for n, edges in trees:\n        assert is_tree(n, edges) is True\n        assert len(edges) == n - 1\n        assert tree_edge_count_holds(n, edges) is True\n    # adding any edge to a tree creates a cycle\n    n, edges = 4, [(0, 1), (1, 2), (1, 3)]\n    assert has_cycle(n, edges + [(0, 2)]) is True\n    # removing any edge from a tree disconnects it\n    assert is_connected(n, edges[:-1]) is False\n    # a non-tree fails the count check\n    assert tree_edge_count_holds(3, [(0, 1), (1, 2), (2, 0)]) is False\n", "mutants": ["def _check(n):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n\n\ndef components(n, edges):\n    \"\"\"Bug: follows edges in one direction only, splitting components wrongly.\"\"\"\n    _check(n)\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        adj[u].add(v)\n    seen = set()\n    out = []\n    for start in range(n):\n        if start in seen:\n            continue\n        comp = []\n        stack = [start]\n        seen.add(start)\n        while stack:\n            x = stack.pop()\n            comp.append(x)\n            for y in adj[x]:\n                if y not in seen:\n                    seen.add(y)\n                    stack.append(y)\n        out.append(sorted(comp))\n    return sorted(out, key=lambda c: c[0])\n\n\ndef is_connected(n, edges):\n    return len(components(n, edges)) == 1\n\n\ndef has_cycle(n, edges):\n    _check(n)\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for u, v in edges:\n        if u == v:\n            return True\n        ru, rv = find(u), find(v)\n        if ru == rv:\n            return True\n        parent[ru] = rv\n    return False\n\n\ndef is_tree(n, edges):\n    return is_connected(n, edges) and not has_cycle(n, edges)\n\n\ndef tree_edge_count_holds(n, edges):\n    if not is_tree(n, edges):\n        return False\n    return len(edges) == n - 1\n", "def _check(n):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n\n\ndef components(n, edges):\n    _check(n)\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        adj[u].add(v)\n        adj[v].add(u)\n    seen = set()\n    out = []\n    for start in range(n):\n        if start in seen:\n            continue\n        comp = []\n        stack = [start]\n        seen.add(start)\n        while stack:\n            x = stack.pop()\n            comp.append(x)\n            for y in adj[x]:\n                if y not in seen:\n                    seen.add(y)\n                    stack.append(y)\n        out.append(sorted(comp))\n    return sorted(out, key=lambda c: c[0])\n\n\ndef is_connected(n, edges):\n    return len(components(n, edges)) == 1\n\n\ndef has_cycle(n, edges):\n    \"\"\"Bug: unions before testing, so a cycle is never detected.\"\"\"\n    _check(n)\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for u, v in edges:\n        if u == v:\n            return True\n        parent[find(u)] = find(v)\n    return False\n\n\ndef is_tree(n, edges):\n    return is_connected(n, edges) and not has_cycle(n, edges)\n\n\ndef tree_edge_count_holds(n, edges):\n    if not is_tree(n, edges):\n        return False\n    return len(edges) == n - 1\n"], "hints": ["Build the adjacency in both directions before exploring, or a traversal will miss vertices it could reach.", "Union-find detects a cycle when an edge joins two vertices already in the same set \u2014 so test *before* you union."], "level": "core", "title": "Connectivity, cycles and trees"}, "m28-ex3-euler-bipartite": {"starter": "def euler_circuit_exists(n, edges):\n    \"\"\"True when every edge can be walked once, returning to the start.\"\"\"\n    return False\n\n\ndef euler_path_exists(n, edges):\n    \"\"\"True when every edge can be walked once.\"\"\"\n    return False\n\n\ndef two_colouring(n, edges):\n    \"\"\"A 0/1 colouring, or None when impossible.\"\"\"\n    return None\n\n\ndef is_bipartite(n, edges):\n    \"\"\"True when a 2-colouring exists.\"\"\"\n    return False\n\n\ndef has_odd_cycle(n, edges):\n    \"\"\"True when the graph contains a cycle of odd length.\"\"\"\n    return False\n", "solution": "from collections import deque\n\n\ndef _adj(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    adj = {i: [] for i in range(n)}\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n    return adj\n\n\ndef _connected_ignoring_isolated(n, edges):\n    if not edges:\n        return True\n    adj = _adj(n, edges)\n    start = edges[0][0]\n    seen = {start}\n    stack = [start]\n    while stack:\n        x = stack.pop()\n        for y in adj[x]:\n            if y not in seen:\n                seen.add(y)\n                stack.append(y)\n    return all(not adj[v] or v in seen for v in range(n))\n\n\ndef _odd_count(n, edges):\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return sum(1 for x in d if x % 2 == 1)\n\n\ndef euler_circuit_exists(n, edges):\n    \"\"\"True when every edge can be walked once, returning to the start.\"\"\"\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    if not _connected_ignoring_isolated(n, edges):\n        return False\n    return _odd_count(n, edges) == 0\n\n\ndef euler_path_exists(n, edges):\n    \"\"\"True when every edge can be walked once.\"\"\"\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    if not _connected_ignoring_isolated(n, edges):\n        return False\n    return _odd_count(n, edges) in (0, 2)\n\n\ndef two_colouring(n, edges):\n    \"\"\"A 0/1 colouring, or None when impossible.\"\"\"\n    adj = _adj(n, edges)\n    colour = [None] * n\n    for start in range(n):\n        if colour[start] is not None:\n            continue\n        colour[start] = 0\n        q = deque([start])\n        while q:\n            x = q.popleft()\n            for y in adj[x]:\n                if colour[y] is None:\n                    colour[y] = 1 - colour[x]\n                    q.append(y)\n                elif colour[y] == colour[x]:\n                    return None\n    return colour\n\n\ndef is_bipartite(n, edges):\n    \"\"\"True when a 2-colouring exists.\"\"\"\n    return two_colouring(n, edges) is not None\n\n\ndef has_odd_cycle(n, edges):\n    \"\"\"True when the graph contains a cycle of odd length.\"\"\"\n    return not is_bipartite(n, edges)\n", "tests": "def test_euler_conditions():\n    # Konigsberg: four odd vertices, neither path nor circuit\n    k = [(0, 1), (0, 1), (0, 2), (0, 2), (0, 3), (1, 3), (2, 3)]\n    assert euler_circuit_exists(4, k) is False\n    assert euler_path_exists(4, k) is False\n    # a triangle: all degrees 2, so a circuit exists\n    assert euler_circuit_exists(3, [(0, 1), (1, 2), (2, 0)]) is True\n    # a path 0-1-2: two odd vertices, so a path but no circuit\n    assert euler_circuit_exists(3, [(0, 1), (1, 2)]) is False\n    assert euler_path_exists(3, [(0, 1), (1, 2)]) is True\n    # disconnected edges: neither\n    assert euler_path_exists(4, [(0, 1), (2, 3)]) is False\n\n\ndef test_bipartite_detection():\n    # an even cycle is bipartite, an odd cycle is not\n    assert is_bipartite(4, [(0, 1), (1, 2), (2, 3), (3, 0)]) is True\n    assert is_bipartite(3, [(0, 1), (1, 2), (2, 0)]) is False\n    assert has_odd_cycle(3, [(0, 1), (1, 2), (2, 0)]) is True\n    assert has_odd_cycle(4, [(0, 1), (1, 2), (2, 3), (3, 0)]) is False\n    # every tree is bipartite\n    assert is_bipartite(4, [(0, 1), (1, 2), (1, 3)]) is True\n    # K3,3 is bipartite by construction\n    k33 = [(i, j) for i in range(3) for j in range(3, 6)]\n    assert is_bipartite(6, k33) is True\n\n\ndef test_colouring_is_proper_and_errors():\n    cases = [\n        (4, [(0, 1), (1, 2), (2, 3), (3, 0)]),\n        (4, [(0, 1), (1, 2), (1, 3)]),\n        (6, [(i, j) for i in range(3) for j in range(3, 6)]),\n        (5, []),\n    ]\n    for n, edges in cases:\n        colour = two_colouring(n, edges)\n        assert colour is not None\n        assert len(colour) == n\n        for u, v in edges:\n            assert colour[u] != colour[v], \"adjacent vertices must differ\"\n    assert two_colouring(3, [(0, 1), (1, 2), (2, 0)]) is None\n    try:\n        is_bipartite(0, [])\n        assert False, \"zero vertices must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from collections import deque\n\n\ndef _adj(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    adj = {i: [] for i in range(n)}\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n    return adj\n\n\ndef _connected_ignoring_isolated(n, edges):\n    if not edges:\n        return True\n    adj = _adj(n, edges)\n    start = edges[0][0]\n    seen = {start}\n    stack = [start]\n    while stack:\n        x = stack.pop()\n        for y in adj[x]:\n            if y not in seen:\n                seen.add(y)\n                stack.append(y)\n    return all(not adj[v] or v in seen for v in range(n))\n\n\ndef _odd_count(n, edges):\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return sum(1 for x in d if x % 2 == 1)\n\n\ndef euler_circuit_exists(n, edges):\n    \"\"\"Bug: accepts two odd vertices for a circuit, confusing path with circuit.\"\"\"\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    if not _connected_ignoring_isolated(n, edges):\n        return False\n    return _odd_count(n, edges) in (0, 2)\n\n\ndef euler_path_exists(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    if not _connected_ignoring_isolated(n, edges):\n        return False\n    return _odd_count(n, edges) in (0, 2)\n\n\ndef two_colouring(n, edges):\n    adj = _adj(n, edges)\n    colour = [None] * n\n    for start in range(n):\n        if colour[start] is not None:\n            continue\n        colour[start] = 0\n        q = deque([start])\n        while q:\n            x = q.popleft()\n            for y in adj[x]:\n                if colour[y] is None:\n                    colour[y] = 1 - colour[x]\n                    q.append(y)\n                elif colour[y] == colour[x]:\n                    return None\n    return colour\n\n\ndef is_bipartite(n, edges):\n    return two_colouring(n, edges) is not None\n\n\ndef has_odd_cycle(n, edges):\n    return not is_bipartite(n, edges)\n", "from collections import deque\n\n\ndef _adj(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    adj = {i: [] for i in range(n)}\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n    return adj\n\n\ndef _connected_ignoring_isolated(n, edges):\n    if not edges:\n        return True\n    adj = _adj(n, edges)\n    start = edges[0][0]\n    seen = {start}\n    stack = [start]\n    while stack:\n        x = stack.pop()\n        for y in adj[x]:\n            if y not in seen:\n                seen.add(y)\n                stack.append(y)\n    return all(not adj[v] or v in seen for v in range(n))\n\n\ndef _odd_count(n, edges):\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return sum(1 for x in d if x % 2 == 1)\n\n\ndef euler_circuit_exists(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    if not _connected_ignoring_isolated(n, edges):\n        return False\n    return _odd_count(n, edges) == 0\n\n\ndef euler_path_exists(n, edges):\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    if not _connected_ignoring_isolated(n, edges):\n        return False\n    return _odd_count(n, edges) in (0, 2)\n\n\ndef two_colouring(n, edges):\n    \"\"\"Bug: gives every vertex the same colour, so nothing is ever rejected.\"\"\"\n    if n <= 0:\n        raise ValueError(\"there must be at least one vertex\")\n    return [0] * n\n\n\ndef is_bipartite(n, edges):\n    return two_colouring(n, edges) is not None\n\n\ndef has_odd_cycle(n, edges):\n    return not is_bipartite(n, edges)\n"], "hints": ["A circuit needs *zero* odd-degree vertices; a path allows exactly two, which become the start and the end.", "Colour by breadth-first alternation. A conflict \u2014 two adjacent vertices with the same colour \u2014 means an odd cycle."], "level": "core", "title": "Euler traversals and bipartite graphs"}, "m28-ex4-recurrences": {"starter": "def solve_recurrence(coeffs, initial, n):\n    \"\"\"Iterate the recurrence to the n-th term.\"\"\"\n    return 0\n\n\ndef characteristic_roots(c1, c2):\n    \"\"\"Roots of r^2 = c1 r + c2.\"\"\"\n    return (0.0, 0.0)\n\n\ndef closed_form_coefficients(roots, a0, a1):\n    \"\"\"(alpha, beta) fitting the initial conditions.\"\"\"\n    return (0.0, 0.0)\n\n\ndef closed_form(coeffs2, initial2, n):\n    \"\"\"The n-th term by the closed form.\"\"\"\n    return 0.0\n", "solution": "from math import sqrt\n\n\ndef solve_recurrence(coeffs, initial, n):\n    \"\"\"Iterate the recurrence to the n-th term.\"\"\"\n    if len(coeffs) != len(initial):\n        raise ValueError(\"there must be one initial value per coefficient\")\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    k = len(coeffs)\n    if n < k:\n        return initial[n]\n    window = list(initial)\n    for _ in range(k, n + 1):\n        nxt = sum(coeffs[i] * window[-1 - i] for i in range(k))\n        window.append(nxt)\n    return window[n]\n\n\ndef characteristic_roots(c1, c2):\n    \"\"\"Roots of r^2 = c1 r + c2.\"\"\"\n    disc = c1 * c1 + 4 * c2\n    if disc < 0:\n        raise ValueError(\"the characteristic equation has complex roots\")\n    root = sqrt(disc)\n    r1 = (c1 - root) / 2\n    r2 = (c1 + root) / 2\n    return (min(r1, r2), max(r1, r2))\n\n\ndef closed_form_coefficients(roots, a0, a1):\n    \"\"\"(alpha, beta) fitting the initial conditions.\"\"\"\n    r1, r2 = roots\n    if abs(r1 - r2) < 1e-12:\n        raise ValueError(\"equal roots need a different form\")\n    # alpha + beta = a0 ; alpha*r1 + beta*r2 = a1\n    beta = (a1 - a0 * r1) / (r2 - r1)\n    alpha = a0 - beta\n    return (alpha, beta)\n\n\ndef closed_form(coeffs2, initial2, n):\n    \"\"\"The n-th term by the closed form.\"\"\"\n    if len(coeffs2) != 2 or len(initial2) != 2:\n        raise ValueError(\"this closed form handles order-2 recurrences only\")\n    roots = characteristic_roots(coeffs2[0], coeffs2[1])\n    alpha, beta = closed_form_coefficients(roots, initial2[0], initial2[1])\n    return alpha * roots[0] ** n + beta * roots[1] ** n\n", "tests": "def test_fibonacci_by_iteration_and_closed_form():\n    # a_n = a_{n-1} + a_{n-2}, a0 = 0, a1 = 1\n    fibs = [solve_recurrence([1, 1], [0, 1], n) for n in range(15)]\n    assert fibs == [0, 1, 1, 2, 3, 5, 8, 13, 21, 34, 55, 89, 144, 233, 377]\n    for n in range(0, 40):\n        a = solve_recurrence([1, 1], [0, 1], n)\n        b = closed_form([1, 1], [0, 1], n)\n        assert abs(a - b) < 1e-6 * max(1.0, abs(a)), n\n\n\ndef test_characteristic_roots_and_a_second_example():\n    from math import sqrt\n    # Fibonacci: r^2 = r + 1, roots (1 +- sqrt 5)/2\n    r1, r2 = characteristic_roots(1, 1)\n    assert abs(r2 - (1 + sqrt(5)) / 2) < 1e-12\n    assert abs(r1 - (1 - sqrt(5)) / 2) < 1e-12\n    # a_n = 5a_{n-1} - 6a_{n-2} has roots 2 and 3\n    r1, r2 = characteristic_roots(5, -6)\n    assert abs(r1 - 2.0) < 1e-12 and abs(r2 - 3.0) < 1e-12\n    # with a0 = 0, a1 = 1 the closed form is 3^n - 2^n\n    for n in range(0, 20):\n        assert abs(closed_form([5, -6], [0, 1], n) - (3 ** n - 2 ** n)) < 1e-6\n        assert solve_recurrence([5, -6], [0, 1], n) == 3 ** n - 2 ** n\n\n\ndef test_higher_order_and_errors():\n    # tribonacci: a_n = a_{n-1} + a_{n-2} + a_{n-3}\n    tri = [solve_recurrence([1, 1, 1], [0, 1, 1], n) for n in range(10)]\n    assert tri == [0, 1, 1, 2, 4, 7, 13, 24, 44, 81]\n    # a geometric sequence is an order-1 recurrence\n    assert solve_recurrence([3], [1], 5) == 243\n    try:\n        solve_recurrence([1, 1], [0], 5)\n        assert False, \"mismatched lengths must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        characteristic_roots(0, -1)\n        assert False, \"complex roots must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        closed_form_coefficients((2.0, 2.0), 1, 1)\n        assert False, \"equal roots must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt\n\n\ndef solve_recurrence(coeffs, initial, n):\n    \"\"\"Bug: reads the window forwards, so the coefficients hit the wrong terms.\"\"\"\n    if len(coeffs) != len(initial):\n        raise ValueError(\"there must be one initial value per coefficient\")\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    k = len(coeffs)\n    if n < k:\n        return initial[n]\n    window = list(initial)\n    for _ in range(k, n + 1):\n        nxt = sum(coeffs[i] * window[-k + i] for i in range(k))\n        window.append(nxt)\n    return window[n]\n\n\ndef characteristic_roots(c1, c2):\n    disc = c1 * c1 + 4 * c2\n    if disc < 0:\n        raise ValueError(\"the characteristic equation has complex roots\")\n    root = sqrt(disc)\n    return (min((c1 - root) / 2, (c1 + root) / 2), max((c1 - root) / 2, (c1 + root) / 2))\n\n\ndef closed_form_coefficients(roots, a0, a1):\n    r1, r2 = roots\n    if abs(r1 - r2) < 1e-12:\n        raise ValueError(\"equal roots need a different form\")\n    beta = (a1 - a0 * r1) / (r2 - r1)\n    return (a0 - beta, beta)\n\n\ndef closed_form(coeffs2, initial2, n):\n    if len(coeffs2) != 2 or len(initial2) != 2:\n        raise ValueError(\"this closed form handles order-2 recurrences only\")\n    roots = characteristic_roots(coeffs2[0], coeffs2[1])\n    alpha, beta = closed_form_coefficients(roots, initial2[0], initial2[1])\n    return alpha * roots[0] ** n + beta * roots[1] ** n\n", "from math import sqrt\n\n\ndef solve_recurrence(coeffs, initial, n):\n    if len(coeffs) != len(initial):\n        raise ValueError(\"there must be one initial value per coefficient\")\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    k = len(coeffs)\n    if n < k:\n        return initial[n]\n    window = list(initial)\n    for _ in range(k, n + 1):\n        nxt = sum(coeffs[i] * window[-1 - i] for i in range(k))\n        window.append(nxt)\n    return window[n]\n\n\ndef characteristic_roots(c1, c2):\n    \"\"\"Bug: discriminant uses -4c2 instead of +4c2.\"\"\"\n    disc = c1 * c1 - 4 * c2\n    if disc < 0:\n        raise ValueError(\"the characteristic equation has complex roots\")\n    root = sqrt(disc)\n    return (min((c1 - root) / 2, (c1 + root) / 2), max((c1 - root) / 2, (c1 + root) / 2))\n\n\ndef closed_form_coefficients(roots, a0, a1):\n    r1, r2 = roots\n    if abs(r1 - r2) < 1e-12:\n        raise ValueError(\"equal roots need a different form\")\n    beta = (a1 - a0 * r1) / (r2 - r1)\n    return (a0 - beta, beta)\n\n\ndef closed_form(coeffs2, initial2, n):\n    if len(coeffs2) != 2 or len(initial2) != 2:\n        raise ValueError(\"this closed form handles order-2 recurrences only\")\n    roots = characteristic_roots(coeffs2[0], coeffs2[1])\n    alpha, beta = closed_form_coefficients(roots, initial2[0], initial2[1])\n    return alpha * roots[0] ** n + beta * roots[1] ** n\n"], "hints": ["`a_n = c1 a_{n-1} + c2 a_{n-2}` means `coeffs[0]` multiplies the *most recent* term, so index the window from the end.", "Rearranging `r^2 = c1 r + c2` gives `r^2 - c1 r - c2 = 0`, so the discriminant is `c1^2 + 4 c2`."], "level": "core", "title": "Solving linear recurrences"}, "m28-ex5-catalan": {"starter": "def catalan_recurrence(n):\n    \"\"\"C_n by the convolution recurrence.\"\"\"\n    return 0\n\n\ndef catalan_closed(n):\n    \"\"\"C_n by the binomial formula.\"\"\"\n    return 0\n\n\ndef count_balanced_brackets(n):\n    \"\"\"Balanced strings with n pairs.\"\"\"\n    return 0\n\n\ndef count_binary_trees(n):\n    \"\"\"Binary trees with n internal nodes.\"\"\"\n    return 0\n\n\ndef series_product(a, b, terms):\n    \"\"\"Coefficients of the product of two power series.\"\"\"\n    return []\n\n\ndef geometric_series(ratio, terms):\n    \"\"\"Coefficients of 1/(1 - ratio x).\"\"\"\n    return []\n", "solution": "from math import comb\n\n\ndef _check_n(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n\n\ndef catalan_recurrence(n):\n    \"\"\"C_n by the convolution recurrence.\"\"\"\n    _check_n(n)\n    c = [1]\n    for m in range(1, n + 1):\n        c.append(sum(c[i] * c[m - 1 - i] for i in range(m)))\n    return c[n]\n\n\ndef catalan_closed(n):\n    \"\"\"C_n by the binomial formula.\"\"\"\n    _check_n(n)\n    return comb(2 * n, n) // (n + 1)\n\n\ndef count_balanced_brackets(n):\n    \"\"\"Balanced strings with n pairs, by dynamic programming.\"\"\"\n    _check_n(n)\n    length = 2 * n\n    # ways[d] = number of prefixes of the current length at depth d\n    ways = [0] * (length + 1)\n    ways[0] = 1\n    for _ in range(length):\n        nxt = [0] * (length + 1)\n        for d, count in enumerate(ways):\n            if count == 0:\n                continue\n            if d + 1 <= length:\n                nxt[d + 1] += count          # an opening bracket\n            if d - 1 >= 0:\n                nxt[d - 1] += count          # a closing bracket\n        ways = nxt\n    return ways[0]\n\n\ndef count_binary_trees(n):\n    \"\"\"Binary trees with n internal nodes.\"\"\"\n    _check_n(n)\n    counts = [1] + [0] * n\n    for m in range(1, n + 1):\n        counts[m] = sum(counts[i] * counts[m - 1 - i] for i in range(m))\n    return counts[n]\n\n\ndef series_product(a, b, terms):\n    \"\"\"Coefficients of the product of two power series.\"\"\"\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    out = [0] * terms\n    for i, x in enumerate(a):\n        if i >= terms:\n            break\n        for j, y in enumerate(b):\n            if i + j >= terms:\n                break\n            out[i + j] += x * y\n    return out\n\n\ndef geometric_series(ratio, terms):\n    \"\"\"Coefficients of 1/(1 - ratio x).\"\"\"\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    return [ratio ** k for k in range(terms)]\n", "tests": "def test_catalan_three_ways_agree():\n    expected = [1, 1, 2, 5, 14, 42, 132, 429, 1430, 4862]\n    for n in range(10):\n        assert catalan_recurrence(n) == expected[n], n\n        assert catalan_closed(n) == expected[n], n\n        assert count_balanced_brackets(n) == expected[n], n\n        assert count_binary_trees(n) == expected[n], n\n    # and they keep agreeing further out\n    for n in (12, 15, 18):\n        assert catalan_recurrence(n) == catalan_closed(n) == count_balanced_brackets(n)\n\n\ndef test_brackets_and_trees_against_brute_force():\n    from itertools import product\n    for n in range(0, 7):\n        total = 0\n        for bits in product(\"()\", repeat=2 * n):\n            depth = 0\n            ok = True\n            for ch in bits:\n                depth += 1 if ch == \"(\" else -1\n                if depth < 0:\n                    ok = False\n                    break\n            if ok and depth == 0:\n                total += 1\n        assert count_balanced_brackets(n) == total, n\n    try:\n        catalan_closed(-1)\n        assert False, \"a negative n must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_generating_function_arithmetic():\n    # 1/(1-x) has all coefficients 1\n    assert geometric_series(1, 6) == [1, 1, 1, 1, 1, 1]\n    assert geometric_series(2, 5) == [1, 2, 4, 8, 16]\n    # 1/(1-x)^2 has coefficients n+1\n    squared = series_product(geometric_series(1, 8), geometric_series(1, 8), 8)\n    assert squared == [1, 2, 3, 4, 5, 6, 7, 8]\n    # multiplying by (1 - x) undoes the geometric series\n    back = series_product(geometric_series(1, 6), [1, -1], 6)\n    assert back == [1, 0, 0, 0, 0, 0]\n    # the Fibonacci generating function x/(1 - x - x^2):\n    # multiplying the Fibonacci coefficients by (1 - x - x^2) leaves just x\n    fib = [0, 1, 1, 2, 3, 5, 8, 13, 21, 34]\n    checked = series_product(fib, [1, -1, -1], 10)\n    assert checked[:8] == [0, 1, 0, 0, 0, 0, 0, 0]\n    try:\n        series_product([1], [1], 0)\n        assert False, \"zero terms must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import comb\n\n\ndef _check_n(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n\n\ndef catalan_recurrence(n):\n    _check_n(n)\n    c = [1]\n    for m in range(1, n + 1):\n        c.append(sum(c[i] * c[m - 1 - i] for i in range(m)))\n    return c[n]\n\n\ndef catalan_closed(n):\n    \"\"\"Bug: divides by n instead of n+1.\"\"\"\n    _check_n(n)\n    if n == 0:\n        return 1\n    return comb(2 * n, n) // n\n\n\ndef count_balanced_brackets(n):\n    _check_n(n)\n    length = 2 * n\n    ways = [0] * (length + 1)\n    ways[0] = 1\n    for _ in range(length):\n        nxt = [0] * (length + 1)\n        for d, count in enumerate(ways):\n            if count == 0:\n                continue\n            if d + 1 <= length:\n                nxt[d + 1] += count\n            if d - 1 >= 0:\n                nxt[d - 1] += count\n        ways = nxt\n    return ways[0]\n\n\ndef count_binary_trees(n):\n    _check_n(n)\n    counts = [1] + [0] * n\n    for m in range(1, n + 1):\n        counts[m] = sum(counts[i] * counts[m - 1 - i] for i in range(m))\n    return counts[n]\n\n\ndef series_product(a, b, terms):\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    out = [0] * terms\n    for i, x in enumerate(a):\n        if i >= terms:\n            break\n        for j, y in enumerate(b):\n            if i + j >= terms:\n                break\n            out[i + j] += x * y\n    return out\n\n\ndef geometric_series(ratio, terms):\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    return [ratio ** k for k in range(terms)]\n", "from math import comb\n\n\ndef _check_n(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n\n\ndef catalan_recurrence(n):\n    _check_n(n)\n    c = [1]\n    for m in range(1, n + 1):\n        c.append(sum(c[i] * c[m - 1 - i] for i in range(m)))\n    return c[n]\n\n\ndef catalan_closed(n):\n    _check_n(n)\n    return comb(2 * n, n) // (n + 1)\n\n\ndef count_balanced_brackets(n):\n    \"\"\"Bug: allows the depth to go negative, counting unbalanced strings.\"\"\"\n    _check_n(n)\n    length = 2 * n\n    ways = [0] * (length + 2)\n    ways[0] = 1\n    for _ in range(length):\n        nxt = [0] * (length + 2)\n        for d, count in enumerate(ways):\n            if count == 0:\n                continue\n            if d + 1 <= length:\n                nxt[d + 1] += count\n            nxt[d - 1 if d > 0 else 0] += count\n        ways = nxt\n    return ways[0]\n\n\ndef count_binary_trees(n):\n    _check_n(n)\n    counts = [1] + [0] * n\n    for m in range(1, n + 1):\n        counts[m] = sum(counts[i] * counts[m - 1 - i] for i in range(m))\n    return counts[n]\n\n\ndef series_product(a, b, terms):\n    \"\"\"Bug: adds the coefficients at the same index instead of convolving.\"\"\"\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    out = [0] * terms\n    for i in range(terms):\n        x = a[i] if i < len(a) else 0\n        y = b[i] if i < len(b) else 0\n        out[i] = x * y\n    return out\n\n\ndef geometric_series(ratio, terms):\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    return [ratio ** k for k in range(terms)]\n"], "hints": ["The Catalan closed form divides `C(2n, n)` by `n+1`, which is what makes the result an integer.", "Multiplying power series is a *convolution*: the coefficient of `x^k` in the product is the sum of `a_i b_j` over all `i + j = k`."], "level": "boss", "title": "Catalan numbers and generating functions"}}, "demos": {"m28-recurrences-and-catalan": {"code": "from math import sqrt, comb\nfrom itertools import product\n\nPHI = (1 + sqrt(5)) / 2\nPSI = (1 - sqrt(5)) / 2\n\n\ndef fib_iterative(n):\n    \"\"\"Exact integer arithmetic. No formula.\"\"\"\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n\n\ndef fib_binet(n):\n    \"\"\"Closed form from the characteristic roots. No iteration.\"\"\"\n    return round((PHI ** n - PSI ** n) / sqrt(5))\n\n\nfor n in range(0, 71):\n    assert fib_iterative(n) == fib_binet(n), f\"disagreement at n={n}\"\nprint(\"Fibonacci: iteration and Binet's formula agree for n = 0..70\")\nprint(\"  F(10) =\", fib_iterative(10), \" F(30) =\", fib_iterative(30), \" F(70) =\", fib_iterative(70))\nassert fib_iterative(10) == 55 and fib_iterative(30) == 832040\n\n# The ratio of consecutive terms tends to the golden ratio.\nratios = [fib_iterative(n + 1) / fib_iterative(n) for n in range(10, 40)]\nprint(\"  F(n+1)/F(n) ->\", round(ratios[-1], 12), \" and phi =\", round(PHI, 12))\nassert abs(ratios[-1] - PHI) < 1e-12\n\n# A second-order recurrence with distinct roots: a_n = 5a_{n-1} - 6a_{n-2}\n# characteristic r^2 = 5r - 6, roots 2 and 3; with a0=0, a1=1 -> a_n = 3^n - 2^n\ndef rec_iterative(n):\n    a, b = 0, 1\n    if n == 0:\n        return 0\n    for _ in range(n - 1):\n        a, b = b, 5 * b - 6 * a\n    return b\n\n\nfor n in range(0, 25):\n    assert rec_iterative(n) == 3 ** n - 2 ** n, f\"closed form failed at n={n}\"\nprint(\"second-order recurrence matched its closed form 3^n - 2^n for n = 0..24\")\n\n# --- Catalan numbers, three independent ways ---\ndef catalan_recurrence(n):\n    c = [1]\n    for m in range(1, n + 1):\n        c.append(sum(c[i] * c[m - 1 - i] for i in range(m)))\n    return c[n]\n\n\ndef catalan_closed(n):\n    return comb(2 * n, n) // (n + 1)\n\n\ndef catalan_by_counting(n):\n    \"\"\"Count balanced bracket strings of length 2n by brute force.\"\"\"\n    total = 0\n    for bits in product(\"()\", repeat=2 * n):\n        depth = 0\n        ok = True\n        for ch in bits:\n            depth += 1 if ch == \"(\" else -1\n            if depth < 0:\n                ok = False\n                break\n        if ok and depth == 0:\n            total += 1\n    return total\n\n\nprint()\nprint(f\"{'n':>4} {'recurrence':>12} {'closed form':>13} {'brute count':>13}\")\nfor n in range(0, 9):\n    a = catalan_recurrence(n)\n    b = catalan_closed(n)\n    c = catalan_by_counting(n) if n <= 7 else None\n    print(f\"{n:>4} {a:>12} {b:>13} {str(c):>13}\")\n    assert a == b, f\"recurrence and closed form disagree at n={n}\"\n    if c is not None:\n        assert a == c, f\"brute-force count disagrees at n={n}\"\n\nassert [catalan_closed(n) for n in range(7)] == [1, 1, 2, 5, 14, 42, 132]\n\n# --- The handshake lemma and the tree edge count ---\ndef degrees(n, edges):\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return d\n\n\ndef is_connected(n, edges):\n    if n == 0:\n        return True\n    adj = {i: [] for i in range(n)}\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n    seen = {0}\n    stack = [0]\n    while stack:\n        x = stack.pop()\n        for y in adj[x]:\n            if y not in seen:\n                seen.add(y)\n                stack.append(y)\n    return len(seen) == n\n\n\ndef has_cycle(n, edges):\n    parent = list(range(n))\n\n    def find(x):\n        while parent[x] != x:\n            parent[x] = parent[parent[x]]\n            x = parent[x]\n        return x\n\n    for u, v in edges:\n        ru, rv = find(u), find(v)\n        if ru == rv:\n            return True\n        parent[ru] = rv\n    return False\n\n\nTREES = [\n    (1, []),\n    (2, [(0, 1)]),\n    (4, [(0, 1), (1, 2), (1, 3)]),\n    (6, [(0, 1), (0, 2), (2, 3), (2, 4), (4, 5)]),\n]\nprint()\nfor n, edges in TREES:\n    d = degrees(n, edges)\n    assert sum(d) == 2 * len(edges), \"handshake lemma must hold\"\n    assert sum(1 for x in d if x % 2 == 1) % 2 == 0, \"odd-degree vertices come in pairs\"\n    assert is_connected(n, edges) and not has_cycle(n, edges), \"must be a tree\"\n    assert len(edges) == n - 1, \"a tree on n vertices has n-1 edges\"\nprint(\"handshake lemma and the n-1 edge count verified on\", len(TREES), \"trees\")\n\n# A graph with a cycle has at least n edges.\ncyclic = (4, [(0, 1), (1, 2), (2, 3), (3, 0)])\nassert has_cycle(*cyclic) and len(cyclic[1]) == cyclic[0]\nprint(\"a 4-cycle has 4 vertices and 4 edges, so it is not a tree\")\n", "mutants": ["from math import sqrt\n\nPHI = (1 + sqrt(5)) / 2\n# Bug: both roots taken as phi, so the second term never subtracts correctly.\nPSI = (1 + sqrt(5)) / 2\n\n\ndef fib_iterative(n):\n    a, b = 0, 1\n    for _ in range(n):\n        a, b = b, a + b\n    return a\n\n\ndef fib_binet(n):\n    return round((PHI ** n - PSI ** n) / sqrt(5))\n\n\nfor n in range(0, 71):\n    assert fib_iterative(n) == fib_binet(n), f\"disagreement at n={n}\"\nprint(\"Fibonacci: iteration and Binet's formula agree for n = 0..70\")\n"]}, "m28-euler-vs-hamilton": {"code": "import random\nfrom itertools import permutations\n\n\ndef degrees(n, edges):\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return d\n\n\ndef connected_ignoring_isolated(n, edges):\n    if not edges:\n        return True\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        adj[u].add(v)\n        adj[v].add(u)\n    start = edges[0][0]\n    seen = {start}\n    stack = [start]\n    while stack:\n        x = stack.pop()\n        for y in adj[x]:\n            if y not in seen:\n                seen.add(y)\n                stack.append(y)\n    return all(len(adj[v]) == 0 or v in seen for v in range(n))\n\n\ndef euler_by_degree_test(n, edges):\n    \"\"\"The theory: count odd degrees. One pass over the edges.\"\"\"\n    if not connected_ignoring_isolated(n, edges):\n        return (False, False)\n    odd = sum(1 for d in degrees(n, edges) if d % 2 == 1)\n    return (odd == 0, odd in (0, 2))\n\n\ndef euler_by_search(n, edges):\n    \"\"\"Brute force: try to walk every edge exactly once. No theory used.\"\"\"\n    m = len(edges)\n    if m == 0:\n        return (True, True)\n    adj = {i: [] for i in range(n)}\n    for idx, (u, v) in enumerate(edges):\n        adj[u].append((v, idx))\n        adj[v].append((u, idx))\n\n    def walk(at, used, count):\n        if count == m:\n            return [at]\n        for (nxt, idx) in adj[at]:\n            if idx not in used:\n                used.add(idx)\n                tail = walk(nxt, used, count + 1)\n                used.discard(idx)\n                if tail is not None:\n                    return [at] + tail\n        return None\n\n    circuit = False\n    path = False\n    for start in range(n):\n        route = walk(start, set(), 0)\n        if route is not None:\n            path = True\n            if route[0] == route[-1]:\n                circuit = True\n    return (circuit, path)\n\n\nrng = random.Random(1736)\ntested = 0\ncircuits = paths = 0\nfor _ in range(400):\n    n = rng.randint(3, 6)\n    all_pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]\n    edges = [e for e in all_pairs if rng.random() < 0.55]\n    if not edges or len(edges) > 9:\n        continue\n    predicted = euler_by_degree_test(n, edges)\n    measured = euler_by_search(n, edges)\n    assert predicted == measured, (n, edges, predicted, measured)\n    circuits += measured[0]\n    paths += measured[1]\n    tested += 1\n\nprint(\"random graphs tested by both the degree test and exhaustive search:\", tested)\nprint(\"  with an Euler circuit:\", circuits, \"  with an Euler path:\", paths)\nassert tested > 200\nassert 0 < circuits < tested, \"both outcomes must occur\"\nassert circuits < paths < tested, \"paths are strictly more common than circuits\"\n\n# K\u00f6nigsberg itself: four landmasses, seven bridges, every degree odd.\nKONIGSBERG = [(0, 1), (0, 1), (0, 2), (0, 2), (0, 3), (1, 3), (2, 3)]\nd = degrees(4, KONIGSBERG)\nprint()\nprint(\"Konigsberg degrees:\", d, \" odd count:\", sum(1 for x in d if x % 2))\nassert d == [5, 3, 3, 3]\nassert sum(d) == 2 * len(KONIGSBERG), \"handshake lemma\"\nassert sum(1 for x in d if x % 2 == 1) == 4\nprint(\"  four odd vertices, so neither a circuit nor a path exists\")\nassert euler_by_degree_test(4, KONIGSBERG) == (False, False)\n\n# --- Euler is cheap, Hamilton is not ---\ndef hamiltonian_by_search(n, edge_set):\n    for perm in permutations(range(1, n)):\n        tour = (0,) + perm\n        if all(frozenset((tour[i], tour[i + 1])) in edge_set for i in range(n - 1)):\n            return True\n    return False\n\n\nprint()\nprint(\"work needed as the graph grows\")\nprint(f\"{'n':>4} {'Euler: edge scans':>20} {'Hamilton: permutations':>24}\")\nfrom math import factorial\nfor n in (6, 8, 10, 12, 20):\n    print(f\"{n:>4} {n * (n - 1) // 2:>20} {factorial(n - 1):>24}\")\nassert factorial(19) > 10 ** 17, \"Hamilton's brute force explodes\"\nassert 20 * 19 // 2 < 200, \"Euler's check stays trivial\"\n\n# A complete graph on 5 vertices: Hamiltonian, but no Euler circuit? K5 has\n# every degree 4, which is even, so it HAS an Euler circuit as well.\nk5_edges = [(i, j) for i in range(5) for j in range(i + 1, 5)]\nk5_set = {frozenset(e) for e in k5_edges}\nprint()\nprint(\"K5: degrees\", degrees(5, k5_edges), \" Euler circuit:\", euler_by_degree_test(5, k5_edges)[0],\n      \" Hamiltonian:\", hamiltonian_by_search(5, k5_set))\nassert euler_by_degree_test(5, k5_edges)[0] is True\nassert hamiltonian_by_search(5, k5_set) is True\n\n# A path graph is Hamiltonian-path-able but has no Hamiltonian CYCLE, and a\n# star has an Euler path only when it has at most 2 edges.\nstar = [(0, 1), (0, 2), (0, 3)]\nprint(\"star with 3 edges: degrees\", degrees(4, star),\n      \" Euler path:\", euler_by_degree_test(4, star)[1])\nassert euler_by_degree_test(4, star)[1] is False, \"three odd leaves kill the path\"\n\n# --- Euler's formula V - E + F = 2 on planar graphs ---\nprint()\nprint(f\"{'solid':>12} {'V':>4} {'E':>4} {'F':>4} {'V-E+F':>7}\")\nfor name, V, E, F in ((\"tetrahedron\", 4, 6, 4), (\"cube\", 8, 12, 6),\n                      (\"octahedron\", 6, 12, 8), (\"dodecahedron\", 20, 30, 12),\n                      (\"icosahedron\", 12, 30, 20), (\"triangle\", 3, 3, 2)):\n    print(f\"{name:>12} {V:>4} {E:>4} {F:>4} {V - E + F:>7}\")\n    assert V - E + F == 2, name\n\n# The planar edge bound rules out K5 and K3,3.\nprint()\nfor name, V, E, bound in ((\"K5\", 5, 10, 3 * 5 - 6), (\"K3,3\", 6, 9, 2 * 6 - 4)):\n    print(f\"  {name}: E = {E}, planar bound = {bound} -> planar? {E <= bound}\")\n    assert E > bound, f\"{name} must violate the planar bound\"\n", "mutants": ["import random\n\n\ndef degrees(n, edges):\n    d = [0] * n\n    for u, v in edges:\n        d[u] += 1\n        d[v] += 1\n    return d\n\n\ndef connected_ignoring_isolated(n, edges):\n    if not edges:\n        return True\n    adj = {i: set() for i in range(n)}\n    for u, v in edges:\n        adj[u].add(v)\n        adj[v].add(u)\n    start = edges[0][0]\n    seen = {start}\n    stack = [start]\n    while stack:\n        x = stack.pop()\n        for y in adj[x]:\n            if y not in seen:\n                seen.add(y)\n                stack.append(y)\n    return all(len(adj[v]) == 0 or v in seen for v in range(n))\n\n\ndef euler_by_degree_test(n, edges):\n    \"\"\"Bug: allows up to four odd vertices for an Euler path.\"\"\"\n    if not connected_ignoring_isolated(n, edges):\n        return (False, False)\n    odd = sum(1 for d in degrees(n, edges) if d % 2 == 1)\n    return (odd == 0, odd in (0, 2, 4))\n\n\ndef euler_by_search(n, edges):\n    m = len(edges)\n    if m == 0:\n        return (True, True)\n    adj = {i: [] for i in range(n)}\n    for idx, (u, v) in enumerate(edges):\n        adj[u].append((v, idx))\n        adj[v].append((u, idx))\n\n    def walk(at, used, count):\n        if count == m:\n            return [at]\n        for (nxt, idx) in adj[at]:\n            if idx not in used:\n                used.add(idx)\n                tail = walk(nxt, used, count + 1)\n                used.discard(idx)\n                if tail is not None:\n                    return [at] + tail\n        return None\n\n    circuit = path = False\n    for start in range(n):\n        route = walk(start, set(), 0)\n        if route is not None:\n            path = True\n            if route[0] == route[-1]:\n                circuit = True\n    return (circuit, path)\n\n\nrng = random.Random(1736)\ntested = 0\nfor _ in range(400):\n    n = rng.randint(3, 6)\n    all_pairs = [(i, j) for i in range(n) for j in range(i + 1, n)]\n    edges = [e for e in all_pairs if rng.random() < 0.55]\n    if not edges or len(edges) > 9:\n        continue\n    assert euler_by_degree_test(n, edges) == euler_by_search(n, edges), (n, edges)\n    tested += 1\n\nprint(\"random graphs tested:\", tested)\nassert tested > 200\n"]}}, "cards": [{"q": "State the handshake lemma and one immediate corollary.", "a": "The degrees sum to twice the number of edges. Therefore the number of odd-degree vertices is always even."}, {"q": "When does a connected graph have an Euler circuit, and when an Euler path?", "a": "A circuit exactly when every degree is even; a path exactly when zero or two vertices have odd degree."}, {"q": "Why did Euler's argument settle K\u00f6nigsberg?", "a": "All four landmasses had odd degree, and at most two odd vertices are permitted, so no traversal exists for anyone."}, {"q": "How do Euler and Hamiltonian problems differ computationally?", "a": "Euler is decided in linear time by a degree check; deciding Hamiltonicity is NP-complete."}, {"q": "Give three equivalent definitions of a tree.", "a": "Connected and acyclic; connected with n-1 edges; exactly one path between every pair of vertices."}, {"q": "What characterises a bipartite graph?", "a": "It is 2-colourable, equivalently it contains no odd cycle."}, {"q": "State Euler's formula for planar graphs and one consequence.", "a": "V - E + F = 2 for a connected planar drawing. A consequence is E <= 3V - 6, which rules out K5."}, {"q": "How do you solve a linear recurrence with constant coefficients?", "a": "Substitute r^n to get the characteristic equation, find its roots, and fit a combination of r_i^n to the initial conditions."}, {"q": "What does \"formal\" mean in formal power series?", "a": "Convergence is irrelevant. The series is a container for the sequence, and x is bookkeeping, so divergent series are perfectly usable."}, {"q": "What do the Catalan numbers count, and what is the closed form?", "a": "Balanced bracket strings, binary trees, polygon triangulations and much else. C_n = C(2n,n)/(n+1)."}], "title": "Discrete maths: graphs, recurrences and generating functions"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

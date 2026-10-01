@@ -1,0 +1,705 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M17 Logic and proof</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M17">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~4h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M17</p><h1>Logic and proof</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M16.html">M16</a></div><div><b>Covers:</b> NCERT 11 (earlier editions): Mathematical Reasoning, NCERT 11 (earlier editions): Principle of Mathematical Induction, CS2023 MSF</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>propositions, connectives and truth tables</li><li>implication, converse, contrapositive</li><li>quantifiers and their negation</li><li>direct proof, contrapositive, contradiction, cases, construction and counterexample</li><li>mathematical induction and strong induction</li><li>the well-ordering principle</li><li>invariants as a proof tool</li><li>how to read and write a proof</li><li>structural induction over lists and trees</li><li>rules of inference and valid arguments (modus ponens, modus tollens)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Dadi gives Vikram a bar of chocolate. It is scored into a grid, six squares across and four squares down — twenty-four little squares in all.</p>
+<p>"You may eat it," she says, "but you must separate every square from every other square. And each time you snap, you must snap one piece along a straight scored line, all the way across. No cheating, no biting."</p>
+<p>Vikram wants to be clever. He plans. Should he snap all the long lines first? Should he work from a corner? He is sure some orders are faster than others, and he spends ten minutes planning the best route.</p>
+<p>His sister Priya walks past, picks up the bar, and snaps it to bits in whatever order her hands land on. She counts her snaps: twenty-three.</p>
+<p>Vikram executes his beautiful plan. Twenty-three.</p>
+<p>He tries again, deliberately doing the stupidest possible order. Twenty-three.</p>
+<p>He is annoyed, and then he sees it, and being annoyed is replaced by something better. <strong>Every single snap turns one piece into two.</strong> So every snap adds exactly one to the number of pieces. He starts with one piece and must end with twenty-four. There is nothing to plan: it will always be twenty-three snaps, for any bar, in any order, forever.</p>
+<p>Here is the surprise: he did not find the answer by trying hard. He found a quantity that <em>never changes its behaviour</em> no matter what you do, and that one observation settled infinitely many strategies at once. That is what a proof is.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Logic is the study of which arguments are <em>valid</em> — which conclusions really do follow from which premises, regardless of what the statements are about.</p>
+<p>The raw material is the <strong>proposition</strong>: a statement that is definitely true or definitely false. Propositions combine with <strong>connectives</strong> — and, or, not, implies — and a <strong>truth table</strong> settles exactly what each combination means.</p>
+<p>The one connective that causes trouble is <strong>implies</strong>. "If it rains, the match is cancelled" says nothing at all about what happens when it does not rain, and swapping it round to "if the match is cancelled, it rained" is a <em>different claim</em> which may well be false.</p>
+<p>A <strong>proof</strong> is a finite chain of steps, each justified, leading from things already accepted to the thing claimed. The payoff is Vikram's: a proof settles infinitely many cases at once, which no amount of testing can ever do.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Propositions and connectives</h2>
+<p>A <strong>proposition</strong> is a declarative statement with a definite truth value. The connectives, with $T$ for true and $F$ for false:</p>
+<table>
+<thead>
+<tr>
+<th>$p$</th>
+<th>$q$</th>
+<th>$\neg p$</th>
+<th>$p \wedge q$</th>
+<th>$p \vee q$</th>
+<th>$p \to q$</th>
+<th>$p \leftrightarrow q$</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>T</td>
+<td>T</td>
+<td>F</td>
+<td>T</td>
+<td>T</td>
+<td>T</td>
+<td>T</td>
+</tr>
+<tr>
+<td>T</td>
+<td>F</td>
+<td>F</td>
+<td>F</td>
+<td>T</td>
+<td><strong>F</strong></td>
+<td>F</td>
+</tr>
+<tr>
+<td>F</td>
+<td>T</td>
+<td>T</td>
+<td>F</td>
+<td>T</td>
+<td><strong>T</strong></td>
+<td>F</td>
+</tr>
+<tr>
+<td>F</td>
+<td>F</td>
+<td>T</td>
+<td>F</td>
+<td>F</td>
+<td><strong>T</strong></td>
+<td>T</td>
+</tr>
+</tbody>
+</table>
+<p>Read the implication column carefully. $p\to q$ is false in exactly one situation: a true premise with a false conclusion. When $p$ is false the implication is <strong>vacuously true</strong>. This is a definition, chosen because it makes the logic work, and it is the single most common source of confusion in the subject.</p>
+<p>A <strong>tautology</strong> is true under every assignment; a <strong>contradiction</strong> is false under every assignment. Two formulas are <strong>logically equivalent</strong>, written $\equiv$, when they have identical truth tables.</p>
+<p>Key equivalences:</p>
+<p>$$p\to q \;\equiv\; \neg p \vee q \;\equiv\; \neg q \to \neg p$$
+$$\neg(p\wedge q)\equiv \neg p \vee \neg q, \qquad \neg(p\vee q)\equiv \neg p \wedge \neg q$$</p>
+<h2>Converse, inverse, contrapositive</h2>
+<p>Given $p \to q$:</p>
+<ul>
+<li><strong>Converse:</strong> $q \to p$. <strong>Not</strong> equivalent.</li>
+<li><strong>Inverse:</strong> $\neg p \to \neg q$. <strong>Not</strong> equivalent.</li>
+<li><strong>Contrapositive:</strong> $\neg q \to \neg p$. <strong>Equivalent</strong>, always.</li>
+</ul>
+<p>The contrapositive being equivalent is what licenses proof by contraposition. The converse being <em>in</em>equivalent is what makes "the converse is also true" a separate theorem needing its own proof, and it is why $\iff$ statements must be proved in both directions.</p>
+<h2>Quantifiers</h2>
+<p>$\forall x\, P(x)$ says $P$ holds for every $x$ in the domain; $\exists x\, P(x)$ says it holds for at least one. Negation swaps them and pushes inward:</p>
+<p>$$\neg\forall x\, P(x) \equiv \exists x\, \neg P(x), \qquad \neg \exists x\, P(x) \equiv \forall x\, \neg P(x)$$</p>
+<p>Order matters and is not symmetric: $\forall x\exists y$ is a far weaker claim than $\exists y\forall x$. "Every person has a mother" is true; "there is one mother of every person" is false.</p>
+<h2>Rules of inference</h2>
+<p>$$\textbf{Modus ponens:}\quad \frac{p\to q,\quad p}{\therefore q} \qquad\qquad \textbf{Modus tollens:}\quad \frac{p\to q,\quad \neg q}{\therefore \neg p}$$</p>
+<p>Also <strong>hypothetical syllogism</strong> ($p\to q$, $q\to r$, therefore $p\to r$) and <strong>disjunctive syllogism</strong> ($p\vee q$, $\neg p$, therefore $q$). The two classic <strong>fallacies</strong> are <em>affirming the consequent</em> (from $p\to q$ and $q$, concluding $p$) and <em>denying the antecedent</em> (from $p\to q$ and $\neg p$, concluding $\neg q$). Both are invalid, and both are extremely common in informal argument.</p>
+<h2>Methods of proof</h2>
+<ul>
+<li><strong>Direct:</strong> assume $p$, derive $q$.</li>
+<li><strong>Contrapositive:</strong> assume $\neg q$, derive $\neg p$. Equivalent to the direct proof, and often much easier.</li>
+<li><strong>Contradiction:</strong> assume $p \wedge \neg q$, derive an absurdity.</li>
+<li><strong>Cases:</strong> split the domain into exhaustive cases and prove each.</li>
+<li><strong>Construction:</strong> to prove $\exists x\, P(x)$, exhibit one.</li>
+<li><strong>Counterexample:</strong> to disprove $\forall x\, P(x)$, exhibit one $x$ with $\neg P(x)$. One is enough, and nothing less will do.</li>
+</ul>
+<h2>Induction</h2>
+<p><strong>Principle of mathematical induction.</strong> If $P(n_0)$ holds, and $P(k)\to P(k+1)$ for every $k \ge n_0$, then $P(n)$ holds for all $n \ge n_0$.</p>
+<p><strong>Strong induction</strong> assumes $P(n_0), \dots, P(k)$ all hold to prove $P(k+1)$. It is logically equivalent to ordinary induction but far more convenient when the step reaches back further than one.</p>
+<p><strong>Well-ordering principle.</strong> Every non-empty set of non-negative integers has a least element. This is equivalent to induction, and is what makes "take the smallest counterexample" a legitimate move.</p>
+<p><strong>Structural induction</strong> generalises to recursively defined objects. For a list: prove it for the empty list, then assume it for a list and prove it for one element consed on. For a binary tree: prove it for the empty tree, then assume it for both subtrees and prove it for the node. The base cases of the recursive definition become the base cases of the proof.</p>
+<p><strong>Invariants.</strong> An invariant is a property preserved by every permitted move. To show a goal state is unreachable, find an invariant true at the start and false at the goal. Vikram's "each snap adds exactly one piece" is an invariant of the <em>change</em>; the chessboard parity argument below is an invariant of the state.</p>
+<h2>A pinch of history</h2>
+<p>Formal study of inference begins with Aristotle's syllogistic, and independently in India with the Nyaya school, whose five-membered argument form appears in the <em>Nyaya Sutras</em> attributed to Gautama (roughly the early centuries CE); the Navya-Nyaya tradition, especially Gangesa in the fourteenth century, developed a sophisticated technical vocabulary for quantification and relations.</p>
+<p>The modern algebraic turn is George Boole's <em>The Laws of Thought</em> (1854). Gottlob Frege's <em>Begriffsschrift</em> (1879) introduced quantifiers and the first real formal system. Giuseppe Peano axiomatised arithmetic in 1889, with induction as an axiom. And in 1931 Kurt Gödel proved that any consistent formal system strong enough for arithmetic contains true statements it cannot prove — which put a permanent ceiling on the whole programme.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: the contrapositive is equivalent to the implication.</strong> Build the truth table.</p>
+<ol>
+<li>$p\to q$ is false only when $p$ is true and $q$ false.</li>
+<li>$\neg q \to \neg p$ is false only when $\neg q$ is true and $\neg p$ false — that is, when $q$ is false and $p$ is true.</li>
+<li>Those are the same row. Since the two formulas are false on exactly the same assignment, they are true on exactly the same assignments.</li>
+<li>Hence they are logically equivalent, and proving one proves the other.</li>
+</ol>
+<p>Contrast the converse $q\to p$, which is false when $q$ is true and $p$ false — a <em>different</em> row. One example settles it: "if $x = 2$ then $x^2 = 4$" is true, its converse is false at $x=-2$.</p>
+<p><strong>Result 2: induction is valid, via well-ordering.</strong></p>
+<ol>
+<li>Suppose $P(n_0)$ holds and $P(k)\to P(k+1)$ for all $k\ge n_0$, yet $P(n)$ fails for some $n \ge n_0$.</li>
+<li>Let $S$ be the set of integers $n\ge n_0$ for which $P(n)$ is false. By assumption $S$ is non-empty.</li>
+<li>By well-ordering, $S$ has a least element $m$.</li>
+<li>$m \neq n_0$, because $P(n_0)$ holds. So $m &gt; n_0$ and $m - 1 \ge n_0$.</li>
+<li><strong>The non-obvious step:</strong> since $m$ is the <em>least</em> element of $S$, the number $m-1$ is not in $S$, so $P(m-1)$ is true.</li>
+<li>But the inductive step applied to $k = m-1$ gives $P(m)$, contradicting $m\in S$.</li>
+<li>So $S$ is empty: $P(n)$ holds for all $n\ge n_0$.</li>
+</ol>
+<p>Induction is therefore not an article of faith; it follows from the fact that you cannot descend forever through the non-negative integers.</p>
+<p><strong>Result 3: a mutilated chessboard cannot be tiled by dominoes.</strong> Remove two diagonally opposite corners from an $8\times 8$ board, leaving 62 squares. Can 31 dominoes, each covering two adjacent squares, tile it?</p>
+<ol>
+<li>Colour the board alternately black and white, as chessboards are.</li>
+<li>Any domino covers two <em>adjacent</em> squares, and adjacent squares always have opposite colours. So every domino covers exactly one black and one white square. <strong>This is the invariant.</strong></li>
+<li>Therefore 31 dominoes cover exactly 31 black and 31 white squares.</li>
+<li>But two diagonally opposite corners share a colour. Removing them leaves 32 of one colour and 30 of the other.</li>
+<li>$32 \neq 31$. No tiling exists.</li>
+</ol>
+<p>Notice what the argument does <em>not</em> do: it never tries a single arrangement. Searching would take essentially forever and could only ever report failure, never impossibility. The invariant settles every arrangement at once — Vikram's lesson again.</p>
+<p><strong>Result 4: structural induction on binary trees.</strong> Claim: a binary tree with $n$ internal nodes (each having exactly two children) has $n+1$ leaves.</p>
+<ol>
+<li><em>Base case.</em> A single leaf has $n = 0$ internal nodes and $1 = 0+1$ leaves.</li>
+<li><em>Inductive step.</em> Take a tree whose root is internal with subtrees $L$ and $R$, having $n_L, n_R$ internal nodes and, by the inductive hypothesis, $n_L+1$ and $n_R+1$ leaves.</li>
+<li>The whole tree has $n = n_L+n_R+1$ internal nodes, counting the root.</li>
+<li>Its leaves are exactly the leaves of $L$ and of $R$: $(n_L+1)+(n_R+1) = n_L+n_R+2 = n+1$.</li>
+<li>The claim holds for the whole tree, so by structural induction it holds for all such trees.</li>
+</ol></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle checks logical equivalence two genuinely independent ways.</p>
+<p>The first is <strong>semantic</strong>: enumerate every assignment of truth values and compare the two formulas row by row. This is the definition of equivalence, done by brute force.</p>
+<p>The second is <strong>syntactic</strong>: rewrite the formula using a different construction entirely — building $p\to q$ as $\neg p \vee q$, and building the contrapositive by swapping and negating — and then evaluate. The two routes share no step: one walks a table, the other rebuilds the expression.</p>
+<p>The demo also checks the quantifier negation laws over finite domains, and exercises the two valid inference rules against the two classic fallacies. The mutant asserts that the <strong>converse</strong> is equivalent to the implication, which is the error that underlies "affirming the consequent" and a great deal of bad reasoning in the wild.</p>
+<div class="lab demo" data-demo="m17-equivalences-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Truth tables against rebuilt formulas</h3></div>
+
+<textarea class="code" spellcheck="false">from itertools import product
+
+
+def implies(p, q):
+    return (not p) or q
+
+
+ASSIGNMENTS = list(product([False, True], repeat=2))
+
+# The contrapositive agrees with the implication on EVERY row.
+rows_impl = [implies(p, q) for p, q in ASSIGNMENTS]
+rows_contra = [implies(not q, not p) for p, q in ASSIGNMENTS]
+rows_converse = [implies(q, p) for p, q in ASSIGNMENTS]
+rows_inverse = [implies(not p, not q) for p, q in ASSIGNMENTS]
+
+print(&quot;p q | p-&gt;q  contrapositive  converse  inverse&quot;)
+for (p, q), a, b, c, d in zip(ASSIGNMENTS, rows_impl, rows_contra, rows_converse, rows_inverse):
+    print(f&quot;{int(p)} {int(q)} |   {int(a)}         {int(b)}            {int(c)}        {int(d)}&quot;)
+
+assert rows_impl == rows_contra, &quot;the contrapositive must be equivalent&quot;
+assert rows_impl != rows_converse, &quot;the converse must NOT be equivalent&quot;
+assert rows_impl != rows_inverse, &quot;the inverse must NOT be equivalent&quot;
+assert rows_converse == rows_inverse, &quot;converse and inverse are equivalent to each other&quot;
+
+# p -&gt; q rebuilt as not p or q
+assert rows_impl == [(not p) or q for p, q in ASSIGNMENTS]
+
+# De Morgan, on all four rows
+for p, q in ASSIGNMENTS:
+    assert (not (p and q)) == ((not p) or (not q))
+    assert (not (p or q)) == ((not p) and (not q))
+
+# Rules of inference are valid; the two classic fallacies are not.
+valid_mp = all(q for p, q in ASSIGNMENTS if implies(p, q) and p)
+valid_mt = all((not p) for p, q in ASSIGNMENTS if implies(p, q) and (not q))
+fallacy_affirm = all(p for p, q in ASSIGNMENTS if implies(p, q) and q)
+fallacy_deny = all((not q) for p, q in ASSIGNMENTS if implies(p, q) and (not p))
+print()
+print(&quot;modus ponens valid:&quot;, valid_mp, &quot; modus tollens valid:&quot;, valid_mt)
+print(&quot;affirming the consequent valid:&quot;, fallacy_affirm, &quot; denying the antecedent valid:&quot;, fallacy_deny)
+assert valid_mp and valid_mt, &quot;both rules of inference must be valid&quot;
+assert not fallacy_affirm and not fallacy_deny, &quot;both fallacies must be invalid&quot;
+
+# Quantifier negation over a finite domain.
+DOMAIN = list(range(1, 11))
+for predicate in (lambda x: x &gt; 0, lambda x: x &gt; 5, lambda x: x &gt; 100, lambda x: x % 2 == 0):
+    assert (not all(predicate(x) for x in DOMAIN)) == any(not predicate(x) for x in DOMAIN)
+    assert (not any(predicate(x) for x in DOMAIN)) == all(not predicate(x) for x in DOMAIN)
+print()
+print(&quot;quantifier negation laws verified over a 10-element domain&quot;)
+
+# forall-exists is weaker than exists-forall.
+pairs_fa = all(any(y &gt; x for y in DOMAIN) for x in DOMAIN)       # every x has some bigger y?
+pairs_ef = any(all(y &gt; x for x in DOMAIN) for y in DOMAIN)       # one y bigger than every x?
+print(&quot;for all x exists y with y &gt; x :&quot;, pairs_fa)
+print(&quot;exists y for all x with y &gt; x :&quot;, pairs_ef)
+assert pairs_fa is False and pairs_ef is False  # both fail on a finite domain with a maximum
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Two predictions, both about proofs settling infinitely many cases.</p>
+<p><strong>First, Vikram's invariant.</strong> Theory says that breaking a chocolate bar into its individual squares takes exactly (number of squares − 1) snaps, <em>whatever order you choose</em>. A strategy-dependent answer would refute it. So we let a random strategy loose, thousands of times, on many bar sizes, and count.</p>
+<p><strong>Second, the mutilated chessboard.</strong> Theory says no tiling exists, by a colouring invariant. We cannot enumerate all tilings of a 62-square board, but we can check the invariant's premise exhaustively — that every domino placement covers one square of each colour — and we can verify the colour counts that make the conclusion follow.</p>
+<div class="lab demo" data-demo="m17-invariants-measured">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Does the answer really not depend on the strategy?</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+
+def snaps_to_separate(rows, cols, rng):
+    &quot;&quot;&quot;Break a bar into unit squares in a RANDOM order; count the snaps.&quot;&quot;&quot;
+    pieces = [(rows, cols)]
+    snaps = 0
+    while any(r &gt; 1 or c &gt; 1 for r, c in pieces):
+        i = rng.randrange(len(pieces))
+        r, c = pieces[i]
+        if r == 1 and c == 1:
+            continue
+        choices = []
+        if r &gt; 1:
+            choices.append(&quot;h&quot;)
+        if c &gt; 1:
+            choices.append(&quot;v&quot;)
+        how = rng.choice(choices)
+        pieces.pop(i)
+        if how == &quot;h&quot;:
+            cut = rng.randint(1, r - 1)
+            pieces.append((cut, c))
+            pieces.append((r - cut, c))
+        else:
+            cut = rng.randint(1, c - 1)
+            pieces.append((r, cut))
+            pieces.append((r, c - cut))
+        snaps += 1
+    return snaps
+
+
+rng = random.Random(1854)
+print(f&quot;{&#x27;bar&#x27;:&gt;10} {&#x27;squares&#x27;:&gt;9} {&#x27;predicted&#x27;:&gt;11} {&#x27;measured (200 random strategies)&#x27;:&gt;34}&quot;)
+for rows, cols in ((6, 4), (3, 3), (1, 7), (5, 2)):
+    predicted = rows * cols - 1
+    results = {snaps_to_separate(rows, cols, rng) for _ in range(200)}
+    print(f&quot;{rows}x{cols:&lt;8} {rows * cols:&gt;9} {predicted:&gt;11} {str(sorted(results)):&gt;34}&quot;)
+    assert results == {predicted}, &quot;every strategy must take exactly squares - 1 snaps&quot;
+
+print()
+print(&quot;every random strategy produced exactly one value: the invariant holds&quot;)
+
+# The mutilated chessboard, by colouring.
+N = 8
+colour = lambda r, c: (r + c) % 2
+squares = [(r, c) for r in range(N) for c in range(N)]
+mutilated = [s for s in squares if s not in {(0, 0), (N - 1, N - 1)}]
+
+# Premise: every legal domino covers one square of each colour.
+placements = 0
+for r, c in mutilated:
+    for dr, dc in ((0, 1), (1, 0)):
+        nr, nc = r + dr, c + dc
+        if (nr, nc) in set(mutilated):
+            assert colour(r, c) != colour(nr, nc), &quot;a domino must straddle two colours&quot;
+            placements += 1
+
+dark = sum(1 for s in mutilated if colour(*s) == 0)
+light = len(mutilated) - dark
+print()
+print(&quot;mutilated board squares:&quot;, len(mutilated), &quot; legal domino placements:&quot;, placements)
+print(&quot;predicted by the invariant: a tiling needs equal numbers of each colour&quot;)
+print(&quot;measured colour counts:&quot;, dark, &quot;and&quot;, light)
+assert dark != light, &quot;the colours are unequal, so no tiling can exist&quot;
+assert dark + light == 62
+assert abs(dark - light) == 2, &quot;removing two same-coloured corners unbalances by exactly 2&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the chocolate experiment is a genuine measurement and it came back as a single value every time, which is exactly what the invariant predicts — but note that a thousand agreeing trials is still not a proof. It is consistent with the theorem; it does not establish it. The one-line argument ("each snap adds one piece") does establish it, for every bar and every strategy, including the ones we never ran. The chessboard half makes the point from the other side: we verified the <em>premise</em> exhaustively and then let the proof do the work, because enumerating the tilings is not feasible. Testing can refute a universal claim with one counterexample and can never confirm one. That asymmetry is why this module exists.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m17-ex1-truth-tables" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Connectives and truth tables</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>implies(p, q)</code>, <code>iff(p, q)</code>, <code>xor(p, q)</code> as boolean functions. Write <code>truth_table(fn, arity)</code> returning a list of <code>(inputs_tuple, result)</code> pairs over all assignments, with <code>False</code> before <code>True</code> in each position. Write <code>is_tautology(fn, arity)</code> and <code>is_contradiction(fn, arity)</code>. Raise <code>ValueError</code> when <code>arity</code> is not a positive integer.</p></div>
+<textarea class="code" spellcheck="false">def implies(p, q):
+    &quot;&quot;&quot;Material implication.&quot;&quot;&quot;
+    return False
+
+
+def iff(p, q):
+    &quot;&quot;&quot;Biconditional.&quot;&quot;&quot;
+    return False
+
+
+def xor(p, q):
+    &quot;&quot;&quot;Exclusive or.&quot;&quot;&quot;
+    return False
+
+
+def truth_table(fn, arity):
+    &quot;&quot;&quot;Every assignment paired with the result.&quot;&quot;&quot;
+    return []
+
+
+def is_tautology(fn, arity):
+    &quot;&quot;&quot;True when the formula holds under every assignment.&quot;&quot;&quot;
+    return False
+
+
+def is_contradiction(fn, arity):
+    &quot;&quot;&quot;True when the formula fails under every assignment.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_implication_is_false_only_on_one_row():
+    assert implies(True, True) is True
+    assert implies(True, False) is False
+    assert implies(False, True) is True       # vacuously true
+    assert implies(False, False) is True      # vacuously true
+    rows = truth_table(implies, 2)
+    assert sum(1 for _, r in rows if not r) == 1
+
+
+def test_iff_and_xor_are_opposites():
+    for p in (False, True):
+        for q in (False, True):
+            assert iff(p, q) != xor(p, q)
+    assert iff(True, True) is True
+    assert xor(True, False) is True
+
+
+def test_tautologies_contradictions_and_errors():
+    assert is_tautology(lambda p: implies(p, p), 1) is True
+    assert is_tautology(lambda p: p or not p, 1) is True
+    assert is_contradiction(lambda p: p and not p, 1) is True
+    assert is_tautology(lambda p, q: implies(p, q), 2) is False
+    # the table has 2^arity rows, in a fixed order
+    rows = truth_table(lambda p, q: p and q, 2)
+    assert len(rows) == 4
+    assert rows[0][0] == (False, False)
+    assert rows[-1][0] == (True, True)
+    try:
+        truth_table(implies, 0)
+        assert False, &quot;arity 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m17-ex2-converse-inference" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Converse, inverse, contrapositive and valid inference</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>contrapositive(fn)</code>, <code>converse(fn)</code> and <code>inverse(fn)</code>, each taking a two-argument boolean function and returning a new two-argument function. Write <code>equivalent(f, g, arity)</code> returning <code>True</code> when two formulas agree on every assignment. Write <code>check_rule(premises, conclusion, arity)</code> where <code>premises</code> is a list of functions and <code>conclusion</code> a function, returning <code>True</code> when every assignment satisfying all the premises also satisfies the conclusion. Raise <code>ValueError</code> when <code>arity</code> is not a positive integer.</p></div>
+<textarea class="code" spellcheck="false">def contrapositive(fn):
+    &quot;&quot;&quot;Return the function for not q -&gt; not p.&quot;&quot;&quot;
+    return fn
+
+
+def converse(fn):
+    &quot;&quot;&quot;Return the function for q -&gt; p.&quot;&quot;&quot;
+    return fn
+
+
+def inverse(fn):
+    &quot;&quot;&quot;Return the function for not p -&gt; not q.&quot;&quot;&quot;
+    return fn
+
+
+def equivalent(f, g, arity):
+    &quot;&quot;&quot;True when f and g agree on every assignment.&quot;&quot;&quot;
+    return False
+
+
+def check_rule(premises, conclusion, arity):
+    &quot;&quot;&quot;True when the premises entail the conclusion.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_contrapositive_is_equivalent_but_converse_is_not():
+    imp = lambda p, q: (not p) or q
+    assert equivalent(imp, contrapositive(imp), 2) is True
+    assert equivalent(imp, converse(imp), 2) is False
+    assert equivalent(imp, inverse(imp), 2) is False
+    # converse and inverse are equivalent to each other
+    assert equivalent(converse(imp), inverse(imp), 2) is True
+
+
+def test_valid_rules_of_inference():
+    imp = lambda p, q: (not p) or q
+    # modus ponens: p-&gt;q, p therefore q
+    assert check_rule([imp, lambda p, q: p], lambda p, q: q, 2) is True
+    # modus tollens: p-&gt;q, not q therefore not p
+    assert check_rule([imp, lambda p, q: not q], lambda p, q: not p, 2) is True
+
+
+def test_classic_fallacies_are_rejected():
+    imp = lambda p, q: (not p) or q
+    # affirming the consequent: p-&gt;q, q therefore p  -- INVALID
+    assert check_rule([imp, lambda p, q: q], lambda p, q: p, 2) is False
+    # denying the antecedent: p-&gt;q, not p therefore not q  -- INVALID
+    assert check_rule([imp, lambda p, q: not p], lambda p, q: not q, 2) is False
+    try:
+        equivalent(imp, imp, -1)
+        assert False, &quot;a bad arity must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m17-ex3-quantifiers" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Quantifiers and their negation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>for_all(predicate, domain)</code> and <code>exists(predicate, domain)</code>. Write <code>negate_forall(predicate, domain)</code> returning the value of <code>exists(not predicate)</code>, and <code>negate_exists(predicate, domain)</code> returning the value of <code>for_all(not predicate)</code>. Write <code>counterexample(predicate, domain)</code> returning the first element of the domain falsifying the predicate, or <code>None</code> when there is none. Write <code>forall_exists(relation, domain)</code> and <code>exists_forall(relation, domain)</code> for a two-argument relation, so the difference in quantifier order can be measured. Raise <code>ValueError</code> on an empty domain.</p></div>
+<textarea class="code" spellcheck="false">def for_all(predicate, domain):
+    &quot;&quot;&quot;True when the predicate holds for every element.&quot;&quot;&quot;
+    return False
+
+
+def exists(predicate, domain):
+    &quot;&quot;&quot;True when the predicate holds for at least one element.&quot;&quot;&quot;
+    return False
+
+
+def negate_forall(predicate, domain):
+    &quot;&quot;&quot;The value of &#x27;not for all&#x27;, computed as &#x27;exists not&#x27;.&quot;&quot;&quot;
+    return False
+
+
+def negate_exists(predicate, domain):
+    &quot;&quot;&quot;The value of &#x27;not exists&#x27;, computed as &#x27;for all not&#x27;.&quot;&quot;&quot;
+    return False
+
+
+def counterexample(predicate, domain):
+    &quot;&quot;&quot;The first element falsifying the predicate, or None.&quot;&quot;&quot;
+    return None
+
+
+def forall_exists(relation, domain):
+    &quot;&quot;&quot;For every x there is a y with relation(x, y).&quot;&quot;&quot;
+    return False
+
+
+def exists_forall(relation, domain):
+    &quot;&quot;&quot;There is a y such that for every x, relation(x, y).&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_negation_laws_hold_on_many_predicates():
+    domain = list(range(1, 21))
+    preds = [lambda x: x &gt; 0, lambda x: x &gt; 10, lambda x: x &gt; 100,
+             lambda x: x % 2 == 0, lambda x: x &lt; 100]
+    for p in preds:
+        assert (not for_all(p, domain)) == negate_forall(p, domain)
+        assert (not exists(p, domain)) == negate_exists(p, domain)
+
+
+def test_counterexamples():
+    domain = list(range(1, 11))
+    # &quot;every number is below 20&quot; is true here, so there is no counterexample
+    assert counterexample(lambda x: x &lt; 20, domain) is None
+    # &quot;every number is below 5&quot; fails first at 5
+    assert counterexample(lambda x: x &lt; 5, domain) == 5
+    assert for_all(lambda x: x &lt; 5, domain) is False
+    # one counterexample is enough to refute a universal claim
+    c = counterexample(lambda x: x % 2 == 0, domain)
+    assert c == 1 and (c % 2 != 0)
+
+
+def test_quantifier_order_matters_and_errors():
+    domain = [1, 2, 3, 4]
+    # every x has some y that is at least as big: true
+    assert forall_exists(lambda x, y: y &gt;= x, domain) is True
+    # and here there IS such a y (the maximum), so both are true
+    assert exists_forall(lambda x, y: y &gt;= x, domain) is True
+    # strict: every x has a strictly bigger y? no, the maximum fails
+    assert forall_exists(lambda x, y: y &gt; x, domain) is False
+    # divisibility: every x divides some y (itself), but no single y is divisible by all
+    assert forall_exists(lambda x, y: y % x == 0, domain) is True
+    assert exists_forall(lambda x, y: y % x == 0, domain) is False
+    try:
+        for_all(lambda x: True, [])
+        assert False, &quot;an empty domain must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m17-ex4-induction" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Checking an inductive proof mechanically</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>check_base(statement, n0)</code> returning <code>True</code> when <code>statement(n0)</code> holds. Write <code>check_step(statement, n0, upto)</code> returning <code>True</code> when <code>statement(k)</code> implies <code>statement(k+1)</code> for every <code>k</code> from <code>n0</code> to <code>upto - 1</code>, treating the implication as vacuously satisfied when <code>statement(k)</code> is false. Write <code>induction_evidence(statement, n0, upto)</code> returning the tuple <code>(base_ok, step_ok, all_hold)</code> where <code>all_hold</code> says whether the statement holds for every <code>n</code> in the range. Write <code>first_failure(statement, n0, upto)</code> returning the smallest <code>n</code> where the statement fails, or <code>None</code>. Raise <code>ValueError</code> when <code>upto &lt; n0</code>.</p></div>
+<textarea class="code" spellcheck="false">def check_base(statement, n0):
+    &quot;&quot;&quot;True when the statement holds at the base case.&quot;&quot;&quot;
+    return False
+
+
+def check_step(statement, n0, upto):
+    &quot;&quot;&quot;True when statement(k) implies statement(k+1) across the range.&quot;&quot;&quot;
+    return False
+
+
+def induction_evidence(statement, n0, upto):
+    &quot;&quot;&quot;Return (base_ok, step_ok, all_hold).&quot;&quot;&quot;
+    return (False, False, False)
+
+
+def first_failure(statement, n0, upto):
+    &quot;&quot;&quot;The smallest n where the statement fails, or None.&quot;&quot;&quot;
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_true_statement_has_base_step_and_holds():
+    # sum of first n naturals
+    s = lambda n: sum(range(1, n + 1)) == n * (n + 1) // 2
+    base, step, holds = induction_evidence(s, 1, 60)
+    assert base is True and step is True and holds is True
+    assert first_failure(s, 1, 60) is None
+    # sum of first n odd numbers is n squared
+    odd = lambda n: sum(2 * i - 1 for i in range(1, n + 1)) == n * n
+    assert induction_evidence(odd, 1, 50) == (True, True, True)
+
+
+def test_statement_with_a_true_base_but_a_broken_step():
+    # true at n=1 only; 2^n &gt; n^2 fails at 2, 3, 4 and holds again from 5
+    s = lambda n: 2 ** n &gt; n ** 2
+    assert check_base(s, 1) is True
+    assert check_step(s, 1, 10) is False       # 1 holds but 2 does not
+    assert first_failure(s, 1, 10) == 2
+    # starting from 5 the step survives and everything holds
+    assert induction_evidence(s, 5, 40) == (True, True, True)
+    # Vacuous region: the statement is FALSE at n = 2, 3 and 4, so the
+    # implication statement(k) -&gt; statement(k+1) is vacuously satisfied there
+    # and the step must be reported as unbroken.
+    assert s(2) is False and s(3) is False and s(4) is False
+    assert check_step(s, 2, 4) is True
+
+
+def test_false_statement_and_errors():
+    # n^2 + n + 41 is prime: true for a long time, then fails at n = 40
+    def prime(m):
+        if m &lt; 2:
+            return False
+        d = 2
+        while d * d &lt;= m:
+            if m % d == 0:
+                return False
+            d += 1
+        return True
+    s = lambda n: prime(n * n + n + 41)
+    assert check_base(s, 0) is True
+    assert first_failure(s, 0, 50) == 40       # testing 39 cases would have missed it
+    assert induction_evidence(s, 0, 50)[2] is False
+    try:
+        check_step(s, 10, 5)
+        assert False, &quot;upto below n0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m17-ex5-invariants" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Invariants and structural induction</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>snaps_needed(rows, cols)</code> returning the number of snaps to reduce a bar to unit squares, derived from the invariant rather than simulated. Write <code>simulate_snaps(rows, cols, seed)</code> performing a seeded random sequence of snaps and returning the count actually taken. Write <code>domino_tileable(n, removed)</code> returning <code>False</code> when a colouring argument proves an <code>n</code> by <code>n</code> board with the listed squares removed cannot be tiled by dominoes, and <code>True</code> when the colour counts are balanced and the square count is even; <code>removed</code> is a list of <code>(row, col)</code> pairs. Write <code>count_leaves(tree)</code> and <code>count_internal(tree)</code> for a binary tree represented as <code>None</code> for empty, or the tuple <code>(left, right)</code> for a node, where a leaf is <code>("leaf",)</code>. Raise <code>ValueError</code> for non-positive dimensions.</p></div>
+<textarea class="code" spellcheck="false">def snaps_needed(rows, cols):
+    &quot;&quot;&quot;Snaps required to separate every square, from the invariant.&quot;&quot;&quot;
+    return 0
+
+
+def simulate_snaps(rows, cols, seed):
+    &quot;&quot;&quot;Snaps actually taken by a random strategy.&quot;&quot;&quot;
+    return 0
+
+
+def domino_tileable(n, removed):
+    &quot;&quot;&quot;False when a colouring argument rules out a tiling.&quot;&quot;&quot;
+    return True
+
+
+def count_leaves(tree):
+    &quot;&quot;&quot;Number of leaves in a binary tree.&quot;&quot;&quot;
+    return 0
+
+
+def count_internal(tree):
+    &quot;&quot;&quot;Number of internal (two-child) nodes.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_invariant_matches_every_random_strategy():
+    for rows, cols in ((6, 4), (3, 3), (1, 7), (5, 2), (2, 9)):
+        predicted = snaps_needed(rows, cols)
+        assert predicted == rows * cols - 1
+        for seed in range(25):
+            assert simulate_snaps(rows, cols, seed) == predicted
+    assert snaps_needed(1, 1) == 0
+    try:
+        snaps_needed(0, 3)
+        assert False, &quot;a zero dimension must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_mutilated_chessboard():
+    # the full board is tileable by the colour test
+    assert domino_tileable(8, []) is True
+    # two diagonally opposite corners share a colour: not tileable
+    assert domino_tileable(8, [(0, 0), (7, 7)]) is False
+    # removing two squares of OPPOSITE colour keeps the counts balanced
+    assert domino_tileable(8, [(0, 0), (0, 1)]) is True
+    # an odd number of squares can never be tiled
+    assert domino_tileable(8, [(0, 0)]) is False
+    assert domino_tileable(3, []) is False
+
+
+def test_structural_induction_on_trees():
+    leaf = (&quot;leaf&quot;,)
+    assert count_leaves(leaf) == 1
+    assert count_internal(leaf) == 0
+    t1 = (leaf, leaf)
+    assert count_leaves(t1) == 2 and count_internal(t1) == 1
+    t2 = ((leaf, leaf), (leaf, (leaf, leaf)))
+    # leaves = internal + 1, for every such tree
+    for t in (leaf, t1, t2, (t2, leaf), (t1, t2)):
+        assert count_leaves(t) == count_internal(t) + 1
+    assert count_leaves(None) == 0
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"If the premise is false, the implication is false."</strong> It is <em>true</em>, vacuously. "All my unicorns are purple" is true because I have no unicorns. This convention makes $\forall$ over an empty set behave correctly, and it is why a loop that never runs satisfies its postcondition.</li>
+<li><strong>"Proving the converse proves the theorem."</strong> It proves a different theorem. Only the <em>contrapositive</em> is equivalent. Mixing them up is affirming the consequent, which is invalid.</li>
+<li><strong>"A counterexample is just one case; the pattern still mostly holds."</strong> A single counterexample destroys a universal claim completely. $n^2+n+41$ is prime for $n = 0$ through $39$ and composite at $40$; thirty-nine successes are worth nothing against one failure.</li>
+<li><strong>"The inductive step alone proves the statement."</strong> Without a base case you can "prove" nonsense: $n = n+1$ survives any step you like and is false everywhere. Both halves are needed, and the base must be at the right starting value.</li>
+<li><strong>"Testing many cases is almost a proof."</strong> It is categorically not. Vikram's thousand successful trials do not cover the strategies he did not try; the invariant covers all of them in one line. Testing can only refute.</li>
+<li><strong>"Strong induction is a stronger axiom than ordinary induction."</strong> They are logically equivalent; strong induction is merely more convenient when the step needs more than the immediately preceding case.</li>
+<li><strong>"$\forall x \exists y$ and $\exists y \forall x$ say the same thing in a different order."</strong> They do not. The second is much stronger: it demands one $y$ that works for every $x$.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Classical propositional logic assumes every proposition is definitely true or definitely false — the law of the excluded middle. Intuitionistic logic rejects it, and with it proof by contradiction for existence claims: there, to show something exists you must construct it. That is not a quibble; it is the logic underlying type theory and proof assistants, where a proof of existence must carry an algorithm.</p>
+<p>Material implication is a deliberately crude model of "if". It makes "if the moon is cheese then 2+2=4" true, which no English speaker accepts. Relevance logics and counterfactual conditionals try to do better, at the cost of much more machinery.</p>
+<p>Induction needs a well-founded ordering. Over the non-negative integers it works because you cannot descend forever. Over the rationals, or the reals, there is no "next" element and ordinary induction is simply unavailable; you need transfinite induction, or continuity arguments, or an entirely different approach.</p>
+<p>And Gödel set the ceiling. Any consistent formal system strong enough to express arithmetic contains true statements it cannot prove, and cannot prove its own consistency. Proof is immensely powerful, and it is not unlimited.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Material implication and De Morgan are the daily arithmetic of conditionals: simplifying a nested <code>if</code>, inverting a guard clause, or writing the negation of a compound filter. The vacuous-truth rule is why <code>all([])</code> is <code>True</code>, and why a validation loop over an empty list passes — a behaviour that surprises people until they have seen this truth table.</p>
+<p>Invariants are the practical heart of the module. A loop invariant is what makes a loop correct rather than merely tested; a class invariant is what a constructor establishes and every method must preserve; a database constraint is an invariant the storage engine enforces for you. Reasoning about concurrency is almost entirely invariant reasoning, because the interleavings cannot be enumerated — the same situation as the chessboard. And structural induction is how you reason about recursive data: a proof over a tree has exactly the shape of the function that walks it.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>When is the implication p -&gt; q false?</p></div><div class="a" hidden><p>Only when p is true and q is false. In every other case it is true, including vacuously when p is false.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Which of converse, inverse and contrapositive is equivalent to the original implication?</p></div><div class="a" hidden><p>Only the contrapositive, not q -&gt; not p. The converse and inverse are equivalent to each other but not to the original.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>How do you negate "for all x, P(x)"?</p></div><div class="a" hidden><p>"There exists an x with not P(x)". The quantifier flips and the negation moves inside.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>State modus ponens and modus tollens, and name the two fallacies that mimic them.</p></div><div class="a" hidden><p>From p-&gt;q and p conclude q; from p-&gt;q and not q conclude not p. The fallacies are affirming the consequent (p-&gt;q, q, so p) and denying the antecedent (p-&gt;q, not p, so not q).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why does induction need both a base case and an inductive step?</p></div><div class="a" hidden><p>The step only propagates truth; without a true starting point it propagates nothing. "n = n+1" satisfies a step and is false everywhere.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is an invariant and why is it so powerful?</p></div><div class="a" hidden><p>A property preserved by every permitted move. It settles every reachable state at once, including the infinitely many you could never enumerate.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>How does the colouring argument show the mutilated chessboard cannot be tiled?</p></div><div class="a" hidden><p>Every domino covers one square of each colour, so a tiling needs equal counts. Removing two same-coloured corners leaves 32 and 30, so no tiling exists.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>How many counterexamples are needed to refute a universal statement?</p></div><div class="a" hidden><p>Exactly one.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>What does structural induction look like for a binary tree?</p></div><div class="a" hidden><p>Prove the property for the empty tree or a leaf, then assume it for both subtrees and prove it for a node built from them.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>Why is "I tested a thousand cases" not a proof?</p></div><div class="a" hidden><p>Because a universal claim covers cases you did not test. Testing can refute a claim with one counterexample but can never confirm one.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why the chocolate bar always takes the same number of snaps, you can state the truth table for implication from memory and justify the vacuous rows, you can tell converse from contrapositive without hesitating and say which one your proof is allowed to use, you can prove the validity of induction from well-ordering, you can find the invariant in a puzzle rather than searching the state space, you pass the boss exercise without hints, and you can say precisely why testing is not proof.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 11, chapters on Mathematical Reasoning and on the Principle of Mathematical Induction.</li>
+<li>Daniel J. Velleman, <em>How to Prove It: A Structured Approach</em>, Cambridge University Press.</li>
+<li>George Boole, <em>An Investigation of the Laws of Thought</em>, 1854.</li>
+<li>Gottlob Frege, <em>Begriffsschrift</em>, 1879.</li>
+<li>Kenneth H. Rosen, <em>Discrete Mathematics and Its Applications</em>, McGraw-Hill, chapters on logic and induction.</li>
+</ul></section>
+<footer class="pager"><a href="M16.html">&larr; M16 Sets, relations and functions</a>
+<a href="V01.html">V01 Theorem, theory, reality: how we know anything &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M17", "packages": [], "exercises": {"m17-ex1-truth-tables": {"starter": "def implies(p, q):\n    \"\"\"Material implication.\"\"\"\n    return False\n\n\ndef iff(p, q):\n    \"\"\"Biconditional.\"\"\"\n    return False\n\n\ndef xor(p, q):\n    \"\"\"Exclusive or.\"\"\"\n    return False\n\n\ndef truth_table(fn, arity):\n    \"\"\"Every assignment paired with the result.\"\"\"\n    return []\n\n\ndef is_tautology(fn, arity):\n    \"\"\"True when the formula holds under every assignment.\"\"\"\n    return False\n\n\ndef is_contradiction(fn, arity):\n    \"\"\"True when the formula fails under every assignment.\"\"\"\n    return False\n", "solution": "from itertools import product\n\n\ndef implies(p, q):\n    \"\"\"Material implication.\"\"\"\n    return (not p) or q\n\n\ndef iff(p, q):\n    \"\"\"Biconditional.\"\"\"\n    return p == q\n\n\ndef xor(p, q):\n    \"\"\"Exclusive or.\"\"\"\n    return p != q\n\n\ndef truth_table(fn, arity):\n    \"\"\"Every assignment paired with the result.\"\"\"\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    return [(assignment, bool(fn(*assignment)))\n            for assignment in product([False, True], repeat=arity)]\n\n\ndef is_tautology(fn, arity):\n    \"\"\"True when the formula holds under every assignment.\"\"\"\n    return all(result for _, result in truth_table(fn, arity))\n\n\ndef is_contradiction(fn, arity):\n    \"\"\"True when the formula fails under every assignment.\"\"\"\n    return not any(result for _, result in truth_table(fn, arity))\n", "tests": "def test_implication_is_false_only_on_one_row():\n    assert implies(True, True) is True\n    assert implies(True, False) is False\n    assert implies(False, True) is True       # vacuously true\n    assert implies(False, False) is True      # vacuously true\n    rows = truth_table(implies, 2)\n    assert sum(1 for _, r in rows if not r) == 1\n\n\ndef test_iff_and_xor_are_opposites():\n    for p in (False, True):\n        for q in (False, True):\n            assert iff(p, q) != xor(p, q)\n    assert iff(True, True) is True\n    assert xor(True, False) is True\n\n\ndef test_tautologies_contradictions_and_errors():\n    assert is_tautology(lambda p: implies(p, p), 1) is True\n    assert is_tautology(lambda p: p or not p, 1) is True\n    assert is_contradiction(lambda p: p and not p, 1) is True\n    assert is_tautology(lambda p, q: implies(p, q), 2) is False\n    # the table has 2^arity rows, in a fixed order\n    rows = truth_table(lambda p, q: p and q, 2)\n    assert len(rows) == 4\n    assert rows[0][0] == (False, False)\n    assert rows[-1][0] == (True, True)\n    try:\n        truth_table(implies, 0)\n        assert False, \"arity 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from itertools import product\n\n\ndef implies(p, q):\n    \"\"\"Bug: treats implication as conjunction, so vacuous truth is lost.\"\"\"\n    return p and q\n\n\ndef iff(p, q):\n    return p == q\n\n\ndef xor(p, q):\n    return p != q\n\n\ndef truth_table(fn, arity):\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    return [(assignment, bool(fn(*assignment)))\n            for assignment in product([False, True], repeat=arity)]\n\n\ndef is_tautology(fn, arity):\n    return all(result for _, result in truth_table(fn, arity))\n\n\ndef is_contradiction(fn, arity):\n    return not any(result for _, result in truth_table(fn, arity))\n", "from itertools import product\n\n\ndef implies(p, q):\n    return (not p) or q\n\n\ndef iff(p, q):\n    \"\"\"Bug: biconditional implemented as or.\"\"\"\n    return p or q\n\n\ndef xor(p, q):\n    return p != q\n\n\ndef truth_table(fn, arity):\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    return [(assignment, bool(fn(*assignment)))\n            for assignment in product([False, True], repeat=arity)]\n\n\ndef is_tautology(fn, arity):\n    \"\"\"Bug: uses any instead of all, so one true row counts as a tautology.\"\"\"\n    return any(result for _, result in truth_table(fn, arity))\n\n\ndef is_contradiction(fn, arity):\n    return not any(result for _, result in truth_table(fn, arity))\n"], "hints": ["`p -> q` is false in exactly one case: `p` true and `q` false. Everything else is true.", "`itertools.product([False, True], repeat=arity)` generates the assignments in the required order."], "level": "warmup", "title": "Connectives and truth tables"}, "m17-ex2-converse-inference": {"starter": "def contrapositive(fn):\n    \"\"\"Return the function for not q -> not p.\"\"\"\n    return fn\n\n\ndef converse(fn):\n    \"\"\"Return the function for q -> p.\"\"\"\n    return fn\n\n\ndef inverse(fn):\n    \"\"\"Return the function for not p -> not q.\"\"\"\n    return fn\n\n\ndef equivalent(f, g, arity):\n    \"\"\"True when f and g agree on every assignment.\"\"\"\n    return False\n\n\ndef check_rule(premises, conclusion, arity):\n    \"\"\"True when the premises entail the conclusion.\"\"\"\n    return False\n", "solution": "from itertools import product\n\n\ndef _implies(p, q):\n    return (not p) or q\n\n\ndef contrapositive(fn):\n    \"\"\"Return the function for not q -> not p.\"\"\"\n    return lambda p, q: fn(not q, not p)\n\n\ndef converse(fn):\n    \"\"\"Return the function for q -> p.\"\"\"\n    return lambda p, q: fn(q, p)\n\n\ndef inverse(fn):\n    \"\"\"Return the function for not p -> not q.\"\"\"\n    return lambda p, q: fn(not p, not q)\n\n\ndef equivalent(f, g, arity):\n    \"\"\"True when f and g agree on every assignment.\"\"\"\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    return all(bool(f(*a)) == bool(g(*a))\n               for a in product([False, True], repeat=arity))\n\n\ndef check_rule(premises, conclusion, arity):\n    \"\"\"True when the premises entail the conclusion.\"\"\"\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    for a in product([False, True], repeat=arity):\n        if all(bool(p(*a)) for p in premises) and not bool(conclusion(*a)):\n            return False\n    return True\n", "tests": "def test_contrapositive_is_equivalent_but_converse_is_not():\n    imp = lambda p, q: (not p) or q\n    assert equivalent(imp, contrapositive(imp), 2) is True\n    assert equivalent(imp, converse(imp), 2) is False\n    assert equivalent(imp, inverse(imp), 2) is False\n    # converse and inverse are equivalent to each other\n    assert equivalent(converse(imp), inverse(imp), 2) is True\n\n\ndef test_valid_rules_of_inference():\n    imp = lambda p, q: (not p) or q\n    # modus ponens: p->q, p therefore q\n    assert check_rule([imp, lambda p, q: p], lambda p, q: q, 2) is True\n    # modus tollens: p->q, not q therefore not p\n    assert check_rule([imp, lambda p, q: not q], lambda p, q: not p, 2) is True\n\n\ndef test_classic_fallacies_are_rejected():\n    imp = lambda p, q: (not p) or q\n    # affirming the consequent: p->q, q therefore p  -- INVALID\n    assert check_rule([imp, lambda p, q: q], lambda p, q: p, 2) is False\n    # denying the antecedent: p->q, not p therefore not q  -- INVALID\n    assert check_rule([imp, lambda p, q: not p], lambda p, q: not q, 2) is False\n    try:\n        equivalent(imp, imp, -1)\n        assert False, \"a bad arity must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from itertools import product\n\n\ndef contrapositive(fn):\n    \"\"\"Bug: swaps the arguments without negating, producing the converse.\"\"\"\n    return lambda p, q: fn(q, p)\n\n\ndef converse(fn):\n    return lambda p, q: fn(q, p)\n\n\ndef inverse(fn):\n    return lambda p, q: fn(not p, not q)\n\n\ndef equivalent(f, g, arity):\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    return all(bool(f(*a)) == bool(g(*a))\n               for a in product([False, True], repeat=arity))\n\n\ndef check_rule(premises, conclusion, arity):\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    for a in product([False, True], repeat=arity):\n        if all(bool(p(*a)) for p in premises) and not bool(conclusion(*a)):\n            return False\n    return True\n", "from itertools import product\n\n\ndef contrapositive(fn):\n    return lambda p, q: fn(not q, not p)\n\n\ndef converse(fn):\n    return lambda p, q: fn(q, p)\n\n\ndef inverse(fn):\n    return lambda p, q: fn(not p, not q)\n\n\ndef equivalent(f, g, arity):\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    return all(bool(f(*a)) == bool(g(*a))\n               for a in product([False, True], repeat=arity))\n\n\ndef check_rule(premises, conclusion, arity):\n    \"\"\"Bug: requires only SOME assignment to satisfy premises and conclusion,\n    so invalid rules are accepted.\"\"\"\n    if not isinstance(arity, int) or arity <= 0:\n        raise ValueError(\"arity must be a positive integer\")\n    for a in product([False, True], repeat=arity):\n        if all(bool(p(*a)) for p in premises) and bool(conclusion(*a)):\n            return True\n    return False\n"], "hints": ["The contrapositive of `p -> q` is `not q -> not p`: both swap AND negate. Swapping alone gives the converse.", "A rule is valid when there is *no* assignment making every premise true and the conclusion false. Look for a counterexample row."], "level": "core", "title": "Converse, inverse, contrapositive and valid inference"}, "m17-ex3-quantifiers": {"starter": "def for_all(predicate, domain):\n    \"\"\"True when the predicate holds for every element.\"\"\"\n    return False\n\n\ndef exists(predicate, domain):\n    \"\"\"True when the predicate holds for at least one element.\"\"\"\n    return False\n\n\ndef negate_forall(predicate, domain):\n    \"\"\"The value of 'not for all', computed as 'exists not'.\"\"\"\n    return False\n\n\ndef negate_exists(predicate, domain):\n    \"\"\"The value of 'not exists', computed as 'for all not'.\"\"\"\n    return False\n\n\ndef counterexample(predicate, domain):\n    \"\"\"The first element falsifying the predicate, or None.\"\"\"\n    return None\n\n\ndef forall_exists(relation, domain):\n    \"\"\"For every x there is a y with relation(x, y).\"\"\"\n    return False\n\n\ndef exists_forall(relation, domain):\n    \"\"\"There is a y such that for every x, relation(x, y).\"\"\"\n    return False\n", "solution": "def _check(domain):\n    if not domain:\n        raise ValueError(\"the domain must not be empty\")\n\n\ndef for_all(predicate, domain):\n    \"\"\"True when the predicate holds for every element.\"\"\"\n    _check(domain)\n    return all(bool(predicate(x)) for x in domain)\n\n\ndef exists(predicate, domain):\n    \"\"\"True when the predicate holds for at least one element.\"\"\"\n    _check(domain)\n    return any(bool(predicate(x)) for x in domain)\n\n\ndef negate_forall(predicate, domain):\n    \"\"\"The value of 'not for all', computed as 'exists not'.\"\"\"\n    return exists(lambda x: not predicate(x), domain)\n\n\ndef negate_exists(predicate, domain):\n    \"\"\"The value of 'not exists', computed as 'for all not'.\"\"\"\n    return for_all(lambda x: not predicate(x), domain)\n\n\ndef counterexample(predicate, domain):\n    \"\"\"The first element falsifying the predicate, or None.\"\"\"\n    _check(domain)\n    for x in domain:\n        if not predicate(x):\n            return x\n    return None\n\n\ndef forall_exists(relation, domain):\n    \"\"\"For every x there is a y with relation(x, y).\"\"\"\n    _check(domain)\n    return all(any(bool(relation(x, y)) for y in domain) for x in domain)\n\n\ndef exists_forall(relation, domain):\n    \"\"\"There is a y such that for every x, relation(x, y).\"\"\"\n    _check(domain)\n    return any(all(bool(relation(x, y)) for x in domain) for y in domain)\n", "tests": "def test_negation_laws_hold_on_many_predicates():\n    domain = list(range(1, 21))\n    preds = [lambda x: x > 0, lambda x: x > 10, lambda x: x > 100,\n             lambda x: x % 2 == 0, lambda x: x < 100]\n    for p in preds:\n        assert (not for_all(p, domain)) == negate_forall(p, domain)\n        assert (not exists(p, domain)) == negate_exists(p, domain)\n\n\ndef test_counterexamples():\n    domain = list(range(1, 11))\n    # \"every number is below 20\" is true here, so there is no counterexample\n    assert counterexample(lambda x: x < 20, domain) is None\n    # \"every number is below 5\" fails first at 5\n    assert counterexample(lambda x: x < 5, domain) == 5\n    assert for_all(lambda x: x < 5, domain) is False\n    # one counterexample is enough to refute a universal claim\n    c = counterexample(lambda x: x % 2 == 0, domain)\n    assert c == 1 and (c % 2 != 0)\n\n\ndef test_quantifier_order_matters_and_errors():\n    domain = [1, 2, 3, 4]\n    # every x has some y that is at least as big: true\n    assert forall_exists(lambda x, y: y >= x, domain) is True\n    # and here there IS such a y (the maximum), so both are true\n    assert exists_forall(lambda x, y: y >= x, domain) is True\n    # strict: every x has a strictly bigger y? no, the maximum fails\n    assert forall_exists(lambda x, y: y > x, domain) is False\n    # divisibility: every x divides some y (itself), but no single y is divisible by all\n    assert forall_exists(lambda x, y: y % x == 0, domain) is True\n    assert exists_forall(lambda x, y: y % x == 0, domain) is False\n    try:\n        for_all(lambda x: True, [])\n        assert False, \"an empty domain must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _check(domain):\n    if not domain:\n        raise ValueError(\"the domain must not be empty\")\n\n\ndef for_all(predicate, domain):\n    _check(domain)\n    return all(bool(predicate(x)) for x in domain)\n\n\ndef exists(predicate, domain):\n    _check(domain)\n    return any(bool(predicate(x)) for x in domain)\n\n\ndef negate_forall(predicate, domain):\n    \"\"\"Bug: negates without swapping the quantifier.\"\"\"\n    return for_all(lambda x: not predicate(x), domain)\n\n\ndef negate_exists(predicate, domain):\n    return for_all(lambda x: not predicate(x), domain)\n\n\ndef counterexample(predicate, domain):\n    _check(domain)\n    for x in domain:\n        if not predicate(x):\n            return x\n    return None\n\n\ndef forall_exists(relation, domain):\n    _check(domain)\n    return all(any(bool(relation(x, y)) for y in domain) for x in domain)\n\n\ndef exists_forall(relation, domain):\n    _check(domain)\n    return any(all(bool(relation(x, y)) for x in domain) for y in domain)\n", "def _check(domain):\n    if not domain:\n        raise ValueError(\"the domain must not be empty\")\n\n\ndef for_all(predicate, domain):\n    _check(domain)\n    return all(bool(predicate(x)) for x in domain)\n\n\ndef exists(predicate, domain):\n    _check(domain)\n    return any(bool(predicate(x)) for x in domain)\n\n\ndef negate_forall(predicate, domain):\n    return exists(lambda x: not predicate(x), domain)\n\n\ndef negate_exists(predicate, domain):\n    return for_all(lambda x: not predicate(x), domain)\n\n\ndef counterexample(predicate, domain):\n    _check(domain)\n    for x in domain:\n        if not predicate(x):\n            return x\n    return None\n\n\ndef forall_exists(relation, domain):\n    _check(domain)\n    return all(any(bool(relation(x, y)) for y in domain) for x in domain)\n\n\ndef exists_forall(relation, domain):\n    \"\"\"Bug: same as forall-exists, losing the distinction in quantifier order.\"\"\"\n    _check(domain)\n    return all(any(bool(relation(x, y)) for y in domain) for x in domain)\n"], "hints": ["Negating a universal gives an existential of the negation, and vice versa. The quantifier always flips.", "`exists_forall` must fix one `y` first and then check every `x` against it, so the `any` goes on the outside."], "level": "core", "title": "Quantifiers and their negation"}, "m17-ex4-induction": {"starter": "def check_base(statement, n0):\n    \"\"\"True when the statement holds at the base case.\"\"\"\n    return False\n\n\ndef check_step(statement, n0, upto):\n    \"\"\"True when statement(k) implies statement(k+1) across the range.\"\"\"\n    return False\n\n\ndef induction_evidence(statement, n0, upto):\n    \"\"\"Return (base_ok, step_ok, all_hold).\"\"\"\n    return (False, False, False)\n\n\ndef first_failure(statement, n0, upto):\n    \"\"\"The smallest n where the statement fails, or None.\"\"\"\n    return None\n", "solution": "def _check(n0, upto):\n    if upto < n0:\n        raise ValueError(\"upto must be at least n0\")\n\n\ndef check_base(statement, n0):\n    \"\"\"True when the statement holds at the base case.\"\"\"\n    return bool(statement(n0))\n\n\ndef check_step(statement, n0, upto):\n    \"\"\"True when statement(k) implies statement(k+1) across the range.\"\"\"\n    _check(n0, upto)\n    for k in range(n0, upto):\n        if bool(statement(k)) and not bool(statement(k + 1)):\n            return False\n    return True\n\n\ndef induction_evidence(statement, n0, upto):\n    \"\"\"Return (base_ok, step_ok, all_hold).\"\"\"\n    _check(n0, upto)\n    base_ok = check_base(statement, n0)\n    step_ok = check_step(statement, n0, upto)\n    all_hold = all(bool(statement(n)) for n in range(n0, upto + 1))\n    return (base_ok, step_ok, all_hold)\n\n\ndef first_failure(statement, n0, upto):\n    \"\"\"The smallest n where the statement fails, or None.\"\"\"\n    _check(n0, upto)\n    for n in range(n0, upto + 1):\n        if not bool(statement(n)):\n            return n\n    return None\n", "tests": "def test_true_statement_has_base_step_and_holds():\n    # sum of first n naturals\n    s = lambda n: sum(range(1, n + 1)) == n * (n + 1) // 2\n    base, step, holds = induction_evidence(s, 1, 60)\n    assert base is True and step is True and holds is True\n    assert first_failure(s, 1, 60) is None\n    # sum of first n odd numbers is n squared\n    odd = lambda n: sum(2 * i - 1 for i in range(1, n + 1)) == n * n\n    assert induction_evidence(odd, 1, 50) == (True, True, True)\n\n\ndef test_statement_with_a_true_base_but_a_broken_step():\n    # true at n=1 only; 2^n > n^2 fails at 2, 3, 4 and holds again from 5\n    s = lambda n: 2 ** n > n ** 2\n    assert check_base(s, 1) is True\n    assert check_step(s, 1, 10) is False       # 1 holds but 2 does not\n    assert first_failure(s, 1, 10) == 2\n    # starting from 5 the step survives and everything holds\n    assert induction_evidence(s, 5, 40) == (True, True, True)\n    # Vacuous region: the statement is FALSE at n = 2, 3 and 4, so the\n    # implication statement(k) -> statement(k+1) is vacuously satisfied there\n    # and the step must be reported as unbroken.\n    assert s(2) is False and s(3) is False and s(4) is False\n    assert check_step(s, 2, 4) is True\n\n\ndef test_false_statement_and_errors():\n    # n^2 + n + 41 is prime: true for a long time, then fails at n = 40\n    def prime(m):\n        if m < 2:\n            return False\n        d = 2\n        while d * d <= m:\n            if m % d == 0:\n                return False\n            d += 1\n        return True\n    s = lambda n: prime(n * n + n + 41)\n    assert check_base(s, 0) is True\n    assert first_failure(s, 0, 50) == 40       # testing 39 cases would have missed it\n    assert induction_evidence(s, 0, 50)[2] is False\n    try:\n        check_step(s, 10, 5)\n        assert False, \"upto below n0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _check(n0, upto):\n    if upto < n0:\n        raise ValueError(\"upto must be at least n0\")\n\n\ndef check_base(statement, n0):\n    return bool(statement(n0))\n\n\ndef check_step(statement, n0, upto):\n    \"\"\"Bug: requires statement(k+1) outright rather than the implication,\n    so a vacuous case is reported as a broken step.\"\"\"\n    _check(n0, upto)\n    for k in range(n0, upto):\n        if not bool(statement(k + 1)):\n            return False\n    return True\n\n\ndef induction_evidence(statement, n0, upto):\n    _check(n0, upto)\n    return (check_base(statement, n0),\n            check_step(statement, n0, upto),\n            all(bool(statement(n)) for n in range(n0, upto + 1)))\n\n\ndef first_failure(statement, n0, upto):\n    _check(n0, upto)\n    for n in range(n0, upto + 1):\n        if not bool(statement(n)):\n            return n\n    return None\n", "def _check(n0, upto):\n    if upto < n0:\n        raise ValueError(\"upto must be at least n0\")\n\n\ndef check_base(statement, n0):\n    return bool(statement(n0))\n\n\ndef check_step(statement, n0, upto):\n    _check(n0, upto)\n    for k in range(n0, upto):\n        if bool(statement(k)) and not bool(statement(k + 1)):\n            return False\n    return True\n\n\ndef induction_evidence(statement, n0, upto):\n    _check(n0, upto)\n    return (check_base(statement, n0),\n            check_step(statement, n0, upto),\n            all(bool(statement(n)) for n in range(n0, upto + 1)))\n\n\ndef first_failure(statement, n0, upto):\n    \"\"\"Bug: returns the largest failure instead of the smallest.\"\"\"\n    _check(n0, upto)\n    found = None\n    for n in range(n0, upto + 1):\n        if not bool(statement(n)):\n            found = n\n    return found\n"], "hints": ["The inductive step is an implication. If `statement(k)` is false there is nothing to check at that k, so the step is not broken there.", "`first_failure` should return as soon as it finds a failure, which makes it the *smallest* one."], "level": "core", "title": "Checking an inductive proof mechanically"}, "m17-ex5-invariants": {"starter": "def snaps_needed(rows, cols):\n    \"\"\"Snaps required to separate every square, from the invariant.\"\"\"\n    return 0\n\n\ndef simulate_snaps(rows, cols, seed):\n    \"\"\"Snaps actually taken by a random strategy.\"\"\"\n    return 0\n\n\ndef domino_tileable(n, removed):\n    \"\"\"False when a colouring argument rules out a tiling.\"\"\"\n    return True\n\n\ndef count_leaves(tree):\n    \"\"\"Number of leaves in a binary tree.\"\"\"\n    return 0\n\n\ndef count_internal(tree):\n    \"\"\"Number of internal (two-child) nodes.\"\"\"\n    return 0\n", "solution": "import random\n\n\ndef snaps_needed(rows, cols):\n    \"\"\"Snaps required to separate every square, from the invariant.\"\"\"\n    if rows <= 0 or cols <= 0:\n        raise ValueError(\"dimensions must be positive\")\n    return rows * cols - 1\n\n\ndef simulate_snaps(rows, cols, seed):\n    \"\"\"Snaps actually taken by a random strategy.\"\"\"\n    if rows <= 0 or cols <= 0:\n        raise ValueError(\"dimensions must be positive\")\n    rng = random.Random(seed)\n    pieces = [(rows, cols)]\n    snaps = 0\n    while any(r > 1 or c > 1 for r, c in pieces):\n        candidates = [i for i, (r, c) in enumerate(pieces) if r > 1 or c > 1]\n        i = rng.choice(candidates)\n        r, c = pieces.pop(i)\n        options = ([\"h\"] if r > 1 else []) + ([\"v\"] if c > 1 else [])\n        if rng.choice(options) == \"h\":\n            cut = rng.randint(1, r - 1)\n            pieces += [(cut, c), (r - cut, c)]\n        else:\n            cut = rng.randint(1, c - 1)\n            pieces += [(r, cut), (r, c - cut)]\n        snaps += 1\n    return snaps\n\n\ndef domino_tileable(n, removed):\n    \"\"\"False when a colouring argument rules out a tiling.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    removed = set(removed)\n    squares = [(r, c) for r in range(n) for c in range(n) if (r, c) not in removed]\n    if len(squares) % 2 != 0:\n        return False\n    dark = sum(1 for r, c in squares if (r + c) % 2 == 0)\n    light = len(squares) - dark\n    return dark == light\n\n\ndef count_leaves(tree):\n    \"\"\"Number of leaves in a binary tree.\"\"\"\n    if tree is None:\n        return 0\n    if tree == (\"leaf\",):\n        return 1\n    left, right = tree\n    return count_leaves(left) + count_leaves(right)\n\n\ndef count_internal(tree):\n    \"\"\"Number of internal (two-child) nodes.\"\"\"\n    if tree is None or tree == (\"leaf\",):\n        return 0\n    left, right = tree\n    return 1 + count_internal(left) + count_internal(right)\n", "tests": "def test_invariant_matches_every_random_strategy():\n    for rows, cols in ((6, 4), (3, 3), (1, 7), (5, 2), (2, 9)):\n        predicted = snaps_needed(rows, cols)\n        assert predicted == rows * cols - 1\n        for seed in range(25):\n            assert simulate_snaps(rows, cols, seed) == predicted\n    assert snaps_needed(1, 1) == 0\n    try:\n        snaps_needed(0, 3)\n        assert False, \"a zero dimension must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_mutilated_chessboard():\n    # the full board is tileable by the colour test\n    assert domino_tileable(8, []) is True\n    # two diagonally opposite corners share a colour: not tileable\n    assert domino_tileable(8, [(0, 0), (7, 7)]) is False\n    # removing two squares of OPPOSITE colour keeps the counts balanced\n    assert domino_tileable(8, [(0, 0), (0, 1)]) is True\n    # an odd number of squares can never be tiled\n    assert domino_tileable(8, [(0, 0)]) is False\n    assert domino_tileable(3, []) is False\n\n\ndef test_structural_induction_on_trees():\n    leaf = (\"leaf\",)\n    assert count_leaves(leaf) == 1\n    assert count_internal(leaf) == 0\n    t1 = (leaf, leaf)\n    assert count_leaves(t1) == 2 and count_internal(t1) == 1\n    t2 = ((leaf, leaf), (leaf, (leaf, leaf)))\n    # leaves = internal + 1, for every such tree\n    for t in (leaf, t1, t2, (t2, leaf), (t1, t2)):\n        assert count_leaves(t) == count_internal(t) + 1\n    assert count_leaves(None) == 0\n", "mutants": ["import random\n\n\ndef snaps_needed(rows, cols):\n    \"\"\"Bug: off by one, forgetting that you start with one whole piece.\"\"\"\n    if rows <= 0 or cols <= 0:\n        raise ValueError(\"dimensions must be positive\")\n    return rows * cols\n\n\ndef simulate_snaps(rows, cols, seed):\n    if rows <= 0 or cols <= 0:\n        raise ValueError(\"dimensions must be positive\")\n    rng = random.Random(seed)\n    pieces = [(rows, cols)]\n    snaps = 0\n    while any(r > 1 or c > 1 for r, c in pieces):\n        candidates = [i for i, (r, c) in enumerate(pieces) if r > 1 or c > 1]\n        i = rng.choice(candidates)\n        r, c = pieces.pop(i)\n        options = ([\"h\"] if r > 1 else []) + ([\"v\"] if c > 1 else [])\n        if rng.choice(options) == \"h\":\n            cut = rng.randint(1, r - 1)\n            pieces += [(cut, c), (r - cut, c)]\n        else:\n            cut = rng.randint(1, c - 1)\n            pieces += [(r, cut), (r, c - cut)]\n        snaps += 1\n    return snaps\n\n\ndef domino_tileable(n, removed):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    removed = set(removed)\n    squares = [(r, c) for r in range(n) for c in range(n) if (r, c) not in removed]\n    if len(squares) % 2 != 0:\n        return False\n    dark = sum(1 for r, c in squares if (r + c) % 2 == 0)\n    return dark == len(squares) - dark\n\n\ndef count_leaves(tree):\n    if tree is None:\n        return 0\n    if tree == (\"leaf\",):\n        return 1\n    left, right = tree\n    return count_leaves(left) + count_leaves(right)\n\n\ndef count_internal(tree):\n    if tree is None or tree == (\"leaf\",):\n        return 0\n    left, right = tree\n    return 1 + count_internal(left) + count_internal(right)\n", "import random\n\n\ndef snaps_needed(rows, cols):\n    if rows <= 0 or cols <= 0:\n        raise ValueError(\"dimensions must be positive\")\n    return rows * cols - 1\n\n\ndef simulate_snaps(rows, cols, seed):\n    if rows <= 0 or cols <= 0:\n        raise ValueError(\"dimensions must be positive\")\n    rng = random.Random(seed)\n    pieces = [(rows, cols)]\n    snaps = 0\n    while any(r > 1 or c > 1 for r, c in pieces):\n        candidates = [i for i, (r, c) in enumerate(pieces) if r > 1 or c > 1]\n        i = rng.choice(candidates)\n        r, c = pieces.pop(i)\n        options = ([\"h\"] if r > 1 else []) + ([\"v\"] if c > 1 else [])\n        if rng.choice(options) == \"h\":\n            cut = rng.randint(1, r - 1)\n            pieces += [(cut, c), (r - cut, c)]\n        else:\n            cut = rng.randint(1, c - 1)\n            pieces += [(r, cut), (r, c - cut)]\n        snaps += 1\n    return snaps\n\n\ndef domino_tileable(n, removed):\n    \"\"\"Bug: only checks that the square count is even, ignoring colour.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    removed = set(removed)\n    squares = [(r, c) for r in range(n) for c in range(n) if (r, c) not in removed]\n    return len(squares) % 2 == 0\n\n\ndef count_leaves(tree):\n    if tree is None:\n        return 0\n    if tree == (\"leaf\",):\n        return 1\n    left, right = tree\n    return count_leaves(left) + count_leaves(right)\n\n\ndef count_internal(tree):\n    \"\"\"Bug: forgets to count the node itself.\"\"\"\n    if tree is None or tree == (\"leaf\",):\n        return 0\n    left, right = tree\n    return count_internal(left) + count_internal(right)\n"], "hints": ["You start with one piece and finish with `rows*cols`. Each snap adds exactly one piece, so count the difference.", "For the chessboard, colour a square by the parity of `row + col`. A domino always covers one of each colour, so a tiling needs the two counts equal."], "level": "boss", "title": "Invariants and structural induction"}}, "demos": {"m17-equivalences-two-ways": {"code": "from itertools import product\n\n\ndef implies(p, q):\n    return (not p) or q\n\n\nASSIGNMENTS = list(product([False, True], repeat=2))\n\n# The contrapositive agrees with the implication on EVERY row.\nrows_impl = [implies(p, q) for p, q in ASSIGNMENTS]\nrows_contra = [implies(not q, not p) for p, q in ASSIGNMENTS]\nrows_converse = [implies(q, p) for p, q in ASSIGNMENTS]\nrows_inverse = [implies(not p, not q) for p, q in ASSIGNMENTS]\n\nprint(\"p q | p->q  contrapositive  converse  inverse\")\nfor (p, q), a, b, c, d in zip(ASSIGNMENTS, rows_impl, rows_contra, rows_converse, rows_inverse):\n    print(f\"{int(p)} {int(q)} |   {int(a)}         {int(b)}            {int(c)}        {int(d)}\")\n\nassert rows_impl == rows_contra, \"the contrapositive must be equivalent\"\nassert rows_impl != rows_converse, \"the converse must NOT be equivalent\"\nassert rows_impl != rows_inverse, \"the inverse must NOT be equivalent\"\nassert rows_converse == rows_inverse, \"converse and inverse are equivalent to each other\"\n\n# p -> q rebuilt as not p or q\nassert rows_impl == [(not p) or q for p, q in ASSIGNMENTS]\n\n# De Morgan, on all four rows\nfor p, q in ASSIGNMENTS:\n    assert (not (p and q)) == ((not p) or (not q))\n    assert (not (p or q)) == ((not p) and (not q))\n\n# Rules of inference are valid; the two classic fallacies are not.\nvalid_mp = all(q for p, q in ASSIGNMENTS if implies(p, q) and p)\nvalid_mt = all((not p) for p, q in ASSIGNMENTS if implies(p, q) and (not q))\nfallacy_affirm = all(p for p, q in ASSIGNMENTS if implies(p, q) and q)\nfallacy_deny = all((not q) for p, q in ASSIGNMENTS if implies(p, q) and (not p))\nprint()\nprint(\"modus ponens valid:\", valid_mp, \" modus tollens valid:\", valid_mt)\nprint(\"affirming the consequent valid:\", fallacy_affirm, \" denying the antecedent valid:\", fallacy_deny)\nassert valid_mp and valid_mt, \"both rules of inference must be valid\"\nassert not fallacy_affirm and not fallacy_deny, \"both fallacies must be invalid\"\n\n# Quantifier negation over a finite domain.\nDOMAIN = list(range(1, 11))\nfor predicate in (lambda x: x > 0, lambda x: x > 5, lambda x: x > 100, lambda x: x % 2 == 0):\n    assert (not all(predicate(x) for x in DOMAIN)) == any(not predicate(x) for x in DOMAIN)\n    assert (not any(predicate(x) for x in DOMAIN)) == all(not predicate(x) for x in DOMAIN)\nprint()\nprint(\"quantifier negation laws verified over a 10-element domain\")\n\n# forall-exists is weaker than exists-forall.\npairs_fa = all(any(y > x for y in DOMAIN) for x in DOMAIN)       # every x has some bigger y?\npairs_ef = any(all(y > x for x in DOMAIN) for y in DOMAIN)       # one y bigger than every x?\nprint(\"for all x exists y with y > x :\", pairs_fa)\nprint(\"exists y for all x with y > x :\", pairs_ef)\nassert pairs_fa is False and pairs_ef is False  # both fail on a finite domain with a maximum\n", "mutants": ["from itertools import product\n\n\ndef implies(p, q):\n    return (not p) or q\n\n\nASSIGNMENTS = list(product([False, True], repeat=2))\nrows_impl = [implies(p, q) for p, q in ASSIGNMENTS]\nrows_converse = [implies(q, p) for p, q in ASSIGNMENTS]\n\nprint(\"p q | p->q  converse\")\nfor (p, q), a, c in zip(ASSIGNMENTS, rows_impl, rows_converse):\n    print(f\"{int(p)} {int(q)} |   {int(a)}       {int(c)}\")\n\n# Bug: claims the converse is equivalent to the implication.\nassert rows_impl == rows_converse, \"the converse must be equivalent\"\n"]}, "m17-invariants-measured": {"code": "import random\n\n\ndef snaps_to_separate(rows, cols, rng):\n    \"\"\"Break a bar into unit squares in a RANDOM order; count the snaps.\"\"\"\n    pieces = [(rows, cols)]\n    snaps = 0\n    while any(r > 1 or c > 1 for r, c in pieces):\n        i = rng.randrange(len(pieces))\n        r, c = pieces[i]\n        if r == 1 and c == 1:\n            continue\n        choices = []\n        if r > 1:\n            choices.append(\"h\")\n        if c > 1:\n            choices.append(\"v\")\n        how = rng.choice(choices)\n        pieces.pop(i)\n        if how == \"h\":\n            cut = rng.randint(1, r - 1)\n            pieces.append((cut, c))\n            pieces.append((r - cut, c))\n        else:\n            cut = rng.randint(1, c - 1)\n            pieces.append((r, cut))\n            pieces.append((r, c - cut))\n        snaps += 1\n    return snaps\n\n\nrng = random.Random(1854)\nprint(f\"{'bar':>10} {'squares':>9} {'predicted':>11} {'measured (200 random strategies)':>34}\")\nfor rows, cols in ((6, 4), (3, 3), (1, 7), (5, 2)):\n    predicted = rows * cols - 1\n    results = {snaps_to_separate(rows, cols, rng) for _ in range(200)}\n    print(f\"{rows}x{cols:<8} {rows * cols:>9} {predicted:>11} {str(sorted(results)):>34}\")\n    assert results == {predicted}, \"every strategy must take exactly squares - 1 snaps\"\n\nprint()\nprint(\"every random strategy produced exactly one value: the invariant holds\")\n\n# The mutilated chessboard, by colouring.\nN = 8\ncolour = lambda r, c: (r + c) % 2\nsquares = [(r, c) for r in range(N) for c in range(N)]\nmutilated = [s for s in squares if s not in {(0, 0), (N - 1, N - 1)}]\n\n# Premise: every legal domino covers one square of each colour.\nplacements = 0\nfor r, c in mutilated:\n    for dr, dc in ((0, 1), (1, 0)):\n        nr, nc = r + dr, c + dc\n        if (nr, nc) in set(mutilated):\n            assert colour(r, c) != colour(nr, nc), \"a domino must straddle two colours\"\n            placements += 1\n\ndark = sum(1 for s in mutilated if colour(*s) == 0)\nlight = len(mutilated) - dark\nprint()\nprint(\"mutilated board squares:\", len(mutilated), \" legal domino placements:\", placements)\nprint(\"predicted by the invariant: a tiling needs equal numbers of each colour\")\nprint(\"measured colour counts:\", dark, \"and\", light)\nassert dark != light, \"the colours are unequal, so no tiling can exist\"\nassert dark + light == 62\nassert abs(dark - light) == 2, \"removing two same-coloured corners unbalances by exactly 2\"\n", "mutants": ["import random\n\n\ndef snaps_to_separate(rows, cols, rng):\n    \"\"\"Bug: counts a snap only when it produces a 1x1 piece.\"\"\"\n    pieces = [(rows, cols)]\n    snaps = 0\n    while any(r > 1 or c > 1 for r, c in pieces):\n        i = rng.randrange(len(pieces))\n        r, c = pieces[i]\n        if r == 1 and c == 1:\n            continue\n        choices = []\n        if r > 1:\n            choices.append(\"h\")\n        if c > 1:\n            choices.append(\"v\")\n        how = rng.choice(choices)\n        pieces.pop(i)\n        if how == \"h\":\n            cut = rng.randint(1, r - 1)\n            new = [(cut, c), (r - cut, c)]\n        else:\n            cut = rng.randint(1, c - 1)\n            new = [(r, cut), (r, c - cut)]\n        pieces.extend(new)\n        if any(a == 1 and b == 1 for a, b in new):\n            snaps += 1\n    return snaps\n\n\nrng = random.Random(1854)\nfor rows, cols in ((6, 4), (3, 3)):\n    predicted = rows * cols - 1\n    results = {snaps_to_separate(rows, cols, rng) for _ in range(200)}\n    print(f\"  {rows}x{cols}: predicted {predicted}, measured {sorted(results)}\")\n    assert results == {predicted}, \"every strategy must take exactly squares - 1 snaps\"\n"]}}, "cards": [{"q": "When is the implication p -> q false?", "a": "Only when p is true and q is false. In every other case it is true, including vacuously when p is false."}, {"q": "Which of converse, inverse and contrapositive is equivalent to the original implication?", "a": "Only the contrapositive, not q -> not p. The converse and inverse are equivalent to each other but not to the original."}, {"q": "How do you negate \"for all x, P(x)\"?", "a": "\"There exists an x with not P(x)\". The quantifier flips and the negation moves inside."}, {"q": "State modus ponens and modus tollens, and name the two fallacies that mimic them.", "a": "From p->q and p conclude q; from p->q and not q conclude not p. The fallacies are affirming the consequent (p->q, q, so p) and denying the antecedent (p->q, not p, so not q)."}, {"q": "Why does induction need both a base case and an inductive step?", "a": "The step only propagates truth; without a true starting point it propagates nothing. \"n = n+1\" satisfies a step and is false everywhere."}, {"q": "What is an invariant and why is it so powerful?", "a": "A property preserved by every permitted move. It settles every reachable state at once, including the infinitely many you could never enumerate."}, {"q": "How does the colouring argument show the mutilated chessboard cannot be tiled?", "a": "Every domino covers one square of each colour, so a tiling needs equal counts. Removing two same-coloured corners leaves 32 and 30, so no tiling exists."}, {"q": "How many counterexamples are needed to refute a universal statement?", "a": "Exactly one."}, {"q": "What does structural induction look like for a binary tree?", "a": "Prove the property for the empty tree or a leaf, then assume it for both subtrees and prove it for a node built from them."}, {"q": "Why is \"I tested a thousand cases\" not a proof?", "a": "Because a universal claim covers cases you did not test. Testing can refute a claim with one counterexample but can never confirm one."}], "title": "Logic and proof"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

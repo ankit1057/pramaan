@@ -1,0 +1,322 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P14 Complexity: P, NP and intractability</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P14">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P14</p><h1>Complexity: P, NP and intractability</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P13.html">P13</a> <a href="D01.html">D01</a></div><div><b>Covers:</b> CS2023 AL</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>decision problems</li><li>P</li><li>NP via verifiers</li><li>polynomial-time reductions</li><li>NP-completeness</li><li>the Cook-Levin idea</li><li>SAT and 3-SAT</li><li>vertex cover, clique, subset sum, TSP</li><li>NP-hard vs NP-complete</li><li>coping: approximation, heuristics, special cases, parameterised algorithms</li><li>the status of P vs NP</li><li>space complexity: PSPACE, NPSPACE and Savitch&#x27;s theorem</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In May 1971, at the ACM Symposium on Theory of Computing (STOC) in Shaker Heights, Ohio, a University of Toronto professor named Stephen Arthur Cook presented an eight-page paper that transformed computer science: "The Complexity of Theorem-Proving Procedures." Independently behind the Soviet Iron Curtain in 1973, mathematician Leonid Levin discovered the identical mathematical phenomenon in his paper "Universal Sequential Search Problems." Cook formalized the concept of polynomial-time reductions and defined the class of NP-complete problems—computational challenges that are simultaneously in NP and as hard as any problem in NP. Cook proved the foundation of computational intractability: the Cook-Levin Theorem, establishing that the Boolean Satisfiability Problem (SAT) is NP-complete by demonstrating that any polynomial-time non-deterministic Turing machine computation can be systematically encoded into a polynomial-size Boolean formula in Conjunctive Normal Form (CNF).</p>
+<p>The true magnitude of Cook's breakthrough was unveiled in 1972 when Richard Karp published his landmark paper, "Reducibility Among Combinatorial Problems." Karp established a breathtaking web of polynomial-time reductions, proving that 21 seemingly unrelated, notoriously difficult problems across mathematics and industry—including 3-SAT, Vertex Cover, Maximum Clique, Subset Sum, and the Traveling Salesperson Problem—were all NP-complete. In 2000, the Clay Mathematics Institute designated $P \text{ vs } NP$ as one of the seven Millennium Prize Problems with a <span class=dollar>&#36;</span>1,000,000 bounty. If $P = NP$, modern public-key cryptography (RSA, Elliptic Curves) would instantly collapse overnight, but automated protein design, compiler optimization, and global logistics routing would become solvable in polynomial time.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Computational complexity classifies problems by how much time and memory they demand as input size grows. Problems in class P can be solved quickly by computers using polynomial-time algorithms like sorting or finding shortest paths. Problems in class NP are like puzzles: finding the solution from scratch might take trillions of years of guessing, but if someone hands you a proposed solution (a certificate or witness), you can verify its correctness quickly in polynomial time (like checking a solved Sudoku puzzle). The famous question "P vs NP" asks whether verifying a solution is fundamentally easier than finding it. If a problem is NP-complete, it is among the hardest problems in NP; finding a fast algorithm for just one would solve every problem in NP instantly.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal foundations of computational complexity theory and intractability are defined across Turing machine models and language classes:</p>
+<ol>
+<li>
+<p><strong>Decision Problems &amp; Complexity Class P</strong>:
+A decision problem is a formal language $L \subseteq \{0, 1\}^*$.
+$L \in P \iff$ there exists a deterministic Turing machine $M$ and constant $k \ge 1$ such that $M$ decides $L$ in time $O(n^k)$ where $n = |x|$.</p>
+</li>
+<li>
+<p><strong>Complexity Class NP via Polynomial-Time Verifiers</strong>:
+A language $L \in NP \iff$ there exists a deterministic polynomial-time Turing machine $V$ (the verifier) and polynomial $p(n)$ such that:
+$$x \in L \iff \exists c \in \{0, 1\}^* \text{ with } |c| \le p(|x|) \text{ such that } V(x, c) \text{ accepts.}$$
+The string $c$ is the polynomial certificate (or witness).</p>
+</li>
+<li>
+<p><strong>Polynomial-Time Reductions (Karp Reductions)</strong>:
+A language $A$ is polynomial-time reducible to $B$ ($A \le_p B$) if there exists a polynomial-time computable function $f: \Sigma^* \to \Sigma^*$ such that:
+$$\forall x \in \Sigma^*, \quad x \in A \iff f(x) \in B.$$
+- If $B \in P$ and $A \le_p B$, then $A \in P$.
+- If $A$ is NP-hard and $A \le_p B$, then $B$ is NP-hard.</p>
+</li>
+<li>
+<p><strong>NP-Completeness &amp; The Cook-Levin Theorem</strong>:
+A language $L$ is <strong>NP-complete</strong> if:</p>
+</li>
+<li>$L \in NP$.</li>
+<li>
+<p>$\forall L&#x27; \in NP, L&#x27; \le_p L$ (i.e., $L$ is NP-hard).
+<em>The Cook-Levin Theorem</em>: $\text{SAT} \in NP\text{-complete}$. Cook proved this by showing that for any non-deterministic TM $M$ halting in time $p(n)$ on input $w$, the entire $p(n) \times p(n)$ execution tableau of head positions, tape cells, and state transitions can be transcribed into a CNF formula of size $O(p(n)^2)$ that is satisfiable if and only if $M$ accepts $w$. 3-SAT is NP-complete via clause length reduction.</p>
+</li>
+<li>
+<p><strong>Classic NP-Complete Problems</strong>:
+- <strong>3-SAT</strong>: CNF with 3 literals per clause.
+- <strong>Vertex Cover</strong>: Given $G = (V, E)$ and $k$, does there exist $S \subseteq V, |S| \le k$ covering all edges?
+- <strong>Clique</strong>: Does $G$ contain an induction subgraph that is complete of size $\ge k$?
+- <strong>Subset Sum</strong>: Given integers $S$ and target $T$, does a subset sum to $T$?
+- <strong>Traveling Salesperson Problem (TSP Decision)</strong>: Does a tour of cost $\le L$ exist?</p>
+</li>
+<li>
+<p><strong>Coping with Intractability</strong>:
+When a problem is NP-hard, engineers apply four primary strategies:
+- <strong>Approximation Algorithms</strong>: Finding a solution within a guaranteed factor $\alpha$ of optimal (e.g., 2-approximation for Vertex Cover using maximal matching; Christofides 1.5-approximation for metric TSP).
+- <strong>Heuristics &amp; Local Search</strong>: Simulated annealing, genetic algorithms, integer linear programming (ILP) solvers (Z3, Gurobi).
+- <strong>Special Cases</strong>: 2-SAT is solvable in $O(V + E)$ linear time via strongly connected components in implication graphs; tree-width dynamic programming.
+- <strong>Fixed-Parameter Tractable (FPT)</strong>: Algorithms running in $O(f(k) \cdot n^c)$ where parameter $k$ is small.</p>
+</li>
+<li>
+<p><strong>Space Complexity &amp; Savitch's Theorem</strong>:
+$PSPACE$ is the set of decision problems solvable in polynomial space.
+Savitch's Theorem proves that for any space-constructible $f(n) \ge \log n$:
+$$\text{NPSPACE}(f(n)) \subseteq \text{PSPACE}(f(n)^2).$$
+Consequently, $PSPACE = NPSPACE$. True Quantified Boolean Formulas (TQBF) is PSPACE-complete.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding computational complexity and NP-completeness is essential for software engineers because it prevents futile attempts to invent polynomial-time algorithms for intractable problems. When an engineer faces a feature request requiring optimal package loading (the 0-1 Knapsack problem), vehicle delivery route optimization (TSP), or conflict-free meeting scheduling (Graph Coloring), identifying that the problem is NP-hard immediately reframes the engineering goal. Instead of promising an exact $O(N)$ solution that is mathematically impossible (assuming $P \ne NP$), the engineer can confidently deploy a 2-approximation algorithm, a branch-and-bound heuristic, or an off-the-shelf SAT/SMT solver.</p>
+<p>Furthermore, complexity theory illuminates the fundamental nature of computer security and cryptography. All modern public-key cryptography rests upon the presumed computational asymmetry between easy polynomial verification and hard inverted computation. If a polynomial-time algorithm for NP-complete problems were discovered, asymmetric key exchanges (Diffie-Hellman, RSA) and password hashing schemes would be instantly breakable. Finally, mastering reductions—the technique of translating an unknown problem into a solved problem—is one of the most powerful problem-solving skills in algorithmic design and system engineering.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The NP certificate verifier oracle demonstrates how verifying a proposed solution runs in deterministic polynomial time even when finding the solution requires exponential search. In computational theory, a verifier inspects a witness certificate and checks all problem constraints in linear time $O(N)$. The interactive oracle verifies subset sum certificates against target sums and asserts immediate rejection of invalid certificates or arithmetic mismatches.</p>
+<div class="lab demo" data-demo="p14-oracle-subset-sum-verifier">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Polynomial-Time NP Certificate Verifier Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def verify_subset_sum(numbers: list[int], target: int, certificate_indices: list[int]) -&gt; bool:
+    # Verifier executes in O(k) &lt;= O(N) linear time
+    # Check index validity (no duplicates, within bounds)
+    if len(certificate_indices) != len(set(certificate_indices)):
+        return False
+    for idx in certificate_indices:
+        if idx &lt; 0 or idx &gt;= len(numbers):
+            return False
+            
+    # Check that sum of selected numbers matches target exactly
+    computed_sum = sum(numbers[i] for i in certificate_indices)
+    return computed_sum == target
+
+# Example instance:
+numbers = [14, 27, 3, 8, 42, 19, 5]
+target = 53
+
+# Valid witness certificate: indices [0, 1, 4] -&gt; 14 + 27 + 42 = 83 (not 53)
+# Correct witness: 14 + 27 + 5 + 7... wait: 42 + 8 + 3 = 53 -&gt; indices [4, 3, 2]
+valid_cert = [4, 3, 2]
+assert verify_subset_sum(numbers, target, valid_cert) is True
+
+# Invalid witness certificate: sum is 14 + 19 = 33 != 53
+invalid_cert = [0, 5]
+assert verify_subset_sum(numbers, target, invalid_cert) is False
+
+# Bogus index certificate
+bogus_cert = [99]
+assert verify_subset_sum(numbers, target, bogus_cert) is False
+
+print(&quot;Polynomial-time NP certificate verifier oracle verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the exponential growth gap between polynomial-time and exponential-time algorithms across problem scales $N = 10 \dots 40$. While a polynomial algorithm $O(N^2)$ scales smoothly from 100 operations to 1,600 operations, an exponential algorithm $O(2^N)$ explodes from 1,024 operations to over one trillion ($1.09 \times 10^{12}$) operations, illustrating why NP-hard problems become computationally intractable for brute-force approaches beyond small inputs.</p>
+<div class="lab demo" data-demo="p14-exp-complexity-scaling">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Polynomial O(N^2) vs Exponential O(2^N) Scaling Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def poly_ops(n: int) -&gt; int:
+    return n * n
+
+def exp_ops(n: int) -&gt; int:
+    return 1 &lt;&lt; n
+
+# At N = 10:
+p10 = poly_ops(10)  # 100
+e10 = exp_ops(10)   # 1024
+assert p10 == 100
+assert e10 == 1024
+
+# At N = 20:
+p20 = poly_ops(20)  # 400
+e20 = exp_ops(20)   # 1,048,576
+assert p20 == 400
+assert e20 == 1048576
+
+# At N = 40:
+p40 = poly_ops(40)  # 1600
+e40 = exp_ops(40)   # 2^40 = 1,099,511,627,776 (&gt; 1 Trillion operations!)
+assert p40 == 1600
+assert e40 &gt; 10**12
+
+ratio_40 = e40 // p40
+assert ratio_40 &gt; 600_000_000
+
+print(f&quot;Complexity scaling verified: N=40 has {p40} polynomial ops vs {e40:,} exponential ops (ratio {ratio_40:,}x).&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-np-certificate-verifier" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Polynomial-Time Certificate Verifier for Hamiltonian Cycle</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement verify_hamiltonian_cycle(n_vertices: int, edges: list[tuple[int, int]], cycle: list[int]) -&gt; bool to verify whether a proposed certificate path forms a valid Hamiltonian cycle visiting every vertex exactly once in polynomial time.</p></div>
+<textarea class="code" spellcheck="false">def verify_hamiltonian_cycle(n_vertices: int, edges: list[tuple[int, int]], cycle: list[int]) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_valid_hamiltonian_cycle():
+    # Triangle graph: 0-1, 1-2, 2-0
+    edges = [(0, 1), (1, 2), (2, 0)]
+    cert = [0, 1, 2, 0]
+    assert verify_hamiltonian_cycle(3, edges, cert) is True
+
+def test_missing_vertex_in_cycle():
+    # Square graph with 4 vertices, cert visits only 3
+    edges = [(0, 1), (1, 2), (2, 3), (3, 0)]
+    cert = [0, 1, 0]
+    assert verify_hamiltonian_cycle(4, edges, cert) is False
+
+def test_nonexistent_edge_in_cycle():
+    edges = [(0, 1), (1, 2), (2, 3)]
+    # Edge (3, 0) does not exist!
+    cert = [0, 1, 2, 3, 0]
+    assert verify_hamiltonian_cycle(4, edges, cert) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-two-sat-linear-solver" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Linear-Time 2-SAT Solver via Implication Graph</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement solve_2sat(n_vars: int, clauses: list[tuple[int, int]]) -&gt; dict that determines satisfiability and produces a satisfying truth assignment in O(V + E) linear time using an implication graph and strongly connected components.</p></div>
+<textarea class="code" spellcheck="false">def solve_2sat(n_vars: int, clauses: list[tuple[int, int]]) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_2sat_satisfiable():
+    # (x1 or x2) and (~x1 or x2)
+    # Satisfiable with x2 = True
+    clauses = [(1, 2), (-1, 2)]
+    res = solve_2sat(2, clauses)
+    assert res[&quot;satisfiable&quot;] is True
+    assert res[&quot;assignment&quot;][2] is True
+
+def test_2sat_unsatisfiable_contradiction():
+    # (x1 or x1) and (~x1 or ~x1) -&gt; x1 must be True and False!
+    clauses = [(1, 1), (-1, -1)]
+    res = solve_2sat(1, clauses)
+    assert res[&quot;satisfiable&quot;] is False
+
+def test_2sat_chain():
+    # (x1 or x2) and (~x2 or x3) and (~x3 or ~x1)
+    clauses = [(1, 2), (-2, 3), (-3, -1)]
+    res = solve_2sat(3, clauses)
+    assert res[&quot;satisfiable&quot;] is True
+    # Verify clause satisfaction
+    assign = res[&quot;assignment&quot;]
+    for a, b in clauses:
+        val_a = assign[abs(a)] if a &gt; 0 else not assign[abs(a)]
+        val_b = assign[abs(b)] if b &gt; 0 else not assign[abs(b)]
+        assert (val_a or val_b) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-vertex-cover-approximation" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Vertex Cover 2-Approximation via Maximal Matching</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement approx_vertex_cover(n_vertices: int, edges: list[tuple[int, int]]) -&gt; set[int] implementing the classic maximal matching 2-approximation algorithm, guaranteeing that the returned cover size is at most 2 * OPT.</p></div>
+<textarea class="code" spellcheck="false">def approx_vertex_cover(n_vertices: int, edges: list[tuple[int, int]]) -&gt; set[int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_approx_vertex_cover_triangle():
+    edges = [(0, 1), (1, 2), (2, 0)]
+    cover = approx_vertex_cover(3, edges)
+    # Check that cover covers all edges
+    for u, v in edges:
+        assert (u in cover) or (v in cover)
+    # Must be within 2 * OPT (OPT = 2, so cover size &lt;= 4)
+    assert len(cover) &lt;= 2 * 2
+
+def test_approx_vertex_cover_star_graph():
+    # Center 0 connected to 1, 2, 3, 4
+    # OPT is {0} (size 1); 2-approx can pick both endpoints of one edge, size &lt;= 2
+    edges = [(0, 1), (0, 2), (0, 3), (0, 4)]
+    cover = approx_vertex_cover(5, edges)
+    for u, v in edges:
+        assert (u in cover) or (v in cover)
+    assert len(cover) &lt;= 2 * 1  # 2 * OPT
+
+def test_approx_vertex_cover_empty():
+    cover = approx_vertex_cover(3, [])
+    assert cover == set()
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-reduction-3sat-to-clique" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Polynomial-Time Reduction: 3-SAT to Maximum Clique</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement reduce_3sat_to_clique(clauses: list[list[int]]) -&gt; tuple[int, list[tuple[int, int]], int] producing an equivalent graph (num_vertices, edges, target_k) where a k-clique exists iff the 3-SAT formula is satisfiable.</p></div>
+<textarea class="code" spellcheck="false">def reduce_3sat_to_clique(clauses: list[list[int]]) -&gt; tuple[int, list[tuple[int, int]], int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_reduction_basic():
+    # 2 clauses: (x1 or x2 or x3) and (~x1 or ~x2 or x3)
+    clauses = [[1, 2, 3], [-1, -2, 3]]
+    n_v, edges, k = reduce_3sat_to_clique(clauses)
+    assert n_v == 6  # 2 clauses * 3 literals
+    assert k == 2    # Target clique size = number of clauses
+    
+    # Vertices within same clause must NOT have edges
+    clause_0_vertices = {0, 1, 2}
+    for u, v in edges:
+        assert not (u in clause_0_vertices and v in clause_0_vertices)
+
+def test_reduction_contradiction_exclusion():
+    # 2 clauses: (x1 or x2 or x3) and (~x1 or x2 or x3)
+    # Vertex 0 is (clause 0, lit 1), Vertex 3 is (clause 1, lit -1)
+    # They contradict (1 vs -1), so there must NOT be an edge between 0 and 3
+    clauses = [[1, 2, 3], [-1, 2, 3]]
+    n_v, edges, k = reduce_3sat_to_clique(clauses)
+    assert (0, 3) not in edges and (3, 0) not in edges
+
+def test_reduction_empty():
+    n_v, edges, k = reduce_3sat_to_clique([])
+    assert n_v == 0
+    assert edges == []
+    assert k == 0
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"NP stands for 'Non-Polynomial'."</strong> NP stands for 'Non-deterministic Polynomial time'—the class of problems solvable in polynomial time on a non-deterministic Turing machine, or equivalently, verifiable in polynomial time on a deterministic machine.</li>
+<li><strong>"NP-complete problems can never be solved in practice."</strong> While NP-complete problems require exponential worst-case time, modern SAT solvers (CDCL) and heuristics routinely solve real-world industrial instances with millions of variables in seconds.</li>
+<li><strong>"NP-hard and NP-complete mean the exact same thing."</strong> NP-complete problems must reside within NP (having polynomial verifiers); NP-hard problems are at least as hard as NP, but may not be in NP (e.g., the Halting Problem is NP-hard but undecidable).</li>
+<li><strong>"If P != NP, approximation algorithms cannot find good solutions."</strong> Many NP-complete problems possess efficient polynomial-time approximation schemes (PTAS) that yield solutions arbitrarily close to optimal in polynomial time.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Computational complexity classifications break down when real-world input structures deviate significantly from worst-case pathological instances. Many NP-complete problems exhibit sharp phase transitions, where almost all practical or randomly generated instances are easily solved in milliseconds, and only a vanishingly narrow, synthetically constructed window of constrained problem instances trigger worst-case exponential runtime or catastrophic branch-and-bound tree explosion.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Complexity theory is applied in production operations research (airline crew scheduling and delivery route optimization using OR-Tools), electronic design automation (EDA tools using SAT solvers to verify silicon microchips), package dependency resolution (npm, pip, and Cargo using SAT/SMT solvers), and automated program verification.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the formal definition of class P and class NP?</p></div><div class="a" hidden><p>P is the class of decision problems solvable in deterministic polynomial time; NP is the class of decision problems verifiable in deterministic polynomial time given a polynomial-size certificate.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the Cook-Levin Theorem?</p></div><div class="a" hidden><p>The fundamental theorem of complexity theory proving that the Boolean Satisfiability problem (SAT) is NP-complete by encoding Turing machine execution into CNF clauses.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the difference between NP-complete and NP-hard?</p></div><div class="a" hidden><p>NP-complete problems must belong to NP and be NP-hard; NP-hard problems are at least as hard as any problem in NP, but do not necessarily reside in NP (e.g. Halting Problem).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does Karp's 1972 paper demonstrate?</p></div><div class="a" hidden><p>It proved that 21 fundamental problems across graph theory, integer programming, and combinatorics (3-SAT, Clique, Vertex Cover, TSP) are all NP-complete via polynomial reductions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How is 2-SAT solvable in linear time while 3-SAT is NP-complete?</p></div><div class="a" hidden><p>2-SAT can be formulated as an implication graph where satisfiability corresponds to whether any variable x shares a strongly connected component with ~x, solvable in O(V+E) time.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is Savitch's Theorem in space complexity?</p></div><div class="a" hidden><p>Savitch's Theorem states that NPSPACE(f(n)) is contained in PSPACE(f(n)^2), proving that non-determinism does not add exponential power in space complexity, and PSPACE = NPSPACE.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can verify NP certificates in polynomial time, solve 2-SAT in linear time using implication graphs, implement 2-approximation algorithms for Vertex Cover, and construct Karp polynomial reductions from 3-SAT to Maximum Clique.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Cook, S. A. (1971). The Complexity of Theorem-Proving Procedures. Proceedings of the 3rd Annual ACM Symposium on Theory of Computing (STOC), 151-158.</li>
+<li>Karp, R. M. (1972). Reducibility Among Combinatorial Problems. Complexity of Computer Computations, 85-103.</li>
+<li>Savitch, W. J. (1970). Relationships Between Nondeterministic and Deterministic Tape Complexities. Journal of Computer and System Sciences, 4(2), 177-192.</li>
+</ul></section>
+<footer class="pager"><a href="P13.html">&larr; P13 Grammars, computability and undecidability</a>
+<a href="P17.html">P17 Compilers and runtimes &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P14", "packages": ["numpy"], "exercises": {"ex1-np-certificate-verifier": {"starter": "def verify_hamiltonian_cycle(n_vertices: int, edges: list[tuple[int, int]], cycle: list[int]) -> bool:\n    pass\n", "solution": "def verify_hamiltonian_cycle(n_vertices: int, edges: list[tuple[int, int]], cycle: list[int]) -> bool:\n    if n_vertices <= 0:\n        return False\n    # A valid Hamiltonian cycle must visit each of the n vertices once, plus repeat start at the end\n    # Length of cycle list must be n_vertices + 1\n    if len(cycle) != n_vertices + 1:\n        return False\n        \n    # Start and end must match\n    if cycle[0] != cycle[-1]:\n        return False\n        \n    # The first n vertices must be a permutation of 0 .. n-1\n    visited_vertices = cycle[:-1]\n    if set(visited_vertices) != set(range(n_vertices)):\n        return False\n        \n    # Build edge set for O(1) adjacency lookup (undirected graph)\n    edge_set = set()\n    for u, v in edges:\n        edge_set.add((u, v))\n        edge_set.add((v, u))\n        \n    # Check that each consecutive step is a valid edge\n    for i in range(len(cycle) - 1):\n        u = cycle[i]\n        v = cycle[i + 1]\n        if (u, v) not in edge_set:\n            return False\n            \n    return True\n", "tests": "def test_valid_hamiltonian_cycle():\n    # Triangle graph: 0-1, 1-2, 2-0\n    edges = [(0, 1), (1, 2), (2, 0)]\n    cert = [0, 1, 2, 0]\n    assert verify_hamiltonian_cycle(3, edges, cert) is True\n\ndef test_missing_vertex_in_cycle():\n    # Square graph with 4 vertices, cert visits only 3\n    edges = [(0, 1), (1, 2), (2, 3), (3, 0)]\n    cert = [0, 1, 0]\n    assert verify_hamiltonian_cycle(4, edges, cert) is False\n\ndef test_nonexistent_edge_in_cycle():\n    edges = [(0, 1), (1, 2), (2, 3)]\n    # Edge (3, 0) does not exist!\n    cert = [0, 1, 2, 3, 0]\n    assert verify_hamiltonian_cycle(4, edges, cert) is False\n", "mutants": ["def verify_hamiltonian_cycle(n_vertices, edges, cycle):\n    assert False, 'mutant injected'\n", "def verify_hamiltonian_cycle(n_vertices, edges, cycle):\n    return True  # mutant verifies all certificates as valid\n"], "hints": ["Verify that len(cycle) == n_vertices + 1.", "Verify that cycle[0] == cycle[-1] and all vertices 0..n-1 are visited.", "Verify that every edge (cycle[i], cycle[i+1]) exists in edges."], "level": "warmup", "title": "Polynomial-Time Certificate Verifier for Hamiltonian Cycle"}, "ex2-two-sat-linear-solver": {"starter": "def solve_2sat(n_vars: int, clauses: list[tuple[int, int]]) -> dict:\n    pass\n", "solution": "def solve_2sat(n_vars: int, clauses: list[tuple[int, int]]) -> dict:\n    # Variables are 1-indexed: 1 .. n_vars; negative integer means negation (-x)\n    # Map variable x to node: pos(x) = 2*(x-1), neg(x) = 2*(x-1) + 1\n    def to_node(lit):\n        var = abs(lit)\n        if lit > 0:\n            return 2 * (var - 1)\n        else:\n            return 2 * (var - 1) + 1\n            \n    def negate_node(u):\n        return u ^ 1  # 2k <-> 2k+1\n        \n    num_nodes = 2 * n_vars\n    adj = {i: [] for i in range(num_nodes)}\n    rev_adj = {i: [] for i in range(num_nodes)}\n    \n    # Clause (u or v) is equivalent to: (~u => v) and (~v => u)\n    for lit_a, lit_b in clauses:\n        u = to_node(lit_a)\n        v = to_node(lit_b)\n        not_u = negate_node(u)\n        not_v = negate_node(v)\n        # not_u -> v\n        adj[not_u].append(v)\n        rev_adj[v].append(not_u)\n        # not_v -> u\n        adj[not_v].append(u)\n        rev_adj[u].append(not_v)\n        \n    # Kosaraju SCC algorithm\n    visited = [False] * num_nodes\n    order = []\n    \n    def dfs1(u):\n        visited[u] = True\n        for v in adj[u]:\n            if not visited[v]:\n                dfs1(v)\n        order.append(u)\n        \n    for i in range(num_nodes):\n        if not visited[i]:\n            dfs1(i)\n            \n    visited = [False] * num_nodes\n    scc = [-1] * num_nodes\n    curr_scc = 0\n    \n    def dfs2(u, comp):\n        visited[u] = True\n        scc[u] = comp\n        for v in rev_adj[u]:\n            if not visited[v]:\n                dfs2(v, comp)\n                \n    for u in reversed(order):\n        if not visited[u]:\n            dfs2(u, curr_scc)\n            curr_scc += 1\n            \n    # Check satisfiability: x and not x cannot be in same SCC\n    assignment = {}\n    for var in range(1, n_vars + 1):\n        pos_node = to_node(var)\n        neg_node = to_node(-var)\n        if scc[pos_node] == scc[neg_node]:\n            return {\"satisfiable\": False, \"assignment\": {}}\n        # If SCC of pos_node has larger SCC index in Kosaraju, pos is true\n        assignment[var] = scc[pos_node] > scc[neg_node]\n        \n    return {\"satisfiable\": True, \"assignment\": assignment}\n", "tests": "def test_2sat_satisfiable():\n    # (x1 or x2) and (~x1 or x2)\n    # Satisfiable with x2 = True\n    clauses = [(1, 2), (-1, 2)]\n    res = solve_2sat(2, clauses)\n    assert res[\"satisfiable\"] is True\n    assert res[\"assignment\"][2] is True\n\ndef test_2sat_unsatisfiable_contradiction():\n    # (x1 or x1) and (~x1 or ~x1) -> x1 must be True and False!\n    clauses = [(1, 1), (-1, -1)]\n    res = solve_2sat(1, clauses)\n    assert res[\"satisfiable\"] is False\n\ndef test_2sat_chain():\n    # (x1 or x2) and (~x2 or x3) and (~x3 or ~x1)\n    clauses = [(1, 2), (-2, 3), (-3, -1)]\n    res = solve_2sat(3, clauses)\n    assert res[\"satisfiable\"] is True\n    # Verify clause satisfaction\n    assign = res[\"assignment\"]\n    for a, b in clauses:\n        val_a = assign[abs(a)] if a > 0 else not assign[abs(a)]\n        val_b = assign[abs(b)] if b > 0 else not assign[abs(b)]\n        assert (val_a or val_b) is True\n", "mutants": ["def solve_2sat(n_vars, clauses):\n    assert False, 'mutant injected'\n", "def solve_2sat(n_vars, clauses):\n    return {\"satisfiable\": True, \"assignment\": {i: True for i in range(1, n_vars + 1)}}\n"], "hints": ["Convert each clause (a or b) into implications: ~a => b and ~b => a.", "Compute Strongly Connected Components (SCC) using Kosaraju or Tarjan.", "If variable x and ~x are in the same SCC, the formula is unsatisfiable."], "level": "core", "title": "Linear-Time 2-SAT Solver via Implication Graph"}, "ex3-vertex-cover-approximation": {"starter": "def approx_vertex_cover(n_vertices: int, edges: list[tuple[int, int]]) -> set[int]:\n    pass\n", "solution": "def approx_vertex_cover(n_vertices: int, edges: list[tuple[int, int]]) -> set[int]:\n    # Classic 2-approximation algorithm:\n    # 1. Initialize cover C = empty set\n    # 2. While edges remain:\n    #    Pick an arbitrary edge (u, v)\n    #    Add BOTH u and v to C\n    #    Remove all edges incident to u or v\n    cover = set()\n    remaining_edges = list(edges)\n    \n    while remaining_edges:\n        u, v = remaining_edges.pop()\n        if u not in cover and v not in cover:\n            cover.add(u)\n            cover.add(v)\n            # Filter remaining edges not covered\n            remaining_edges = [\n                (x, y) for x, y in remaining_edges\n                if x not in cover and y not in cover\n            ]\n            \n    return cover\n", "tests": "def test_approx_vertex_cover_triangle():\n    edges = [(0, 1), (1, 2), (2, 0)]\n    cover = approx_vertex_cover(3, edges)\n    # Check that cover covers all edges\n    for u, v in edges:\n        assert (u in cover) or (v in cover)\n    # Must be within 2 * OPT (OPT = 2, so cover size <= 4)\n    assert len(cover) <= 2 * 2\n\ndef test_approx_vertex_cover_star_graph():\n    # Center 0 connected to 1, 2, 3, 4\n    # OPT is {0} (size 1); 2-approx can pick both endpoints of one edge, size <= 2\n    edges = [(0, 1), (0, 2), (0, 3), (0, 4)]\n    cover = approx_vertex_cover(5, edges)\n    for u, v in edges:\n        assert (u in cover) or (v in cover)\n    assert len(cover) <= 2 * 1  # 2 * OPT\n\ndef test_approx_vertex_cover_empty():\n    cover = approx_vertex_cover(3, [])\n    assert cover == set()\n", "mutants": ["def approx_vertex_cover(n_vertices, edges):\n    assert False, 'mutant injected'\n", "def approx_vertex_cover(n_vertices, edges):\n    return set()  # mutant returns empty set, covering nothing!\n"], "hints": ["Pick an uncovered edge (u, v).", "Add both u and v to the vertex cover set.", "Remove all edges that share an endpoint with u or v."], "level": "core", "title": "Vertex Cover 2-Approximation via Maximal Matching"}, "ex4-reduction-3sat-to-clique": {"starter": "def reduce_3sat_to_clique(clauses: list[list[int]]) -> tuple[int, list[tuple[int, int]], int]:\n    pass\n", "solution": "def reduce_3sat_to_clique(clauses: list[list[int]]) -> tuple[int, list[tuple[int, int]], int]:\n    # Karp reduction from 3-SAT to Clique:\n    # Given formula phi with m clauses:\n    # For each clause i (0..m-1), create 3 vertices representing its 3 literals: (clause_idx, literal_val)\n    # Total vertices = 3 * m\n    # Connect two vertices (i, lit_u) and (j, lit_v) with an edge iff:\n    # 1. They belong to DIFFERENT clauses (i != j)\n    # 2. They are NOT contradictory (lit_u != -lit_v)\n    # The formula is satisfiable iff the graph has a clique of size k = m.\n    \n    m = len(clauses)\n    vertices = []\n    for c_idx, clause in enumerate(clauses):\n        for lit in clause:\n            vertices.append((c_idx, lit))\n            \n    num_vertices = len(vertices)\n    edges = []\n    \n    for u in range(num_vertices):\n        c_u, lit_u = vertices[u]\n        for v in range(u + 1, num_vertices):\n            c_v, lit_v = vertices[v]\n            # Must be from different clauses and not contradictory\n            if c_u != c_v and lit_u != -lit_v:\n                edges.append((u, v))\n                \n    target_k = m\n    return (num_vertices, edges, target_k)\n", "tests": "def test_reduction_basic():\n    # 2 clauses: (x1 or x2 or x3) and (~x1 or ~x2 or x3)\n    clauses = [[1, 2, 3], [-1, -2, 3]]\n    n_v, edges, k = reduce_3sat_to_clique(clauses)\n    assert n_v == 6  # 2 clauses * 3 literals\n    assert k == 2    # Target clique size = number of clauses\n    \n    # Vertices within same clause must NOT have edges\n    clause_0_vertices = {0, 1, 2}\n    for u, v in edges:\n        assert not (u in clause_0_vertices and v in clause_0_vertices)\n\ndef test_reduction_contradiction_exclusion():\n    # 2 clauses: (x1 or x2 or x3) and (~x1 or x2 or x3)\n    # Vertex 0 is (clause 0, lit 1), Vertex 3 is (clause 1, lit -1)\n    # They contradict (1 vs -1), so there must NOT be an edge between 0 and 3\n    clauses = [[1, 2, 3], [-1, 2, 3]]\n    n_v, edges, k = reduce_3sat_to_clique(clauses)\n    assert (0, 3) not in edges and (3, 0) not in edges\n\ndef test_reduction_empty():\n    n_v, edges, k = reduce_3sat_to_clique([])\n    assert n_v == 0\n    assert edges == []\n    assert k == 0\n", "mutants": ["def reduce_3sat_to_clique(clauses):\n    assert False, 'mutant injected'\n", "def reduce_3sat_to_clique(clauses):\n    return (0, [], 0)  # mutant always returns empty graph\n"], "hints": ["Create 3 vertices per clause: (clause_index, literal).", "Add an edge between vertices u and v if clause_u != clause_v and lit_u != -lit_v.", "The target clique size k equals the number of clauses."], "level": "boss", "title": "Polynomial-Time Reduction: 3-SAT to Maximum Clique"}}, "demos": {"p14-oracle-subset-sum-verifier": {"code": "def verify_subset_sum(numbers: list[int], target: int, certificate_indices: list[int]) -> bool:\n    # Verifier executes in O(k) <= O(N) linear time\n    # Check index validity (no duplicates, within bounds)\n    if len(certificate_indices) != len(set(certificate_indices)):\n        return False\n    for idx in certificate_indices:\n        if idx < 0 or idx >= len(numbers):\n            return False\n            \n    # Check that sum of selected numbers matches target exactly\n    computed_sum = sum(numbers[i] for i in certificate_indices)\n    return computed_sum == target\n\n# Example instance:\nnumbers = [14, 27, 3, 8, 42, 19, 5]\ntarget = 53\n\n# Valid witness certificate: indices [0, 1, 4] -> 14 + 27 + 42 = 83 (not 53)\n# Correct witness: 14 + 27 + 5 + 7... wait: 42 + 8 + 3 = 53 -> indices [4, 3, 2]\nvalid_cert = [4, 3, 2]\nassert verify_subset_sum(numbers, target, valid_cert) is True\n\n# Invalid witness certificate: sum is 14 + 19 = 33 != 53\ninvalid_cert = [0, 5]\nassert verify_subset_sum(numbers, target, invalid_cert) is False\n\n# Bogus index certificate\nbogus_cert = [99]\nassert verify_subset_sum(numbers, target, bogus_cert) is False\n\nprint(\"Polynomial-time NP certificate verifier oracle verified.\")\n", "mutants": ["def verify_subset_sum(numbers, target, certificate_indices): return True  # ignores sum\nassert verify_subset_sum([10, 20], 50, [0]) is False\n"]}, "p14-exp-complexity-scaling": {"code": "def poly_ops(n: int) -> int:\n    return n * n\n\ndef exp_ops(n: int) -> int:\n    return 1 << n\n\n# At N = 10:\np10 = poly_ops(10)  # 100\ne10 = exp_ops(10)   # 1024\nassert p10 == 100\nassert e10 == 1024\n\n# At N = 20:\np20 = poly_ops(20)  # 400\ne20 = exp_ops(20)   # 1,048,576\nassert p20 == 400\nassert e20 == 1048576\n\n# At N = 40:\np40 = poly_ops(40)  # 1600\ne40 = exp_ops(40)   # 2^40 = 1,099,511,627,776 (> 1 Trillion operations!)\nassert p40 == 1600\nassert e40 > 10**12\n\nratio_40 = e40 // p40\nassert ratio_40 > 600_000_000\n\nprint(f\"Complexity scaling verified: N=40 has {p40} polynomial ops vs {e40:,} exponential ops (ratio {ratio_40:,}x).\")\n", "mutants": ["def exp_ops(n): return n * 2\nassert exp_ops(20) > 1000000\n"]}}, "cards": [{"q": "What is the formal definition of class P and class NP?", "a": "P is the class of decision problems solvable in deterministic polynomial time; NP is the class of decision problems verifiable in deterministic polynomial time given a polynomial-size certificate."}, {"q": "What is the Cook-Levin Theorem?", "a": "The fundamental theorem of complexity theory proving that the Boolean Satisfiability problem (SAT) is NP-complete by encoding Turing machine execution into CNF clauses."}, {"q": "What is the difference between NP-complete and NP-hard?", "a": "NP-complete problems must belong to NP and be NP-hard; NP-hard problems are at least as hard as any problem in NP, but do not necessarily reside in NP (e.g. Halting Problem)."}, {"q": "What does Karp's 1972 paper demonstrate?", "a": "It proved that 21 fundamental problems across graph theory, integer programming, and combinatorics (3-SAT, Clique, Vertex Cover, TSP) are all NP-complete via polynomial reductions."}, {"q": "How is 2-SAT solvable in linear time while 3-SAT is NP-complete?", "a": "2-SAT can be formulated as an implication graph where satisfiability corresponds to whether any variable x shares a strongly connected component with ~x, solvable in O(V+E) time."}, {"q": "What is Savitch's Theorem in space complexity?", "a": "Savitch's Theorem states that NPSPACE(f(n)) is contained in PSPACE(f(n)^2), proving that non-determinism does not add exponential power in space complexity, and PSPACE = NPSPACE."}], "title": "Complexity: P, NP and intractability"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

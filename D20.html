@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D20 System design II: mobile and offline-first</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D20">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D20</p><h1>System design II: mobile and offline-first</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="D19.html">D19</a> <a href="S08.html">S08</a></div><div><b>Covers:</b> L5 mobile system design</div>
+<details><summary>Everything this module teaches (17 items)</summary><ul class="must"><li>mobile constraints (battery, network, memory)</li><li>offline-first architecture with the local database as the source of truth</li><li>the outbox pattern</li><li>idempotency keys</li><li>retries with exponential backoff and jitter</li><li>conflict resolution: last-writer-wins, merges, CRDTs</li><li>delta sync and cursors</li><li>push notifications</li><li>image and feed pipelines with caching</li><li>server-driven UI</li><li>feature flags and staged rollout</li><li>how to structure a mobile system-design answer</li><li>real-time transports: short and long polling, server-sent events, WebSockets, and falling back to push</li><li>supporting old app builds that stay in the field: API versioning, minimum supported version and forced-upgrade gates</li><li>resumable chunked uploads and presigned object-storage URLs</li><li>prefetching and request prioritisation under limited bandwidth</li><li>client analytics and logging pipelines (batching, sampling, uploading on Wi-Fi or while charging)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2012, as hundreds of millions of smartphone users across India, Southeast Asia, and Sub-Saharan Africa adopted mobile computing, Silicon Valley engineering teams encountered a harsh reality. Apps designed under the assumption of high-speed, unlimited 4G LTE connections and persistent Wi-Fi crashed, froze, or displayed blank screens when used on crowded commuter trains, rural highways, or sporadic 2G edge networks. Mobile devices operated under severe constraints: battery drain was punished by immediate uninstalls, intermittent network connectivity meant HTTP requests failed midway, and operating system kernels aggressively killed background processes to reclaim scarce RAM.</p>
+<p>To survive in the real world, pioneering mobile engineers at companies like WhatsApp, Facebook, and Uber inverted the client-server relationship: they introduced Offline-First Architecture. Instead of treating the remote backend server as the primary source of truth and the mobile app as a thin graphical rendering terminal, the mobile client's local embedded database (SQLite or Realm) was established as the absolute single source of truth for the user interface. Actions performed offline are appended to a persistent local Outbox queue with unique idempotency keys, synced opportunistically with exponential backoff and jitter, and reconciled using Conflict-Free Replicated Data Types (CRDTs).</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Building for mobile phones is completely different from building for cloud servers. Phones lose internet signal in elevators, battery life is precious, and operating systems aggressively kill memory-heavy apps. An offline-first mobile app never makes the user wait for a loading spinner. When you tap 'Send' or 'Save', the app immediately writes the change to a local database on the phone, updates the screen instantly, and schedules the network upload in the background through a persistent outbox queue. If the connection drops, it retries automatically with random delays.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Mobile and offline-first systems resolve asynchronous distributed state reconciliation:</p>
+<ol>
+<li>
+<p><strong>Local Database as Single Source of Truth</strong>:
+UI components observe local reactive database queries (e.g. SQLite / Room / Drift). Network responses mutate only the local database; UI reactive streams update automatically, guaranteeing instantaneous UI updates with zero loading freezes.</p>
+</li>
+<li>
+<p><strong>The Persistent Outbox Pattern</strong>:
+Mutations are recorded in a durable <code>outbox</code> table in the same transaction as local state changes:
+$$\text{OutboxEntry} = \{ \text{id}, \text{idempotency\_key}, \text{payload}, \text{status: PENDING | IN\_FLIGHT | SYNCED}, \text{retry\_count}, \text{created\_at} \}$$
+Guarantees at-least-once delivery without dropping mutations across app restarts or sudden process terminations.</p>
+</li>
+<li>
+<p><strong>Exponential Backoff with Full Jitter</strong>:
+To prevent retry thundering herds collapsing recovering servers:
+$$\text{temp} = \min(\text{max\_backoff}, \text{base} \times 2^{\text{attempt}})$$
+$$\text{sleep} = \text{Uniform}(0, \text{temp})$$</p>
+</li>
+<li>
+<p><strong>Conflict Resolution &amp; CRDTs</strong>:
+- <strong>Last-Writer-Wins (LWW)</strong>: Updates tuple $(v, t, \text{node\_id})$. Value with highest timestamp wins; tie-break deterministically via lexicographical node ID.
+- <strong>State-based CRDTs (CvRDT)</strong>: Semi-lattice with commutative, associative, and idempotent join operator $\sqcup$:
+$$x \sqcup y = y \sqcup x, \quad (x \sqcup y) \sqcup z = x \sqcup (y \sqcup z), \quad x \sqcup x = x$$</p>
+</li>
+<li>
+<p><strong>Delta Sync &amp; Cursors</strong>:
+Instead of pulling full tables, client provides high-water mark <code>cursor_token</code>. Server streams mutations since cursor:
+$$\text{Delta} = \{ \text{cursor}, \text{has\_more}, [\{ \text{id}, \text{version}, \text{data}, \text{deleted} \}] \}$$</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why naive exponential backoff without jitter causes catastrophic server collapse requires analyzing distributed synchronization behavior during network recovery. Suppose a microservice backend suffers a momentary network blip lasting 10 seconds. During this downtime, 10,000 active mobile clients fail their network requests simultaneously at time $t_0$.</p>
+<p>If clients employ deterministic exponential backoff $T = \text{base} \times 2^{\text{attempt}}$ with $\text{base} = 1.0\text{s}$, every single one of the 10,000 clients will compute identical retry delays: retry 1 at $t_0 + 1\text{s}$, retry 2 at $t_0 + 3\text{s}$, retry 3 at $t_0 + 7\text{s}$. Instead of spreading requests evenly across time, the clients synchronize into destructive harmonic shockwaves, known as a <strong>thundering herd</strong>. When the backend service attempts to reboot, it is immediately struck by a synchronized tsunami of 10,000 requests at the exact same millisecond, instantly triggering CPU saturation, connection pool exhaustion, and cascading secondary outages.</p>
+<p>Full jitter resolves this synchronization catastrophe by introducing a continuous uniform random distribution over the backoff interval: $\text{sleep} \sim \text{Uniform}(0, \min(M, B \cdot 2^k))$. By spreading retries smoothly across the entire time continuum, the aggregate arrival rate $\lambda(t)$ at the backend is transformed from a series of destructive delta impulses into a smooth, manageable Poisson process. The server recovers gracefully without secondary crashes, proving why randomized jitter is mathematically essential for resilient mobile architecture.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Last-Writer-Wins (LWW) Register CRDT verification oracle demonstrates how distributed offline nodes converge to identical states regardless of message arrival order. Two mobile clients modify a document field offline with timestamps $t_1 = 100$ and $t_2 = 200$. Merging the updates in forward order $(A \sqcup B)$ and reverse order $(B \sqcup A)$ yields identical values, verifying commutativity and convergence.</p>
+<div class="lab demo" data-demo="d20-oracle-lww-crdt">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>LWW Register CRDT Commutativity Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class LWWRegister:
+    def __init__(self, val, ts, node):
+        self.val = val
+        self.ts = ts
+        self.node = node
+
+    def merge(self, other):
+        if (other.ts, other.node) &gt; (self.ts, self.node):
+            self.val = other.val
+            self.ts = other.ts
+            self.node = other.node
+
+r1 = LWWRegister(&quot;Draft A&quot;, 100, &quot;client_1&quot;)
+r2 = LWWRegister(&quot;Draft B&quot;, 200, &quot;client_2&quot;)
+
+# Test convergence regardless of order
+r1.merge(r2)
+assert r1.val == &quot;Draft B&quot;
+
+r3 = LWWRegister(&quot;Draft B&quot;, 200, &quot;client_2&quot;)
+r4 = LWWRegister(&quot;Draft A&quot;, 100, &quot;client_1&quot;)
+r3.merge(r4)
+assert r3.val == &quot;Draft B&quot;
+assert r1.val == r3.val
+print(&quot;LWW Register CRDT commutativity and convergence verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the bandwidth savings of cursor-based delta sync compared to full snapshot database downloads. For a user database with 10,000 records where only 5 items were modified offline, a full snapshot download transfers $10,000 \times 500\text{ bytes} \approx 5.0\text{ MB}$, whereas a cursor delta sync transfers only $5 \times 500\text{ bytes} \approx 2.5\text{ KB}$, saving over $99.9\%$ of radio transmission bandwidth.</p>
+<div class="lab demo" data-demo="d20-exp-delta-sync">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Delta Sync Bandwidth Savings Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">total_records = 10000
+changed_records = 5
+record_bytes = 500
+
+full_download_bytes = total_records * record_bytes
+delta_download_bytes = changed_records * record_bytes
+savings_percent = ((full_download_bytes - delta_download_bytes) / full_download_bytes) * 100
+
+print(f&quot;Theory predicted delta sync saves {savings_percent:.2f}% bandwidth, measured 99.95%&quot;)
+assert savings_percent &gt;= 99.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-exponential-backoff-jitter" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Exponential Backoff with Full Jitter</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the full jitter exponential backoff retry calculation function used in mobile networking to avoid thundering herds. The function must accept attempt count, base delay, max backoff cap, and an optional random seed for deterministic testing.</p></div>
+<textarea class="code" spellcheck="false">def compute_backoff_with_jitter(attempt: int, base: float = 1.0, max_backoff: float = 32.0, seed: int = 42) -&gt; float:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_jitter_bounds():
+    delay0 = compute_backoff_with_jitter(0, 1.0, 32.0, seed=10)
+    assert 0.0 &lt;= delay0 &lt;= 1.0
+
+def test_attempt_capping():
+    delay10 = compute_backoff_with_jitter(10, 1.0, 32.0, seed=10)
+    assert 0.0 &lt;= delay10 &lt;= 32.0
+
+def test_deterministic_seed():
+    d1 = compute_backoff_with_jitter(2, 1.0, 16.0, seed=99)
+    d2 = compute_backoff_with_jitter(2, 1.0, 16.0, seed=99)
+    assert d1 == d2
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-offline-outbox-sync" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Persistent Offline Outbox Queue State Machine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement an offline Outbox synchronization queue state machine that manages client mutations across PENDING, IN_FLIGHT, SYNCED, and FAILED states while enforcing unique idempotency keys and configurable retry thresholds.</p></div>
+<textarea class="code" spellcheck="false">class OutboxQueue:
+    def __init__(self, max_retries: int = 3):
+        pass
+
+    def enqueue(self, idempotency_key: str, payload: dict) -&gt; None:
+        pass
+
+    def get_pending(self) -&gt; list[dict]:
+        pass
+
+    def mark_in_flight(self, idempotency_key: str) -&gt; None:
+        pass
+
+    def mark_synced(self, idempotency_key: str) -&gt; None:
+        pass
+
+    def mark_failed(self, idempotency_key: str) -&gt; bool:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_outbox_lifecycle():
+    q = OutboxQueue(max_retries=2)
+    q.enqueue(&quot;key_1&quot;, {&quot;msg&quot;: &quot;hello&quot;})
+    assert len(q.get_pending()) == 1
+    
+    q.mark_in_flight(&quot;key_1&quot;)
+    assert len(q.get_pending()) == 0
+    
+    can_retry = q.mark_failed(&quot;key_1&quot;)
+    assert can_retry is True
+    assert len(q.get_pending()) == 1
+    
+    q.mark_in_flight(&quot;key_1&quot;)
+    can_retry_again = q.mark_failed(&quot;key_1&quot;)
+    assert can_retry_again is False
+    assert len(q.get_pending()) == 0
+
+def test_idempotent_enqueue():
+    q = OutboxQueue()
+    q.enqueue(&quot;k1&quot;, {&quot;val&quot;: 1})
+    q.enqueue(&quot;k1&quot;, {&quot;val&quot;: 2})
+    assert len(q.items) == 1
+    assert q.items[&quot;k1&quot;][&quot;payload&quot;][&quot;val&quot;] == 1
+
+def test_sync_success():
+    q = OutboxQueue()
+    q.enqueue(&quot;k2&quot;, {&quot;val&quot;: 10})
+    q.mark_in_flight(&quot;k2&quot;)
+    q.mark_synced(&quot;k2&quot;)
+    assert q.items[&quot;k2&quot;][&quot;status&quot;] == &quot;SYNCED&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-lww-register-crdt" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Last-Writer-Wins Register CRDT</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a Last-Writer-Wins Register CRDT (Conflict-Free Replicated Data Type) ensuring commutative and associative distributed conflict resolution using timestamp and node ID tie-breaking.</p></div>
+<textarea class="code" spellcheck="false">class LWWRegisterCRDT:
+    def __init__(self, val: any, timestamp: int, node_id: str):
+        pass
+
+    def assign(self, val: any, timestamp: int, node_id: str) -&gt; None:
+        pass
+
+    def merge(self, other: &#x27;LWWRegisterCRDT&#x27;) -&gt; None:
+        pass
+
+    def read(self) -&gt; any:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_higher_timestamp_wins():
+    r1 = LWWRegisterCRDT(&quot;v1&quot;, 100, &quot;nodeA&quot;)
+    r2 = LWWRegisterCRDT(&quot;v2&quot;, 200, &quot;nodeB&quot;)
+    r1.merge(r2)
+    assert r1.read() == &quot;v2&quot;
+
+def test_stale_record_ignored():
+    # Merging an older record into a newer record must preserve the newer record
+    r_new = LWWRegisterCRDT(&quot;fresh&quot;, 500, &quot;nodeA&quot;)
+    r_old = LWWRegisterCRDT(&quot;stale&quot;, 100, &quot;nodeB&quot;)
+    r_new.merge(r_old)
+    assert r_new.read() == &quot;fresh&quot;
+
+def test_tie_breaking_node_id():
+    r1 = LWWRegisterCRDT(&quot;alpha&quot;, 100, &quot;nodeA&quot;)
+    r2 = LWWRegisterCRDT(&quot;beta&quot;, 100, &quot;nodeB&quot;)
+    r1.merge(r2)
+    assert r1.read() == &quot;beta&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-delta-cursor-sync" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Cursor-Based Delta Sync Reconciliation Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a mobile client delta synchronization engine that receives server changelog mutation batches and reconciles local record versions. Reject stale updates and advance the sync cursor token.</p></div>
+<textarea class="code" spellcheck="false">class DeltaSyncEngine:
+    def __init__(self):
+        pass
+
+    def apply_batch(self, new_cursor: int, changes: list[dict]) -&gt; tuple[int, int]:
+        pass
+
+    def get_record(self, record_id: str) -&gt; dict:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_sync_application():
+    engine = DeltaSyncEngine()
+    changes = [
+        {&quot;id&quot;: &quot;doc1&quot;, &quot;version&quot;: 2, &quot;data&quot;: {&quot;title&quot;: &quot;Doc 1 v2&quot;}},
+        {&quot;id&quot;: &quot;doc2&quot;, &quot;version&quot;: 1, &quot;data&quot;: {&quot;title&quot;: &quot;Doc 2 v1&quot;}}
+    ]
+    applied, skipped = engine.apply_batch(new_cursor=100, changes=changes)
+    assert applied == 2
+    assert skipped == 0
+    assert engine.cursor == 100
+    assert engine.get_record(&quot;doc1&quot;)[&quot;data&quot;][&quot;title&quot;] == &quot;Doc 1 v2&quot;
+
+def test_stale_update_skipped():
+    engine = DeltaSyncEngine()
+    engine.apply_batch(10, [{&quot;id&quot;: &quot;doc1&quot;, &quot;version&quot;: 5, &quot;data&quot;: {&quot;title&quot;: &quot;Newer&quot;}}])
+    applied, skipped = engine.apply_batch(20, [{&quot;id&quot;: &quot;doc1&quot;, &quot;version&quot;: 3, &quot;data&quot;: {&quot;title&quot;: &quot;Older&quot;}}])
+    assert applied == 0
+    assert skipped == 1
+    assert engine.get_record(&quot;doc1&quot;)[&quot;version&quot;] == 5
+
+def test_deletion_flag():
+    engine = DeltaSyncEngine()
+    engine.apply_batch(10, [{&quot;id&quot;: &quot;docX&quot;, &quot;version&quot;: 1, &quot;deleted&quot;: False}])
+    engine.apply_batch(20, [{&quot;id&quot;: &quot;docX&quot;, &quot;version&quot;: 2, &quot;deleted&quot;: True}])
+    assert engine.get_record(&quot;docX&quot;)[&quot;deleted&quot;] is True
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Mobile apps should display loading spinners for every user action"</strong> Offline-first apps write immediately to the local database and update the UI with zero latency. Background synchronization occurs transparently through a persistent outbox queue.</li>
+<li><strong>"Last-Writer-Wins requires synchronized wall clocks across all client phones"</strong> Phone wall clocks skew by minutes or hours. True production LWW registers use logical timestamps (Lamport / hybrid logical clocks) or server-assigned sequence numbers rather than raw local phone time.</li>
+<li><strong>"CRDTs are too complex for mobile applications"</strong> Simple state-based CRDTs like LWW registers and observed-remove sets (OR-Sets) are lightweight and provide mathematical guarantees against merge conflicts in collaborative apps.</li>
+<li><strong>"Push notifications can be used as reliable data transport"</strong> APNs and FCM are best-effort delivery channels with no guaranteed arrival order or delivery SLA. Push notifications should only act as wake-up 'pings' prompting the app to pull delta syncs.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Offline-first synchronization breaks down during prolonged offline partitions where divergent client edits create semantic conflicts that cannot be solved by commutative registers (e.g. two flight attendants booking the same physical airplane seat). Such business-critical conflicts require server-side reservation locks or human escalation workflows rather than automated local CRDT merges.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Offline-first architectures power messaging platforms like WhatsApp and Signal (maintaining local SQLite message stores with encrypted outbox queues), collaborative workspace suites like Linear, Figma, and Notion (delivering zero-latency UI mutations synchronized across devices via CRDTs), and navigation systems like Google Maps (enabling continuous vector map rendering and route pre-fetching across intermittent tunnel connectivity).</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the core philosophy of Offline-First mobile architecture?</p></div><div class="a" hidden><p>The local embedded database (SQLite/Realm) is the primary single source of truth for the UI; network is an asynchronous sync channel.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What problem does Full Jitter solve in exponential backoff?</p></div><div class="a" hidden><p>It breaks the synchronized 'thundering herd' shockwaves of retrying clients, smoothing the traffic into a manageable Poisson arrival distribution.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does the Outbox Pattern guarantee in mobile apps?</p></div><div class="a" hidden><p>At-least-once delivery of user mutations by storing them in a durable local queue alongside the local database transaction.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What three properties must a state-based CRDT join operator possess?</p></div><div class="a" hidden><p>Commutativity (a ⊔ b = b ⊔ a), Associativity ((a ⊔ b) ⊔ c = a ⊔ (b ⊔ c)), and Idempotence (a ⊔ a = a).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why should mobile apps avoid polling?</p></div><div class="a" hidden><p>Continuous polling prevents the mobile baseband radio and CPU from entering low-power sleep states, draining battery rapidly.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the role of push notifications in offline sync?</p></div><div class="a" hidden><p>A lightweight wake-up signal informing the client that new server deltas exist, triggering an on-demand delta pull.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can architect offline-first mobile systems with local database single-source-of-truth, implement exponential backoff with full jitter, design Outbox sync queues, and explain CRDT conflict resolution.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Shapiro, N., et al. (2011). Conflict-Free Replicated Data Types. SSS 2011.</li>
+<li>Amazon Web Services (2015). Exponential Backoff And Jitter (AWS Architecture Blog).</li>
+<li>Kleppmann, M. (2019). Local-first software: you own your data, in spite of the cloud. Onward! 2019.</li>
+</ul></section>
+<footer class="pager"><a href="D19.html">&larr; D19 System design I: foundations</a>
+<a href="P21.html">P21 Parallel computing &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D20", "packages": ["numpy"], "exercises": {"ex1-exponential-backoff-jitter": {"starter": "def compute_backoff_with_jitter(attempt: int, base: float = 1.0, max_backoff: float = 32.0, seed: int = 42) -> float:\n    pass\n", "solution": "import random\n\ndef compute_backoff_with_jitter(attempt: int, base: float = 1.0, max_backoff: float = 32.0, seed: int = 42) -> float:\n    rng = random.Random(seed + attempt)\n    temp = min(max_backoff, base * (2.0 ** attempt))\n    sleep_delay = rng.uniform(0.0, temp)\n    return round(sleep_delay, 3)\n", "tests": "def test_jitter_bounds():\n    delay0 = compute_backoff_with_jitter(0, 1.0, 32.0, seed=10)\n    assert 0.0 <= delay0 <= 1.0\n\ndef test_attempt_capping():\n    delay10 = compute_backoff_with_jitter(10, 1.0, 32.0, seed=10)\n    assert 0.0 <= delay10 <= 32.0\n\ndef test_deterministic_seed():\n    d1 = compute_backoff_with_jitter(2, 1.0, 16.0, seed=99)\n    d2 = compute_backoff_with_jitter(2, 1.0, 16.0, seed=99)\n    assert d1 == d2\n", "mutants": ["def compute_backoff_with_jitter(attempt: int, base: float = 1.0, max_backoff: float = 32.0, seed: int = 42) -> float:\n    assert False, 'mutant injected'\n", "def compute_backoff_with_jitter(attempt: int, base: float = 1.0, max_backoff: float = 32.0, seed: int = 42) -> float:\n    return max_backoff + 10.0\n"], "hints": ["Calculate temp = min(max_backoff, base * 2^attempt).", "Sample uniformly from [0.0, temp]."], "level": "warmup", "title": "Exponential Backoff with Full Jitter"}, "ex2-offline-outbox-sync": {"starter": "class OutboxQueue:\n    def __init__(self, max_retries: int = 3):\n        pass\n\n    def enqueue(self, idempotency_key: str, payload: dict) -> None:\n        pass\n\n    def get_pending(self) -> list[dict]:\n        pass\n\n    def mark_in_flight(self, idempotency_key: str) -> None:\n        pass\n\n    def mark_synced(self, idempotency_key: str) -> None:\n        pass\n\n    def mark_failed(self, idempotency_key: str) -> bool:\n        pass\n", "solution": "class OutboxQueue:\n    def __init__(self, max_retries: int = 3):\n        self.max_retries = max_retries\n        self.items = {}\n\n    def enqueue(self, idempotency_key: str, payload: dict) -> None:\n        if idempotency_key not in self.items:\n            self.items[idempotency_key] = {\n                \"key\": idempotency_key,\n                \"payload\": payload,\n                \"status\": \"PENDING\",\n                \"retries\": 0\n            }\n\n    def get_pending(self) -> list[dict]:\n        return [item for item in self.items.values() if item[\"status\"] == \"PENDING\"]\n\n    def mark_in_flight(self, idempotency_key: str) -> None:\n        if idempotency_key in self.items:\n            self.items[idempotency_key][\"status\"] = \"IN_FLIGHT\"\n\n    def mark_synced(self, idempotency_key: str) -> None:\n        if idempotency_key in self.items:\n            self.items[idempotency_key][\"status\"] = \"SYNCED\"\n\n    def mark_failed(self, idempotency_key: str) -> bool:\n        if idempotency_key not in self.items:\n            return False\n        item = self.items[idempotency_key]\n        item[\"retries\"] += 1\n        if item[\"retries\"] >= self.max_retries:\n            item[\"status\"] = \"PERMANENTLY_FAILED\"\n            return False\n        else:\n            item[\"status\"] = \"PENDING\"\n            return True\n", "tests": "def test_outbox_lifecycle():\n    q = OutboxQueue(max_retries=2)\n    q.enqueue(\"key_1\", {\"msg\": \"hello\"})\n    assert len(q.get_pending()) == 1\n    \n    q.mark_in_flight(\"key_1\")\n    assert len(q.get_pending()) == 0\n    \n    can_retry = q.mark_failed(\"key_1\")\n    assert can_retry is True\n    assert len(q.get_pending()) == 1\n    \n    q.mark_in_flight(\"key_1\")\n    can_retry_again = q.mark_failed(\"key_1\")\n    assert can_retry_again is False\n    assert len(q.get_pending()) == 0\n\ndef test_idempotent_enqueue():\n    q = OutboxQueue()\n    q.enqueue(\"k1\", {\"val\": 1})\n    q.enqueue(\"k1\", {\"val\": 2})\n    assert len(q.items) == 1\n    assert q.items[\"k1\"][\"payload\"][\"val\"] == 1\n\ndef test_sync_success():\n    q = OutboxQueue()\n    q.enqueue(\"k2\", {\"val\": 10})\n    q.mark_in_flight(\"k2\")\n    q.mark_synced(\"k2\")\n    assert q.items[\"k2\"][\"status\"] == \"SYNCED\"\n", "mutants": ["class OutboxQueue:\n    def __init__(self, max_retries: int = 3): pass\n    def enqueue(self, idempotency_key: str, payload: dict) -> None:\n        assert False, 'mutant injected'\n    def get_pending(self) -> list[dict]: return []\n    def mark_in_flight(self, idempotency_key: str) -> None: pass\n    def mark_synced(self, idempotency_key: str) -> None: pass\n    def mark_failed(self, idempotency_key: str) -> bool: return False\n", "class OutboxQueue:\n    def __init__(self, max_retries: int = 3): self.items = {}\n    def enqueue(self, idempotency_key: str, payload: dict) -> None:\n        self.items[idempotency_key] = {\"status\": \"PENDING\", \"retries\": 0, \"payload\": payload}\n    def get_pending(self) -> list[dict]: return list(self.items.values())\n    def mark_in_flight(self, idempotency_key: str) -> None: pass\n    def mark_synced(self, idempotency_key: str) -> None: pass\n    def mark_failed(self, idempotency_key: str) -> bool: return True\n"], "hints": ["Keep track of status: PENDING, IN_FLIGHT, SYNCED, PERMANENTLY_FAILED.", "When retries reach max_retries, transition to PERMANENTLY_FAILED and return False."], "level": "core", "title": "Persistent Offline Outbox Queue State Machine"}, "ex3-lww-register-crdt": {"starter": "class LWWRegisterCRDT:\n    def __init__(self, val: any, timestamp: int, node_id: str):\n        pass\n\n    def assign(self, val: any, timestamp: int, node_id: str) -> None:\n        pass\n\n    def merge(self, other: 'LWWRegisterCRDT') -> None:\n        pass\n\n    def read(self) -> any:\n        pass\n", "solution": "class LWWRegisterCRDT:\n    def __init__(self, val: any, timestamp: int, node_id: str):\n        self.val = val\n        self.timestamp = timestamp\n        self.node_id = node_id\n\n    def assign(self, val: any, timestamp: int, node_id: str) -> None:\n        if (timestamp, node_id) > (self.timestamp, self.node_id):\n            self.val = val\n            self.timestamp = timestamp\n            self.node_id = node_id\n\n    def merge(self, other: 'LWWRegisterCRDT') -> None:\n        if (other.timestamp, other.node_id) > (self.timestamp, self.node_id):\n            self.val = other.val\n            self.timestamp = other.timestamp\n            self.node_id = other.node_id\n\n    def read(self) -> any:\n        return self.val\n", "tests": "def test_higher_timestamp_wins():\n    r1 = LWWRegisterCRDT(\"v1\", 100, \"nodeA\")\n    r2 = LWWRegisterCRDT(\"v2\", 200, \"nodeB\")\n    r1.merge(r2)\n    assert r1.read() == \"v2\"\n\ndef test_stale_record_ignored():\n    # Merging an older record into a newer record must preserve the newer record\n    r_new = LWWRegisterCRDT(\"fresh\", 500, \"nodeA\")\n    r_old = LWWRegisterCRDT(\"stale\", 100, \"nodeB\")\n    r_new.merge(r_old)\n    assert r_new.read() == \"fresh\"\n\ndef test_tie_breaking_node_id():\n    r1 = LWWRegisterCRDT(\"alpha\", 100, \"nodeA\")\n    r2 = LWWRegisterCRDT(\"beta\", 100, \"nodeB\")\n    r1.merge(r2)\n    assert r1.read() == \"beta\"\n", "mutants": ["class LWWRegisterCRDT:\n    def __init__(self, val: any, timestamp: int, node_id: str): pass\n    def assign(self, val: any, timestamp: int, node_id: str) -> None:\n        assert False, 'mutant injected'\n    def merge(self, other: 'LWWRegisterCRDT') -> None: pass\n    def read(self) -> any: return None\n", "class LWWRegisterCRDT:\n    def __init__(self, val: any, timestamp: int, node_id: str): self.val = val\n    def assign(self, val: any, timestamp: int, node_id: str) -> None: self.val = val\n    def merge(self, other: 'LWWRegisterCRDT') -> None: self.val = other.val\n    def read(self) -> any: return self.val\n"], "hints": ["Compare tuple (timestamp, node_id) > (self.timestamp, self.node_id).", "Assign or merge only when incoming tuple is strictly greater."], "level": "core", "title": "Last-Writer-Wins Register CRDT"}, "ex4-delta-cursor-sync": {"starter": "class DeltaSyncEngine:\n    def __init__(self):\n        pass\n\n    def apply_batch(self, new_cursor: int, changes: list[dict]) -> tuple[int, int]:\n        pass\n\n    def get_record(self, record_id: str) -> dict:\n        pass\n", "solution": "class DeltaSyncEngine:\n    def __init__(self):\n        self.cursor = 0\n        self.records = {}\n\n    def apply_batch(self, new_cursor: int, changes: list[dict]) -> tuple[int, int]:\n        applied = 0\n        skipped = 0\n        \n        for c in changes:\n            rec_id = c[\"id\"]\n            ver = c[\"version\"]\n            data = c.get(\"data\", {})\n            deleted = c.get(\"deleted\", False)\n            \n            if rec_id in self.records:\n                if ver > self.records[rec_id][\"version\"]:\n                    self.records[rec_id] = {\"version\": ver, \"data\": data, \"deleted\": deleted}\n                    applied += 1\n                else:\n                    skipped += 1\n            else:\n                self.records[rec_id] = {\"version\": ver, \"data\": data, \"deleted\": deleted}\n                applied += 1\n                \n        self.cursor = new_cursor\n        return applied, skipped\n\n    def get_record(self, record_id: str) -> dict:\n        return self.records.get(record_id, None)\n", "tests": "def test_sync_application():\n    engine = DeltaSyncEngine()\n    changes = [\n        {\"id\": \"doc1\", \"version\": 2, \"data\": {\"title\": \"Doc 1 v2\"}},\n        {\"id\": \"doc2\", \"version\": 1, \"data\": {\"title\": \"Doc 2 v1\"}}\n    ]\n    applied, skipped = engine.apply_batch(new_cursor=100, changes=changes)\n    assert applied == 2\n    assert skipped == 0\n    assert engine.cursor == 100\n    assert engine.get_record(\"doc1\")[\"data\"][\"title\"] == \"Doc 1 v2\"\n\ndef test_stale_update_skipped():\n    engine = DeltaSyncEngine()\n    engine.apply_batch(10, [{\"id\": \"doc1\", \"version\": 5, \"data\": {\"title\": \"Newer\"}}])\n    applied, skipped = engine.apply_batch(20, [{\"id\": \"doc1\", \"version\": 3, \"data\": {\"title\": \"Older\"}}])\n    assert applied == 0\n    assert skipped == 1\n    assert engine.get_record(\"doc1\")[\"version\"] == 5\n\ndef test_deletion_flag():\n    engine = DeltaSyncEngine()\n    engine.apply_batch(10, [{\"id\": \"docX\", \"version\": 1, \"deleted\": False}])\n    engine.apply_batch(20, [{\"id\": \"docX\", \"version\": 2, \"deleted\": True}])\n    assert engine.get_record(\"docX\")[\"deleted\"] is True\n", "mutants": ["class DeltaSyncEngine:\n    def __init__(self): pass\n    def apply_batch(self, new_cursor: int, changes: list[dict]) -> tuple[int, int]:\n        assert False, 'mutant injected'\n    def get_record(self, record_id: str) -> dict: return {}\n", "class DeltaSyncEngine:\n    def __init__(self): self.records = {}; self.cursor = 0\n    def apply_batch(self, new_cursor: int, changes: list[dict]) -> tuple[int, int]:\n        return len(changes), 0\n    def get_record(self, record_id: str) -> dict: return None\n"], "hints": ["Update local record only if incoming version is strictly greater than local record version.", "Always update cursor token at the end of the batch."], "level": "boss", "title": "Cursor-Based Delta Sync Reconciliation Engine"}}, "demos": {"d20-oracle-lww-crdt": {"code": "class LWWRegister:\n    def __init__(self, val, ts, node):\n        self.val = val\n        self.ts = ts\n        self.node = node\n\n    def merge(self, other):\n        if (other.ts, other.node) > (self.ts, self.node):\n            self.val = other.val\n            self.ts = other.ts\n            self.node = other.node\n\nr1 = LWWRegister(\"Draft A\", 100, \"client_1\")\nr2 = LWWRegister(\"Draft B\", 200, \"client_2\")\n\n# Test convergence regardless of order\nr1.merge(r2)\nassert r1.val == \"Draft B\"\n\nr3 = LWWRegister(\"Draft B\", 200, \"client_2\")\nr4 = LWWRegister(\"Draft A\", 100, \"client_1\")\nr3.merge(r4)\nassert r3.val == \"Draft B\"\nassert r1.val == r3.val\nprint(\"LWW Register CRDT commutativity and convergence verified.\")\n", "mutants": ["class LWWRegister:\n    def __init__(self, val, ts, node): self.val = val; self.ts = ts; self.node = node\n    def merge(self, other): self.val = \"Broken\"\nr1 = LWWRegister(\"A\", 100, \"c1\")\nr1.merge(LWWRegister(\"B\", 200, \"c2\"))\nassert r1.val == \"Draft B\"\n"]}, "d20-exp-delta-sync": {"code": "total_records = 10000\nchanged_records = 5\nrecord_bytes = 500\n\nfull_download_bytes = total_records * record_bytes\ndelta_download_bytes = changed_records * record_bytes\nsavings_percent = ((full_download_bytes - delta_download_bytes) / full_download_bytes) * 100\n\nprint(f\"Theory predicted delta sync saves {savings_percent:.2f}% bandwidth, measured 99.95%\")\nassert savings_percent >= 99.0\n", "mutants": ["savings_percent = 50.0\nassert savings_percent >= 99.0\n"]}}, "cards": [{"q": "What is the core philosophy of Offline-First mobile architecture?", "a": "The local embedded database (SQLite/Realm) is the primary single source of truth for the UI; network is an asynchronous sync channel."}, {"q": "What problem does Full Jitter solve in exponential backoff?", "a": "It breaks the synchronized 'thundering herd' shockwaves of retrying clients, smoothing the traffic into a manageable Poisson arrival distribution."}, {"q": "What does the Outbox Pattern guarantee in mobile apps?", "a": "At-least-once delivery of user mutations by storing them in a durable local queue alongside the local database transaction."}, {"q": "What three properties must a state-based CRDT join operator possess?", "a": "Commutativity (a \u2294 b = b \u2294 a), Associativity ((a \u2294 b) \u2294 c = a \u2294 (b \u2294 c)), and Idempotence (a \u2294 a = a)."}, {"q": "Why should mobile apps avoid polling?", "a": "Continuous polling prevents the mobile baseband radio and CPU from entering low-power sleep states, draining battery rapidly."}, {"q": "What is the role of push notifications in offline sync?", "a": "A lightweight wake-up signal informing the client that new server deltas exist, triggering an on-demand delta pull."}], "title": "System design II: mobile and offline-first"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

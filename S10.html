@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S10 Mobile performance engineering</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="S10">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Android, Flutter and edge systems · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">S10</p><h1>Mobile performance engineering</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="S02.html">S02</a> <a href="S04.html">S04</a> <a href="V10.html">V10</a></div><div><b>Covers:</b> Android/Flutter</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>measure first: Flutter DevTools, Perfetto, Android Studio profiler</li><li>cold, warm and hot start and time to first frame</li><li>frame timing and jank analysis</li><li>memory profiling and leaks</li><li>image decode and downsampling (cacheWidth)</li><li>list virtualisation</li><li>isolates for heavy work</li><li>APK/AAB size</li><li>battery and wakelocks</li><li>performance budgets and regression tests</li><li>expensive paint operations: saveLayer, Opacity, clipping and intrinsic layout passes</li><li>Baseline and Startup Profiles shipped with the app, measured with Macrobenchmark</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2011, Google initiated Project Butter inside Android 4.1 Jelly Bean with a singular goal: eliminate UI stutter and make the touch screen feel like liquid glass. Android displays operated at 60 Hz, meaning the operating system had exactly $16.6$ milliseconds to process touch events, calculate widget layout, draw vector display lists, and submit GPU commands before the next hardware VSYNC pulse. If the UI thread missed the deadline by even a single millisecond, the display hardware repeated the previous frame, causing human eyes to perceive an irritating stutter known as <strong>jank</strong>. Today's 120 Hz ProMotion displays cut this frame budget in half to $8.33$ milliseconds. For mobile engineers, performance is not an afterthought or an aesthetic luxury: frame drops cause user fatigue, bloated APKs trigger app store install drop-offs, and unoptimized image decoding triggers Out-Of-Memory (OOM) crashes on low-end hardware.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Every phone screen updates rapidly—usually 60 or 120 times every second. To keep animations smooth and responsive, your app must calculate, layout, and draw each frame in under 16 milliseconds (or 8 milliseconds on 120Hz screens). If your code does heavy work on the main thread (like parsing a giant JSON file or resizing a huge photo), the screen freezes for a split second, causing visible stutter called "jank". Performance engineering means measuring with profilers first, keeping heavy work on background threads, loading only visible list items on screen, and downsampling large images so they don't exhaust the phone's RAM.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Mobile performance engineering requires rigorous profiling and adherence to hardware frame budgets:
+1. <strong>Frame Budgets and Jank Thresholds</strong>:
+   - At 60 Hz refresh rate: $T_{\text{frame}} \le 16.66$ ms.
+   - At 120 Hz refresh rate: $T_{\text{frame}} \le 8.33$ ms.
+   - A <strong>Jank Frame</strong> occurs when total frame time (CPU UI thread + GPU RenderThread) exceeds the VSYNC period.
+   - A <strong>Frozen Frame</strong> occurs when frame render time exceeds 700 ms (often accompanied by an ANR).</p>
+<ol start="2">
+<li>
+<p><strong>App Startup Phases</strong>:
+   - <strong>Cold Start</strong>: App process not in memory; OS creates process, initializes <code>Application.onCreate()</code>, loads class loaders, inflates UI, and draws first frame. Target Time-To-Initial-Display (TTID): $&lt; 1000$ ms.
+   - <strong>Warm Start</strong>: Process alive in memory; recreates Activity. Target: $&lt; 500$ ms.
+   - <strong>Hot Start</strong>: Activity brought to foreground from back stack. Target: $&lt; 200$ ms.
+   - <strong>Baseline Profiles</strong>: Pre-compiled Ahead-Of-Time (AOT) machine code shipped inside the APK, bypassing runtime JIT interpretation and speeding up cold starts by 30–40%.</p>
+</li>
+<li>
+<p><strong>Memory Management and Bitmap Downsampling</strong>:
+   - Decoded bitmaps in RAM consume $W \times H \times 4$ bytes (for <code>ARGB_8888</code>). A 12-megapixel camera image ($4000 \times 3000$) consumes $48$ MB of uncompressed heap memory!
+   - Setting <code>cacheWidth</code> and <code>cacheHeight</code> in Flutter or <code>inSampleSize</code> in Android BitmapRegionDecoder downsamples the image during decode, fitting memory budgets.</p>
+</li>
+<li>
+<p><strong>Expensive Paint and Layout Operations</strong>:
+   - <code>saveLayer()</code> / <code>Opacity</code> widgets allocate offscreen GPU render buffers, triggering extra GPU composition passes.
+   - Intrinsic layout passes traverse the element tree multiple times, causing $O(N^2)$ layout jank.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why mobile list virtualization is critical, consider what happens when rendering a list of 10,000 items. If an application instantiates 10,000 view hierarchy widgets and adds them to a scroll container, the app consumes gigabytes of heap memory and stalls the CPU for seconds during layout.</p>
+<p><strong>List Virtualization / View Recycling</strong>:
+The human eye can only see what is within the physical viewport ($\approx 6$–10 items). A virtualized list (Flutter's <code>ListView.builder</code> or Android's <code>RecyclerView</code>):
+1. Measures viewport height and item height.
+2. Calculates the active window of visible indices:
+   $$\text{first\_idx} = \lfloor \text{scroll\_offset} / \text{item\_height} \rfloor$$
+   $$\text{last\_idx} = \lceil (\text{scroll\_offset} + \text{viewport\_height}) / \text{item\_height} \rceil$$
+3. Instantiates only the 8–12 widgets within the visible window plus a small overscan buffer (e.g. 2 items above and below).
+4. As items scroll offscreen, their view containers are recycled (<code>RecyclerView.ViewHolder</code>) and rebound to newly entering data items. Total widget allocation remains bounded by $O(\text{viewport})$, completely independent of total list size $N$!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that frame jank classifiers, bitmap memory downsamplers, and list virtualization window calculations adhere to strict 60Hz and 120Hz display contracts, we construct an empirical performance profiling oracle. The oracle validates that frame rendering times exceeding 16.6ms are accurately flagged as jank, confirms that bitmap downsampling reduces heap footprint by the square of the downsample factor, and proves that virtualized lists instantiate only viewport-visible elements.</p>
+<div class="lab demo" data-demo="oracle-frame-jank-budget">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of 60Hz and 120Hz VSYNC frame jank detection</h3></div>
+
+<textarea class="code" spellcheck="false">class FrameBudgetMonitor:
+    def __init__(self, fps=60):
+        self.frame_budget_ms = 1000.0 / fps
+
+    def evaluate_frame(self, duration_ms):
+        is_jank = duration_ms &gt; self.frame_budget_ms
+        missed_vsyncs = int(duration_ms // self.frame_budget_ms)
+        return is_jank, missed_vsyncs
+
+m60 = FrameBudgetMonitor(60) # 16.66ms budget
+m120 = FrameBudgetMonitor(120) # 8.33ms budget
+
+# 12ms frame: Smooth on 60Hz, Jank on 120Hz
+jank60, _ = m60.evaluate_frame(12.0)
+jank120, _ = m120.evaluate_frame(12.0)
+
+assert jank60 is False, &quot;12ms should be smooth at 60Hz&quot;
+assert jank120 is True, &quot;12ms exceeds 8.33ms budget, jank at 120Hz&quot;
+
+# 35ms frame: Jank on 60Hz, misses 2 VSYNCs
+jank_slow, missed = m60.evaluate_frame(35.0)
+assert jank_slow is True
+assert missed &gt;= 2, &quot;35ms frame misses at least 2 VSYNC deadlines&quot;
+print(&quot;SUCCESS: VSYNC frame jank thresholds verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring heap allocation between full-resolution bitmap decoding and downsampled decoding for a $4000 \times 3000$ camera image rendered into a $400 \times 300$ mobile thumbnail view. We demonstrate that downsampling reduces memory consumption from 48 Megabytes down to 480 Kilobytes, a $100\times$ reduction that prevents mobile Out-Of-Memory termination and eliminates garbage collection pauses during high-speed scrolling.</p>
+<div class="lab demo" data-demo="exp-bitmap-downsampling-memory">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical memory allocation reduction of bitmap downsampling</h3></div>
+
+<textarea class="code" spellcheck="false">def calculate_bitmap_bytes(width, height, bytes_per_pixel=4):
+    return width * height * bytes_per_pixel
+
+raw_bytes = calculate_bitmap_bytes(4000, 3000, 4) # 48 MB
+downsampled_bytes = calculate_bitmap_bytes(400, 300, 4) # 480 KB
+
+reduction_ratio = raw_bytes / downsampled_bytes
+print(f&quot;Raw RAM:         {raw_bytes / (1024*1024):.2f} MB&quot;)
+print(f&quot;Downsampled RAM: {downsampled_bytes / 1024:.2f} KB&quot;)
+print(f&quot;Memory reduction ratio: {reduction_ratio:.1f}x&quot;)
+
+assert raw_bytes == 48000000, &quot;Raw 4000x3000 ARGB_8888 must be 48MB&quot;
+assert downsampled_bytes == 480000, &quot;Downsampled 400x300 must be 480KB&quot;
+assert reduction_ratio == 100.0, &quot;Downsampling by 10x per dimension reduces RAM by 100x&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-frame-timing-jank-classifier" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Frame timing series analyzer and jank rate calculator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>analyze_frame_timings(durations_ms, target_fps=60)</code>:
+Inputs:
+- <code>durations_ms</code>: List of float frame durations in milliseconds.
+- <code>target_fps</code>: Target frame rate (default 60 fps).</p>
+<p>Calculations:
+1. <code>budget_ms = 1000.0 / target_fps</code>.
+2. Total frames: <code>N = len(durations_ms)</code>. If $N = 0$, return all 0s.
+3. <code>jank_count</code>: Count of frames where <code>duration &gt; budget_ms</code>.
+4. <code>severe_jank_count</code>: Count of frames where <code>duration &gt; budget_ms * 2.0</code>.
+5. <code>jank_percentage</code>: <code>(jank_count / N) * 100.0</code> rounded to 2 decimal places.
+6. <code>p90_duration_ms</code>: 90th percentile frame duration (use nearest rank or sorted index <code>int(0.9 * N)</code> clamped to <code>N-1</code>), rounded to 2 decimal places.
+7. Return dict:
+   <code>{"total_frames": N, "jank_count": int, "severe_jank_count": int, "jank_percentage": float, "p90_duration_ms": float}</code>.</p></div>
+<textarea class="code" spellcheck="false">def analyze_frame_timings(durations_ms, target_fps=60):
+    # Analyzes frame durations against VSYNC budget
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_analyze_frames_clean():
+    frames = [10.0, 12.5, 14.0, 11.0, 9.5] # All under 16.66ms
+    res = analyze_frame_timings(frames, target_fps=60)
+    assert res[&quot;total_frames&quot;] == 5
+    assert res[&quot;jank_count&quot;] == 0
+    assert res[&quot;jank_percentage&quot;] == 0.0
+
+def test_analyze_frames_with_jank():
+    # 60Hz budget = 16.66ms
+    frames = [12.0, 18.0, 35.0, 10.0] # 18.0 is jank, 35.0 is severe jank (&gt;33.3ms)
+    res = analyze_frame_timings(frames, target_fps=60)
+    assert res[&quot;total_frames&quot;] == 4
+    assert res[&quot;jank_count&quot;] == 2
+    assert res[&quot;severe_jank_count&quot;] == 1
+    assert res[&quot;jank_percentage&quot;] == 50.0
+
+def test_empty_frames():
+    res = analyze_frame_timings([])
+    assert res[&quot;total_frames&quot;] == 0
+    assert res[&quot;jank_count&quot;] == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-bitmap-memory-downsampler" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Bitmap memory budget calculation and optimal inSampleSize downsampling</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>calculate_bitmap_downsample(orig_width, orig_height, target_width, target_height, bytes_per_pixel=4)</code>:
+Inputs:
+- <code>orig_width</code>, <code>orig_height</code>: Integer dimensions of source image file.
+- <code>target_width</code>, <code>target_height</code>: Desired display viewport dimensions.
+- <code>bytes_per_pixel</code>: Bytes per pixel (default 4 for ARGB_8888).</p>
+<p>Downsampling Rules (Android inSampleSize power-of-2 standard):
+1. If image is already smaller than or equal to target in both dimensions:
+   <code>sample_size = 1</code>.
+2. Otherwise, calculate largest power-of-2 <code>sample_size</code> (1, 2, 4, 8, 16...) such that:
+   <code>orig_width // sample_size &gt;= target_width</code> AND <code>orig_height // sample_size &gt;= target_height</code>.
+   (If even <code>sample_size = 2</code> drops dimensions below target, <code>sample_size = 1</code>).
+3. Calculate decoded dimensions:
+   <code>decoded_width = orig_width // sample_size</code>
+   <code>decoded_height = orig_height // sample_size</code>
+4. Calculate memory:
+   <code>raw_bytes = orig_width * orig_height * bytes_per_pixel</code>
+   <code>decoded_bytes = decoded_width * decoded_height * bytes_per_pixel</code>
+   <code>savings_pct = round((1.0 - (decoded_bytes / raw_bytes)) * 100.0, 2)</code>
+5. Return dict:
+   <code>{"sample_size": sample_size, "decoded_dimensions": (decoded_width, decoded_height), "raw_bytes": raw_bytes, "decoded_bytes": decoded_bytes, "savings_pct": savings_pct}</code>.</p></div>
+<textarea class="code" spellcheck="false">def calculate_bitmap_downsample(orig_width, orig_height, target_width, target_height, bytes_per_pixel=4):
+    # Calculates power-of-2 inSampleSize downsampling and memory savings
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_downsample_large_image():
+    # 4000x2000 target 1500x800 -&gt; sample_size = 2
+    res = calculate_bitmap_downsample(4000, 2000, 1500, 800, bytes_per_pixel=4)
+    assert res[&quot;sample_size&quot;] == 2
+    assert res[&quot;decoded_dimensions&quot;] == (2000, 1000)
+    assert res[&quot;raw_bytes&quot;] == 32000000
+    assert res[&quot;decoded_bytes&quot;] == 8000000
+    assert res[&quot;savings_pct&quot;] == 75.0
+
+def test_downsample_already_smaller():
+    res = calculate_bitmap_downsample(300, 200, 500, 500)
+    assert res[&quot;sample_size&quot;] == 1
+    assert res[&quot;decoded_dimensions&quot;] == (300, 200)
+    assert res[&quot;savings_pct&quot;] == 0.0
+
+def test_downsample_power_of_two_four():
+    res = calculate_bitmap_downsample(4000, 4000, 1000, 1000)
+    assert res[&quot;sample_size&quot;] == 4
+    assert res[&quot;decoded_dimensions&quot;] == (1000, 1000)
+    assert res[&quot;savings_pct&quot;] == 93.75
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-list-virtualization-window-calculator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>ListView/RecyclerView visible index window and DOM recycling calculation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>calculate_virtualized_window(total_items, item_height_px, viewport_height_px, scroll_offset_px, overscan=2)</code>:
+Inputs:
+- <code>total_items</code>: Total number of items in the dataset (e.g. 10000).
+- <code>item_height_px</code>: Fixed height of each item in pixels (e.g. 50).
+- <code>viewport_height_px</code>: Visible screen viewport height in pixels (e.g. 400).
+- <code>scroll_offset_px</code>: Current vertical scroll offset in pixels ($\ge 0$).
+- <code>overscan</code>: Number of buffer items to render above and below the visible viewport (default 2).</p>
+<p>Windowing Rules:
+1. First visible item index: <code>first_visible = scroll_offset_px // item_height_px</code>.
+2. Visible items count: <code>visible_count = -(-viewport_height_px // item_height_px) + 1</code> (ceiling of viewport/item_height + 1 for fractional overlaps).
+3. Last visible item index: <code>last_visible = min(total_items - 1, first_visible + visible_count - 1)</code>.
+4. Clamped render window with overscan:
+   - <code>start_index = max(0, first_visible - overscan)</code>.
+   - <code>end_index = min(total_items - 1, last_visible + overscan)</code>.
+5. Active rendered items count: <code>rendered_count = max(0, end_index - start_index + 1)</code> if <code>total_items &gt; 0</code> else 0.
+6. Total virtual scrollable height: <code>total_height_px = total_items * item_height_px</code>.
+7. Return dict:
+   <code>{"first_visible": first_visible, "last_visible": last_visible, "start_index": start_index, "end_index": end_index, "rendered_count": rendered_count, "total_height_px": total_height_px}</code>.</p></div>
+<textarea class="code" spellcheck="false">def calculate_virtualized_window(total_items, item_height_px, viewport_height_px, scroll_offset_px, overscan=2):
+    # Calculates active index window for virtualized scrolling lists
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_virtualized_window_at_top():
+    # 1000 items, 50px each, 400px viewport, scroll=0, overscan=2
+    res = calculate_virtualized_window(1000, 50, 400, 0, overscan=2)
+    assert res[&quot;first_visible&quot;] == 0
+    assert res[&quot;start_index&quot;] == 0 # Clamped at 0
+    assert res[&quot;total_height_px&quot;] == 50000
+    assert res[&quot;rendered_count&quot;] &lt; 20 # Only ~11-13 widgets instantiated!
+
+def test_virtualized_window_mid_scroll():
+    # Scroll offset = 500px (item 10 is at top)
+    res = calculate_virtualized_window(1000, 50, 400, 500, overscan=2)
+    assert res[&quot;first_visible&quot;] == 10
+    assert res[&quot;start_index&quot;] == 8 # 10 - 2 overscan
+
+def test_virtualized_window_empty():
+    res = calculate_virtualized_window(0, 50, 400, 0)
+    assert res[&quot;rendered_count&quot;] == 0
+    assert res[&quot;total_height_px&quot;] == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-startup-baseline-profile-optimizer" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Cold startup phase trace analysis and Baseline Profile AOT speedup evaluation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>evaluate_startup_performance(trace_phases, baseline_profile_rules, target_budget_ms=1000)</code>:
+Inputs:
+- <code>trace_phases</code>: List of dicts representing startup execution phases:
+  <code>[{"phase": str, "duration_ms": float, "class_methods": [str, ...]}, ...]</code>
+  (Typical phases: <code>"ClassLoader"</code>, <code>"ApplicationCreate"</code>, <code>"ActivityCreate"</code>, <code>"FirstFrameDraw"</code>).
+- <code>baseline_profile_rules</code>: Set of method signature strings included in the AOT Baseline Profile.
+- <code>target_budget_ms</code>: Cold start time budget in milliseconds (default 1000 ms).</p>
+<p>Baseline Profile AOT Simulation:
+1. Without Baseline Profile (JIT / Interpreted):
+   - Phase duration is the baseline <code>phase["duration_ms"]</code>.
+2. With Baseline Profile (AOT compiled Ahead-Of-Time):
+   - For each phase, calculate the fraction of methods covered by <code>baseline_profile_rules</code>:
+     <code>coverage = len(matches) / len(total_methods)</code> if <code>total_methods &gt; 0</code> else 0.0.
+   - AOT compilation provides a $40\%$ execution speedup ($0.6\times$ duration) for covered code:
+     <code>effective_speedup = 1.0 - (coverage * 0.4)</code>.
+     <code>optimized_phase_duration = phase["duration_ms"] * effective_speedup</code>.
+3. Total Cold Start Time:
+   - <code>raw_startup_ms = sum(p["duration_ms"] for p in trace_phases)</code>.
+   - <code>optimized_startup_ms = sum(optimized_phases)</code>.
+   - <code>speedup_pct = round((1.0 - (optimized_startup_ms / raw_startup_ms)) * 100.0, 2)</code> if <code>raw_startup_ms &gt; 0</code> else 0.0.
+   - <code>meets_budget = optimized_startup_ms &lt;= target_budget_ms</code>.
+4. Return dict:
+   <code>{"raw_startup_ms": round(raw_startup_ms, 2), "optimized_startup_ms": round(optimized_startup_ms, 2), "speedup_pct": speedup_pct, "meets_budget": meets_budget}</code>.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_startup_performance(trace_phases, baseline_profile_rules, target_budget_ms=1000):
+    # Evaluates startup trace duration and AOT Baseline Profile improvements
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_startup_full_baseline_coverage():
+    phases = [
+        {&quot;phase&quot;: &quot;ApplicationCreate&quot;, &quot;duration_ms&quot;: 400.0, &quot;class_methods&quot;: [&quot;App.init&quot;, &quot;Dagger.build&quot;]},
+        {&quot;phase&quot;: &quot;ActivityCreate&quot;, &quot;duration_ms&quot;: 800.0, &quot;class_methods&quot;: [&quot;MainAct.create&quot;, &quot;Nav.setup&quot;]}
+    ]
+    # All 4 methods in profile -&gt; 40% speedup across the board
+    rules = {&quot;App.init&quot;, &quot;Dagger.build&quot;, &quot;MainAct.create&quot;, &quot;Nav.setup&quot;}
+    res = evaluate_startup_performance(phases, rules, target_budget_ms=1000)
+
+    assert res[&quot;raw_startup_ms&quot;] == 1200.0
+    # 1200 * 0.6 = 720.0 ms
+    assert res[&quot;optimized_startup_ms&quot;] == 720.0
+    assert res[&quot;speedup_pct&quot;] == 40.0
+    assert res[&quot;meets_budget&quot;] is True
+
+def test_startup_no_rules_no_speedup():
+    phases = [{&quot;phase&quot;: &quot;Init&quot;, &quot;duration_ms&quot;: 500.0, &quot;class_methods&quot;: [&quot;A.m1&quot;]}]
+    res = evaluate_startup_performance(phases, set())
+    assert res[&quot;raw_startup_ms&quot;] == 500.0
+    assert res[&quot;optimized_startup_ms&quot;] == 500.0
+    assert res[&quot;speedup_pct&quot;] == 0.0
+
+def test_startup_partial_coverage():
+    phases = [
+        {&quot;phase&quot;: &quot;Init&quot;, &quot;duration_ms&quot;: 1000.0, &quot;class_methods&quot;: [&quot;m1&quot;, &quot;m2&quot;]} # 1 of 2 matched -&gt; 20% speedup
+    ]
+    res = evaluate_startup_performance(phases, {&quot;m1&quot;}, target_budget_ms=900)
+    # 1000 * (1 - 0.5 * 0.4) = 1000 * 0.8 = 800.0
+    assert res[&quot;optimized_startup_ms&quot;] == 800.0
+    assert res[&quot;meets_budget&quot;] is True
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"A 60 FPS mobile app will automatically run at 120 FPS smoothly on high-refresh displays."</strong> 120 Hz displays cut the frame budget in half from 16.6ms to 8.3ms; code that ran in 12ms was smooth at 60Hz but produces continuous jank at 120Hz.</li>
+<li><strong>"Flutter ListView with children: [] is efficient for long lists."</strong> The default ListView constructor with children: [] instantiates every single child widget immediately; <code>ListView.builder</code> is required for virtualization.</li>
+<li><strong>"Decoding a 10MB JPEG file on disk uses 10MB of RAM."</strong> A JPEG file is compressed; when decoded into RAM as an uncompressed bitmap (<code>ARGB_8888</code>), it expands to $W 	imes H 	imes 4$ bytes (often 40–80 MB of uncompressed memory).</li>
+<li><strong>"Baseline Profiles only benefit legacy Android versions."</strong> Baseline Profiles provide pre-compiled AOT dex code that eliminates JIT warmup across all modern Android versions from Android 7 (API 24) through Android 14+.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Mobile performance engineering breaks down when blocking JSON parsing or disk I/O on the main thread causes frame times to exceed 16.6ms, dropping frames and triggering ANRs, when un-downsampled high-resolution camera images fill the heap and trigger Out-Of-Memory crashes, or when nested scrolling views disable list virtualization, causing memory consumption to grow linearly with record count.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Performance engineering decides whether an app is usable on low-cost hardware at all. List virtualisation keeps scrolling through thousands of records at 60 FPS, bitmap downsampling compresses high-resolution photos before they are rendered as thumbnails, and AOT baseline profiles bring the app to its first interactive screen in well under a second.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the frame time budget at 60 Hz and 120 Hz?</p></div><div class="a" hidden><p>16.66 milliseconds at 60 Hz, and 8.33 milliseconds at 120 Hz.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the difference between cold start and warm start?</p></div><div class="a" hidden><p>Cold start launches from scratch without process in memory (&lt;1000ms target); warm start brings an existing process with recreated Activity to the foreground (&lt;500ms target).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why does bitmap decoding consume so much RAM?</p></div><div class="a" hidden><p>Compressed JPEG/PNG files expand into uncompressed raw pixels in memory: Width × Height × 4 bytes for ARGB_8888 format.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does list virtualization prevent memory exhaustion?</p></div><div class="a" hidden><p>By instantiating only the widgets currently visible within the screen viewport plus a small overscan buffer, recycling views as they scroll away.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What are Baseline Profiles?</p></div><div class="a" hidden><p>Ahead-Of-Time (AOT) compiled method specifications shipped inside the APK to accelerate cold startup and eliminate JIT compilation jank.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why should saveLayer and Opacity widgets be minimized?</p></div><div class="a" hidden><p>They allocate offscreen GPU render buffers, triggering additional compositing passes that inflate frame rendering time.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can classify frame timing jank against 60Hz and 120Hz budgets, calculate bitmap downsampling memory savings, compute list virtualization windows, and evaluate cold startup Baseline Profile improvements.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Google Android Team. 'Profile app performance with Perfetto and Baseline Profiles.' <em>Android Developers</em>, 2023.</li>
+<li>Flutter Engineering. 'Flutter Performance Profiling and Jank Elimination.' <em>docs.flutter.dev</em>, 2023.</li>
+</ul></section>
+<footer class="pager"><a href="S13.html">&larr; S13 Release engineering</a>
+<a href="S17.html">S17 Android UI: Views and Jetpack Compose &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "S10", "packages": ["numpy"], "exercises": {"ex1-frame-timing-jank-classifier": {"starter": "def analyze_frame_timings(durations_ms, target_fps=60):\n    # Analyzes frame durations against VSYNC budget\n    return {}\n", "solution": "def analyze_frame_timings(durations_ms, target_fps=60):\n    if not durations_ms:\n        return {\n            \"total_frames\": 0,\n            \"jank_count\": 0,\n            \"severe_jank_count\": 0,\n            \"jank_percentage\": 0.0,\n            \"p90_duration_ms\": 0.0\n        }\n\n    budget_ms = 1000.0 / target_fps\n    n = len(durations_ms)\n    jank_count = sum(1 for d in durations_ms if d > budget_ms)\n    severe_jank = sum(1 for d in durations_ms if d > budget_ms * 2.0)\n    pct = round((jank_count / n) * 100.0, 2)\n\n    sorted_d = sorted(durations_ms)\n    idx = min(int(0.9 * n), n - 1)\n    p90 = round(sorted_d[idx], 2)\n\n    return {\n        \"total_frames\": n,\n        \"jank_count\": jank_count,\n        \"severe_jank_count\": severe_jank,\n        \"jank_percentage\": pct,\n        \"p90_duration_ms\": p90\n    }\n", "tests": "def test_analyze_frames_clean():\n    frames = [10.0, 12.5, 14.0, 11.0, 9.5] # All under 16.66ms\n    res = analyze_frame_timings(frames, target_fps=60)\n    assert res[\"total_frames\"] == 5\n    assert res[\"jank_count\"] == 0\n    assert res[\"jank_percentage\"] == 0.0\n\ndef test_analyze_frames_with_jank():\n    # 60Hz budget = 16.66ms\n    frames = [12.0, 18.0, 35.0, 10.0] # 18.0 is jank, 35.0 is severe jank (>33.3ms)\n    res = analyze_frame_timings(frames, target_fps=60)\n    assert res[\"total_frames\"] == 4\n    assert res[\"jank_count\"] == 2\n    assert res[\"severe_jank_count\"] == 1\n    assert res[\"jank_percentage\"] == 50.0\n\ndef test_empty_frames():\n    res = analyze_frame_timings([])\n    assert res[\"total_frames\"] == 0\n    assert res[\"jank_count\"] == 0\n", "mutants": ["def analyze_frame_timings(durations_ms, target_fps=60):\n    return {\"total_frames\": len(durations_ms), \"jank_count\": 0, \"severe_jank_count\": 0, \"jank_percentage\": 0.0, \"p90_duration_ms\": 0.0}\n", "def analyze_frame_timings(durations_ms, target_fps=60):\n    # Broken mutant: fails severe jank threshold calculation\n    budget = 1000.0 / target_fps\n    j = sum(1 for d in durations_ms if d > budget)\n    return {\"total_frames\": len(durations_ms), \"jank_count\": j, \"severe_jank_count\": 0, \"jank_percentage\": 50.0, \"p90_duration_ms\": 10.0}\n"], "hints": ["Calculate `budget_ms = 1000.0 / target_fps`.", "Severe jank is `duration > budget_ms * 2.0`."], "level": "warmup", "title": "Frame timing series analyzer and jank rate calculator"}, "ex2-bitmap-memory-downsampler": {"starter": "def calculate_bitmap_downsample(orig_width, orig_height, target_width, target_height, bytes_per_pixel=4):\n    # Calculates power-of-2 inSampleSize downsampling and memory savings\n    return {}\n", "solution": "def calculate_bitmap_downsample(orig_width, orig_height, target_width, target_height, bytes_per_pixel=4):\n    sample_size = 1\n\n    if orig_width > target_width or orig_height > target_height:\n        half_w = orig_width // 2\n        half_h = orig_height // 2\n\n        while (half_w // sample_size) >= target_width and (half_h // sample_size) >= target_height:\n            sample_size *= 2\n\n    dec_w = orig_width // sample_size\n    dec_h = orig_height // sample_size\n\n    raw_bytes = orig_width * orig_height * bytes_per_pixel\n    dec_bytes = dec_w * dec_h * bytes_per_pixel\n    savings = round((1.0 - (dec_bytes / raw_bytes)) * 100.0, 2) if raw_bytes > 0 else 0.0\n\n    return {\n        \"sample_size\": sample_size,\n        \"decoded_dimensions\": (dec_w, dec_h),\n        \"raw_bytes\": raw_bytes,\n        \"decoded_bytes\": dec_bytes,\n        \"savings_pct\": savings\n    }\n", "tests": "def test_downsample_large_image():\n    # 4000x2000 target 1500x800 -> sample_size = 2\n    res = calculate_bitmap_downsample(4000, 2000, 1500, 800, bytes_per_pixel=4)\n    assert res[\"sample_size\"] == 2\n    assert res[\"decoded_dimensions\"] == (2000, 1000)\n    assert res[\"raw_bytes\"] == 32000000\n    assert res[\"decoded_bytes\"] == 8000000\n    assert res[\"savings_pct\"] == 75.0\n\ndef test_downsample_already_smaller():\n    res = calculate_bitmap_downsample(300, 200, 500, 500)\n    assert res[\"sample_size\"] == 1\n    assert res[\"decoded_dimensions\"] == (300, 200)\n    assert res[\"savings_pct\"] == 0.0\n\ndef test_downsample_power_of_two_four():\n    res = calculate_bitmap_downsample(4000, 4000, 1000, 1000)\n    assert res[\"sample_size\"] == 4\n    assert res[\"decoded_dimensions\"] == (1000, 1000)\n    assert res[\"savings_pct\"] == 93.75\n", "mutants": ["def calculate_bitmap_downsample(orig_width, orig_height, target_width, target_height, bytes_per_pixel=4):\n    # Mutant always returns sample_size=1\n    raw = orig_width * orig_height * bytes_per_pixel\n    return {\"sample_size\": 1, \"decoded_dimensions\": (orig_width, orig_height), \"raw_bytes\": raw, \"decoded_bytes\": raw, \"savings_pct\": 0.0}\n", "def calculate_bitmap_downsample(orig_width, orig_height, target_width, target_height, bytes_per_pixel=4):\n    # Broken mutant: ignores power-of-2 doubling\n    sample = max(1, orig_width // target_width)\n    dw = orig_width // sample\n    dh = orig_height // sample\n    return {\"sample_size\": sample, \"decoded_dimensions\": (dw, dh), \"raw_bytes\": 100, \"decoded_bytes\": 10, \"savings_pct\": 90.0}\n"], "hints": ["Double `sample_size *= 2` while halved dimensions remain `>= target`.", "Compute savings as `(1.0 - dec_bytes / raw_bytes) * 100.0`."], "level": "core", "title": "Bitmap memory budget calculation and optimal inSampleSize downsampling"}, "ex3-list-virtualization-window-calculator": {"starter": "def calculate_virtualized_window(total_items, item_height_px, viewport_height_px, scroll_offset_px, overscan=2):\n    # Calculates active index window for virtualized scrolling lists\n    return {}\n", "solution": "def calculate_virtualized_window(total_items, item_height_px, viewport_height_px, scroll_offset_px, overscan=2):\n    if total_items == 0:\n        return {\n            \"first_visible\": 0, \"last_visible\": 0,\n            \"start_index\": 0, \"end_index\": 0,\n            \"rendered_count\": 0, \"total_height_px\": 0\n        }\n\n    first_vis = scroll_offset_px // item_height_px\n    # Items that fit in viewport\n    vis_count = (viewport_height_px + item_height_px - 1) // item_height_px + 1\n    last_vis = min(total_items - 1, first_vis + vis_count - 1)\n\n    start_idx = max(0, first_vis - overscan)\n    end_idx = min(total_items - 1, last_vis + overscan)\n    rendered_count = max(0, end_idx - start_idx + 1)\n\n    return {\n        \"first_visible\": first_vis,\n        \"last_visible\": last_vis,\n        \"start_index\": start_idx,\n        \"end_index\": end_idx,\n        \"rendered_count\": rendered_count,\n        \"total_height_px\": total_items * item_height_px\n    }\n", "tests": "def test_virtualized_window_at_top():\n    # 1000 items, 50px each, 400px viewport, scroll=0, overscan=2\n    res = calculate_virtualized_window(1000, 50, 400, 0, overscan=2)\n    assert res[\"first_visible\"] == 0\n    assert res[\"start_index\"] == 0 # Clamped at 0\n    assert res[\"total_height_px\"] == 50000\n    assert res[\"rendered_count\"] < 20 # Only ~11-13 widgets instantiated!\n\ndef test_virtualized_window_mid_scroll():\n    # Scroll offset = 500px (item 10 is at top)\n    res = calculate_virtualized_window(1000, 50, 400, 500, overscan=2)\n    assert res[\"first_visible\"] == 10\n    assert res[\"start_index\"] == 8 # 10 - 2 overscan\n\ndef test_virtualized_window_empty():\n    res = calculate_virtualized_window(0, 50, 400, 0)\n    assert res[\"rendered_count\"] == 0\n    assert res[\"total_height_px\"] == 0\n", "mutants": ["def calculate_virtualized_window(total_items, item_height_px, viewport_height_px, scroll_offset_px, overscan=2):\n    # Non-virtualized mutant: renders all items!\n    return {\"first_visible\": 0, \"last_visible\": total_items - 1, \"start_index\": 0, \"end_index\": total_items - 1, \"rendered_count\": total_items, \"total_height_px\": total_items * item_height_px}\n", "def calculate_virtualized_window(total_items, item_height_px, viewport_height_px, scroll_offset_px, overscan=2):\n    # Broken mutant: ignores overscan\n    first = scroll_offset_px // item_height_px\n    return {\"first_visible\": first, \"last_visible\": first + 5, \"start_index\": first, \"end_index\": first + 5, \"rendered_count\": 6, \"total_height_px\": total_items * item_height_px}\n"], "hints": ["`start_index = max(0, first_visible - overscan)` prevents negative indices.", "Total scrollable height is simply `total_items * item_height_px`."], "level": "core", "title": "ListView/RecyclerView visible index window and DOM recycling calculation"}, "ex4-startup-baseline-profile-optimizer": {"starter": "def evaluate_startup_performance(trace_phases, baseline_profile_rules, target_budget_ms=1000):\n    # Evaluates startup trace duration and AOT Baseline Profile improvements\n    return {}\n", "solution": "def evaluate_startup_performance(trace_phases, baseline_profile_rules, target_budget_ms=1000):\n    if not trace_phases:\n        return {\"raw_startup_ms\": 0.0, \"optimized_startup_ms\": 0.0, \"speedup_pct\": 0.0, \"meets_budget\": True}\n\n    raw_total = sum(p[\"duration_ms\"] for p in trace_phases)\n    optimized_total = 0.0\n\n    rules_set = set(baseline_profile_rules)\n\n    for p in trace_phases:\n        dur = p[\"duration_ms\"]\n        methods = p.get(\"class_methods\", [])\n        if methods:\n            matches = sum(1 for m in methods if m in rules_set)\n            coverage = matches / len(methods)\n        else:\n            coverage = 0.0\n\n        effective_factor = 1.0 - (coverage * 0.4)\n        optimized_total += dur * effective_factor\n\n    speedup = round((1.0 - (optimized_total / raw_total)) * 100.0, 2) if raw_total > 0 else 0.0\n\n    return {\n        \"raw_startup_ms\": round(raw_total, 2),\n        \"optimized_startup_ms\": round(optimized_total, 2),\n        \"speedup_pct\": speedup,\n        \"meets_budget\": optimized_total <= target_budget_ms\n    }\n", "tests": "def test_startup_full_baseline_coverage():\n    phases = [\n        {\"phase\": \"ApplicationCreate\", \"duration_ms\": 400.0, \"class_methods\": [\"App.init\", \"Dagger.build\"]},\n        {\"phase\": \"ActivityCreate\", \"duration_ms\": 800.0, \"class_methods\": [\"MainAct.create\", \"Nav.setup\"]}\n    ]\n    # All 4 methods in profile -> 40% speedup across the board\n    rules = {\"App.init\", \"Dagger.build\", \"MainAct.create\", \"Nav.setup\"}\n    res = evaluate_startup_performance(phases, rules, target_budget_ms=1000)\n\n    assert res[\"raw_startup_ms\"] == 1200.0\n    # 1200 * 0.6 = 720.0 ms\n    assert res[\"optimized_startup_ms\"] == 720.0\n    assert res[\"speedup_pct\"] == 40.0\n    assert res[\"meets_budget\"] is True\n\ndef test_startup_no_rules_no_speedup():\n    phases = [{\"phase\": \"Init\", \"duration_ms\": 500.0, \"class_methods\": [\"A.m1\"]}]\n    res = evaluate_startup_performance(phases, set())\n    assert res[\"raw_startup_ms\"] == 500.0\n    assert res[\"optimized_startup_ms\"] == 500.0\n    assert res[\"speedup_pct\"] == 0.0\n\ndef test_startup_partial_coverage():\n    phases = [\n        {\"phase\": \"Init\", \"duration_ms\": 1000.0, \"class_methods\": [\"m1\", \"m2\"]} # 1 of 2 matched -> 20% speedup\n    ]\n    res = evaluate_startup_performance(phases, {\"m1\"}, target_budget_ms=900)\n    # 1000 * (1 - 0.5 * 0.4) = 1000 * 0.8 = 800.0\n    assert res[\"optimized_startup_ms\"] == 800.0\n    assert res[\"meets_budget\"] is True\n", "mutants": ["def evaluate_startup_performance(trace_phases, baseline_profile_rules, target_budget_ms=1000):\n    # Broken mutant: ignores profile rules, reports 0 speedup\n    t = sum(p[\"duration_ms\"] for p in trace_phases)\n    return {\"raw_startup_ms\": t, \"optimized_startup_ms\": t, \"speedup_pct\": 0.0, \"meets_budget\": t <= target_budget_ms}\n", "def evaluate_startup_performance(trace_phases, baseline_profile_rules, target_budget_ms=1000):\n    # Broken mutant: always claims 40% speedup regardless of method coverage\n    t = sum(p[\"duration_ms\"] for p in trace_phases)\n    opt = t * 0.6\n    return {\"raw_startup_ms\": t, \"optimized_startup_ms\": opt, \"speedup_pct\": 40.0, \"meets_budget\": opt <= target_budget_ms}\n"], "hints": ["Calculate method coverage fraction `coverage = matches / len(methods)`.", "Apply `effective_factor = 1.0 - (coverage * 0.4)`."], "level": "boss", "title": "Cold startup phase trace analysis and Baseline Profile AOT speedup evaluation"}}, "demos": {"oracle-frame-jank-budget": {"code": "class FrameBudgetMonitor:\n    def __init__(self, fps=60):\n        self.frame_budget_ms = 1000.0 / fps\n\n    def evaluate_frame(self, duration_ms):\n        is_jank = duration_ms > self.frame_budget_ms\n        missed_vsyncs = int(duration_ms // self.frame_budget_ms)\n        return is_jank, missed_vsyncs\n\nm60 = FrameBudgetMonitor(60) # 16.66ms budget\nm120 = FrameBudgetMonitor(120) # 8.33ms budget\n\n# 12ms frame: Smooth on 60Hz, Jank on 120Hz\njank60, _ = m60.evaluate_frame(12.0)\njank120, _ = m120.evaluate_frame(12.0)\n\nassert jank60 is False, \"12ms should be smooth at 60Hz\"\nassert jank120 is True, \"12ms exceeds 8.33ms budget, jank at 120Hz\"\n\n# 35ms frame: Jank on 60Hz, misses 2 VSYNCs\njank_slow, missed = m60.evaluate_frame(35.0)\nassert jank_slow is True\nassert missed >= 2, \"35ms frame misses at least 2 VSYNC deadlines\"\nprint(\"SUCCESS: VSYNC frame jank thresholds verified.\")\n", "mutants": ["class BrokenMonitor:\n    def evaluate_frame(self, d): return False, 0 # Never detects jank\nb = BrokenMonitor()\nj, _ = b.evaluate_frame(35.0)\nassert j is True, \"Mutant failed to detect 35ms frame jank\"\n"]}, "exp-bitmap-downsampling-memory": {"code": "def calculate_bitmap_bytes(width, height, bytes_per_pixel=4):\n    return width * height * bytes_per_pixel\n\nraw_bytes = calculate_bitmap_bytes(4000, 3000, 4) # 48 MB\ndownsampled_bytes = calculate_bitmap_bytes(400, 300, 4) # 480 KB\n\nreduction_ratio = raw_bytes / downsampled_bytes\nprint(f\"Raw RAM:         {raw_bytes / (1024*1024):.2f} MB\")\nprint(f\"Downsampled RAM: {downsampled_bytes / 1024:.2f} KB\")\nprint(f\"Memory reduction ratio: {reduction_ratio:.1f}x\")\n\nassert raw_bytes == 48000000, \"Raw 4000x3000 ARGB_8888 must be 48MB\"\nassert downsampled_bytes == 480000, \"Downsampled 400x300 must be 480KB\"\nassert reduction_ratio == 100.0, \"Downsampling by 10x per dimension reduces RAM by 100x\"\n", "mutants": ["reduction_ratio = 1.0 # Mutant has no reduction\nassert reduction_ratio == 100.0, \"Mutant failed bitmap downsampling benchmark\"\n"]}}, "cards": [{"q": "What is the frame time budget at 60 Hz and 120 Hz?", "a": "16.66 milliseconds at 60 Hz, and 8.33 milliseconds at 120 Hz."}, {"q": "What is the difference between cold start and warm start?", "a": "Cold start launches from scratch without process in memory (<1000ms target); warm start brings an existing process with recreated Activity to the foreground (<500ms target)."}, {"q": "Why does bitmap decoding consume so much RAM?", "a": "Compressed JPEG/PNG files expand into uncompressed raw pixels in memory: Width \u00d7 Height \u00d7 4 bytes for ARGB_8888 format."}, {"q": "How does list virtualization prevent memory exhaustion?", "a": "By instantiating only the widgets currently visible within the screen viewport plus a small overscan buffer, recycling views as they scroll away."}, {"q": "What are Baseline Profiles?", "a": "Ahead-Of-Time (AOT) compiled method specifications shipped inside the APK to accelerate cold startup and eliminate JIT compilation jank."}, {"q": "Why should saveLayer and Opacity widgets be minimized?", "a": "They allocate offscreen GPU render buffers, triggering additional compositing passes that inflate frame rendering time."}], "title": "Mobile performance engineering"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

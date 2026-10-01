@@ -1,0 +1,464 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P20 Distributed systems</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P20">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P20</p><h1>Distributed systems</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P09.html">P09</a> <a href="P08.html">P08</a></div><div><b>Covers:</b> CS2023 PDC</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>failure models</li><li>physical clocks, Lamport clocks and vector clocks</li><li>happens-before</li><li>linearizable, sequential, causal and eventual consistency</li><li>CAP and PACELC</li><li>leader-follower replication and quorums</li><li>consensus (Raft)</li><li>idempotency and the exactly-once illusion</li><li>retries and at-least-once delivery</li><li>two-phase commit and sagas</li><li>CRDTs</li><li>remote procedure calls and serialisation (gRPC, Protocol Buffers vs JSON), and why a remote call is not a local call</li><li>blockchains: proof-of-work vs proof-of-stake consensus</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1978, Leslie Lamport published a foundational paper titled "Time, Clocks, and the Ordering of Events in a Distributed System", fundamentally redefining computer science's understanding of time. Inspired by Albert Einstein's special relativity, Lamport proved that in a distributed network with no shared physical memory or universal clock, absolute physical time is an illusion. Instead, events can only be ordered causally through a partial order: the "happens-before" relation ($\to$). Lamport later co-invented the Paxos consensus algorithm, proving that independent machines communicating over unreliable networks can achieve distributed agreement despite message loss and server crashes.</p>
+<p>In 1985, Fischer, Lynch, and Paterson published their celebrated FLP impossibility result, proving that deterministic consensus is mathematically impossible in an asynchronous network if even a single node can suffer an unannounced crash. To build practical systems, computer scientists developed randomized and leader-based consensus protocols: in 2014, Diego Ongaro and John Ousterhout introduced Raft at Stanford, decomposing consensus into understandable state transitions: leader election, log replication, and commit safety. Concurrently, Marc Shapiro and his collaborators introduced Conflict-free Replicated Data Types (CRDTs) in 2011, providing mathematically proven join-semilattices that allow distributed replicas to diverge, edit data offline, and converge deterministically without global coordination. Today, distributed systems power the entire global economy—from Kubernetes clusters coordinated by etcd to planetary-scale databases like Google Spanner and Amazon DynamoDB.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A distributed system is a collection of independent computers that communicate over a network to coordinate work and appear to users as a single coherent system. Because networks drop packets, delay messages, and crash servers without warning, distributed systems face unique challenges: there is no single shared clock, so systems use logical vector clocks to track causality. When reading and writing data across multiple replicas, quorums ensure consistency by guaranteeing that read and write node sets overlap. Consensus algorithms like Raft elect a single leader to keep replicas in identical order. True "exactly-once delivery" is an impossible illusion over unreliable networks, so production systems achieve correctness through at-least-once message delivery combined with idempotent operations.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The mathematical models and algorithmic foundations of distributed systems are defined across several formal frameworks:</p>
+<ol>
+<li><strong>Happens-Before Relation and Vector Clocks</strong>:
+Let $E$ be the set of events in a distributed system with $N$ processes. The happens-before partial order $\to$ is defined by:
+- If events $a$ and $b$ occur in the same process and $a$ occurs before $b$, then $a \to b$.
+- If $a$ is the sending of a message and $b$ is the receipt of that message, then $a \to b$.
+- If $a \to b$ and $b \to c$, then $a \to c$ (transitivity).
+If neither $a \to b$ nor $b \to a$, then $a$ and $b$ are concurrent ($a \parallel b$).</li>
+</ol>
+<p>A vector clock is a vector $V \in \mathbb{N}^N$. For events $a$ and $b$:
+$$a \to b \iff (\forall k \in [1, N], V(a)[k] \le V(b)[k]) \land (\exists k \in [1, N], V(a)[k] &lt; V(b)[k])$$</p>
+<ol start="2">
+<li>
+<p><strong>Quorum Consensus Invariant</strong>:
+In a cluster of $N$ replica nodes with write quorum size $W$ and read quorum size $R$:
+$$R + W &gt; N \implies R \cap W \neq \emptyset$$
+By the Pigeonhole Principle, any read quorum of size $R$ is mathematically guaranteed to intersect with any write quorum of size $W$ in at least one node, ensuring the client reads the latest version timestamp.</p>
+</li>
+<li>
+<p><strong>CAP and PACELC Theorems</strong>:
+- <strong>CAP Theorem</strong>: In any asynchronous distributed data store facing network partitions ($P$), one can guarantee either Consistency ($C$, linearizability) or Availability ($A$), but not both:
+$$P \implies (C \lor A)$$
+- <strong>PACELC Theorem</strong>: If there is a Partition ($P$), trade off Availability ($A$) versus Consistency ($C$); Else ($E$), trade off Latency ($L$) versus Consistency ($C$).</p>
+</li>
+<li>
+<p><strong>Conflict-Free Replicated Data Types (CRDTs)</strong>:
+A state-based CRDT (CvRDT) is modeled as a bounded join-semilattice $(S, \sqcup)$ where the merge operator $\sqcup: S \times S \to S$ satisfies:
+- Commutativity: $x \sqcup y = y \sqcup x$
+- Associativity: $(x \sqcup y) \sqcup z = x \sqcup (y \sqcup z)$
+- Idempotence: $x \sqcup x = x$
+Monotonic state growth guarantees eventual consistency across replicas regardless of message arrival order.</p>
+</li>
+<li>
+<p><strong>Two-Phase Commit (2PC) vs Sagas</strong>:
+- <strong>2PC</strong>: Atomic commit protocol where a coordinator polls all participants (Prepare phase) and commits only if all vote Yes. It is blocking if the coordinator fails during commit.
+- <strong>Sagas</strong>: Asynchronous workflow decomposing a distributed transaction into a sequence of local transactions $T_1, T_2, \dots, T_n$ with compensating transactions $C_1, C_2, \dots, C_{n-1}$ to undo partial progress upon failure.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>The fundamental illusion that distributed systems destroy is the assumption of a shared physical state. In single-machine programming, memory access is instantaneous, CPU instructions execute in deterministic linear order, and function calls either succeed or raise an in-process exception. In distributed systems, none of these guarantees hold. Networks are fundamentally asynchronous and unreliable: packets are dropped, arbitrarily delayed, duplicated, and reordered. Physical clocks drift due to quartz crystal thermal variations, making physical wall-clock timestamps completely unreliable for establishing causality.</p>
+<p>Without rigorous distributed algorithms, naive systems suffer catastrophic failure modes: split-brain scenarios where two partitioned nodes both believe they are the leader and accept conflicting writes, silently corrupting banking ledgers; cascading failures where one slow service causes thread exhaustion across an entire microservice fleet; and lost updates where concurrent writes overwrite each other without detection.</p>
+<p>Mastering distributed systems principles—vector clocks, Raft consensus, quorum arithmetic, and CRDTs—equips engineers to design resilient architectures that maintain integrity despite hardware failures and network splits. Furthermore, recognizing that "exactly-once delivery" is mathematically impossible forces systems to be built on at-least-once delivery with idempotency keys, eliminating duplicate financial charges and corrupt orders. Distributed systems engineering is the science of creating reliable software atop fundamentally unreliable components.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates vector clock causality tracking across three distributed processes. The oracle tracks local clock ticks, message send events, and message receive events, computing whether two events are causally related via the happens-before partial order ($A \to B$) or logically concurrent ($A \parallel B$). This guarantees deterministic causal reasoning across distributed execution environments without relying on fragile physical wall clocks.</p>
+<div class="lab demo" data-demo="p20-oracle-vector-clock-causality">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Vector Clock Happens-Before and Concurrency Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class VectorClock:
+    def __init__(self, node_id: int, num_nodes: int):
+        self.node_id = node_id
+        self.clock = [0] * num_nodes
+
+    def tick(self):
+        self.clock[self.node_id] += 1
+        return list(self.clock)
+
+    def send(self):
+        self.clock[self.node_id] += 1
+        return list(self.clock)
+
+    def receive(self, remote_clock: list):
+        for i in range(len(self.clock)):
+            self.clock[i] = max(self.clock[i], remote_clock[i])
+        self.clock[self.node_id] += 1
+        return list(self.clock)
+
+def happens_before(vc1: list, vc2: list) -&gt; bool:
+    less_or_equal = all(a &lt;= b for a, b in zip(vc1, vc2))
+    strictly_less = any(a &lt; b for a, b in zip(vc1, vc2))
+    return less_or_equal and strictly_less
+
+def are_concurrent(vc1: list, vc2: list) -&gt; bool:
+    return not happens_before(vc1, vc2) and not happens_before(vc2, vc1)
+
+# Initialize 3 nodes
+n0 = VectorClock(0, 3)
+n1 = VectorClock(1, 3)
+n2 = VectorClock(2, 3)
+
+# e1: Node 0 ticks locally -&gt; [1, 0, 0]
+e1 = n0.tick()
+# e2: Node 0 sends to Node 1 -&gt; [2, 0, 0]
+msg_0_to_1 = n0.send()
+e2 = list(n0.clock)
+
+# e3: Node 1 receives message -&gt; max([0, 0, 0], [2, 0, 0]) + tick -&gt; [2, 1, 0]
+e3 = n1.receive(msg_0_to_1)
+
+# e4: Node 2 ticks independently -&gt; [0, 0, 1]
+e4 = n2.tick()
+
+print(&quot;e1 (Node 0):&quot;, e1)
+print(&quot;e2 (Node 0):&quot;, e2)
+print(&quot;e3 (Node 1):&quot;, e3)
+print(&quot;e4 (Node 2):&quot;, e4)
+
+assert happens_before(e1, e2)
+assert happens_before(e2, e3)
+assert happens_before(e1, e3) # Transitive causality!
+assert are_concurrent(e3, e4) # e3 and e4 are concurrent!
+assert are_concurrent(e1, e4)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment demonstrates quorum consistency and stale-read hazards in a 5-node replica cluster. We evaluate write and read operations across partitioned nodes, comparing strict quorum configurations ($W=3, R=3$, where $R+W=6 &gt; 5$ guarantees monotonic linearizable reads) against weak non-quorum configurations ($W=2, R=2$, where $R+W=4 \le 5$ permits reading stale data).</p>
+<div class="lab demo" data-demo="p20-experiment-quorum-consistency">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Quorum Overlap Invariant vs Stale Read Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">class Cluster:
+    def __init__(self, num_nodes: int = 5):
+        self.num_nodes = num_nodes
+        # node_id -&gt; {key: (value, version)}
+        self.nodes = {i: {} for i in range(num_nodes)}
+
+    def write(self, key: str, value: str, version: int, nodes_subset: list) -&gt; bool:
+        for node_id in nodes_subset:
+            self.nodes[node_id][key] = (value, version)
+        return True
+
+    def read(self, key: str, nodes_subset: list) -&gt; tuple:
+        best_val = None
+        best_ver = -1
+        for node_id in nodes_subset:
+            if key in self.nodes[node_id]:
+                val, ver = self.nodes[node_id][key]
+                if ver &gt; best_ver:
+                    best_ver = ver
+                    best_val = val
+        return best_val, best_ver
+
+cluster = Cluster(num_nodes=5)
+
+# Initial write: key=&quot;balance&quot; = &quot;100&quot;, version=1 to all nodes
+cluster.write(&quot;balance&quot;, &quot;100&quot;, 1, [0, 1, 2, 3, 4])
+
+# Write update with strict quorum W=3: nodes [0, 1, 2] receive version 2
+cluster.write(&quot;balance&quot;, &quot;150&quot;, 2, [0, 1, 2])
+
+# Any read quorum of R=3 (e.g. nodes [2, 3, 4]) MUST intersect W [0, 1, 2] at node 2!
+val_quorum, ver_quorum = cluster.read(&quot;balance&quot;, [2, 3, 4])
+print(&quot;Strict Quorum (W=3, R=3): read version =&quot;, ver_quorum, &quot;value =&quot;, val_quorum)
+assert ver_quorum == 2 and val_quorum == &quot;150&quot;
+
+# Non-quorum hazard: W=2 (written to nodes [0, 1]) and R=2 (read from nodes [3, 4])
+# W + R = 4 &lt;= 5 (no overlap!) -&gt; Stale read!
+cluster.write(&quot;balance&quot;, &quot;200&quot;, 3, [0, 1])
+val_stale, ver_stale = cluster.read(&quot;balance&quot;, [3, 4])
+print(&quot;Non-Quorum Hazard (W=2, R=2): read version =&quot;, ver_stale, &quot;value =&quot;, val_stale)
+assert ver_stale == 1 and val_stale == &quot;100&quot; # Stale read detected!
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-vector-clock-causality" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Vector Clock Causality and Happens-Before Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement VectorClock tracking logical event ticks, send/receive message merges, and happens-before causal ordering to reliably distinguish strictly ordered sequences from concurrent distributed executions across network nodes.</p></div>
+<textarea class="code" spellcheck="false">from typing import Dict, List
+
+class VectorClock:
+    def __init__(self, node_id: int, num_nodes: int):
+        pass
+
+    def tick(self) -&gt; List[int]:
+        pass
+
+    def send(self) -&gt; List[int]:
+        pass
+
+    def receive(self, remote_vector: List[int]) -&gt; List[int]:
+        pass
+
+    def happens_before(self, other_vector: List[int]) -&gt; bool:
+        pass
+
+    def is_concurrent_with(self, other_vector: List[int]) -&gt; bool:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_vector_clock_local_and_send():
+    vc0 = VectorClock(0, 3)
+    assert vc0.tick() == [1, 0, 0]
+    msg = vc0.send()
+    assert msg == [2, 0, 0]
+
+def test_vector_clock_receive_and_causality():
+    vc0 = VectorClock(0, 3)
+    vc1 = VectorClock(1, 3)
+    
+    msg0 = vc0.send() # [1, 0, 0]
+    state1 = vc1.receive(msg0) # max([0,0,0], [1,0,0]) + tick(1) -&gt; [1, 1, 0]
+    assert state1 == [1, 1, 0]
+    assert vc0.happens_before(state1)
+
+def test_vector_clock_concurrency():
+    vc0 = VectorClock(0, 3)
+    vc1 = VectorClock(1, 3)
+    
+    # Independent events
+    e0 = vc0.tick() # [1, 0, 0]
+    e1 = vc1.tick() # [0, 1, 0]
+    
+    assert vc0.is_concurrent_with(e1)
+    assert not vc0.happens_before(e1)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-quorum-replication-store" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Quorum Replication Store with Versioned Reads and Partitions</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement QuorumStore simulating key-value storage across replica nodes, enforcing write and read quorum sizes, detecting partitions, and guaranteeing fresh reads when R + W &gt; N.</p></div>
+<textarea class="code" spellcheck="false">from typing import Dict, List, Optional, Tuple
+
+class QuorumUnavailableError(Exception):
+    pass
+
+class QuorumStore:
+    def __init__(self, num_nodes: int = 5):
+        pass
+
+    def partition_node(self, node_id: int):
+        pass
+
+    def heal_node(self, node_id: int):
+        pass
+
+    def write(self, key: str, value: str, quorum_w: int) -&gt; bool:
+        pass
+
+    def read(self, key: str, quorum_r: int) -&gt; Tuple[Optional[str], int]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_quorum_read_write_success():
+    qs = QuorumStore(num_nodes=5)
+    # Write with W=3
+    assert qs.write(&quot;user:1&quot;, &quot;Alice&quot;, quorum_w=3)
+    
+    # Read with R=3 (R + W = 6 &gt; 5 -&gt; must see latest write)
+    val, ver = qs.read(&quot;user:1&quot;, quorum_r=3)
+    assert val == &quot;Alice&quot;
+    assert ver == 1
+
+def test_quorum_partition_failure():
+    qs = QuorumStore(num_nodes=5)
+    # Partition 3 nodes: only 2 available
+    qs.partition_node(0)
+    qs.partition_node(1)
+    qs.partition_node(2)
+    
+    # Write with W=3 should fail
+    assert not qs.write(&quot;balance&quot;, &quot;500&quot;, quorum_w=3)
+    
+    # Read with R=3 should raise QuorumUnavailableError
+    try:
+        qs.read(&quot;balance&quot;, quorum_r=3)
+        assert False, &quot;Should raise QuorumUnavailableError&quot;
+    except QuorumUnavailableError:
+        pass
+
+def test_quorum_healing_restores_operations():
+    qs = QuorumStore(num_nodes=5)
+    qs.partition_node(0)
+    qs.partition_node(1)
+    qs.partition_node(2)
+    assert not qs.write(&quot;token&quot;, &quot;xyz&quot;, quorum_w=3)
+    
+    # Heal node 0
+    qs.heal_node(0) # Now 3 nodes available (0, 3, 4)
+    assert qs.write(&quot;token&quot;, &quot;xyz&quot;, quorum_w=3)
+    val, ver = qs.read(&quot;token&quot;, quorum_r=3)
+    assert val == &quot;xyz&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-crdt-pn-counter" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Conflict-Free Replicated Data Type (P-N Counter CRDT)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement PNCounter supporting independent increments and decrements across nodes, deterministic join-semilattice merges, and algebraic commutativity and idempotence to ensure reliable offline-first data replication.</p></div>
+<textarea class="code" spellcheck="false">from typing import Dict
+
+class PNCounter:
+    def __init__(self, node_id: str):
+        pass
+
+    def increment(self, amount: int = 1):
+        pass
+
+    def decrement(self, amount: int = 1):
+        pass
+
+    def value(self) -&gt; int:
+        pass
+
+    def merge(self, other: &#x27;PNCounter&#x27;) -&gt; &#x27;PNCounter&#x27;:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pn_counter_local_operations():
+    c = PNCounter(&quot;A&quot;)
+    c.increment(5)
+    c.decrement(2)
+    assert c.value() == 3
+
+def test_pn_counter_distributed_merge_convergence():
+    c1 = PNCounter(&quot;A&quot;)
+    c2 = PNCounter(&quot;B&quot;)
+    
+    c1.increment(10)
+    c1.decrement(3) # A = +7
+    
+    c2.increment(20)
+    c2.decrement(5) # B = +15
+    
+    # Merge c2 into c1
+    c1.merge(c2)
+    assert c1.value() == 22 # 7 + 15 = 22
+    
+    # Merge c1 into c2
+    c2.merge(c1)
+    assert c2.value() == 22 # Both converged!
+
+def test_pn_counter_idempotence():
+    c1 = PNCounter(&quot;A&quot;)
+    c1.increment(10)
+    
+    c2 = PNCounter(&quot;B&quot;)
+    c2.increment(5)
+    
+    c1.merge(c2)
+    assert c1.value() == 15
+    
+    # Merging again must produce identical result (idempotence)
+    c1.merge(c2)
+    assert c1.value() == 15
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-raft-leader-election-simulator" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Raft Consensus Leader Election and Term Management</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement RaftNode simulating leader election state transitions, RequestVote RPCs, term increments, majority vote counting, and step-downs on higher term discovery to ensure safety in consensus clusters.</p></div>
+<textarea class="code" spellcheck="false">from typing import Dict, List, Optional
+
+class RaftNode:
+    def __init__(self, node_id: int, total_nodes: int):
+        pass
+
+    def start_election(self) -&gt; Dict:
+        pass
+
+    def handle_request_vote(self, candidate_id: int, candidate_term: int) -&gt; bool:
+        pass
+
+    def record_vote(self, voter_id: int, granted: bool) -&gt; bool:
+        pass
+
+    def handle_heartbeat(self, leader_id: int, leader_term: int) -&gt; bool:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_raft_successful_leader_election():
+    # 3-node cluster: majority is 2
+    n0 = RaftNode(0, 3)
+    n1 = RaftNode(1, 3)
+    n2 = RaftNode(2, 3)
+    
+    # n0 starts election
+    vote_req = n0.start_election()
+    assert n0.state == &quot;CANDIDATE&quot;
+    assert vote_req[&quot;term&quot;] == 1
+    
+    # n1 grants vote
+    assert n1.handle_request_vote(vote_req[&quot;candidate_id&quot;], vote_req[&quot;term&quot;])
+    assert n0.record_vote(1, True) # n0 receives vote from n1 -&gt; has 2 votes &gt;= 2
+    assert n0.state == &quot;LEADER&quot;
+
+def test_raft_split_vote_no_leader():
+    # 4-node cluster: majority is 3
+    n0 = RaftNode(0, 4)
+    n0.start_election()
+    # Receives vote from only 1 peer -&gt; total 2 votes &lt; 3
+    is_leader = n0.record_vote(1, True)
+    assert not is_leader
+    assert n0.state == &quot;CANDIDATE&quot;
+
+def test_raft_higher_term_step_down():
+    n0 = RaftNode(0, 3)
+    n0.start_election()
+    assert n0.state == &quot;CANDIDATE&quot;
+    
+    # Receives heartbeat from a leader with higher term (term 2)
+    assert n0.handle_heartbeat(leader_id=1, leader_term=2)
+    assert n0.state == &quot;FOLLOWER&quot;
+    assert n0.current_term == 2
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Network latency will eventually become negligible with optical fibers and 5G/6G."</strong> The speed of light in vacuum is approximately 300 km/ms (and ~200 km/ms in silica fiber). A round-trip packet between San Francisco and London requires a physical minimum of 67 ms strictly due to the speed of light, rendering zero network latency physically impossible.</li>
+<li><strong>"Physical NTP server synchronization solves distributed ordering and eliminates the need for vector clocks."</strong> Network Time Protocol (NTP) clocks routinely drift by milliseconds due to asymmetric network delays, VM pauses, and leap seconds. Even Google Spanner's atomic TrueTime API requires waiting out a bounded uncertainty window ($\pm 7\text{ms}$), proving physical clocks alone cannot guarantee causal order.</li>
+<li><strong>"Exactly-once delivery can be guaranteed by modern message queues like Kafka or RabbitMQ."</strong> Over an unreliable network (the Two Generals' Problem), exactly-once network transmission is provably impossible. Systems labeled as 'exactly-once' actually implement at-least-once delivery paired with idempotent message deduplication at the consumer.</li>
+<li><strong>"Raft and Paxos consensus can tolerate arbitrary Byzantine hardware faults or hacked nodes."</strong> Standard Raft and Paxos operate under the crash-recovery / crash-stop failure model where nodes may crash or delay messages, but never lie, corrupt data, or act maliciously. Tolerating malicious or arbitrary faults requires Byzantine Fault Tolerant (BFT) protocols like PBFT with $3f + 1$ replicas.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Distributed systems algorithms fail or degrade under specific real-world conditions:
+1. <strong>Clock Drift Invalidation in Lease-Based Systems</strong>: If physical clocks drift faster than anticipated, a leader node's lock lease may expire before it realizes it, causing two nodes to believe they hold exclusive write locks simultaneously (split-brain).
+2. <strong>Metadata Explosion in Dynamic Vector Clocks</strong>: In systems where clients or nodes dynamically join and leave (such as peer-to-peer or mobile swarms), vector clocks grow linearly with the number of participants ($O(N)$), consuming excessive bandwidth and memory unless pruned with dotted version vectors.
+3. <strong>Cascading GC Pauses in Leader Heartbeats</strong>: In managed runtimes (JVM/Go), a multi-second stop-the-world garbage collection pause can cause a Raft leader to miss its heartbeat deadline, triggering unnecessary leader elections and leader flapping that paralyses cluster throughput.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Distributed systems principles underpin all modern cloud and mobile architectures:
+- <strong>etcd and Kubernetes</strong>: etcd uses the Raft consensus algorithm to maintain the definitive desired state of containerized microservices across thousands of Kubernetes cluster nodes.
+- <strong>Amazon DynamoDB and Apache Cassandra</strong>: Distributed key-value stores allow developers to configure read and write quorums ($W + R &gt; N$) per query to balance low-latency eventual consistency against strong linearizable consistency.
+- <strong>Financial APIs and Payment Gateways</strong>: Stripe and PayPal enforce idempotency keys on payment endpoints, ensuring that network retries never double-charge a user's credit card.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the happens-before relation in distributed systems?</p></div><div class="a" hidden><p>A strict partial order (introduced by Leslie Lamport) defining causal relationships between events across independent processes without physical clocks.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the Quorum intersection invariant?</p></div><div class="a" hidden><p>In an N-node replica cluster with write quorum W and read quorum R, R + W &gt; N guarantees that any read quorum intersects any write quorum in at least one node, ensuring fresh data.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does the CAP theorem state?</p></div><div class="a" hidden><p>In an asynchronous network experiencing network partitions (P), a distributed data store can guarantee either Consistency (linearizability) or Availability, but not both.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What are Conflict-Free Replicated Data Types (CRDTs)?</p></div><div class="a" hidden><p>Data structures modeled on join-semilattices where replicas update state locally and merge concurrently, mathematically guaranteeing convergence via commutativity, associativity, and idempotence.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why is 'exactly-once delivery' an illusion in distributed networking?</p></div><div class="a" hidden><p>Network packet loss and the Two Generals' Problem prove that unacknowledged messages cannot be confirmed; true reliability requires at-least-once delivery paired with idempotent processing.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does Raft ensure consensus safety?</p></div><div class="a" hidden><p>By guaranteeing that at most one leader can be elected per term via majority voting, and ensuring the leader only appends to logs, never overwriting existing committed entries.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement vector clocks to detect causal order and concurrency, construct quorum replication stores that guarantee read-your-writes, build convergent CRDT counters, and simulate Raft leader elections.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Lamport, Leslie (1978). Time, Clocks, and the Ordering of Events in a Distributed System. Communications of the ACM, 21(7), 558-565.</li>
+<li>Fischer, M. J., Lynch, N. A., &amp; Paterson, M. S. (1985). Impossibility of Distributed Consensus with One Faulty Process. Journal of the ACM, 32(2), 374-382.</li>
+<li>Ongaro, Diego, &amp; Ousterhout, John (2014). In Search of an Understandable Consensus Algorithm. USENIX ATC.</li>
+<li>Shapiro, Marc, et al. (2011). Conflict-Free Replicated Data Types. Symposium on Self-Stabilizing Systems, Springer, 386-400.</li>
+</ul></section>
+<footer class="pager"><a href="S07.html">&larr; S07 Platform interop: channels, FFI and JNI</a>
+<a href="D19.html">D19 System design I: foundations &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P20", "packages": ["numpy"], "exercises": {"ex1-vector-clock-causality": {"starter": "from typing import Dict, List\n\nclass VectorClock:\n    def __init__(self, node_id: int, num_nodes: int):\n        pass\n\n    def tick(self) -> List[int]:\n        pass\n\n    def send(self) -> List[int]:\n        pass\n\n    def receive(self, remote_vector: List[int]) -> List[int]:\n        pass\n\n    def happens_before(self, other_vector: List[int]) -> bool:\n        pass\n\n    def is_concurrent_with(self, other_vector: List[int]) -> bool:\n        pass\n", "solution": "from typing import Dict, List\n\nclass VectorClock:\n    def __init__(self, node_id: int, num_nodes: int):\n        self.node_id = node_id\n        self.clock = [0] * num_nodes\n\n    def tick(self) -> List[int]:\n        self.clock[self.node_id] += 1\n        return list(self.clock)\n\n    def send(self) -> List[int]:\n        self.clock[self.node_id] += 1\n        return list(self.clock)\n\n    def receive(self, remote_vector: List[int]) -> List[int]:\n        for i in range(len(self.clock)):\n            self.clock[i] = max(self.clock[i], remote_vector[i])\n        self.clock[self.node_id] += 1\n        return list(self.clock)\n\n    def happens_before(self, other_vector: List[int]) -> bool:\n        less_or_equal = all(a <= b for a, b in zip(self.clock, other_vector))\n        strictly_less = any(a < b for a, b in zip(self.clock, other_vector))\n        return less_or_equal and strictly_less\n\n    def is_concurrent_with(self, other_vector: List[int]) -> bool:\n        v1 = self.clock\n        v2 = other_vector\n        hb1 = all(a <= b for a, b in zip(v1, v2)) and any(a < b for a, b in zip(v1, v2))\n        hb2 = all(b <= a for a, b in zip(v1, v2)) and any(b < a for a, b in zip(v1, v2))\n        return not hb1 and not hb2\n", "tests": "def test_vector_clock_local_and_send():\n    vc0 = VectorClock(0, 3)\n    assert vc0.tick() == [1, 0, 0]\n    msg = vc0.send()\n    assert msg == [2, 0, 0]\n\ndef test_vector_clock_receive_and_causality():\n    vc0 = VectorClock(0, 3)\n    vc1 = VectorClock(1, 3)\n    \n    msg0 = vc0.send() # [1, 0, 0]\n    state1 = vc1.receive(msg0) # max([0,0,0], [1,0,0]) + tick(1) -> [1, 1, 0]\n    assert state1 == [1, 1, 0]\n    assert vc0.happens_before(state1)\n\ndef test_vector_clock_concurrency():\n    vc0 = VectorClock(0, 3)\n    vc1 = VectorClock(1, 3)\n    \n    # Independent events\n    e0 = vc0.tick() # [1, 0, 0]\n    e1 = vc1.tick() # [0, 1, 0]\n    \n    assert vc0.is_concurrent_with(e1)\n    assert not vc0.happens_before(e1)\n", "mutants": ["class VectorClock:\n    def __init__(self, node_id: int, num_nodes: int): pass\n    def tick(self): pass\n    def send(self): pass\n    def receive(self, remote_vector): pass\n    def happens_before(self, other_vector): assert False, 'mutant injected'\n    def is_concurrent_with(self, other_vector): pass\n", "class VectorClock:\n    def __init__(self, node_id: int, num_nodes: int):\n        self.node_id = node_id; self.clock = [0] * num_nodes\n    def tick(self): self.clock[self.node_id] += 1; return list(self.clock)\n    def send(self): self.clock[self.node_id] += 1; return list(self.clock)\n    def receive(self, remote): return list(self.clock) # mutant forgets to merge remote!\n    def happens_before(self, other): return all(a <= b for a, b in zip(self.clock, other))\n    def is_concurrent_with(self, other): return False\n"], "hints": ["Increment the local component of the vector clock on tick and send.", "On receive, compute element-wise maximum with the incoming vector, then increment the local component.", "Verify that happens-before requires all components <= and at least one strictly <."], "level": "warmup", "title": "Vector Clock Causality and Happens-Before Engine"}, "ex2-quorum-replication-store": {"starter": "from typing import Dict, List, Optional, Tuple\n\nclass QuorumUnavailableError(Exception):\n    pass\n\nclass QuorumStore:\n    def __init__(self, num_nodes: int = 5):\n        pass\n\n    def partition_node(self, node_id: int):\n        pass\n\n    def heal_node(self, node_id: int):\n        pass\n\n    def write(self, key: str, value: str, quorum_w: int) -> bool:\n        pass\n\n    def read(self, key: str, quorum_r: int) -> Tuple[Optional[str], int]:\n        pass\n", "solution": "from typing import Dict, List, Optional, Tuple\n\nclass QuorumUnavailableError(Exception):\n    pass\n\nclass QuorumStore:\n    def __init__(self, num_nodes: int = 5):\n        self.num_nodes = num_nodes\n        # node_id -> {key: (value, version)}\n        self.nodes = {i: {} for i in range(num_nodes)}\n        self.partitioned = set()\n        self.global_version = 0\n\n    def partition_node(self, node_id: int):\n        self.partitioned.add(node_id)\n\n    def heal_node(self, node_id: int):\n        self.partitioned.discard(node_id)\n\n    def write(self, key: str, value: str, quorum_w: int) -> bool:\n        available = [i for i in range(self.num_nodes) if i not in self.partitioned]\n        if len(available) < quorum_w:\n            return False\n            \n        self.global_version += 1\n        ver = self.global_version\n        for node_id in available[:quorum_w]:\n            self.nodes[node_id][key] = (value, ver)\n        return True\n\n    def read(self, key: str, quorum_r: int) -> Tuple[Optional[str], int]:\n        available = [i for i in range(self.num_nodes) if i not in self.partitioned]\n        if len(available) < quorum_r:\n            raise QuorumUnavailableError(f\"Insufficient nodes for read quorum: {len(available)} < {quorum_r}\")\n            \n        best_val = None\n        best_ver = -1\n        for node_id in available[:quorum_r]:\n            if key in self.nodes[node_id]:\n                val, ver = self.nodes[node_id][key]\n                if ver > best_ver:\n                    best_ver = ver\n                    best_val = val\n        return best_val, best_ver\n", "tests": "def test_quorum_read_write_success():\n    qs = QuorumStore(num_nodes=5)\n    # Write with W=3\n    assert qs.write(\"user:1\", \"Alice\", quorum_w=3)\n    \n    # Read with R=3 (R + W = 6 > 5 -> must see latest write)\n    val, ver = qs.read(\"user:1\", quorum_r=3)\n    assert val == \"Alice\"\n    assert ver == 1\n\ndef test_quorum_partition_failure():\n    qs = QuorumStore(num_nodes=5)\n    # Partition 3 nodes: only 2 available\n    qs.partition_node(0)\n    qs.partition_node(1)\n    qs.partition_node(2)\n    \n    # Write with W=3 should fail\n    assert not qs.write(\"balance\", \"500\", quorum_w=3)\n    \n    # Read with R=3 should raise QuorumUnavailableError\n    try:\n        qs.read(\"balance\", quorum_r=3)\n        assert False, \"Should raise QuorumUnavailableError\"\n    except QuorumUnavailableError:\n        pass\n\ndef test_quorum_healing_restores_operations():\n    qs = QuorumStore(num_nodes=5)\n    qs.partition_node(0)\n    qs.partition_node(1)\n    qs.partition_node(2)\n    assert not qs.write(\"token\", \"xyz\", quorum_w=3)\n    \n    # Heal node 0\n    qs.heal_node(0) # Now 3 nodes available (0, 3, 4)\n    assert qs.write(\"token\", \"xyz\", quorum_w=3)\n    val, ver = qs.read(\"token\", quorum_r=3)\n    assert val == \"xyz\"\n", "mutants": ["class QuorumUnavailableError(Exception): pass\nclass QuorumStore:\n    def __init__(self, num_nodes=5): pass\n    def partition_node(self, node_id): pass\n    def heal_node(self, node_id): pass\n    def write(self, key, value, quorum_w): assert False, 'mutant injected'\n    def read(self, key, quorum_r): pass\n", "class QuorumUnavailableError(Exception): pass\nclass QuorumStore:\n    def __init__(self, num_nodes: int = 5):\n        self.num_nodes = num_nodes\n        self.nodes = {i: {} for i in range(num_nodes)}\n        self.partitioned = set()\n        self.global_version = 0\n\n    def partition_node(self, node_id: int):\n        self.partitioned.add(node_id)\n\n    def heal_node(self, node_id: int):\n        self.partitioned.discard(node_id)\n\n    def write(self, key: str, value: str, quorum_w: int) -> bool:\n        self.global_version += 1\n        for i in range(self.num_nodes):\n            self.nodes[i][key] = (value, self.global_version)\n        return True\n\n    def read(self, key: str, quorum_r: int):\n        best_val, best_ver = None, -1\n        for i in range(self.num_nodes):\n            if key in self.nodes[i]:\n                v, ver = self.nodes[i][key]\n                if ver > best_ver:\n                    best_val, best_ver = v, ver\n        return best_val, best_ver\n"], "hints": ["Track partitioned nodes in a set and filter available nodes during operations.", "Return False if available nodes < quorum_w.", "Raise QuorumUnavailableError if available nodes < quorum_r."], "level": "core", "title": "Quorum Replication Store with Versioned Reads and Partitions"}, "ex3-crdt-pn-counter": {"starter": "from typing import Dict\n\nclass PNCounter:\n    def __init__(self, node_id: str):\n        pass\n\n    def increment(self, amount: int = 1):\n        pass\n\n    def decrement(self, amount: int = 1):\n        pass\n\n    def value(self) -> int:\n        pass\n\n    def merge(self, other: 'PNCounter') -> 'PNCounter':\n        pass\n", "solution": "from typing import Dict\n\nclass PNCounter:\n    def __init__(self, node_id: str):\n        self.node_id = node_id\n        # node_id -> total increments\n        self.P = {}\n        # node_id -> total decrements\n        self.N = {}\n\n    def increment(self, amount: int = 1):\n        if amount < 0:\n            raise ValueError(\"Increment amount must be non-negative\")\n        self.P[self.node_id] = self.P.get(self.node_id, 0) + amount\n\n    def decrement(self, amount: int = 1):\n        if amount < 0:\n            raise ValueError(\"Decrement amount must be non-negative\")\n        self.N[self.node_id] = self.N.get(self.node_id, 0) + amount\n\n    def value(self) -> int:\n        total_p = sum(self.P.values())\n        total_n = sum(self.N.values())\n        return total_p - total_n\n\n    def merge(self, other: 'PNCounter') -> 'PNCounter':\n        # Join-semilattice merge: pointwise maximum\n        all_nodes = set(self.P.keys()).union(other.P.keys()).union(self.N.keys()).union(other.N.keys())\n        for n in all_nodes:\n            self.P[n] = max(self.P.get(n, 0), other.P.get(n, 0))\n            self.N[n] = max(self.N.get(n, 0), other.N.get(n, 0))\n        return self\n", "tests": "def test_pn_counter_local_operations():\n    c = PNCounter(\"A\")\n    c.increment(5)\n    c.decrement(2)\n    assert c.value() == 3\n\ndef test_pn_counter_distributed_merge_convergence():\n    c1 = PNCounter(\"A\")\n    c2 = PNCounter(\"B\")\n    \n    c1.increment(10)\n    c1.decrement(3) # A = +7\n    \n    c2.increment(20)\n    c2.decrement(5) # B = +15\n    \n    # Merge c2 into c1\n    c1.merge(c2)\n    assert c1.value() == 22 # 7 + 15 = 22\n    \n    # Merge c1 into c2\n    c2.merge(c1)\n    assert c2.value() == 22 # Both converged!\n\ndef test_pn_counter_idempotence():\n    c1 = PNCounter(\"A\")\n    c1.increment(10)\n    \n    c2 = PNCounter(\"B\")\n    c2.increment(5)\n    \n    c1.merge(c2)\n    assert c1.value() == 15\n    \n    # Merging again must produce identical result (idempotence)\n    c1.merge(c2)\n    assert c1.value() == 15\n", "mutants": ["class PNCounter:\n    def __init__(self, node_id: str): pass\n    def increment(self, amount=1): pass\n    def decrement(self, amount=1): pass\n    def value(self): assert False, 'mutant injected'\n    def merge(self, other): pass\n", "class PNCounter:\n    def __init__(self, node_id: str):\n        self.node_id = node_id; self.val = 0\n    def increment(self, a=1): self.val += a\n    def decrement(self, a=1): self.val -= a\n    def value(self): return self.val\n    def merge(self, other):\n        # Mutant simply adds values together, violating idempotence!\n        self.val += other.val\n        return self\n"], "hints": ["Maintain two dictionaries P (positive counts) and N (negative counts) keyed by node ID.", "In merge, compute the pointwise maximum for every node in both P and N.", "Compute value() as the sum of all values in P minus the sum of all values in N."], "level": "core", "title": "Conflict-Free Replicated Data Type (P-N Counter CRDT)"}, "ex4-raft-leader-election-simulator": {"starter": "from typing import Dict, List, Optional\n\nclass RaftNode:\n    def __init__(self, node_id: int, total_nodes: int):\n        pass\n\n    def start_election(self) -> Dict:\n        pass\n\n    def handle_request_vote(self, candidate_id: int, candidate_term: int) -> bool:\n        pass\n\n    def record_vote(self, voter_id: int, granted: bool) -> bool:\n        pass\n\n    def handle_heartbeat(self, leader_id: int, leader_term: int) -> bool:\n        pass\n", "solution": "from typing import Dict, List, Optional\n\nclass RaftNode:\n    def __init__(self, node_id: int, total_nodes: int):\n        self.node_id = node_id\n        self.total_nodes = total_nodes\n        self.current_term = 0\n        self.voted_for: Optional[int] = None\n        self.state = \"FOLLOWER\" # FOLLOWER, CANDIDATE, LEADER\n        self.votes_received = set()\n\n    def start_election(self) -> Dict:\n        self.current_term += 1\n        self.state = \"CANDIDATE\"\n        self.voted_for = self.node_id\n        self.votes_received = {self.node_id} # Vote for self\n        return {\n            \"candidate_id\": self.node_id,\n            \"term\": self.current_term\n        }\n\n    def handle_request_vote(self, candidate_id: int, candidate_term: int) -> bool:\n        # If candidate term is higher, step down\n        if candidate_term > self.current_term:\n            self.current_term = candidate_term\n            self.state = \"FOLLOWER\"\n            self.voted_for = None\n\n        # Vote granted if term matches and not yet voted\n        if candidate_term == self.current_term and (self.voted_for is None or self.voted_for == candidate_id):\n            self.voted_for = candidate_id\n            return True\n        return False\n\n    def record_vote(self, voter_id: int, granted: bool) -> bool:\n        if self.state != \"CANDIDATE\":\n            return False\n            \n        if granted:\n            self.votes_received.add(voter_id)\n            majority = (self.total_nodes // 2) + 1\n            if len(self.votes_received) >= majority:\n                self.state = \"LEADER\"\n                return True\n        return False\n\n    def handle_heartbeat(self, leader_id: int, leader_term: int) -> bool:\n        if leader_term >= self.current_term:\n            self.current_term = leader_term\n            self.state = \"FOLLOWER\"\n            self.voted_for = leader_id\n            return True\n        return False\n", "tests": "def test_raft_successful_leader_election():\n    # 3-node cluster: majority is 2\n    n0 = RaftNode(0, 3)\n    n1 = RaftNode(1, 3)\n    n2 = RaftNode(2, 3)\n    \n    # n0 starts election\n    vote_req = n0.start_election()\n    assert n0.state == \"CANDIDATE\"\n    assert vote_req[\"term\"] == 1\n    \n    # n1 grants vote\n    assert n1.handle_request_vote(vote_req[\"candidate_id\"], vote_req[\"term\"])\n    assert n0.record_vote(1, True) # n0 receives vote from n1 -> has 2 votes >= 2\n    assert n0.state == \"LEADER\"\n\ndef test_raft_split_vote_no_leader():\n    # 4-node cluster: majority is 3\n    n0 = RaftNode(0, 4)\n    n0.start_election()\n    # Receives vote from only 1 peer -> total 2 votes < 3\n    is_leader = n0.record_vote(1, True)\n    assert not is_leader\n    assert n0.state == \"CANDIDATE\"\n\ndef test_raft_higher_term_step_down():\n    n0 = RaftNode(0, 3)\n    n0.start_election()\n    assert n0.state == \"CANDIDATE\"\n    \n    # Receives heartbeat from a leader with higher term (term 2)\n    assert n0.handle_heartbeat(leader_id=1, leader_term=2)\n    assert n0.state == \"FOLLOWER\"\n    assert n0.current_term == 2\n", "mutants": ["class RaftNode:\n    def __init__(self, node_id: int, total_nodes: int): pass\n    def start_election(self): assert False, 'mutant injected'\n    def handle_request_vote(self, candidate_id: int, candidate_term: int): pass\n    def record_vote(self, voter_id: int, granted: bool): pass\n    def handle_heartbeat(self, leader_id: int, leader_term: int): pass\n", "class RaftNode:\n    def __init__(self, node_id: int, total_nodes: int):\n        self.node_id = node_id; self.total_nodes = total_nodes\n        self.state = \"FOLLOWER\"; self.current_term = 0\n    def start_election(self): self.state = \"CANDIDATE\"; return {\"candidate_id\": self.node_id, \"term\": 1}\n    def handle_request_vote(self, c_id, c_term): return True\n    def record_vote(self, v_id, granted):\n        # Mutant declares leadership on a single vote without majority!\n        self.state = \"LEADER\"\n        return True\n    def handle_heartbeat(self, l_id, l_term): return True\n"], "hints": ["Calculate majority as (total_nodes // 2) + 1.", "On start_election, increment term, set state to CANDIDATE, and vote for self.", "Transition to FOLLOWER whenever a message or heartbeat with a higher term is received."], "level": "boss", "title": "Raft Consensus Leader Election and Term Management"}}, "demos": {"p20-oracle-vector-clock-causality": {"code": "class VectorClock:\n    def __init__(self, node_id: int, num_nodes: int):\n        self.node_id = node_id\n        self.clock = [0] * num_nodes\n\n    def tick(self):\n        self.clock[self.node_id] += 1\n        return list(self.clock)\n\n    def send(self):\n        self.clock[self.node_id] += 1\n        return list(self.clock)\n\n    def receive(self, remote_clock: list):\n        for i in range(len(self.clock)):\n            self.clock[i] = max(self.clock[i], remote_clock[i])\n        self.clock[self.node_id] += 1\n        return list(self.clock)\n\ndef happens_before(vc1: list, vc2: list) -> bool:\n    less_or_equal = all(a <= b for a, b in zip(vc1, vc2))\n    strictly_less = any(a < b for a, b in zip(vc1, vc2))\n    return less_or_equal and strictly_less\n\ndef are_concurrent(vc1: list, vc2: list) -> bool:\n    return not happens_before(vc1, vc2) and not happens_before(vc2, vc1)\n\n# Initialize 3 nodes\nn0 = VectorClock(0, 3)\nn1 = VectorClock(1, 3)\nn2 = VectorClock(2, 3)\n\n# e1: Node 0 ticks locally -> [1, 0, 0]\ne1 = n0.tick()\n# e2: Node 0 sends to Node 1 -> [2, 0, 0]\nmsg_0_to_1 = n0.send()\ne2 = list(n0.clock)\n\n# e3: Node 1 receives message -> max([0, 0, 0], [2, 0, 0]) + tick -> [2, 1, 0]\ne3 = n1.receive(msg_0_to_1)\n\n# e4: Node 2 ticks independently -> [0, 0, 1]\ne4 = n2.tick()\n\nprint(\"e1 (Node 0):\", e1)\nprint(\"e2 (Node 0):\", e2)\nprint(\"e3 (Node 1):\", e3)\nprint(\"e4 (Node 2):\", e4)\n\nassert happens_before(e1, e2)\nassert happens_before(e2, e3)\nassert happens_before(e1, e3) # Transitive causality!\nassert are_concurrent(e3, e4) # e3 and e4 are concurrent!\nassert are_concurrent(e1, e4)\n", "mutants": ["def happens_before(vc1: list, vc2: list) -> bool:\n    # Mutant only compares scalar sum, confusing concurrent events with causal ones\n    return sum(vc1) < sum(vc2)\n\ndef are_concurrent(vc1: list, vc2: list) -> bool:\n    return False\n\nn0 = [2, 1, 0]\nn2 = [0, 0, 1]\nassert are_concurrent(n0, n2)\n"]}, "p20-experiment-quorum-consistency": {"code": "class Cluster:\n    def __init__(self, num_nodes: int = 5):\n        self.num_nodes = num_nodes\n        # node_id -> {key: (value, version)}\n        self.nodes = {i: {} for i in range(num_nodes)}\n\n    def write(self, key: str, value: str, version: int, nodes_subset: list) -> bool:\n        for node_id in nodes_subset:\n            self.nodes[node_id][key] = (value, version)\n        return True\n\n    def read(self, key: str, nodes_subset: list) -> tuple:\n        best_val = None\n        best_ver = -1\n        for node_id in nodes_subset:\n            if key in self.nodes[node_id]:\n                val, ver = self.nodes[node_id][key]\n                if ver > best_ver:\n                    best_ver = ver\n                    best_val = val\n        return best_val, best_ver\n\ncluster = Cluster(num_nodes=5)\n\n# Initial write: key=\"balance\" = \"100\", version=1 to all nodes\ncluster.write(\"balance\", \"100\", 1, [0, 1, 2, 3, 4])\n\n# Write update with strict quorum W=3: nodes [0, 1, 2] receive version 2\ncluster.write(\"balance\", \"150\", 2, [0, 1, 2])\n\n# Any read quorum of R=3 (e.g. nodes [2, 3, 4]) MUST intersect W [0, 1, 2] at node 2!\nval_quorum, ver_quorum = cluster.read(\"balance\", [2, 3, 4])\nprint(\"Strict Quorum (W=3, R=3): read version =\", ver_quorum, \"value =\", val_quorum)\nassert ver_quorum == 2 and val_quorum == \"150\"\n\n# Non-quorum hazard: W=2 (written to nodes [0, 1]) and R=2 (read from nodes [3, 4])\n# W + R = 4 <= 5 (no overlap!) -> Stale read!\ncluster.write(\"balance\", \"200\", 3, [0, 1])\nval_stale, ver_stale = cluster.read(\"balance\", [3, 4])\nprint(\"Non-Quorum Hazard (W=2, R=2): read version =\", ver_stale, \"value =\", val_stale)\nassert ver_stale == 1 and val_stale == \"100\" # Stale read detected!\n", "mutants": ["class Cluster:\n    def __init__(self, num_nodes=5): self.nodes = {i: {} for i in range(num_nodes)}\n    def write(self, k, v, ver, subset): return True\n    def read(self, k, subset): return (\"150\", 2) # mutant hides stale read\n\ncluster = Cluster(5)\nval_stale, ver_stale = cluster.read(\"balance\", [3, 4])\nassert ver_stale == 1, \"Must detect stale read when R + W <= N\"\n"]}}, "cards": [{"q": "What is the happens-before relation in distributed systems?", "a": "A strict partial order (introduced by Leslie Lamport) defining causal relationships between events across independent processes without physical clocks."}, {"q": "What is the Quorum intersection invariant?", "a": "In an N-node replica cluster with write quorum W and read quorum R, R + W > N guarantees that any read quorum intersects any write quorum in at least one node, ensuring fresh data."}, {"q": "What does the CAP theorem state?", "a": "In an asynchronous network experiencing network partitions (P), a distributed data store can guarantee either Consistency (linearizability) or Availability, but not both."}, {"q": "What are Conflict-Free Replicated Data Types (CRDTs)?", "a": "Data structures modeled on join-semilattices where replicas update state locally and merge concurrently, mathematically guaranteeing convergence via commutativity, associativity, and idempotence."}, {"q": "Why is 'exactly-once delivery' an illusion in distributed networking?", "a": "Network packet loss and the Two Generals' Problem prove that unacknowledged messages cannot be confirmed; true reliability requires at-least-once delivery paired with idempotent processing."}, {"q": "How does Raft ensure consensus safety?", "a": "By guaranteeing that at most one leader can be elected per term via majority voting, and ensuring the leader only appends to logs, never overwriting existing committed entries."}], "title": "Distributed systems"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

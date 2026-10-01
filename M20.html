@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M20 Linear inequalities and linear programming</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M20">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~3h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M20</p><h1>Linear inequalities and linear programming</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M12.html">M12</a></div><div><b>Covers:</b> NCERT 11: Linear Inequalities, NCERT 12: Linear Programming</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>linear inequalities in one and two variables</li><li>graphical solution regions</li><li>systems of inequalities</li><li>formulating a linear program</li><li>the feasible region</li><li>the corner-point theorem</li><li>unbounded and infeasible programs</li><li>the idea of the simplex method</li><li>LP duality at a first-look level</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Meena's mother runs a sweet shop. This morning she has eighteen kilos of sugar and twelve kilos of ghee, and nothing else will arrive until tomorrow.</p>
+<p>She makes two things. A tray of barfi takes three kilos of sugar and one kilo of ghee, and earns sixty rupees. A tray of halwa takes two kilos of sugar and three kilos of ghee, and earns fifty rupees.</p>
+<p>Meena says: barfi earns more, so make only barfi. Six trays, that uses all the sugar, three hundred and sixty rupees. Her mother shakes her head — six trays of barfi uses only six kilos of ghee, and six kilos are sitting there doing nothing.</p>
+<p>So Meena tries mixing. Four barfi and three halwa: sugar is twelve plus six, eighteen, all gone. Ghee is four plus nine, thirteen — too much. Doesn't work.</p>
+<p>She tries again. Four barfi and two halwa. Sugar sixteen, ghee ten. Both left over. Three hundred and forty. Worse.</p>
+<p>Her mother draws it on the back of a bill: sugar across, ghee up, and shades the region of plans she can actually afford. It is a lopsided patch with corners.</p>
+<p>"Only check the corners," she says.</p>
+<p>Meena protests — surely the best plan could be anywhere inside. Her mother tells her to try. Every inside point she tests, she can improve by sliding towards an edge, and every edge point by sliding towards a corner.</p>
+<p>Here is the surprise: a problem with infinitely many possible plans has only a handful worth checking. The answer is always standing in a corner.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>linear inequality</strong> such as $3x + 2y \le 18$ divides the plane into two halves. The line itself is the border; one side satisfies the inequality and the other does not.</p>
+<p>Several inequalities together carve out a <strong>feasible region</strong> — all the plans you can actually afford. It is a polygon, possibly unbounded, and it is always <strong>convex</strong>: the straight line between any two feasible points stays feasible.</p>
+<p>A <strong>linear program</strong> adds a goal: maximise or minimise a linear <strong>objective</strong> such as $60x+50y$ over that region.</p>
+<p>The whole subject rests on one theorem. Because both the region and the objective are linear, the best value is always attained at a <strong>corner</strong> of the feasible region. So an infinite search becomes a finite one: list the corners, evaluate each, take the best.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Inequalities</h2>
+<p>A <strong>linear inequality in one variable</strong> is $ax + b \le 0$ (or $&lt;$, $\ge$, $&gt;$). Solving gives an interval. The rule that catches people: <strong>multiplying or dividing by a negative number reverses the inequality</strong>. $-2x &lt; 6$ becomes $x &gt; -3$, not $x &lt; -3$.</p>
+<p>A <strong>linear inequality in two variables</strong>, $ax+by \le c$ with $a,b$ not both zero, has as its solution set a <strong>closed half-plane</strong> bounded by the line $ax+by=c$. To decide which side, test any point not on the line — the origin is convenient when $c \neq 0$.</p>
+<p>A <strong>system</strong> of such inequalities has as its solution the intersection of the half-planes. Intersections of convex sets are convex, so the feasible region is always convex.</p>
+<h2>Linear programs</h2>
+<p>A <strong>linear program</strong> in standard form:</p>
+<p>$$\text{maximise } Z = c_1x_1 + \dots + c_nx_n \quad \text{subject to} \quad \sum_j a_{ij}x_j \le b_i,\quad x_j \ge 0$$</p>
+<p>The function $Z$ is the <strong>objective</strong>; the inequalities are <strong>constraints</strong>; the set satisfying them is the <strong>feasible region</strong>; a point of that region is a <strong>feasible solution</strong>; one achieving the best objective value is an <strong>optimal solution</strong>.</p>
+<p>A <strong>corner point</strong> (vertex, or extreme point) of the feasible region is a feasible point that is not strictly between two other feasible points. In two variables, corners arise as intersections of pairs of constraint boundaries that happen to be feasible.</p>
+<p><strong>Corner-point theorem.</strong> If a linear program has an optimal solution, then an optimal value is attained at a corner point of the feasible region. If two corners are both optimal, every point of the segment joining them is optimal too.</p>
+<p><strong>Three outcomes.</strong> A linear program is either</p>
+<ul>
+<li><strong>optimal</strong> — a finite best value exists;</li>
+<li><strong>infeasible</strong> — the constraints contradict, and the feasible region is empty;</li>
+<li><strong>unbounded</strong> — the region extends forever in a direction that improves the objective, so no finite best exists.</li>
+</ul>
+<p>Note that an unbounded <em>region</em> does not imply an unbounded <em>program</em>: minimising $x+y$ over $x,y \ge 0$ has an unbounded region and a perfectly good optimum at the origin.</p>
+<h2>The simplex idea</h2>
+<p>Enumerating every corner works in two dimensions but collapses in high ones: $n$ variables and $m$ constraints give up to $\binom{m+n}{n}$ candidate vertices. <strong>Simplex</strong>, due to George Dantzig in 1947, does something smarter. It starts at a corner and repeatedly walks along an edge to an adjacent corner that improves the objective, stopping when no neighbour is better. Because the region is convex and the objective linear, a local optimum must be global — there is no way to get stuck in a false peak. Simplex has exponential worst-case behaviour on contrived inputs but is extremely fast in practice; interior-point methods, from Khachiyan's ellipsoid method (1979) and Karmarkar's algorithm (1984), give polynomial-time guarantees.</p>
+<h2>Duality, at a first look</h2>
+<p>Every linear program has a partner, its <strong>dual</strong>. For the primal</p>
+<p>$$\text{maximise } c^Tx \ \text{ subject to } Ax\le b,\ x\ge0$$</p>
+<p>the dual is</p>
+<p>$$\text{minimise } b^Ty \ \text{ subject to } A^Ty\ge c,\ y\ge0$$</p>
+<p><strong>Weak duality:</strong> for any feasible $x$ and any feasible $y$, $c^Tx \le b^Ty$. Every dual-feasible point is a certificate that the primal cannot do better than that number.</p>
+<p><strong>Strong duality:</strong> if either has a finite optimum, both do, and the optimal values are <em>equal</em>.</p>
+<p>The interpretation is concrete and useful. The dual variables are <strong>shadow prices</strong>: $y_i$ is the amount the optimum would improve per extra unit of resource $i$. In the sweet shop, the dual tells Meena's mother exactly what one more kilo of ghee is worth to her — and whether it is worth buying at the market price.</p>
+<h2>A pinch of history</h2>
+<p>Linear programming emerged from wartime logistics. Leonid Kantorovich formulated production-planning problems this way in 1939 in the Soviet Union; George Dantzig developed the simplex method in 1947 while working on US Air Force planning problems, and John von Neumann, in conversation with Dantzig, saw the duality theory immediately through its connection to his own work on game theory. Kantorovich and Tjalling Koopmans shared the 1975 Nobel Memorial Prize in Economics for the theory of optimal allocation of resources; Dantzig, who had the algorithm, did not share it, which remains a famous oddity.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: the feasible region is convex.</strong></p>
+<ol>
+<li>Each constraint $a^Tx \le b$ defines a half-plane. Take two points $p,q$ satisfying it.</li>
+<li>A point on the segment between them is $tp + (1-t)q$ for $t\in[0,1]$.</li>
+<li>Then $a^T(tp+(1-t)q) = t\,a^Tp + (1-t)\,a^Tq \le tb + (1-t)b = b$, using linearity and $t,1-t \ge 0$.</li>
+<li>So the segment stays inside the half-plane.</li>
+<li>The feasible region is the intersection of such sets, and an intersection of convex sets is convex because the segment must stay inside each one.</li>
+</ol>
+<p><strong>The non-obvious step is 3</strong>, and it depends on $t$ and $1-t$ being non-negative — the only reason the inequality survives multiplication.</p>
+<p><strong>Result 2: the corner-point theorem</strong>, in the bounded case.</p>
+<ol>
+<li>A bounded feasible region is a convex polygon, and every point in it can be written as a weighted average of its corners $v_1,\dots,v_k$: $x = \sum_i \lambda_i v_i$ with $\lambda_i \ge 0$ and $\sum\lambda_i = 1$.</li>
+<li>The objective is linear, so $Z(x) = \sum_i \lambda_i Z(v_i)$ — the objective at $x$ is the same weighted average of the objective at the corners.</li>
+<li>A weighted average can never exceed the largest thing being averaged: $\sum_i\lambda_i Z(v_i) \le \max_i Z(v_i)$.</li>
+<li>So no feasible point beats the best corner.</li>
+<li>Since corners are themselves feasible, the maximum is attained at a corner.</li>
+<li>If two corners tie at the maximum, step 2 shows every average of them also achieves it, so the whole edge is optimal.</li>
+</ol>
+<p>This is exactly Meena's experiment. Step 3 is why "slide towards the better end" always works: an interior point is literally an average of corners, and an average is never better than the best ingredient.</p>
+<p><strong>Result 3: weak duality.</strong></p>
+<ol>
+<li>Let $x$ be primal-feasible ($Ax\le b$, $x\ge0$) and $y$ dual-feasible ($A^Ty \ge c$, $y\ge0$).</li>
+<li>Since $y \ge 0$ and $Ax \le b$, multiplying gives $y^TAx \le y^Tb$.</li>
+<li>Since $x \ge 0$ and $A^Ty \ge c$, multiplying gives $x^TA^Ty \ge x^Tc$.</li>
+<li>But $y^TAx$ and $x^TA^Ty$ are the same scalar.</li>
+<li>Chaining: $c^Tx \le y^TAx \le b^Ty$.</li>
+</ol>
+<p>So any dual-feasible $y$ hands you an upper bound on the primal, with no optimisation required. That is what makes duality practically useful: it lets you <em>prove</em> a solution is optimal rather than merely believe it.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle solves the same linear program two genuinely independent ways.</p>
+<p>The first is <strong>corner enumeration</strong>: take every pair of constraint boundaries, solve the resulting $2\times2$ system for their intersection, discard any intersection that violates some constraint, and evaluate the objective at the survivors. It is pure linear algebra and uses the theorem.</p>
+<p>The second is a <strong>dense grid search</strong> over the bounding box: test many points, keep the feasible ones, and report the best objective value found. It knows nothing about corners, convexity or theorems — it just looks everywhere.</p>
+<p>If the corner-point theorem were false, the grid would find something better than the best corner. The mutant below forgets to check that a candidate intersection is actually feasible, so it happily reports the objective at a point outside the region — the single most common bug when implementing this.</p>
+<div class="lab demo" data-demo="m20-corners-vs-grid">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Corner enumeration against brute-force search</h3></div>
+
+<textarea class="code" spellcheck="false">def intersect(c1, c2):
+    &quot;&quot;&quot;Intersection of a1 x + b1 y = r1 and a2 x + b2 y = r2, or None if parallel.&quot;&quot;&quot;
+    a1, b1, r1 = c1
+    a2, b2, r2 = c2
+    det = a1 * b2 - a2 * b1
+    if det == 0:
+        return None
+    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)
+
+
+def feasible(point, constraints, tol=1e-9):
+    x, y = point
+    return all(a * x + b * y &lt;= r + tol for a, b, r in constraints)
+
+
+def solve_by_corners(constraints, objective):
+    &quot;&quot;&quot;Enumerate vertices, keep the feasible ones, take the best.&quot;&quot;&quot;
+    best = None
+    best_point = None
+    n = len(constraints)
+    for i in range(n):
+        for j in range(i + 1, n):
+            p = intersect(constraints[i], constraints[j])
+            if p is None or not feasible(p, constraints):
+                continue
+            value = objective[0] * p[0] + objective[1] * p[1]
+            if best is None or value &gt; best:
+                best, best_point = value, p
+    return best, best_point
+
+
+def solve_by_grid(constraints, objective, hi, steps=400):
+    &quot;&quot;&quot;Look everywhere. No theorems used.&quot;&quot;&quot;
+    best = None
+    for i in range(steps + 1):
+        for j in range(steps + 1):
+            x = hi * i / steps
+            y = hi * j / steps
+            if feasible((x, y), constraints):
+                value = objective[0] * x + objective[1] * y
+                if best is None or value &gt; best:
+                    best = value
+    return best
+
+
+# Meena&#x27;s sweet shop: 3x + 2y &lt;= 18 (sugar), x + 3y &lt;= 12 (ghee), x &gt;= 0, y &gt;= 0.
+SHOP = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]
+PROFIT = (60, 50)
+
+corner_best, corner_point = solve_by_corners(SHOP, PROFIT)
+grid_best = solve_by_grid(SHOP, PROFIT, hi=7)
+print(&quot;sweet shop&quot;)
+print(&quot;  best corner:&quot;, tuple(round(v, 6) for v in corner_point), &quot; profit:&quot;, round(corner_best, 4))
+print(&quot;  best found by grid search      :&quot;, round(grid_best, 4))
+assert grid_best &lt;= corner_best + 1e-6, &quot;no interior point may beat the best corner&quot;
+assert corner_best - grid_best &lt; 1.0, &quot;the grid should get close to the true optimum&quot;
+
+# The all-barfi plan Meena first tried is feasible but NOT optimal.
+assert feasible((6, 0), SHOP)
+assert 60 * 6 + 50 * 0 &lt; corner_best, &quot;the greedy all-barfi plan is beaten&quot;
+
+# Several more programs, checked both ways.
+cases = [
+    ([(1, 1, 4), (1, 3, 6), (-1, 0, 0), (0, -1, 0)], (3, 2), 5),
+    ([(2, 1, 10), (1, 1, 8), (1, 2, 14), (-1, 0, 0), (0, -1, 0)], (4, 3), 9),
+    ([(1, 0, 5), (0, 1, 5), (-1, 0, 0), (0, -1, 0)], (1, 1), 6),
+]
+for constraints, objective, hi in cases:
+    c, _ = solve_by_corners(constraints, objective)
+    g = solve_by_grid(constraints, objective, hi)
+    print(f&quot;  corners {c:.4f}   grid {g:.4f}&quot;)
+    assert g &lt;= c + 1e-6, &quot;the corner optimum must not be beaten&quot;
+    assert c - g &lt; 0.2, &quot;and the grid must get close to it&quot;
+
+print()
+print(&quot;convexity: the midpoint of two feasible plans is always feasible&quot;)
+import random
+rng = random.Random(1947)
+for _ in range(500):
+    p = (rng.uniform(0, 6), rng.uniform(0, 4))
+    q = (rng.uniform(0, 6), rng.uniform(0, 4))
+    if feasible(p, SHOP) and feasible(q, SHOP):
+        t = rng.random()
+        mid = (t * p[0] + (1 - t) * q[0], t * p[1] + (1 - t) * q[1])
+        assert feasible(mid, SHOP), &quot;the feasible region must be convex&quot;
+print(&quot;500 random pairs checked&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Two predictions.</p>
+<p><strong>First, the corner-point theorem as a measurement.</strong> Generate random feasible points by the thousand, evaluate the objective at each, and compare the best of them with the best corner. The theory predicts the corner wins every time, and that random sampling never quite reaches it. If some random interior point beat the best corner, the theorem would be dead.</p>
+<p><strong>Second, weak duality.</strong> We predict that for <em>any</em> dual-feasible $y$ — not just the optimal one — the dual objective $b^Ty$ is an upper bound on the primal optimum, and that at the optimum the two values are exactly equal. We generate random dual-feasible points and check the bound never breaks.</p>
+<div class="lab demo" data-demo="m20-corner-theorem-and-duality">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Can random search beat the corners? Does duality bound the answer?</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+
+def feasible(point, constraints, tol=1e-9):
+    x, y = point
+    return all(a * x + b * y &lt;= r + tol for a, b, r in constraints)
+
+
+SHOP = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]
+PROFIT = (60, 50)
+# Corners of the sweet-shop region, computed by hand:
+# (0,0), (6,0), (0,4) and the sugar/ghee crossing (30/7, 18/7).
+CORNERS = [(0.0, 0.0), (6.0, 0.0), (0.0, 4.0), (30 / 7, 18 / 7)]
+for c in CORNERS:
+    assert feasible(c, SHOP), f&quot;{c} must be feasible&quot;
+
+best_corner = max(PROFIT[0] * x + PROFIT[1] * y for x, y in CORNERS)
+
+rng = random.Random(1939)
+best_random = 0.0
+samples = 0
+for _ in range(200000):
+    p = (rng.uniform(0, 6), rng.uniform(0, 4))
+    if feasible(p, SHOP):
+        samples += 1
+        best_random = max(best_random, PROFIT[0] * p[0] + PROFIT[1] * p[1])
+
+print(&quot;feasible samples drawn:&quot;, samples)
+print(&quot;predicted: the best corner is never beaten by any interior point&quot;)
+print(&quot;best corner value :&quot;, round(best_corner, 6), &quot;at (30/7, 18/7)&quot;)
+print(&quot;best random value :&quot;, round(best_random, 6))
+print(&quot;shortfall of random search:&quot;, round(best_corner - best_random, 6))
+
+assert best_random &lt;= best_corner + 1e-9, &quot;no feasible point may beat the best corner&quot;
+assert best_corner - best_random &gt; 0, &quot;random sampling essentially never lands exactly on a corner&quot;
+assert best_corner - best_random &lt; 1.0, &quot;but with 200k samples it gets close&quot;
+
+# Weak duality. Primal: max 60x + 50y s.t. 3x+2y&lt;=18, x+3y&lt;=12, x,y&gt;=0.
+# Dual:  min 18u + 12v  s.t. 3u + v &gt;= 60, 2u + 3v &gt;= 50, u,v &gt;= 0.
+def dual_feasible(u, v):
+    return u &gt;= 0 and v &gt;= 0 and 3 * u + v &gt;= 60 - 1e-9 and 2 * u + 3 * v &gt;= 50 - 1e-9
+
+
+print()
+print(&quot;predicted: EVERY dual-feasible point is an upper bound on the primal optimum&quot;)
+checked = 0
+tightest = None
+for _ in range(200000):
+    u = rng.uniform(0, 40)
+    v = rng.uniform(0, 40)
+    if dual_feasible(u, v):
+        bound = 18 * u + 12 * v
+        assert bound &gt;= best_corner - 1e-6, &quot;weak duality must never be violated&quot;
+        tightest = bound if tightest is None else min(tightest, bound)
+        checked += 1
+
+print(&quot;dual-feasible points checked:&quot;, checked)
+print(&quot;primal optimum        :&quot;, round(best_corner, 4))
+print(&quot;tightest random bound :&quot;, round(tightest, 4))
+assert checked &gt; 1000
+assert tightest &gt;= best_corner - 1e-6
+
+# Strong duality: the exact dual optimum equals the primal optimum.
+# Both constraints are tight at the optimum, so solve 3u+v=60, 2u+3v=50.
+u = (60 * 3 - 50) / (3 * 3 - 2)
+v = 60 - 3 * u
+print()
+print(&quot;exact dual solution: u =&quot;, round(u, 6), &quot; v =&quot;, round(v, 6))
+print(&quot;dual objective 18u + 12v =&quot;, round(18 * u + 12 * v, 6))
+print(&quot;primal optimum           =&quot;, round(best_corner, 6))
+assert dual_feasible(u, v)
+assert abs((18 * u + 12 * v) - best_corner) &lt; 1e-6, &quot;strong duality: the two optima must be equal&quot;
+print()
+print(&quot;shadow prices: one more kilo of sugar is worth&quot;, round(u, 2), &quot;rupees;&quot;)
+print(&quot;               one more kilo of ghee  is worth&quot;, round(v, 2), &quot;rupees.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: random search gets <em>close</em> and never arrives. With two hundred thousand samples it lands within a rupee or so of the optimum but cannot reach it, because a corner is a single point of zero area and a continuous sample hits it with probability zero. That is the practical argument for the theorem: the exact answer is unreachable by search and trivial by enumeration. Note also what the duality half gives you that the primal alone does not — a <em>certificate</em>. Any dual-feasible pair proves an upper bound without solving anything, so you can verify an optimum far more cheaply than you can find it.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m20-ex1-one-variable" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Linear inequalities in one variable</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>solve_linear_inequality(a, b, op)</code> for the inequality <code>a*x + b op 0</code> where <code>op</code> is one of <code>"&lt;"</code>, <code>"&lt;="</code>, <code>"&gt;"</code>, <code>"&gt;="</code>. Return a tuple <code>(low, high, closed_low, closed_high)</code> describing the solution interval, using <code>float("-inf")</code> and <code>float("inf")</code> for unbounded ends and <code>False</code> for the inclusivity of an infinite end. When <code>a == 0</code> the inequality is either always or never true: return <code>(-inf, inf, False, False)</code> for always, and raise <code>ValueError</code> for never. Write <code>satisfies(a, b, op, x)</code> evaluating the inequality at a point.</p></div>
+<textarea class="code" spellcheck="false">def solve_linear_inequality(a, b, op):
+    &quot;&quot;&quot;Solve a*x + b op 0, returning the interval.&quot;&quot;&quot;
+    return (0.0, 0.0, False, False)
+
+
+def satisfies(a, b, op, x):
+    &quot;&quot;&quot;Evaluate the inequality at x.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_positive_coefficient():
+    inf = float(&quot;inf&quot;)
+    # 2x - 6 &lt;= 0  -&gt;  x &lt;= 3
+    assert solve_linear_inequality(2, -6, &quot;&lt;=&quot;) == (-inf, 3.0, False, True)
+    # 2x - 6 &gt; 0  -&gt;  x &gt; 3
+    assert solve_linear_inequality(2, -6, &quot;&gt;&quot;) == (3.0, inf, False, False)
+
+
+def test_negative_coefficient_flips_the_direction():
+    inf = float(&quot;inf&quot;)
+    # -2x - 6 &lt; 0  -&gt;  x &gt; -3   (dividing by -2 reverses the sign)
+    low, high, cl, ch = solve_linear_inequality(-2, -6, &quot;&lt;&quot;)
+    assert (low, high, cl, ch) == (-3.0, inf, False, False)
+    assert satisfies(-2, -6, &quot;&lt;&quot;, 0.0) is True
+    assert satisfies(-2, -6, &quot;&lt;&quot;, -5.0) is False
+    # -x + 4 &gt;= 0  -&gt;  x &lt;= 4
+    low, high, cl, ch = solve_linear_inequality(-1, 4, &quot;&gt;=&quot;)
+    assert high == 4.0 and ch is True and low == -inf
+
+
+def test_degenerate_and_consistency():
+    inf = float(&quot;inf&quot;)
+    # 0*x + 1 &gt; 0 is always true
+    assert solve_linear_inequality(0, 1, &quot;&gt;&quot;) == (-inf, inf, False, False)
+    try:
+        solve_linear_inequality(0, 1, &quot;&lt;&quot;)
+        assert False, &quot;an impossible inequality must raise ValueError&quot;
+    except ValueError:
+        pass
+    # the returned interval must agree with pointwise evaluation
+    for a, b, op in ((2, -6, &quot;&lt;=&quot;), (-2, -6, &quot;&lt;&quot;), (3, 1, &quot;&gt;&quot;), (-1, 4, &quot;&gt;=&quot;)):
+        low, high, cl, ch = solve_linear_inequality(a, b, op)
+        for x in (-10, -3.0001, -3, -2.9999, 0, 2.9999, 3, 3.0001, 10):
+            inside = ((x &gt; low) or (cl and x == low)) and ((x &lt; high) or (ch and x == high))
+            assert inside == satisfies(a, b, op, x), (a, b, op, x)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m20-ex2-half-planes" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Half-planes and the feasible region</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>A constraint is a tuple <code>(a, b, r)</code> meaning <code>a*x + b*y &lt;= r</code>. Write <code>satisfies_constraint(constraint, point, tol=1e-9)</code>. Write <code>is_feasible(constraints, point)</code> returning <code>True</code> when every constraint holds. Write <code>is_convex_combination_feasible(constraints, p, q, t)</code> returning whether the point <code>t*p + (1-t)*q</code> is feasible, raising <code>ValueError</code> when <code>t</code> is outside <code>[0, 1]</code>. Write <code>bounding_box(constraints, lo, hi, steps)</code> returning <code>(min_x, max_x, min_y, max_y)</code> over the feasible grid points in the square <code>[lo, hi]</code>, or <code>None</code> when no grid point is feasible.</p></div>
+<textarea class="code" spellcheck="false">def satisfies_constraint(constraint, point, tol=1e-9):
+    &quot;&quot;&quot;True when a*x + b*y &lt;= r.&quot;&quot;&quot;
+    return False
+
+
+def is_feasible(constraints, point):
+    &quot;&quot;&quot;True when every constraint holds.&quot;&quot;&quot;
+    return False
+
+
+def is_convex_combination_feasible(constraints, p, q, t):
+    &quot;&quot;&quot;Feasibility of the point t*p + (1-t)*q.&quot;&quot;&quot;
+    return False
+
+
+def bounding_box(constraints, lo, hi, steps):
+    &quot;&quot;&quot;Extent of the feasible region over a grid, or None.&quot;&quot;&quot;
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_half_plane_membership():
+    # 3x + 2y &lt;= 18
+    c = (3, 2, 18)
+    assert satisfies_constraint(c, (0, 0)) is True
+    assert satisfies_constraint(c, (6, 0)) is True      # exactly on the line
+    assert satisfies_constraint(c, (7, 0)) is False
+    # the non-negativity constraints are written with negative coefficients
+    assert satisfies_constraint((-1, 0, 0), (3, 0)) is True
+    assert satisfies_constraint((-1, 0, 0), (-3, 0)) is False
+
+
+def test_convexity_holds_everywhere():
+    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]
+    import random
+    rng = random.Random(5)
+    checked = 0
+    for _ in range(2000):
+        p = (rng.uniform(0, 6), rng.uniform(0, 4))
+        q = (rng.uniform(0, 6), rng.uniform(0, 4))
+        if is_feasible(shop, p) and is_feasible(shop, q):
+            t = rng.random()
+            assert is_convex_combination_feasible(shop, p, q, t) is True
+            checked += 1
+    assert checked &gt; 200
+    try:
+        is_convex_combination_feasible(shop, (0, 0), (1, 1), 1.5)
+        assert False, &quot;t outside [0,1] must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_bounding_box_and_infeasible_systems():
+    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]
+    box = bounding_box(shop, 0, 7, 70)
+    assert box is not None
+    min_x, max_x, min_y, max_y = box
+    assert abs(min_x) &lt; 1e-9 and abs(min_y) &lt; 1e-9
+    assert 5.9 &lt;= max_x &lt;= 6.01          # x can reach 6 when y = 0
+    assert 3.9 &lt;= max_y &lt;= 4.01          # y can reach 4 when x = 0
+    # contradictory constraints: x &lt;= 1 and -x &lt;= -5 means x &gt;= 5
+    assert bounding_box([(1, 0, 1), (-1, 0, -5)], 0, 10, 50) is None
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m20-ex3-vertices" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Finding the corners of a feasible region</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>line_intersection(c1, c2)</code> returning the intersection point of the two constraint boundaries, or <code>None</code> when they are parallel. Write <code>vertices(constraints)</code> returning the sorted list of distinct feasible intersection points, rounded to 9 decimal places for comparison. Write <code>is_vertex(constraints, point)</code> returning <code>True</code> when the point is feasible and lies on at least two constraint boundaries. Raise <code>ValueError</code> when fewer than two constraints are given.</p></div>
+<textarea class="code" spellcheck="false">def line_intersection(c1, c2):
+    &quot;&quot;&quot;Intersection of two constraint boundaries, or None.&quot;&quot;&quot;
+    return None
+
+
+def vertices(constraints):
+    &quot;&quot;&quot;Sorted distinct feasible intersection points.&quot;&quot;&quot;
+    return []
+
+
+def is_vertex(constraints, point):
+    &quot;&quot;&quot;True when the point is feasible and on two or more boundaries.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_intersections_and_parallels():
+    # x = 6 crossed with y = 0
+    assert line_intersection((1, 0, 6), (0, 1, 0)) == (6.0, 0.0)
+    # parallel lines
+    assert line_intersection((1, 1, 2), (2, 2, 7)) is None
+    # the sweet-shop crossing: 3x+2y=18 and x+3y=12 -&gt; (30/7, 18/7)
+    p = line_intersection((3, 2, 18), (1, 3, 12))
+    assert abs(p[0] - 30 / 7) &lt; 1e-9 and abs(p[1] - 18 / 7) &lt; 1e-9
+
+
+def test_vertices_of_the_sweet_shop():
+    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]
+    vs = vertices(shop)
+    expected = sorted({(0.0, 0.0), (6.0, 0.0), (0.0, 4.0),
+                       (round(30 / 7, 9), round(18 / 7, 9))})
+    assert vs == expected
+    assert len(vs) == 4
+    # infeasible intersections must be excluded: 3x+2y=18 meets x+3y=12
+    # but 3x+2y=18 also meets x=0 at (0,9), which violates the ghee limit
+    assert (0.0, 9.0) not in vs
+
+
+def test_is_vertex_distinguishes_corners_from_interior():
+    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]
+    assert is_vertex(shop, (0.0, 0.0)) is True
+    assert is_vertex(shop, (6.0, 0.0)) is True
+    assert is_vertex(shop, (1.0, 1.0)) is False        # interior
+    assert is_vertex(shop, (3.0, 0.0)) is False        # on one edge only
+    assert is_vertex(shop, (10.0, 10.0)) is False      # infeasible
+    try:
+        vertices([(1, 0, 1)])
+        assert False, &quot;one constraint must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m20-ex4-solve-lp" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Solving a linear program by its corners</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>solve_lp(constraints, objective, maximise=True)</code> returning the tuple <code>(status, value, point)</code> where <code>status</code> is <code>"optimal"</code>, <code>"infeasible"</code> or <code>"unbounded"</code>. Report <code>"infeasible"</code> when no feasible vertex exists and no feasible point is found on a coarse probe of the box <code>[0, 1000]</code>. Report <code>"unbounded"</code> when the objective improves without limit, detected by checking whether any feasible probe point far from the origin beats the best vertex by a large margin. Otherwise return the best vertex. Minimisation is handled by negating the objective.</p></div>
+<textarea class="code" spellcheck="false">def solve_lp(constraints, objective, maximise=True):
+    &quot;&quot;&quot;Return (status, value, point).&quot;&quot;&quot;
+    return (&quot;infeasible&quot;, None, None)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_the_sweet_shop_optimum():
+    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]
+    status, value, point = solve_lp(shop, (60, 50), maximise=True)
+    assert status == &quot;optimal&quot;
+    # the crossing of the two resource limits, (30/7, 18/7)
+    assert abs(point[0] - 30 / 7) &lt; 1e-6
+    assert abs(point[1] - 18 / 7) &lt; 1e-6
+    assert abs(value - (60 * 30 / 7 + 50 * 18 / 7)) &lt; 1e-6
+    # it beats both single-product plans
+    assert value &gt; 60 * 6
+    assert value &gt; 50 * 4
+
+
+def test_minimisation_and_a_bounded_square():
+    square = [(1, 0, 5), (0, 1, 5), (-1, 0, 0), (0, -1, 0)]
+    status, value, point = solve_lp(square, (1, 1), maximise=True)
+    assert status == &quot;optimal&quot; and abs(value - 10) &lt; 1e-9
+    status, value, point = solve_lp(square, (1, 1), maximise=False)
+    assert status == &quot;optimal&quot; and abs(value) &lt; 1e-9
+    assert abs(point[0]) &lt; 1e-9 and abs(point[1]) &lt; 1e-9
+
+
+def test_infeasible_and_unbounded():
+    # x &gt;= 5 and x &lt;= 1 cannot both hold
+    bad = [(1, 0, 1), (-1, 0, -5), (0, 1, 10), (0, -1, 0)]
+    assert solve_lp(bad, (1, 1))[0] == &quot;infeasible&quot;
+    # only non-negativity: maximising x + y runs away
+    open_region = [(-1, 0, 0), (0, -1, 0)]
+    assert solve_lp(open_region, (1, 1), maximise=True)[0] == &quot;unbounded&quot;
+    # the same unbounded region has a fine minimum at the origin
+    status, value, point = solve_lp(open_region, (1, 1), maximise=False)
+    assert status == &quot;optimal&quot; and abs(value) &lt; 1e-9
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m20-ex5-duality" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Shadow prices and the duality certificate</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>For the primal "maximise <code>c1*x + c2*y</code> subject to <code>a11*x + a12*y &lt;= b1</code>, <code>a21*x + a22*y &lt;= b2</code>, <code>x, y &gt;= 0</code>", write <code>dual_constraints(a, c)</code> returning the dual constraint list in the same <code>(coef_u, coef_v, rhs)</code> form as the primal, remembering that the dual has <code>&gt;=</code> constraints so they must be negated to fit the <code>&lt;=</code> convention. Write <code>is_dual_feasible(a, c, u, v)</code>. Write <code>weak_duality_holds(a, b, c, x, y, u, v)</code> returning <code>True</code> when the primal point is feasible, the dual point is feasible, and the primal objective does not exceed the dual objective. Write <code>shadow_prices(a, b, c)</code> returning the <code>(u, v)</code> solving both dual constraints as equalities, raising <code>ValueError</code> when that system is singular.</p></div>
+<textarea class="code" spellcheck="false">def dual_constraints(a, c):
+    &quot;&quot;&quot;The dual constraints, converted to &lt;= form.&quot;&quot;&quot;
+    return []
+
+
+def is_dual_feasible(a, c, u, v):
+    &quot;&quot;&quot;True when (u, v) satisfies the dual constraints and non-negativity.&quot;&quot;&quot;
+    return False
+
+
+def weak_duality_holds(a, b, c, x, y, u, v):
+    &quot;&quot;&quot;True when both points are feasible and the duality bound holds.&quot;&quot;&quot;
+    return False
+
+
+def shadow_prices(a, b, c):
+    &quot;&quot;&quot;The dual solution with both constraints tight.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_shadow_prices_of_the_sweet_shop():
+    a = ((3, 2), (1, 3))
+    b = (18, 12)
+    c = (60, 50)
+    u, v = shadow_prices(a, b, c)
+    # dual constraints at equality: 3u + v = 60 and 2u + 3v = 50
+    assert abs(3 * u + 1 * v - 60) &lt; 1e-9
+    assert abs(2 * u + 3 * v - 50) &lt; 1e-9
+    assert u &gt; 0 and v &gt; 0
+    assert is_dual_feasible(a, c, u, v) is True
+
+
+def test_strong_duality_at_the_optimum():
+    a = ((3, 2), (1, 3))
+    b = (18, 12)
+    c = (60, 50)
+    u, v = shadow_prices(a, b, c)
+    # primal optimum at the crossing of both resource limits
+    x, y = 30 / 7, 18 / 7
+    primal = c[0] * x + c[1] * y
+    dual = b[0] * u + b[1] * v
+    assert abs(primal - dual) &lt; 1e-6, &quot;strong duality: the optima must coincide&quot;
+    assert weak_duality_holds(a, b, c, x, y, u, v) is True
+
+
+def test_weak_duality_never_breaks():
+    import random
+    a = ((3, 2), (1, 3))
+    b = (18, 12)
+    c = (60, 50)
+    rng = random.Random(1975)
+    checked = 0
+    for _ in range(4000):
+        x, y = rng.uniform(0, 7), rng.uniform(0, 5)
+        u, v = rng.uniform(0, 40), rng.uniform(0, 40)
+        primal_ok = (3 * x + 2 * y &lt;= 18 + 1e-9) and (x + 3 * y &lt;= 12 + 1e-9)
+        if primal_ok and is_dual_feasible(a, c, u, v):
+            assert weak_duality_holds(a, b, c, x, y, u, v) is True
+            checked += 1
+    assert checked &gt; 50
+    # an infeasible dual point must be rejected outright
+    assert is_dual_feasible(a, c, 0.0, 0.0) is False
+    try:
+        shadow_prices(((1, 2), (2, 4)), (1, 1), (1, 1))
+        assert False, &quot;a singular dual system must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Multiplying an inequality by a number works like an equation."</strong> Only for positive numbers. A negative multiplier reverses the direction, and forgetting that is the single most common error in the whole topic.</li>
+<li><strong>"The optimum could be anywhere in the feasible region."</strong> For a <em>linear</em> objective it is always attainable at a corner, because every interior point is a weighted average of corners and an average never beats the best ingredient. For a non-linear objective this fails completely.</li>
+<li><strong>"An unbounded feasible region means an unbounded problem."</strong> Not at all. Minimising $x+y$ over $x,y\ge0$ has an infinite region and a perfectly good optimum at the origin. Unboundedness is a property of region <em>and</em> objective together.</li>
+<li><strong>"Every intersection of two constraint lines is a corner."</strong> Only the feasible ones. Two boundaries may cross far outside the region, and including such points is the standard bug — it was the demo's mutant.</li>
+<li><strong>"The greedy choice is optimal: make whichever product earns most."</strong> Meena's first instinct, and wrong. The constraints interact, and the optimum usually mixes.</li>
+<li><strong>"Duality is abstract theory with no use."</strong> The dual variables are prices. They tell you exactly what another kilo of a scarce resource is worth, and any dual-feasible point <em>certifies</em> an upper bound without solving anything.</li>
+<li><strong>"Linear programming solves optimisation."</strong> It solves <em>linear</em> optimisation over <em>continuous</em> variables. Require the answers to be whole numbers — three and a half trays is not a plan — and you have integer programming, which is NP-hard.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>The corner-point theorem needs linearity on both sides. A curved objective can have its optimum strictly inside the region, and a non-convex feasible set can have local optima that are not global — which is exactly why M36's non-convex landscapes are hard and linear programming is not.</p>
+<p>Enumerating corners is fine for two variables and hopeless in general: $m$ constraints in $n$ variables give up to $\binom{m}{n}$ candidate vertices, which explodes. That is the whole reason simplex exists, and even simplex has contrived inputs (the Klee-Minty cubes) on which it visits exponentially many vertices.</p>
+<p>Integrality is the real-world wall. The LP relaxation gives a bound, but rounding the fractional answer can be infeasible or far from optimal, and the honest tools are branch-and-bound or cutting planes.</p>
+<p>Numerically, degenerate vertices — where more than two constraints meet at one point — make the geometry ambiguous and can cause simplex to cycle without Bland's rule or a similar anti-cycling guard. And nearly parallel constraints make a vertex ill-conditioned, exactly as in M12: a tiny change in a coefficient moves the corner a long way.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>This is resource allocation with a proof attached. Scheduling jobs against machine capacity, assigning requests to servers under a latency budget, choosing a cache mix under a memory ceiling, and planning a build pipeline against CPU limits are all linear programs, and the shadow prices answer the question management actually asks — "what would another machine buy us?" Weak duality is the practically useful half: it gives a cheap <em>certificate</em> that your solution cannot be improved by more than so much, which is often worth more than the exact optimum. And the convexity result is the foundation M36 builds on: convex problems are the ones where a local optimum is automatically global, and knowing whether your problem is convex is the first question to ask before reaching for any optimiser.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the one rule that makes solving an inequality different from solving an equation?</p></div><div class="a" hidden><p>Multiplying or dividing by a negative number reverses the inequality.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>State the corner-point theorem and the reason it is true.</p></div><div class="a" hidden><p>If a linear program has an optimum, some corner attains it. Every feasible point is a weighted average of corners, and a linear objective at an average is the average of the objectives, which cannot exceed the best corner.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why is the feasible region always convex?</p></div><div class="a" hidden><p>It is an intersection of half-planes, each convex, and intersections of convex sets are convex.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Name the three possible outcomes of a linear program.</p></div><div class="a" hidden><p>Optimal, infeasible (no feasible point), or unbounded (the objective improves forever).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Does an unbounded feasible region imply an unbounded optimum?</p></div><div class="a" hidden><p>No. Minimising x+y over the non-negative quadrant has an infinite region and an optimum at the origin.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What does the simplex method do, and why does it not get stuck?</p></div><div class="a" hidden><p>It walks from corner to adjacent corner, improving each step. Convexity plus a linear objective means any local optimum is global.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>State weak duality and say what it is good for.</p></div><div class="a" hidden><p>Any dual-feasible point gives an upper bound on the primal maximum. It certifies optimality without solving the problem.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>What do the dual variables mean in practice?</p></div><div class="a" hidden><p>They are shadow prices: the improvement in the optimum per extra unit of each resource.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Why is the greedy "make whatever earns most" plan usually wrong?</p></div><div class="a" hidden><p>Because the constraints interact. Using all of one resource on the most profitable product typically leaves another resource idle.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What happens to linear programming when the variables must be whole numbers?</p></div><div class="a" hidden><p>It becomes integer programming, which is NP-hard. Rounding the LP answer may be infeasible or far from optimal.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why only the corners need checking, you can derive the corner-point theorem from convexity and the averaging argument, you can set up a linear program from a word problem and classify it as optimal, infeasible or unbounded, you can state what the dual variables mean in rupees, you pass the boss exercise without hints, and you can say why this all stops working the moment the variables must be integers.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 11, chapter on Linear Inequalities, and Class 12, chapter on Linear Programming.</li>
+<li>George B. Dantzig, <em>Linear Programming and Extensions</em>, Princeton University Press, 1963.</li>
+<li>Vasek Chvatal, <em>Linear Programming</em>, W. H. Freeman.</li>
+<li>Stephen Boyd and Lieven Vandenberghe, <em>Convex Optimization</em>, Cambridge University Press (freely available).</li>
+<li>Cormen, Leiserson, Rivest and Stein, <em>Introduction to Algorithms</em>, chapter on linear programming.</li>
+</ul></section>
+<footer class="pager"><a href="M19.html">&larr; M19 Complex numbers</a>
+<a href="M21.html">M21 Lines, conics, vectors and 3D geometry &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M20", "packages": [], "exercises": {"m20-ex1-one-variable": {"starter": "def solve_linear_inequality(a, b, op):\n    \"\"\"Solve a*x + b op 0, returning the interval.\"\"\"\n    return (0.0, 0.0, False, False)\n\n\ndef satisfies(a, b, op, x):\n    \"\"\"Evaluate the inequality at x.\"\"\"\n    return False\n", "solution": "def satisfies(a, b, op, x):\n    \"\"\"Evaluate the inequality at x.\"\"\"\n    value = a * x + b\n    if op == \"<\":\n        return value < 0\n    if op == \"<=\":\n        return value <= 0\n    if op == \">\":\n        return value > 0\n    if op == \">=\":\n        return value >= 0\n    raise ValueError(\"op must be <, <=, > or >=\")\n\n\ndef solve_linear_inequality(a, b, op):\n    \"\"\"Solve a*x + b op 0, returning the interval.\"\"\"\n    if op not in (\"<\", \"<=\", \">\", \">=\"):\n        raise ValueError(\"op must be <, <=, > or >=\")\n    inf = float(\"inf\")\n    if a == 0:\n        if satisfies(0, b, op, 0.0):\n            return (-inf, inf, False, False)\n        raise ValueError(\"the inequality has no solution\")\n    boundary = -b / a\n    closed = op in (\"<=\", \">=\")\n    # Dividing by a negative a flips the direction.\n    upper = (op in (\"<\", \"<=\")) == (a > 0)\n    if upper:\n        return (-inf, boundary, False, closed)\n    return (boundary, inf, closed, False)\n", "tests": "def test_positive_coefficient():\n    inf = float(\"inf\")\n    # 2x - 6 <= 0  ->  x <= 3\n    assert solve_linear_inequality(2, -6, \"<=\") == (-inf, 3.0, False, True)\n    # 2x - 6 > 0  ->  x > 3\n    assert solve_linear_inequality(2, -6, \">\") == (3.0, inf, False, False)\n\n\ndef test_negative_coefficient_flips_the_direction():\n    inf = float(\"inf\")\n    # -2x - 6 < 0  ->  x > -3   (dividing by -2 reverses the sign)\n    low, high, cl, ch = solve_linear_inequality(-2, -6, \"<\")\n    assert (low, high, cl, ch) == (-3.0, inf, False, False)\n    assert satisfies(-2, -6, \"<\", 0.0) is True\n    assert satisfies(-2, -6, \"<\", -5.0) is False\n    # -x + 4 >= 0  ->  x <= 4\n    low, high, cl, ch = solve_linear_inequality(-1, 4, \">=\")\n    assert high == 4.0 and ch is True and low == -inf\n\n\ndef test_degenerate_and_consistency():\n    inf = float(\"inf\")\n    # 0*x + 1 > 0 is always true\n    assert solve_linear_inequality(0, 1, \">\") == (-inf, inf, False, False)\n    try:\n        solve_linear_inequality(0, 1, \"<\")\n        assert False, \"an impossible inequality must raise ValueError\"\n    except ValueError:\n        pass\n    # the returned interval must agree with pointwise evaluation\n    for a, b, op in ((2, -6, \"<=\"), (-2, -6, \"<\"), (3, 1, \">\"), (-1, 4, \">=\")):\n        low, high, cl, ch = solve_linear_inequality(a, b, op)\n        for x in (-10, -3.0001, -3, -2.9999, 0, 2.9999, 3, 3.0001, 10):\n            inside = ((x > low) or (cl and x == low)) and ((x < high) or (ch and x == high))\n            assert inside == satisfies(a, b, op, x), (a, b, op, x)\n", "mutants": ["def satisfies(a, b, op, x):\n    value = a * x + b\n    if op == \"<\":\n        return value < 0\n    if op == \"<=\":\n        return value <= 0\n    if op == \">\":\n        return value > 0\n    if op == \">=\":\n        return value >= 0\n    raise ValueError(\"op must be <, <=, > or >=\")\n\n\ndef solve_linear_inequality(a, b, op):\n    \"\"\"Bug: never flips the direction when a is negative.\"\"\"\n    if op not in (\"<\", \"<=\", \">\", \">=\"):\n        raise ValueError(\"op must be <, <=, > or >=\")\n    inf = float(\"inf\")\n    if a == 0:\n        if satisfies(0, b, op, 0.0):\n            return (-inf, inf, False, False)\n        raise ValueError(\"the inequality has no solution\")\n    boundary = -b / a\n    closed = op in (\"<=\", \">=\")\n    upper = op in (\"<\", \"<=\")\n    if upper:\n        return (-inf, boundary, False, closed)\n    return (boundary, inf, closed, False)\n", "def satisfies(a, b, op, x):\n    value = a * x + b\n    if op == \"<\":\n        return value < 0\n    if op == \"<=\":\n        return value <= 0\n    if op == \">\":\n        return value > 0\n    if op == \">=\":\n        return value >= 0\n    raise ValueError(\"op must be <, <=, > or >=\")\n\n\ndef solve_linear_inequality(a, b, op):\n    \"\"\"Bug: treats every endpoint as closed, losing strict inequalities.\"\"\"\n    if op not in (\"<\", \"<=\", \">\", \">=\"):\n        raise ValueError(\"op must be <, <=, > or >=\")\n    inf = float(\"inf\")\n    if a == 0:\n        if satisfies(0, b, op, 0.0):\n            return (-inf, inf, False, False)\n        raise ValueError(\"the inequality has no solution\")\n    boundary = -b / a\n    upper = (op in (\"<\", \"<=\")) == (a > 0)\n    if upper:\n        return (-inf, boundary, False, True)\n    return (boundary, inf, True, False)\n"], "hints": ["Dividing both sides by a negative number reverses the inequality sign. That is the one rule that separates this from solving an equation.", "A strict inequality gives an open endpoint; `<=` and `>=` give a closed one."], "level": "warmup", "title": "Linear inequalities in one variable"}, "m20-ex2-half-planes": {"starter": "def satisfies_constraint(constraint, point, tol=1e-9):\n    \"\"\"True when a*x + b*y <= r.\"\"\"\n    return False\n\n\ndef is_feasible(constraints, point):\n    \"\"\"True when every constraint holds.\"\"\"\n    return False\n\n\ndef is_convex_combination_feasible(constraints, p, q, t):\n    \"\"\"Feasibility of the point t*p + (1-t)*q.\"\"\"\n    return False\n\n\ndef bounding_box(constraints, lo, hi, steps):\n    \"\"\"Extent of the feasible region over a grid, or None.\"\"\"\n    return None\n", "solution": "def satisfies_constraint(constraint, point, tol=1e-9):\n    \"\"\"True when a*x + b*y <= r.\"\"\"\n    a, b, r = constraint\n    x, y = point\n    return a * x + b * y <= r + tol\n\n\ndef is_feasible(constraints, point):\n    \"\"\"True when every constraint holds.\"\"\"\n    return all(satisfies_constraint(c, point) for c in constraints)\n\n\ndef is_convex_combination_feasible(constraints, p, q, t):\n    \"\"\"Feasibility of the point t*p + (1-t)*q.\"\"\"\n    if not 0 <= t <= 1:\n        raise ValueError(\"t must lie in [0, 1]\")\n    mid = (t * p[0] + (1 - t) * q[0], t * p[1] + (1 - t) * q[1])\n    return is_feasible(constraints, mid)\n\n\ndef bounding_box(constraints, lo, hi, steps):\n    \"\"\"Extent of the feasible region over a grid, or None.\"\"\"\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n    xs, ys = [], []\n    for i in range(steps + 1):\n        for j in range(steps + 1):\n            x = lo + (hi - lo) * i / steps\n            y = lo + (hi - lo) * j / steps\n            if is_feasible(constraints, (x, y)):\n                xs.append(x)\n                ys.append(y)\n    if not xs:\n        return None\n    return (min(xs), max(xs), min(ys), max(ys))\n", "tests": "def test_half_plane_membership():\n    # 3x + 2y <= 18\n    c = (3, 2, 18)\n    assert satisfies_constraint(c, (0, 0)) is True\n    assert satisfies_constraint(c, (6, 0)) is True      # exactly on the line\n    assert satisfies_constraint(c, (7, 0)) is False\n    # the non-negativity constraints are written with negative coefficients\n    assert satisfies_constraint((-1, 0, 0), (3, 0)) is True\n    assert satisfies_constraint((-1, 0, 0), (-3, 0)) is False\n\n\ndef test_convexity_holds_everywhere():\n    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\n    import random\n    rng = random.Random(5)\n    checked = 0\n    for _ in range(2000):\n        p = (rng.uniform(0, 6), rng.uniform(0, 4))\n        q = (rng.uniform(0, 6), rng.uniform(0, 4))\n        if is_feasible(shop, p) and is_feasible(shop, q):\n            t = rng.random()\n            assert is_convex_combination_feasible(shop, p, q, t) is True\n            checked += 1\n    assert checked > 200\n    try:\n        is_convex_combination_feasible(shop, (0, 0), (1, 1), 1.5)\n        assert False, \"t outside [0,1] must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_bounding_box_and_infeasible_systems():\n    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\n    box = bounding_box(shop, 0, 7, 70)\n    assert box is not None\n    min_x, max_x, min_y, max_y = box\n    assert abs(min_x) < 1e-9 and abs(min_y) < 1e-9\n    assert 5.9 <= max_x <= 6.01          # x can reach 6 when y = 0\n    assert 3.9 <= max_y <= 4.01          # y can reach 4 when x = 0\n    # contradictory constraints: x <= 1 and -x <= -5 means x >= 5\n    assert bounding_box([(1, 0, 1), (-1, 0, -5)], 0, 10, 50) is None\n", "mutants": ["def satisfies_constraint(constraint, point, tol=1e-9):\n    \"\"\"Bug: uses >= instead of <=, inverting every half-plane.\"\"\"\n    a, b, r = constraint\n    x, y = point\n    return a * x + b * y >= r - tol\n\n\ndef is_feasible(constraints, point):\n    return all(satisfies_constraint(c, point) for c in constraints)\n\n\ndef is_convex_combination_feasible(constraints, p, q, t):\n    if not 0 <= t <= 1:\n        raise ValueError(\"t must lie in [0, 1]\")\n    mid = (t * p[0] + (1 - t) * q[0], t * p[1] + (1 - t) * q[1])\n    return is_feasible(constraints, mid)\n\n\ndef bounding_box(constraints, lo, hi, steps):\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n    xs, ys = [], []\n    for i in range(steps + 1):\n        for j in range(steps + 1):\n            x = lo + (hi - lo) * i / steps\n            y = lo + (hi - lo) * j / steps\n            if is_feasible(constraints, (x, y)):\n                xs.append(x)\n                ys.append(y)\n    if not xs:\n        return None\n    return (min(xs), max(xs), min(ys), max(ys))\n", "def satisfies_constraint(constraint, point, tol=1e-9):\n    a, b, r = constraint\n    x, y = point\n    return a * x + b * y <= r + tol\n\n\ndef is_feasible(constraints, point):\n    \"\"\"Bug: uses any instead of all, so one satisfied constraint suffices.\"\"\"\n    return any(satisfies_constraint(c, point) for c in constraints)\n\n\ndef is_convex_combination_feasible(constraints, p, q, t):\n    if not 0 <= t <= 1:\n        raise ValueError(\"t must lie in [0, 1]\")\n    mid = (t * p[0] + (1 - t) * q[0], t * p[1] + (1 - t) * q[1])\n    return is_feasible(constraints, mid)\n\n\ndef bounding_box(constraints, lo, hi, steps):\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n    xs, ys = [], []\n    for i in range(steps + 1):\n        for j in range(steps + 1):\n            x = lo + (hi - lo) * i / steps\n            y = lo + (hi - lo) * j / steps\n            if is_feasible(constraints, (x, y)):\n                xs.append(x)\n                ys.append(y)\n    if not xs:\n        return None\n    return (min(xs), max(xs), min(ys), max(ys))\n"], "hints": ["A point is feasible only when *every* constraint holds, so use `all`.", "Write `x >= 0` as the constraint `(-1, 0, 0)`, since `-x <= 0` is the same thing."], "level": "core", "title": "Half-planes and the feasible region"}, "m20-ex3-vertices": {"starter": "def line_intersection(c1, c2):\n    \"\"\"Intersection of two constraint boundaries, or None.\"\"\"\n    return None\n\n\ndef vertices(constraints):\n    \"\"\"Sorted distinct feasible intersection points.\"\"\"\n    return []\n\n\ndef is_vertex(constraints, point):\n    \"\"\"True when the point is feasible and on two or more boundaries.\"\"\"\n    return False\n", "solution": "def line_intersection(c1, c2):\n    \"\"\"Intersection of two constraint boundaries, or None.\"\"\"\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef _feasible(constraints, p, tol=1e-9):\n    return all(a * p[0] + b * p[1] <= r + tol for a, b, r in constraints)\n\n\ndef vertices(constraints):\n    \"\"\"Sorted distinct feasible intersection points.\"\"\"\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    found = set()\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = line_intersection(constraints[i], constraints[j])\n            if p is None or not _feasible(constraints, p):\n                continue\n            found.add((round(p[0], 9), round(p[1], 9)))\n    return sorted(found)\n\n\ndef is_vertex(constraints, point):\n    \"\"\"True when the point is feasible and on two or more boundaries.\"\"\"\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    if not _feasible(constraints, point):\n        return False\n    tight = sum(1 for a, b, r in constraints\n                if abs(a * point[0] + b * point[1] - r) < 1e-9)\n    return tight >= 2\n", "tests": "def test_intersections_and_parallels():\n    # x = 6 crossed with y = 0\n    assert line_intersection((1, 0, 6), (0, 1, 0)) == (6.0, 0.0)\n    # parallel lines\n    assert line_intersection((1, 1, 2), (2, 2, 7)) is None\n    # the sweet-shop crossing: 3x+2y=18 and x+3y=12 -> (30/7, 18/7)\n    p = line_intersection((3, 2, 18), (1, 3, 12))\n    assert abs(p[0] - 30 / 7) < 1e-9 and abs(p[1] - 18 / 7) < 1e-9\n\n\ndef test_vertices_of_the_sweet_shop():\n    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\n    vs = vertices(shop)\n    expected = sorted({(0.0, 0.0), (6.0, 0.0), (0.0, 4.0),\n                       (round(30 / 7, 9), round(18 / 7, 9))})\n    assert vs == expected\n    assert len(vs) == 4\n    # infeasible intersections must be excluded: 3x+2y=18 meets x+3y=12\n    # but 3x+2y=18 also meets x=0 at (0,9), which violates the ghee limit\n    assert (0.0, 9.0) not in vs\n\n\ndef test_is_vertex_distinguishes_corners_from_interior():\n    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\n    assert is_vertex(shop, (0.0, 0.0)) is True\n    assert is_vertex(shop, (6.0, 0.0)) is True\n    assert is_vertex(shop, (1.0, 1.0)) is False        # interior\n    assert is_vertex(shop, (3.0, 0.0)) is False        # on one edge only\n    assert is_vertex(shop, (10.0, 10.0)) is False      # infeasible\n    try:\n        vertices([(1, 0, 1)])\n        assert False, \"one constraint must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def line_intersection(c1, c2):\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef _feasible(constraints, p, tol=1e-9):\n    return all(a * p[0] + b * p[1] <= r + tol for a, b, r in constraints)\n\n\ndef vertices(constraints):\n    \"\"\"Bug: keeps every intersection, feasible or not.\"\"\"\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    found = set()\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = line_intersection(constraints[i], constraints[j])\n            if p is None:\n                continue\n            found.add((round(p[0], 9), round(p[1], 9)))\n    return sorted(found)\n\n\ndef is_vertex(constraints, point):\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    if not _feasible(constraints, point):\n        return False\n    tight = sum(1 for a, b, r in constraints\n                if abs(a * point[0] + b * point[1] - r) < 1e-9)\n    return tight >= 2\n", "def line_intersection(c1, c2):\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef _feasible(constraints, p, tol=1e-9):\n    return all(a * p[0] + b * p[1] <= r + tol for a, b, r in constraints)\n\n\ndef vertices(constraints):\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    found = set()\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = line_intersection(constraints[i], constraints[j])\n            if p is None or not _feasible(constraints, p):\n                continue\n            found.add((round(p[0], 9), round(p[1], 9)))\n    return sorted(found)\n\n\ndef is_vertex(constraints, point):\n    \"\"\"Bug: counts a point on a single boundary as a vertex.\"\"\"\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    if not _feasible(constraints, point):\n        return False\n    tight = sum(1 for a, b, r in constraints\n                if abs(a * point[0] + b * point[1] - r) < 1e-9)\n    return tight >= 1\n"], "hints": ["Two boundary lines may cross outside the feasible region. Always test the intersection against *all* the constraints before keeping it.", "A corner sits on at least two boundaries at once; a point on only one boundary is in the middle of an edge."], "level": "core", "title": "Finding the corners of a feasible region"}, "m20-ex4-solve-lp": {"starter": "def solve_lp(constraints, objective, maximise=True):\n    \"\"\"Return (status, value, point).\"\"\"\n    return (\"infeasible\", None, None)\n", "solution": "def _intersect(c1, c2):\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef _feasible(constraints, p, tol=1e-7):\n    return all(a * p[0] + b * p[1] <= r + tol for a, b, r in constraints)\n\n\ndef solve_lp(constraints, objective, maximise=True):\n    \"\"\"Return (status, value, point).\"\"\"\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    sign = 1.0 if maximise else -1.0\n    c0, c1 = objective\n\n    def score(p):\n        return sign * (c0 * p[0] + c1 * p[1])\n\n    best = None\n    best_point = None\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = _intersect(constraints[i], constraints[j])\n            if p is None or not _feasible(constraints, p):\n                continue\n            s = score(p)\n            if best is None or s > best:\n                best, best_point = s, p\n\n    # Probe far out to distinguish infeasible from unbounded.\n    probes = []\n    step = 50\n    for i in range(0, 1001, step):\n        for j in range(0, 1001, step):\n            q = (float(i), float(j))\n            if _feasible(constraints, q):\n                probes.append(q)\n\n    if best is None:\n        if not probes:\n            return (\"infeasible\", None, None)\n        return (\"unbounded\", None, None)\n\n    far_best = max((score(q) for q in probes), default=None)\n    if far_best is not None and far_best > best + 1e-6:\n        return (\"unbounded\", None, None)\n    return (\"optimal\", sign * best, best_point)\n", "tests": "def test_the_sweet_shop_optimum():\n    shop = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\n    status, value, point = solve_lp(shop, (60, 50), maximise=True)\n    assert status == \"optimal\"\n    # the crossing of the two resource limits, (30/7, 18/7)\n    assert abs(point[0] - 30 / 7) < 1e-6\n    assert abs(point[1] - 18 / 7) < 1e-6\n    assert abs(value - (60 * 30 / 7 + 50 * 18 / 7)) < 1e-6\n    # it beats both single-product plans\n    assert value > 60 * 6\n    assert value > 50 * 4\n\n\ndef test_minimisation_and_a_bounded_square():\n    square = [(1, 0, 5), (0, 1, 5), (-1, 0, 0), (0, -1, 0)]\n    status, value, point = solve_lp(square, (1, 1), maximise=True)\n    assert status == \"optimal\" and abs(value - 10) < 1e-9\n    status, value, point = solve_lp(square, (1, 1), maximise=False)\n    assert status == \"optimal\" and abs(value) < 1e-9\n    assert abs(point[0]) < 1e-9 and abs(point[1]) < 1e-9\n\n\ndef test_infeasible_and_unbounded():\n    # x >= 5 and x <= 1 cannot both hold\n    bad = [(1, 0, 1), (-1, 0, -5), (0, 1, 10), (0, -1, 0)]\n    assert solve_lp(bad, (1, 1))[0] == \"infeasible\"\n    # only non-negativity: maximising x + y runs away\n    open_region = [(-1, 0, 0), (0, -1, 0)]\n    assert solve_lp(open_region, (1, 1), maximise=True)[0] == \"unbounded\"\n    # the same unbounded region has a fine minimum at the origin\n    status, value, point = solve_lp(open_region, (1, 1), maximise=False)\n    assert status == \"optimal\" and abs(value) < 1e-9\n", "mutants": ["def _intersect(c1, c2):\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef _feasible(constraints, p, tol=1e-7):\n    return all(a * p[0] + b * p[1] <= r + tol for a, b, r in constraints)\n\n\ndef solve_lp(constraints, objective, maximise=True):\n    \"\"\"Bug: ignores the maximise flag, so minimisation returns the maximum.\"\"\"\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    c0, c1 = objective\n\n    def score(p):\n        return c0 * p[0] + c1 * p[1]\n\n    best = None\n    best_point = None\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = _intersect(constraints[i], constraints[j])\n            if p is None or not _feasible(constraints, p):\n                continue\n            s = score(p)\n            if best is None or s > best:\n                best, best_point = s, p\n\n    probes = []\n    for i in range(0, 1001, 50):\n        for j in range(0, 1001, 50):\n            q = (float(i), float(j))\n            if _feasible(constraints, q):\n                probes.append(q)\n\n    if best is None:\n        return (\"infeasible\", None, None) if not probes else (\"unbounded\", None, None)\n    far_best = max((score(q) for q in probes), default=None)\n    if far_best is not None and far_best > best + 1e-6:\n        return (\"unbounded\", None, None)\n    return (\"optimal\", best, best_point)\n", "def _intersect(c1, c2):\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef _feasible(constraints, p, tol=1e-7):\n    return all(a * p[0] + b * p[1] <= r + tol for a, b, r in constraints)\n\n\ndef solve_lp(constraints, objective, maximise=True):\n    \"\"\"Bug: never detects unboundedness, reporting a vertex as optimal.\"\"\"\n    if len(constraints) < 2:\n        raise ValueError(\"need at least two constraints\")\n    sign = 1.0 if maximise else -1.0\n    c0, c1 = objective\n\n    def score(p):\n        return sign * (c0 * p[0] + c1 * p[1])\n\n    best = None\n    best_point = None\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = _intersect(constraints[i], constraints[j])\n            if p is None or not _feasible(constraints, p):\n                continue\n            s = score(p)\n            if best is None or s > best:\n                best, best_point = s, p\n\n    if best is None:\n        return (\"infeasible\", None, None)\n    return (\"optimal\", sign * best, best_point)\n"], "hints": ["Handle minimisation by negating the objective, solving the maximisation, and negating the answer back.", "An empty vertex set does not mean infeasible \u2014 an unbounded region can have feasible points and no corner at all. Probe far from the origin to tell the two apart."], "level": "core", "title": "Solving a linear program by its corners"}, "m20-ex5-duality": {"starter": "def dual_constraints(a, c):\n    \"\"\"The dual constraints, converted to <= form.\"\"\"\n    return []\n\n\ndef is_dual_feasible(a, c, u, v):\n    \"\"\"True when (u, v) satisfies the dual constraints and non-negativity.\"\"\"\n    return False\n\n\ndef weak_duality_holds(a, b, c, x, y, u, v):\n    \"\"\"True when both points are feasible and the duality bound holds.\"\"\"\n    return False\n\n\ndef shadow_prices(a, b, c):\n    \"\"\"The dual solution with both constraints tight.\"\"\"\n    return (0.0, 0.0)\n", "solution": "def dual_constraints(a, c):\n    \"\"\"The dual constraints, converted to <= form.\"\"\"\n    (a11, a12), (a21, a22) = a\n    c1, c2 = c\n    # dual: a11*u + a21*v >= c1 and a12*u + a22*v >= c2, plus u, v >= 0\n    return [(-a11, -a21, -c1), (-a12, -a22, -c2), (-1, 0, 0), (0, -1, 0)]\n\n\ndef is_dual_feasible(a, c, u, v):\n    \"\"\"True when (u, v) satisfies the dual constraints and non-negativity.\"\"\"\n    tol = 1e-9\n    return all(p * u + q * v <= r + tol for p, q, r in dual_constraints(a, c))\n\n\ndef weak_duality_holds(a, b, c, x, y, u, v):\n    \"\"\"True when both points are feasible and the duality bound holds.\"\"\"\n    (a11, a12), (a21, a22) = a\n    b1, b2 = b\n    c1, c2 = c\n    tol = 1e-7\n    primal_ok = (x >= -tol and y >= -tol\n                 and a11 * x + a12 * y <= b1 + tol\n                 and a21 * x + a22 * y <= b2 + tol)\n    if not primal_ok or not is_dual_feasible(a, c, u, v):\n        return False\n    return (c1 * x + c2 * y) <= (b1 * u + b2 * v) + tol\n\n\ndef shadow_prices(a, b, c):\n    \"\"\"The dual solution with both constraints tight.\"\"\"\n    (a11, a12), (a21, a22) = a\n    c1, c2 = c\n    # solve a11*u + a21*v = c1 and a12*u + a22*v = c2\n    det = a11 * a22 - a12 * a21\n    if det == 0:\n        raise ValueError(\"the dual system is singular\")\n    u = (c1 * a22 - c2 * a21) / det\n    v = (a11 * c2 - a12 * c1) / det\n    return (u, v)\n", "tests": "def test_shadow_prices_of_the_sweet_shop():\n    a = ((3, 2), (1, 3))\n    b = (18, 12)\n    c = (60, 50)\n    u, v = shadow_prices(a, b, c)\n    # dual constraints at equality: 3u + v = 60 and 2u + 3v = 50\n    assert abs(3 * u + 1 * v - 60) < 1e-9\n    assert abs(2 * u + 3 * v - 50) < 1e-9\n    assert u > 0 and v > 0\n    assert is_dual_feasible(a, c, u, v) is True\n\n\ndef test_strong_duality_at_the_optimum():\n    a = ((3, 2), (1, 3))\n    b = (18, 12)\n    c = (60, 50)\n    u, v = shadow_prices(a, b, c)\n    # primal optimum at the crossing of both resource limits\n    x, y = 30 / 7, 18 / 7\n    primal = c[0] * x + c[1] * y\n    dual = b[0] * u + b[1] * v\n    assert abs(primal - dual) < 1e-6, \"strong duality: the optima must coincide\"\n    assert weak_duality_holds(a, b, c, x, y, u, v) is True\n\n\ndef test_weak_duality_never_breaks():\n    import random\n    a = ((3, 2), (1, 3))\n    b = (18, 12)\n    c = (60, 50)\n    rng = random.Random(1975)\n    checked = 0\n    for _ in range(4000):\n        x, y = rng.uniform(0, 7), rng.uniform(0, 5)\n        u, v = rng.uniform(0, 40), rng.uniform(0, 40)\n        primal_ok = (3 * x + 2 * y <= 18 + 1e-9) and (x + 3 * y <= 12 + 1e-9)\n        if primal_ok and is_dual_feasible(a, c, u, v):\n            assert weak_duality_holds(a, b, c, x, y, u, v) is True\n            checked += 1\n    assert checked > 50\n    # an infeasible dual point must be rejected outright\n    assert is_dual_feasible(a, c, 0.0, 0.0) is False\n    try:\n        shadow_prices(((1, 2), (2, 4)), (1, 1), (1, 1))\n        assert False, \"a singular dual system must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def dual_constraints(a, c):\n    \"\"\"Bug: does not transpose the matrix when forming the dual.\"\"\"\n    (a11, a12), (a21, a22) = a\n    c1, c2 = c\n    return [(-a11, -a12, -c1), (-a21, -a22, -c2), (-1, 0, 0), (0, -1, 0)]\n\n\ndef is_dual_feasible(a, c, u, v):\n    tol = 1e-9\n    return all(p * u + q * v <= r + tol for p, q, r in dual_constraints(a, c))\n\n\ndef weak_duality_holds(a, b, c, x, y, u, v):\n    (a11, a12), (a21, a22) = a\n    b1, b2 = b\n    c1, c2 = c\n    tol = 1e-7\n    primal_ok = (x >= -tol and y >= -tol\n                 and a11 * x + a12 * y <= b1 + tol\n                 and a21 * x + a22 * y <= b2 + tol)\n    if not primal_ok or not is_dual_feasible(a, c, u, v):\n        return False\n    return (c1 * x + c2 * y) <= (b1 * u + b2 * v) + tol\n\n\ndef shadow_prices(a, b, c):\n    (a11, a12), (a21, a22) = a\n    c1, c2 = c\n    det = a11 * a22 - a12 * a21\n    if det == 0:\n        raise ValueError(\"the dual system is singular\")\n    u = (c1 * a22 - c2 * a21) / det\n    v = (a11 * c2 - a12 * c1) / det\n    return (u, v)\n", "def dual_constraints(a, c):\n    (a11, a12), (a21, a22) = a\n    c1, c2 = c\n    return [(-a11, -a21, -c1), (-a12, -a22, -c2), (-1, 0, 0), (0, -1, 0)]\n\n\ndef is_dual_feasible(a, c, u, v):\n    tol = 1e-9\n    return all(p * u + q * v <= r + tol for p, q, r in dual_constraints(a, c))\n\n\ndef weak_duality_holds(a, b, c, x, y, u, v):\n    \"\"\"Bug: reverses the duality inequality.\"\"\"\n    (a11, a12), (a21, a22) = a\n    b1, b2 = b\n    c1, c2 = c\n    tol = 1e-7\n    primal_ok = (x >= -tol and y >= -tol\n                 and a11 * x + a12 * y <= b1 + tol\n                 and a21 * x + a22 * y <= b2 + tol)\n    if not primal_ok or not is_dual_feasible(a, c, u, v):\n        return False\n    return (c1 * x + c2 * y) >= (b1 * u + b2 * v) - tol\n\n\ndef shadow_prices(a, b, c):\n    (a11, a12), (a21, a22) = a\n    c1, c2 = c\n    det = a11 * a22 - a12 * a21\n    if det == 0:\n        raise ValueError(\"the dual system is singular\")\n    u = (c1 * a22 - c2 * a21) / det\n    v = (a11 * c2 - a12 * c1) / det\n    return (u, v)\n"], "hints": ["The dual uses the *transpose* of the constraint matrix: the coefficients of the first dual constraint are the first *column* of A, not the first row.", "Weak duality says the primal objective is at most the dual objective, for any feasible pair. The maximiser is bounded above by the minimiser."], "level": "boss", "title": "Shadow prices and the duality certificate"}}, "demos": {"m20-corners-vs-grid": {"code": "def intersect(c1, c2):\n    \"\"\"Intersection of a1 x + b1 y = r1 and a2 x + b2 y = r2, or None if parallel.\"\"\"\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef feasible(point, constraints, tol=1e-9):\n    x, y = point\n    return all(a * x + b * y <= r + tol for a, b, r in constraints)\n\n\ndef solve_by_corners(constraints, objective):\n    \"\"\"Enumerate vertices, keep the feasible ones, take the best.\"\"\"\n    best = None\n    best_point = None\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = intersect(constraints[i], constraints[j])\n            if p is None or not feasible(p, constraints):\n                continue\n            value = objective[0] * p[0] + objective[1] * p[1]\n            if best is None or value > best:\n                best, best_point = value, p\n    return best, best_point\n\n\ndef solve_by_grid(constraints, objective, hi, steps=400):\n    \"\"\"Look everywhere. No theorems used.\"\"\"\n    best = None\n    for i in range(steps + 1):\n        for j in range(steps + 1):\n            x = hi * i / steps\n            y = hi * j / steps\n            if feasible((x, y), constraints):\n                value = objective[0] * x + objective[1] * y\n                if best is None or value > best:\n                    best = value\n    return best\n\n\n# Meena's sweet shop: 3x + 2y <= 18 (sugar), x + 3y <= 12 (ghee), x >= 0, y >= 0.\nSHOP = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\nPROFIT = (60, 50)\n\ncorner_best, corner_point = solve_by_corners(SHOP, PROFIT)\ngrid_best = solve_by_grid(SHOP, PROFIT, hi=7)\nprint(\"sweet shop\")\nprint(\"  best corner:\", tuple(round(v, 6) for v in corner_point), \" profit:\", round(corner_best, 4))\nprint(\"  best found by grid search      :\", round(grid_best, 4))\nassert grid_best <= corner_best + 1e-6, \"no interior point may beat the best corner\"\nassert corner_best - grid_best < 1.0, \"the grid should get close to the true optimum\"\n\n# The all-barfi plan Meena first tried is feasible but NOT optimal.\nassert feasible((6, 0), SHOP)\nassert 60 * 6 + 50 * 0 < corner_best, \"the greedy all-barfi plan is beaten\"\n\n# Several more programs, checked both ways.\ncases = [\n    ([(1, 1, 4), (1, 3, 6), (-1, 0, 0), (0, -1, 0)], (3, 2), 5),\n    ([(2, 1, 10), (1, 1, 8), (1, 2, 14), (-1, 0, 0), (0, -1, 0)], (4, 3), 9),\n    ([(1, 0, 5), (0, 1, 5), (-1, 0, 0), (0, -1, 0)], (1, 1), 6),\n]\nfor constraints, objective, hi in cases:\n    c, _ = solve_by_corners(constraints, objective)\n    g = solve_by_grid(constraints, objective, hi)\n    print(f\"  corners {c:.4f}   grid {g:.4f}\")\n    assert g <= c + 1e-6, \"the corner optimum must not be beaten\"\n    assert c - g < 0.2, \"and the grid must get close to it\"\n\nprint()\nprint(\"convexity: the midpoint of two feasible plans is always feasible\")\nimport random\nrng = random.Random(1947)\nfor _ in range(500):\n    p = (rng.uniform(0, 6), rng.uniform(0, 4))\n    q = (rng.uniform(0, 6), rng.uniform(0, 4))\n    if feasible(p, SHOP) and feasible(q, SHOP):\n        t = rng.random()\n        mid = (t * p[0] + (1 - t) * q[0], t * p[1] + (1 - t) * q[1])\n        assert feasible(mid, SHOP), \"the feasible region must be convex\"\nprint(\"500 random pairs checked\")\n", "mutants": ["def intersect(c1, c2):\n    a1, b1, r1 = c1\n    a2, b2, r2 = c2\n    det = a1 * b2 - a2 * b1\n    if det == 0:\n        return None\n    return ((r1 * b2 - r2 * b1) / det, (a1 * r2 - a2 * r1) / det)\n\n\ndef feasible(point, constraints, tol=1e-9):\n    x, y = point\n    return all(a * x + b * y <= r + tol for a, b, r in constraints)\n\n\ndef solve_by_corners(constraints, objective):\n    \"\"\"Bug: never checks that an intersection is actually feasible.\"\"\"\n    best = None\n    best_point = None\n    n = len(constraints)\n    for i in range(n):\n        for j in range(i + 1, n):\n            p = intersect(constraints[i], constraints[j])\n            if p is None:\n                continue\n            value = objective[0] * p[0] + objective[1] * p[1]\n            if best is None or value > best:\n                best, best_point = value, p\n    return best, best_point\n\n\ndef solve_by_grid(constraints, objective, hi, steps=400):\n    best = None\n    for i in range(steps + 1):\n        for j in range(steps + 1):\n            x = hi * i / steps\n            y = hi * j / steps\n            if feasible((x, y), constraints):\n                value = objective[0] * x + objective[1] * y\n                if best is None or value > best:\n                    best = value\n    return best\n\n\nSHOP = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\nPROFIT = (60, 50)\ncorner_best, corner_point = solve_by_corners(SHOP, PROFIT)\ngrid_best = solve_by_grid(SHOP, PROFIT, hi=7)\nprint(\"  best corner:\", tuple(round(v, 6) for v in corner_point), \" profit:\", round(corner_best, 4))\nprint(\"  best found by grid search      :\", round(grid_best, 4))\nassert grid_best <= corner_best + 1e-6, \"no interior point may beat the best corner\"\nassert corner_best - grid_best < 1.0, \"the grid should get close to the true optimum\"\n"]}, "m20-corner-theorem-and-duality": {"code": "import random\n\n\ndef feasible(point, constraints, tol=1e-9):\n    x, y = point\n    return all(a * x + b * y <= r + tol for a, b, r in constraints)\n\n\nSHOP = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\nPROFIT = (60, 50)\n# Corners of the sweet-shop region, computed by hand:\n# (0,0), (6,0), (0,4) and the sugar/ghee crossing (30/7, 18/7).\nCORNERS = [(0.0, 0.0), (6.0, 0.0), (0.0, 4.0), (30 / 7, 18 / 7)]\nfor c in CORNERS:\n    assert feasible(c, SHOP), f\"{c} must be feasible\"\n\nbest_corner = max(PROFIT[0] * x + PROFIT[1] * y for x, y in CORNERS)\n\nrng = random.Random(1939)\nbest_random = 0.0\nsamples = 0\nfor _ in range(200000):\n    p = (rng.uniform(0, 6), rng.uniform(0, 4))\n    if feasible(p, SHOP):\n        samples += 1\n        best_random = max(best_random, PROFIT[0] * p[0] + PROFIT[1] * p[1])\n\nprint(\"feasible samples drawn:\", samples)\nprint(\"predicted: the best corner is never beaten by any interior point\")\nprint(\"best corner value :\", round(best_corner, 6), \"at (30/7, 18/7)\")\nprint(\"best random value :\", round(best_random, 6))\nprint(\"shortfall of random search:\", round(best_corner - best_random, 6))\n\nassert best_random <= best_corner + 1e-9, \"no feasible point may beat the best corner\"\nassert best_corner - best_random > 0, \"random sampling essentially never lands exactly on a corner\"\nassert best_corner - best_random < 1.0, \"but with 200k samples it gets close\"\n\n# Weak duality. Primal: max 60x + 50y s.t. 3x+2y<=18, x+3y<=12, x,y>=0.\n# Dual:  min 18u + 12v  s.t. 3u + v >= 60, 2u + 3v >= 50, u,v >= 0.\ndef dual_feasible(u, v):\n    return u >= 0 and v >= 0 and 3 * u + v >= 60 - 1e-9 and 2 * u + 3 * v >= 50 - 1e-9\n\n\nprint()\nprint(\"predicted: EVERY dual-feasible point is an upper bound on the primal optimum\")\nchecked = 0\ntightest = None\nfor _ in range(200000):\n    u = rng.uniform(0, 40)\n    v = rng.uniform(0, 40)\n    if dual_feasible(u, v):\n        bound = 18 * u + 12 * v\n        assert bound >= best_corner - 1e-6, \"weak duality must never be violated\"\n        tightest = bound if tightest is None else min(tightest, bound)\n        checked += 1\n\nprint(\"dual-feasible points checked:\", checked)\nprint(\"primal optimum        :\", round(best_corner, 4))\nprint(\"tightest random bound :\", round(tightest, 4))\nassert checked > 1000\nassert tightest >= best_corner - 1e-6\n\n# Strong duality: the exact dual optimum equals the primal optimum.\n# Both constraints are tight at the optimum, so solve 3u+v=60, 2u+3v=50.\nu = (60 * 3 - 50) / (3 * 3 - 2)\nv = 60 - 3 * u\nprint()\nprint(\"exact dual solution: u =\", round(u, 6), \" v =\", round(v, 6))\nprint(\"dual objective 18u + 12v =\", round(18 * u + 12 * v, 6))\nprint(\"primal optimum           =\", round(best_corner, 6))\nassert dual_feasible(u, v)\nassert abs((18 * u + 12 * v) - best_corner) < 1e-6, \"strong duality: the two optima must be equal\"\nprint()\nprint(\"shadow prices: one more kilo of sugar is worth\", round(u, 2), \"rupees;\")\nprint(\"               one more kilo of ghee  is worth\", round(v, 2), \"rupees.\")\n", "mutants": ["import random\n\n\ndef feasible(point, constraints, tol=1e-9):\n    x, y = point\n    return all(a * x + b * y <= r + tol for a, b, r in constraints)\n\n\nSHOP = [(3, 2, 18), (1, 3, 12), (-1, 0, 0), (0, -1, 0)]\nPROFIT = (60, 50)\n# Bug: the crossing point is wrong, so the \"best corner\" is understated\n# and random interior points will beat it.\nCORNERS = [(0.0, 0.0), (6.0, 0.0), (0.0, 4.0), (3.0, 2.0)]\nbest_corner = max(PROFIT[0] * x + PROFIT[1] * y for x, y in CORNERS)\n\nrng = random.Random(1939)\nbest_random = 0.0\nfor _ in range(200000):\n    p = (rng.uniform(0, 6), rng.uniform(0, 4))\n    if feasible(p, SHOP):\n        best_random = max(best_random, PROFIT[0] * p[0] + PROFIT[1] * p[1])\n\nprint(\"best corner value :\", round(best_corner, 6))\nprint(\"best random value :\", round(best_random, 6))\nassert best_random <= best_corner + 1e-9, \"no feasible point may beat the best corner\"\n"]}}, "cards": [{"q": "What is the one rule that makes solving an inequality different from solving an equation?", "a": "Multiplying or dividing by a negative number reverses the inequality."}, {"q": "State the corner-point theorem and the reason it is true.", "a": "If a linear program has an optimum, some corner attains it. Every feasible point is a weighted average of corners, and a linear objective at an average is the average of the objectives, which cannot exceed the best corner."}, {"q": "Why is the feasible region always convex?", "a": "It is an intersection of half-planes, each convex, and intersections of convex sets are convex."}, {"q": "Name the three possible outcomes of a linear program.", "a": "Optimal, infeasible (no feasible point), or unbounded (the objective improves forever)."}, {"q": "Does an unbounded feasible region imply an unbounded optimum?", "a": "No. Minimising x+y over the non-negative quadrant has an infinite region and an optimum at the origin."}, {"q": "What does the simplex method do, and why does it not get stuck?", "a": "It walks from corner to adjacent corner, improving each step. Convexity plus a linear objective means any local optimum is global."}, {"q": "State weak duality and say what it is good for.", "a": "Any dual-feasible point gives an upper bound on the primal maximum. It certifies optimality without solving the problem."}, {"q": "What do the dual variables mean in practice?", "a": "They are shadow prices: the improvement in the optimum per extra unit of each resource."}, {"q": "Why is the greedy \"make whatever earns most\" plan usually wrong?", "a": "Because the constraints interact. Using all of one resource on the most profitable product typically leaves another resource idle."}, {"q": "What happens to linear programming when the variables must be whole numbers?", "a": "It becomes integer programming, which is NP-hard. Rounding the LP answer may be infeasible or far from optimal."}], "title": "Linear inequalities and linear programming"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

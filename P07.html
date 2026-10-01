@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P07 Operating systems II: memory and storage</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P07">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P07</p><h1>Operating systems II: memory and storage</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P06.html">P06</a></div><div><b>Covers:</b> CS2023 OS</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>virtual memory</li><li>paging and page tables</li><li>the TLB</li><li>page faults and demand paging</li><li>page replacement: FIFO, LRU, clock and Belady&#x27;s anomaly</li><li>mmap and the page cache</li><li>copy-on-write</li><li>file systems and inodes</li><li>journaling and fsync</li><li>durability</li><li>swapping</li><li>memory-mapped model weights</li><li>RAID: mirroring, striping and parity</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the mid-1960s, computer systems were plagued by a catastrophic failure mode known as "thrashing." As multiple programs ran concurrently on early virtual memory mainframes, total memory demand exceeded physical core storage. The operating system spent virtually 100% of its time reading and writing pages back and forth to slow magnetic drums, while useful CPU compute plummeted to zero. In 1968, MIT researcher Peter Denning published his seminal paper introducing the Working Set model. Denning proved that program memory access is not randomly distributed; instead, programs exhibit localized clusters of memory references over time windows. By ensuring a process is only scheduled when its active working set fits in physical memory, operating systems conquered thrashing.</p>
+<p>A year later in 1969, IBM researcher László Bélády discovered an astonishing mathematical paradox: under First-In, First-Out (FIFO) page replacement, increasing the number of physical memory frames allocated to a process could paradoxically increase the total number of page faults. This phenomenon—Bélády's anomaly—shook operating system theory and prompted the formalization of "stack algorithms" like Least Recently Used (LRU), which mathematically guarantee that expanding physical memory never degrades performance. Half a century later, virtual memory and memory-mapped files (<code>mmap</code>) enable modern AI infrastructure to stream multi-gigabyte neural network weights (SafeTensors and GGUF) directly from NVMe SSDs into RAM with zero-copy efficiency.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Every running program enjoys the illusion of having a vast, private memory space called virtual memory, without worrying about other programs or physical RAM limits. The hardware Memory Management Unit (MMU) uses lookup tables called page tables to translate virtual page addresses into physical RAM locations. If an address is not currently in RAM, a page fault pauses the program while the operating system fetches the data from disk. On permanent disks, file systems use inodes to track where file data blocks are stored, and write-ahead journaling with <code>fsync</code> to protect your files from getting corrupted if power is suddenly cut.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal theory and architecture of virtual memory and storage subsystems are defined by:</p>
+<ol>
+<li>
+<p><strong>Virtual Address Translation &amp; Multi-Level Page Tables</strong>:
+A virtual address is partitioned into Virtual Page Number (VPN) and byte offset:
+$$VA = \langle \text{VPN}, \text{Offset} \rangle, \quad \text{Page Size } P = 2^B \implies \text{Offset } = VA \ \&amp; \ (P - 1), \quad \text{VPN} = VA \gg B$$
+In 64-bit systems with $4\text{ KB}$ pages ($B=12$ bits), a 48-bit canonical virtual address uses a 4-level radix tree:
+$$VA = \langle \text{PGD (9b)}, \text{PUD (9b)}, \text{PMD (9b)}, \text{PTE (9b)}, \text{Offset (12b)} \rangle$$
+A Translation Lookaside Buffer (TLB) caches VPN $\to$ PPN mappings to eliminate multi-level DRAM memory dereferences.</p>
+</li>
+<li>
+<p><strong>Page Replacement Algorithms &amp; Bélády's Anomaly</strong>:
+- <strong>FIFO</strong>: Replaces oldest loaded page; susceptible to Bélády's anomaly where fault count $F(M+1) &gt; F(M)$.
+- <strong>LRU (Least Recently Used)</strong>: A stack algorithm satisfying inclusion property $S(M) \subset S(M+1)$, proving $F(M+1) \le F(M)$ strictly.
+- <strong>Clock Algorithm (Second Chance)</strong>: Circular list with 1-bit use flag; clears flag on inspection and replaces page with flag $0$.</p>
+</li>
+<li>
+<p><strong>Storage, Inodes &amp; Journaling</strong>:
+- <strong>Inodes</strong>: File metadata structures containing file size, permissions, modification times, direct data block pointers, and indirect pointers.
+- <strong>Write-Ahead Journaling</strong>: File system updates are appended to a sequential on-disk journal before in-place filesystem block mutation. <code>fsync()</code> flushes kernel dirty page cache buffers to non-volatile disk controllers to guarantee durability.</p>
+</li>
+<li>
+<p><strong>RAID (Redundant Array of Independent Disks)</strong>:
+- RAID 0: Striping across $N$ disks without parity (capacity $N$, zero fault tolerance).
+- RAID 1: Mirroring across disks (capacity $1/2$, tolerates 1 disk loss per mirror).
+- RAID 5: Block-level striping with distributed parity block $P = D_1 \oplus D_2 \oplus \dots \oplus D_{N-1}$ (capacity $N-1$, tolerates 1 disk failure).</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why modern database engines and operating systems rely on write-ahead journaling and explicit <code>fsync</code> calls requires analyzing disk controller write caching and power failure dynamics. In modern operating systems, when an application invokes <code>write()</code>, the kernel does not write data immediately to physical flash storage; instead, the data is buffered in the volatile RAM Page Cache to maximize throughput.</p>
+<p>If the operating system panics or power is abruptly severed while dirty pages reside in RAM, uncommitted data vanishes instantly. Worse, if a file system was midway through updating an inode block and its directory entry, the filesystem structure is left partially written and corrupt, rendering entire directories unreadable.</p>
+<p>Write-ahead journaling resolves this through the atomicity of transactions:
+1. <strong>Journal Write</strong>: Before modifying any production file structures, the file system writes the proposed metadata modifications to a contiguous, append-only journal file on disk.
+2. <strong>Explicit <code>fsync</code> Flush</strong>: The operating system sends a flush command (<code>fsync</code> / <code>F_FULLFSYNC</code>), forcing the drive controller's internal write cache to persist the journal blocks onto non-volatile NAND flash.
+3. <strong>Crash Recovery</strong>: If power fails during subsequent in-place block allocation, the file system simply replays the journal during reboot. If the journal entry was incomplete, it is safely discarded. The file system remains completely consistent without requiring hours of manual <code>fsck</code> disk scans.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The virtual memory page table translation oracle simulates hardware MMU address resolution, converting virtual addresses into physical RAM addresses through a multi-entry page table. The interactive oracle verifies offset extraction, page frame mapping, and the triggering of page fault exceptions when an unmapped or unallocated virtual page address is dereferenced. This deterministic simulation confirms the exact mathematical address partitioning implemented by x86-64 and ARM64 page tables.</p>
+<div class="lab demo" data-demo="p07-oracle-mmu-translation">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Virtual Memory Address Translation MMU Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def translate_va(va: int, page_table: dict, page_size: int = 4096) -&gt; dict:
+    offset = va % page_size
+    vpn = va // page_size
+    
+    if vpn not in page_table:
+        return {&quot;page_fault&quot;: True, &quot;vpn&quot;: vpn, &quot;offset&quot;: offset, &quot;pa&quot;: None}
+        
+    ppn = page_table[vpn]
+    pa = (ppn * page_size) + offset
+    return {&quot;page_fault&quot;: False, &quot;vpn&quot;: vpn, &quot;offset&quot;: offset, &quot;ppn&quot;: ppn, &quot;pa&quot;: pa}
+
+# Page table mapping: VPN 0 -&gt; PPN 5, VPN 1 -&gt; PPN 12
+pt = {0: 5, 1: 12}
+
+# Address 0x1050 = 4176 -&gt; VPN 1, Offset 80. PA = (12 * 4096) + 80 = 49232
+res1 = translate_va(4176, pt, page_size=4096)
+assert res1[&quot;page_fault&quot;] is False
+assert res1[&quot;vpn&quot;] == 1
+assert res1[&quot;offset&quot;] == 80
+assert res1[&quot;pa&quot;] == 49232
+
+# Address 0x5000 = 20480 -&gt; VPN 5 (unmapped -&gt; page fault)
+res2 = translate_va(20480, pt, page_size=4096)
+assert res2[&quot;page_fault&quot;] is True
+assert res2[&quot;vpn&quot;] == 5
+
+print(&quot;Virtual memory address translation and page fault mechanics verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally reproduce Bélády's anomaly on a deterministic page reference string under FIFO page replacement. With the reference sequence $[1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]$, allocating 3 physical frames produces 9 page faults. Increasing physical frames to 4 counter-intuitively increases total page faults to 10, demonstrating FIFO's failure to satisfy stack algorithm inclusion.</p>
+<div class="lab demo" data-demo="p07-exp-belady-anomaly">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Bélády&#x27;s Anomaly FIFO Page Replacement Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def count_fifo_faults(pages: list, num_frames: int) -&gt; int:
+    frames = []
+    faults = 0
+    for p in pages:
+        if p not in frames:
+            faults += 1
+            if len(frames) &lt; num_frames:
+                frames.append(p)
+            else:
+                frames.pop(0)  # FIFO evicts oldest loaded
+                frames.append(p)
+    return faults
+
+ref_string = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]
+faults_3 = count_fifo_faults(ref_string, 3)
+faults_4 = count_fifo_faults(ref_string, 4)
+
+assert faults_3 == 9
+assert faults_4 == 10
+assert faults_4 &gt; faults_3  # Bélády&#x27;s anomaly confirmed!
+
+print(f&quot;Bélády&#x27;s Anomaly confirmed: 3 frames = {faults_3} faults, 4 frames = {faults_4} faults.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-page-table-translator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Virtual Address Page Table Translator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement translate_virtual_address(va: int, page_table: dict, page_size: int = 4096) -&gt; dict to extract the virtual page number and offset, verify page table presence, and compute the exact physical memory address or flag a page fault.</p></div>
+<textarea class="code" spellcheck="false">def translate_virtual_address(va: int, page_table: dict, page_size: int = 4096) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_va_translation_hit():
+    pt = {0: 10, 1: 25}
+    # VA 100 -&gt; VPN 0, Offset 100 -&gt; PA = 10 * 4096 + 100 = 41060
+    res = translate_virtual_address(100, pt)
+    assert res[&quot;page_fault&quot;] is False
+    assert res[&quot;vpn&quot;] == 0
+    assert res[&quot;offset&quot;] == 100
+    assert res[&quot;physical_address&quot;] == 41060
+
+def test_va_translation_second_page():
+    pt = {0: 10, 1: 25}
+    # VA 4096 + 50 = 4146 -&gt; VPN 1, Offset 50 -&gt; PA = 25 * 4096 + 50 = 102450
+    res = translate_virtual_address(4146, pt)
+    assert res[&quot;page_fault&quot;] is False
+    assert res[&quot;vpn&quot;] == 1
+    assert res[&quot;offset&quot;] == 50
+    assert res[&quot;physical_address&quot;] == 102450
+
+def test_va_translation_fault():
+    pt = {0: 10}
+    res = translate_virtual_address(8192, pt)
+    assert res[&quot;page_fault&quot;] is True
+    assert res[&quot;vpn&quot;] == 2
+    assert res[&quot;physical_address&quot;] is None
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-belady-anomaly-verifier" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Page Replacement Algorithms and Bélády&#x27;s Anomaly</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_fifo_page_replacement(ref_string: list[int], num_frames: int) -&gt; int and simulate_lru_page_replacement(ref_string: list[int], num_frames: int) -&gt; int to compute total page fault counts under FIFO and LRU replacement policies.</p></div>
+<textarea class="code" spellcheck="false">def simulate_fifo_page_replacement(ref_string: list[int], num_frames: int) -&gt; int:
+    pass
+
+def simulate_lru_page_replacement(ref_string: list[int], num_frames: int) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_belady_anomaly_fifo():
+    seq = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]
+    f3 = simulate_fifo_page_replacement(seq, 3)
+    f4 = simulate_fifo_page_replacement(seq, 4)
+    assert f3 == 9
+    assert f4 == 10
+    assert f4 &gt; f3  # FIFO exhibits Bélády&#x27;s anomaly
+
+def test_lru_stack_property():
+    seq = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]
+    lru3 = simulate_lru_page_replacement(seq, 3)
+    lru4 = simulate_lru_page_replacement(seq, 4)
+    assert lru3 == 10
+    assert lru4 == 8
+    assert lru4 &lt;= lru3  # LRU never exhibits Bélády&#x27;s anomaly
+
+def test_page_replacement_empty():
+    assert simulate_fifo_page_replacement([], 3) == 0
+    assert simulate_lru_page_replacement([], 3) == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-raid-parity-engine" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>RAID 5 Distributed Parity and Reconstruction Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement calculate_raid5_parity(data_blocks: list[bytes]) -&gt; bytes that computes XOR parity across data blocks, and reconstruct_raid5_block(surviving_blocks: list[bytes], parity_block: bytes) -&gt; bytes that reconstructs a failed disk block.</p></div>
+<textarea class="code" spellcheck="false">def calculate_raid5_parity(data_blocks: list[bytes]) -&gt; bytes:
+    pass
+
+def reconstruct_raid5_block(surviving_blocks: list[bytes], parity_block: bytes) -&gt; bytes:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_raid5_parity_basic():
+    d1 = b&quot;ABCD&quot;
+    d2 = b&quot;1234&quot;
+    d3 = b&quot;WXYZ&quot;
+    parity = calculate_raid5_parity([d1, d2, d3])
+    assert len(parity) == 4
+    
+    # Reconstruct d2 from d1, d3, and parity
+    rec_d2 = reconstruct_raid5_block([d1, d3], parity)
+    assert rec_d2 == d2
+
+def test_raid5_single_data_block():
+    d1 = b&quot;HELLO&quot;
+    parity = calculate_raid5_parity([d1])
+    assert parity == d1
+    assert reconstruct_raid5_block([], parity) == d1
+
+def test_raid5_empty():
+    assert calculate_raid5_parity([]) == b&quot;&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-inode-file-system-allocator" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Inode File System Block Allocator with Indirect Addressing</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement an InodeBlockAllocator class managing disk blocks of size 1024 bytes, supporting up to 12 direct block pointers and 1 single indirect block pointer (holding up to 256 block pointers), tracking file writes and capacity bounds.</p></div>
+<textarea class="code" spellcheck="false">class InodeBlockAllocator:
+    BLOCK_SIZE = 1024
+    DIRECT_BLOCKS = 12
+    INDIRECT_ENTRIES = 256
+    
+    def __init__(self, total_disk_blocks: int = 1000):
+        pass
+
+    def allocate_file_blocks(self, file_size_bytes: int) -&gt; dict:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_inode_direct_allocation():
+    fs = InodeBlockAllocator(total_disk_blocks=50)
+    # 5 KB = 5 blocks (all direct)
+    res = fs.allocate_file_blocks(5120)
+    assert len(res[&quot;direct_blocks&quot;]) == 5
+    assert res[&quot;indirect_block&quot;] is None
+    assert res[&quot;indirect_data_blocks&quot;] == []
+    assert res[&quot;total_blocks_used&quot;] == 5
+
+def test_inode_indirect_allocation():
+    fs = InodeBlockAllocator(total_disk_blocks=100)
+    # 14 KB = 14 blocks: 12 direct + 2 indirect + 1 indirect pointer block = 15 total blocks
+    res = fs.allocate_file_blocks(14 * 1024)
+    assert len(res[&quot;direct_blocks&quot;]) == 12
+    assert res[&quot;indirect_block&quot;] is not None
+    assert len(res[&quot;indirect_data_blocks&quot;]) == 2
+    assert res[&quot;total_blocks_used&quot;] == 15
+
+def test_inode_capacity_overflow():
+    fs = InodeBlockAllocator(total_disk_blocks=1000)
+    max_bytes = (12 + 256) * 1024
+    try:
+        fs.allocate_file_blocks(max_bytes + 1)
+        assert False, &quot;Should raise ValueError for exceeding inode limit&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Virtual memory exists solely so programs can use more memory than physical RAM."</strong> While virtual memory supports swapping to disk, its primary purpose in modern systems is process isolation, memory protection, and zero-copy sharing via mmap.</li>
+<li><strong>"More physical RAM always decreases or keeps constant the number of page faults."</strong> Under FIFO page replacement, Bélády's anomaly proves that adding RAM frames can increase total page faults; only stack algorithms like LRU guarantee non-increasing faults.</li>
+<li><strong>"Calling write() in a program guarantees that data is safely written to the physical SSD."</strong> write() only copies data into the operating system's volatile Page Cache in RAM; persistence to physical storage requires an explicit fsync() system call.</li>
+<li><strong>"RAID 5 can survive the simultaneous loss of any two hard drives."</strong> RAID 5 uses single parity and can survive the loss of only 1 drive. Surviving 2 simultaneous drive failures requires RAID 6 dual-parity.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Memory and storage systems fail catastrophically during hardware thrashing when the aggregate working sets of all running processes exceed physical RAM. In modern mobile devices without swap partitions (like iOS and Android), low-memory conditions trigger the Low Memory Killer (LMK), which abruptly terminates background processes without warning to reclaim dirty pages.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Virtual memory and storage architecture dictate large language model inference engines (llama.cpp, vLLM), which use <code>mmap</code> to load 70B parameter models in milliseconds without allocating duplicate memory copies. High-performance databases (PostgreSQL, SQLite WAL) structure atomic durability around <code>fsync</code> boundaries and RAID storage volumes.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the primary function of the MMU?</p></div><div class="a" hidden><p>The Memory Management Unit translates virtual addresses to physical RAM addresses using page tables and the TLB.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is Bélády's anomaly?</p></div><div class="a" hidden><p>The counter-intuitive phenomenon where increasing the number of page frames results in more page faults under FIFO page replacement.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is a stack algorithm in page replacement?</p></div><div class="a" hidden><p>An algorithm (like LRU) where the set of pages in memory for N frames is always a subset of pages for N+1 frames, preventing Bélády's anomaly.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does mmap work?</p></div><div class="a" hidden><p>It maps file pages directly into a process's virtual address space backed by the kernel page cache, enabling zero-copy I/O.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why is fsync required after write()?</p></div><div class="a" hidden><p>write() only buffers data in volatile kernel RAM; fsync forces the storage controller to commit dirty buffers to non-volatile flash.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does RAID 5 achieve fault tolerance?</p></div><div class="a" hidden><p>By striping data across N disks and storing distributed XOR parity, allowing any single failed disk to be mathematically reconstructed.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can translate virtual addresses through page tables, explain and reproduce Bélády's anomaly, reconstruct damaged blocks in RAID 5, and manage inode block allocations.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Denning, P. J. (1968). The working set model for program behavior. Communications of the ACM, 11(5), 323-333.</li>
+<li>Bélády, L. A., et al. (1969). An anomaly in space-time characteristics of certain programs running in a paging machine. Communications of the ACM, 12(6), 349-353.</li>
+<li>Patterson, D. A., Gibson, G., &amp; Katz, R. H. (1988). A case for redundant arrays of inexpensive disks (RAID). ACM SIGMOD Record, 17(3), 109-116.</li>
+</ul></section>
+<footer class="pager"><a href="P08.html">&larr; P08 Concurrency</a>
+<a href="P09.html">P09 Computer networks &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P07", "packages": ["numpy"], "exercises": {"ex1-page-table-translator": {"starter": "def translate_virtual_address(va: int, page_table: dict, page_size: int = 4096) -> dict:\n    pass\n", "solution": "def translate_virtual_address(va: int, page_table: dict, page_size: int = 4096) -> dict:\n    offset = va % page_size\n    vpn = va // page_size\n    \n    if vpn not in page_table:\n        return {\n            \"page_fault\": True,\n            \"vpn\": vpn,\n            \"offset\": offset,\n            \"ppn\": None,\n            \"physical_address\": None\n        }\n        \n    ppn = page_table[vpn]\n    pa = (ppn * page_size) + offset\n    return {\n        \"page_fault\": False,\n        \"vpn\": vpn,\n        \"offset\": offset,\n        \"ppn\": ppn,\n        \"physical_address\": pa\n    }\n", "tests": "def test_va_translation_hit():\n    pt = {0: 10, 1: 25}\n    # VA 100 -> VPN 0, Offset 100 -> PA = 10 * 4096 + 100 = 41060\n    res = translate_virtual_address(100, pt)\n    assert res[\"page_fault\"] is False\n    assert res[\"vpn\"] == 0\n    assert res[\"offset\"] == 100\n    assert res[\"physical_address\"] == 41060\n\ndef test_va_translation_second_page():\n    pt = {0: 10, 1: 25}\n    # VA 4096 + 50 = 4146 -> VPN 1, Offset 50 -> PA = 25 * 4096 + 50 = 102450\n    res = translate_virtual_address(4146, pt)\n    assert res[\"page_fault\"] is False\n    assert res[\"vpn\"] == 1\n    assert res[\"offset\"] == 50\n    assert res[\"physical_address\"] == 102450\n\ndef test_va_translation_fault():\n    pt = {0: 10}\n    res = translate_virtual_address(8192, pt)\n    assert res[\"page_fault\"] is True\n    assert res[\"vpn\"] == 2\n    assert res[\"physical_address\"] is None\n", "mutants": ["def translate_virtual_address(va, page_table, page_size=4096):\n    assert False, 'mutant injected'\n", "def translate_virtual_address(va, page_table, page_size=4096):\n    return {\"page_fault\": False, \"vpn\": 0, \"offset\": 0, \"ppn\": 0, \"physical_address\": 0}\n"], "hints": ["vpn = va // page_size; offset = va % page_size", "If vpn in page_table: physical_address = (ppn * page_size) + offset"], "level": "warmup", "title": "Virtual Address Page Table Translator"}, "ex2-belady-anomaly-verifier": {"starter": "def simulate_fifo_page_replacement(ref_string: list[int], num_frames: int) -> int:\n    pass\n\ndef simulate_lru_page_replacement(ref_string: list[int], num_frames: int) -> int:\n    pass\n", "solution": "def simulate_fifo_page_replacement(ref_string: list[int], num_frames: int) -> int:\n    frames = []\n    faults = 0\n    for p in ref_string:\n        if p not in frames:\n            faults += 1\n            if len(frames) < num_frames:\n                frames.append(p)\n            else:\n                frames.pop(0)  # Evict oldest arrival\n                frames.append(p)\n    return faults\n\ndef simulate_lru_page_replacement(ref_string: list[int], num_frames: int) -> int:\n    frames = []  # Ordered by least recently used at index 0, most recently used at -1\n    faults = 0\n    for p in ref_string:\n        if p in frames:\n            # Move to most recent position\n            frames.remove(p)\n            frames.append(p)\n        else:\n            faults += 1\n            if len(frames) < num_frames:\n                frames.append(p)\n            else:\n                frames.pop(0)  # Evict least recently used\n                frames.append(p)\n    return faults\n", "tests": "def test_belady_anomaly_fifo():\n    seq = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]\n    f3 = simulate_fifo_page_replacement(seq, 3)\n    f4 = simulate_fifo_page_replacement(seq, 4)\n    assert f3 == 9\n    assert f4 == 10\n    assert f4 > f3  # FIFO exhibits B\u00e9l\u00e1dy's anomaly\n\ndef test_lru_stack_property():\n    seq = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]\n    lru3 = simulate_lru_page_replacement(seq, 3)\n    lru4 = simulate_lru_page_replacement(seq, 4)\n    assert lru3 == 10\n    assert lru4 == 8\n    assert lru4 <= lru3  # LRU never exhibits B\u00e9l\u00e1dy's anomaly\n\ndef test_page_replacement_empty():\n    assert simulate_fifo_page_replacement([], 3) == 0\n    assert simulate_lru_page_replacement([], 3) == 0\n", "mutants": ["def simulate_fifo_page_replacement(ref_string, num_frames): assert False, 'mutant injected'\ndef simulate_lru_page_replacement(ref_string, num_frames): assert False, 'mutant injected'\n", "def simulate_fifo_page_replacement(ref_string, num_frames): return len(ref_string)\ndef simulate_lru_page_replacement(ref_string, num_frames): return len(ref_string)\n"], "hints": ["FIFO keeps a queue; on page hit, order is untouched.", "LRU moves accessed page to the end of the recent list on hit."], "level": "core", "title": "Page Replacement Algorithms and B\u00e9l\u00e1dy's Anomaly"}, "ex3-raid-parity-engine": {"starter": "def calculate_raid5_parity(data_blocks: list[bytes]) -> bytes:\n    pass\n\ndef reconstruct_raid5_block(surviving_blocks: list[bytes], parity_block: bytes) -> bytes:\n    pass\n", "solution": "def calculate_raid5_parity(data_blocks: list[bytes]) -> bytes:\n    if not data_blocks:\n        return b\"\"\n    block_len = len(data_blocks[0])\n    parity = bytearray(block_len)\n    for b in data_blocks:\n        if len(b) != block_len:\n            raise ValueError(\"All RAID blocks must have identical length\")\n        for i in range(block_len):\n            parity[i] ^= b[i]\n    return bytes(parity)\n\ndef reconstruct_raid5_block(surviving_blocks: list[bytes], parity_block: bytes) -> bytes:\n    # A ^ B ^ C = P  ==>  B = A ^ C ^ P\n    all_blocks = list(surviving_blocks) + [parity_block]\n    return calculate_raid5_parity(all_blocks)\n", "tests": "def test_raid5_parity_basic():\n    d1 = b\"ABCD\"\n    d2 = b\"1234\"\n    d3 = b\"WXYZ\"\n    parity = calculate_raid5_parity([d1, d2, d3])\n    assert len(parity) == 4\n    \n    # Reconstruct d2 from d1, d3, and parity\n    rec_d2 = reconstruct_raid5_block([d1, d3], parity)\n    assert rec_d2 == d2\n\ndef test_raid5_single_data_block():\n    d1 = b\"HELLO\"\n    parity = calculate_raid5_parity([d1])\n    assert parity == d1\n    assert reconstruct_raid5_block([], parity) == d1\n\ndef test_raid5_empty():\n    assert calculate_raid5_parity([]) == b\"\"\n", "mutants": ["def calculate_raid5_parity(data_blocks): assert False, 'mutant injected'\ndef reconstruct_raid5_block(surviving_blocks, parity_block): assert False, 'mutant injected'\n", "def calculate_raid5_parity(data_blocks): return b\"\\x00\" * (len(data_blocks[0]) if data_blocks else 0)\ndef reconstruct_raid5_block(surviving_blocks, parity_block): return parity_block\n"], "hints": ["Parity is bitwise XOR across all blocks at each byte index.", "Failed block = XOR of all surviving blocks and the parity block."], "level": "core", "title": "RAID 5 Distributed Parity and Reconstruction Engine"}, "ex4-inode-file-system-allocator": {"starter": "class InodeBlockAllocator:\n    BLOCK_SIZE = 1024\n    DIRECT_BLOCKS = 12\n    INDIRECT_ENTRIES = 256\n    \n    def __init__(self, total_disk_blocks: int = 1000):\n        pass\n\n    def allocate_file_blocks(self, file_size_bytes: int) -> dict:\n        pass\n", "solution": "class InodeBlockAllocator:\n    BLOCK_SIZE = 1024\n    DIRECT_BLOCKS = 12\n    INDIRECT_ENTRIES = 256\n    \n    def __init__(self, total_disk_blocks: int = 1000):\n        self.total_blocks = total_disk_blocks\n        self.allocated_blocks = set()\n\n    def allocate_file_blocks(self, file_size_bytes: int) -> dict:\n        import math\n        if file_size_bytes <= 0:\n            return {\"direct_blocks\": [], \"indirect_block\": None, \"indirect_data_blocks\": [], \"total_blocks_used\": 0}\n            \n        needed_data_blocks = math.ceil(file_size_bytes / self.BLOCK_SIZE)\n        max_possible_data = self.DIRECT_BLOCKS + self.INDIRECT_ENTRIES\n        \n        if needed_data_blocks > max_possible_data:\n            raise ValueError(f\"File size {file_size_bytes} exceeds max inode capacity ({max_possible_data * self.BLOCK_SIZE} bytes)\")\n            \n        direct_count = min(needed_data_blocks, self.DIRECT_BLOCKS)\n        indirect_count = needed_data_blocks - direct_count\n        \n        # Inode needs 1 extra block if indirect data blocks are used\n        total_blocks_needed = direct_count + (indirect_count + 1 if indirect_count > 0 else 0)\n        \n        if len(self.allocated_blocks) + total_blocks_needed > self.total_blocks:\n            raise ValueError(\"Disk out of space\")\n            \n        # Allocate blocks sequentially\n        allocations = []\n        next_block = 0\n        while len(allocations) < total_blocks_needed:\n            if next_block not in self.allocated_blocks:\n                allocations.append(next_block)\n                self.allocated_blocks.add(next_block)\n            next_block += 1\n            \n        direct = allocations[:direct_count]\n        if indirect_count > 0:\n            ind_pointer_block = allocations[direct_count]\n            ind_data = allocations[direct_count + 1:]\n        else:\n            ind_pointer_block = None\n            ind_data = []\n            \n        return {\n            \"direct_blocks\": direct,\n            \"indirect_block\": ind_pointer_block,\n            \"indirect_data_blocks\": ind_data,\n            \"total_blocks_used\": total_blocks_needed\n        }\n", "tests": "def test_inode_direct_allocation():\n    fs = InodeBlockAllocator(total_disk_blocks=50)\n    # 5 KB = 5 blocks (all direct)\n    res = fs.allocate_file_blocks(5120)\n    assert len(res[\"direct_blocks\"]) == 5\n    assert res[\"indirect_block\"] is None\n    assert res[\"indirect_data_blocks\"] == []\n    assert res[\"total_blocks_used\"] == 5\n\ndef test_inode_indirect_allocation():\n    fs = InodeBlockAllocator(total_disk_blocks=100)\n    # 14 KB = 14 blocks: 12 direct + 2 indirect + 1 indirect pointer block = 15 total blocks\n    res = fs.allocate_file_blocks(14 * 1024)\n    assert len(res[\"direct_blocks\"]) == 12\n    assert res[\"indirect_block\"] is not None\n    assert len(res[\"indirect_data_blocks\"]) == 2\n    assert res[\"total_blocks_used\"] == 15\n\ndef test_inode_capacity_overflow():\n    fs = InodeBlockAllocator(total_disk_blocks=1000)\n    max_bytes = (12 + 256) * 1024\n    try:\n        fs.allocate_file_blocks(max_bytes + 1)\n        assert False, \"Should raise ValueError for exceeding inode limit\"\n    except ValueError:\n        pass\n", "mutants": ["class InodeBlockAllocator:\n    def __init__(self, total_disk_blocks=1000): pass\n    def allocate_file_blocks(self, file_size_bytes): assert False, 'mutant injected'\n", "class InodeBlockAllocator:\n    def __init__(self, total_disk_blocks=1000): pass\n    def allocate_file_blocks(self, file_size_bytes):\n        return {\"direct_blocks\": [0], \"indirect_block\": None, \"indirect_data_blocks\": [], \"total_blocks_used\": 1}\n"], "hints": ["Up to 12 blocks fit in direct pointers.", "If needed > 12, allocate 1 indirect pointer block plus the remaining data blocks."], "level": "boss", "title": "Inode File System Block Allocator with Indirect Addressing"}}, "demos": {"p07-oracle-mmu-translation": {"code": "def translate_va(va: int, page_table: dict, page_size: int = 4096) -> dict:\n    offset = va % page_size\n    vpn = va // page_size\n    \n    if vpn not in page_table:\n        return {\"page_fault\": True, \"vpn\": vpn, \"offset\": offset, \"pa\": None}\n        \n    ppn = page_table[vpn]\n    pa = (ppn * page_size) + offset\n    return {\"page_fault\": False, \"vpn\": vpn, \"offset\": offset, \"ppn\": ppn, \"pa\": pa}\n\n# Page table mapping: VPN 0 -> PPN 5, VPN 1 -> PPN 12\npt = {0: 5, 1: 12}\n\n# Address 0x1050 = 4176 -> VPN 1, Offset 80. PA = (12 * 4096) + 80 = 49232\nres1 = translate_va(4176, pt, page_size=4096)\nassert res1[\"page_fault\"] is False\nassert res1[\"vpn\"] == 1\nassert res1[\"offset\"] == 80\nassert res1[\"pa\"] == 49232\n\n# Address 0x5000 = 20480 -> VPN 5 (unmapped -> page fault)\nres2 = translate_va(20480, pt, page_size=4096)\nassert res2[\"page_fault\"] is True\nassert res2[\"vpn\"] == 5\n\nprint(\"Virtual memory address translation and page fault mechanics verified.\")\n", "mutants": ["def translate_va(va, pt, page_size=4096): return {\"page_fault\": False, \"pa\": 0}\nres = translate_va(20480, {0: 1}, 4096)\nassert res[\"page_fault\"] is True\n"]}, "p07-exp-belady-anomaly": {"code": "def count_fifo_faults(pages: list, num_frames: int) -> int:\n    frames = []\n    faults = 0\n    for p in pages:\n        if p not in frames:\n            faults += 1\n            if len(frames) < num_frames:\n                frames.append(p)\n            else:\n                frames.pop(0)  # FIFO evicts oldest loaded\n                frames.append(p)\n    return faults\n\nref_string = [1, 2, 3, 4, 1, 2, 5, 1, 2, 3, 4, 5]\nfaults_3 = count_fifo_faults(ref_string, 3)\nfaults_4 = count_fifo_faults(ref_string, 4)\n\nassert faults_3 == 9\nassert faults_4 == 10\nassert faults_4 > faults_3  # B\u00e9l\u00e1dy's anomaly confirmed!\n\nprint(f\"B\u00e9l\u00e1dy's Anomaly confirmed: 3 frames = {faults_3} faults, 4 frames = {faults_4} faults.\")\n", "mutants": ["faults_3 = 9\nfaults_4 = 8  # fails anomaly\nassert faults_4 > faults_3\n"]}}, "cards": [{"q": "What is the primary function of the MMU?", "a": "The Memory Management Unit translates virtual addresses to physical RAM addresses using page tables and the TLB."}, {"q": "What is B\u00e9l\u00e1dy's anomaly?", "a": "The counter-intuitive phenomenon where increasing the number of page frames results in more page faults under FIFO page replacement."}, {"q": "What is a stack algorithm in page replacement?", "a": "An algorithm (like LRU) where the set of pages in memory for N frames is always a subset of pages for N+1 frames, preventing B\u00e9l\u00e1dy's anomaly."}, {"q": "How does mmap work?", "a": "It maps file pages directly into a process's virtual address space backed by the kernel page cache, enabling zero-copy I/O."}, {"q": "Why is fsync required after write()?", "a": "write() only buffers data in volatile kernel RAM; fsync forces the storage controller to commit dirty buffers to non-volatile flash."}, {"q": "How does RAID 5 achieve fault tolerance?", "a": "By striping data across N disks and storing distributed XOR parity, allowing any single failed disk to be mathematically reconstructed."}], "title": "Operating systems II: memory and storage"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

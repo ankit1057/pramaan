@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P23 Graphics, geometry and interaction</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P23">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P23</p><h1>Graphics, geometry and interaction</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M21.html">M21</a> <a href="M31.html">M31</a></div><div><b>Covers:</b> CS2023 GIT, CS2023 AL</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>the rasterisation pipeline</li><li>coordinate spaces</li><li>homogeneous coordinates and 4x4 transforms</li><li>2D and 3D rotation matrices</li><li>quaternions and gimbal lock</li><li>projection</li><li>colour spaces and gamma</li><li>anti-aliasing</li><li>computational geometry: orientation test, convex hull, segment intersection</li><li>frame budgets and compositing</li><li>image representation: raster vs vector, lossless vs lossy formats, and the limits of human vision they exploit</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1963, at the MIT Lincoln Laboratory, a young doctoral student named Ivan Sutherland created Sketchpad, the world's first interactive computer-aided design system, utilizing a cathode-ray tube display and a handheld light pen. Sutherland's Sketchpad was decades ahead of its time: it introduced object-oriented drawing, geometric constraint satisfaction, real-time visual zooming, and interactive graphical manipulation, earning Sutherland the 1988 ACM Turing Award as the "father of computer graphics."</p>
+<p>A decade later at the University of Utah, Sutherland's students and colleagues—including Edwin Catmull, Jim Blinn, and Henri Gouraud—transformed computer graphics from wireframe sketches into photorealistic 3D virtual worlds. Catmull invented texture mapping, curved surface patches, and the depth-buffer (z-buffer), later co-founding Pixar Animation Studios. Concurrently, 3D graphics engineers confronted the dreaded phenomenon of "gimbal lock"—the loss of one degree of rotational freedom when two of the three Euler rotation axes align. To solve this crisis, computer graphics adopted a forgotten mathematical discovery made by Irish mathematician William Rowan Hamilton in 1843: quaternions. By representing 3D spatial rotations as four-dimensional hypercomplex numbers, quaternions provide singularity-free, constant-speed spherical linear interpolation (SLERP). Today, the graphics pipeline spans mobile hardware from Flutter’s Impeller tessellator to hardware Vulkan and Metal graphics pipelines rendering millions of shaded polygons within strict 8.3ms frame budgets.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Computer graphics and computational geometry are the mathematical and software techniques used to transform 3D shapes and 2D vector curves into colored pixels on a screen. Every visual object is represented by vertices that pass through a sequence of coordinate spaces: from its local object coordinates, into the shared world, into the camera's view, and finally projected onto the 2D screen using $4 \times 4$ homogeneous transformation matrices. Rotations in 3D are handled using quaternions to prevent camera locking glitches. Computational geometry algorithms calculate spatial relationships, such as whether three points turn left or right and finding the outer boundary (convex hull) of shapes. Modern graphics engines must complete all geometry transformations, rasterization, and compositing within a strict 16.6ms frame budget (for 60fps) or 8.3ms (for 120fps) to eliminate visual stutter.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and computational geometry of the graphics pipeline are structured across several foundational domains:</p>
+<ol>
+<li>
+<p><strong>Homogeneous Coordinates and $4 \times 4$ Affine Transformations</strong>:
+In 3D Euclidean space $\mathbb{R}^3$, translation cannot be represented as a $3 \times 3$ matrix multiplication. Projective geometry embeds $\mathbb{R}^3$ into 4D projective space $\mathbb{P}^3$ using homogeneous coordinates:
+$$\mathbf{p} = (x, y, z, 1)^T$$
+- <strong>Translation Matrix</strong> $T(t_x, t_y, t_z)$:
+$$T = \begin{pmatrix} 1 &amp; 0 &amp; 0 &amp; t_x \\ 0 &amp; 1 &amp; 0 &amp; t_y \\ 0 &amp; 0 &amp; 1 &amp; t_z \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix}$$
+- <strong>Scale Matrix</strong> $S(s_x, s_y, s_z) = \text{diag}(s_x, s_y, s_z, 1)$.
+- <strong>Rotation Matrix around Z-axis</strong> $R_z(\theta)$:
+$$R_z(\theta) = \begin{pmatrix} \cos\theta &amp; -\sin\theta &amp; 0 &amp; 0 \\ \sin\theta &amp; \cos\theta &amp; 0 &amp; 0 \\ 0 &amp; 0 &amp; 1 &amp; 0 \\ 0 &amp; 0 &amp; 0 &amp; 1 \end{pmatrix}$$
+Matrix composition is non-commutative: $M = T \cdot R \cdot S \neq S \cdot R \cdot T$.</p>
+</li>
+<li>
+<p><strong>Quaternions and Singularity-Free 3D Rotations</strong>:
+A quaternion $q \in \mathbb{H}$ is defined as $q = w + x i + y j + z k = (w, \mathbf{v})$, where $i^2 = j^2 = k^2 = ijk = -1$.
+A spatial rotation of vector $\mathbf{p} \in \mathbb{R}^3$ by angle $\theta$ around a normalized axis $\mathbf{u} = (u_x, u_y, u_z)$ is represented by the unit quaternion:
+$$q = \left(\cos\frac{\theta}{2}, \mathbf{u}\sin\frac{\theta}{2}\right)$$
+The rotated vector $\mathbf{p}&#x27;$ is computed via Hamilton conjugation:
+$$\mathbf{p}&#x27; = q \, \mathbf{p} \, q^{-1} = q \, \mathbf{p} \, q^*$$
+Quaternions completely eliminate Euler angle gimbal lock and enable Spherical Linear Interpolation (SLERP):
+$$\text{SLERP}(q_1, q_2; t) = \frac{\sin((1 - t)\Omega)}{\sin\Omega} q_1 + \frac{\sin(t\Omega)}{\sin\Omega} q_2, \quad \cos\Omega = q_1 \cdot q_2$$</p>
+</li>
+<li>
+<p><strong>2D Orientation Primitive (Signed Cross Product)</strong>:
+For three 2D points $A = (A_x, A_y)$, $B = (B_x, B_y)$, and $C = (C_x, C_y)$, the orientation determinant is:
+$$\text{orient}(A, B, C) = (B_x - A_x)(C_y - A_y) - (B_y - A_y)(C_x - A_x)$$
+- $\text{orient}(A, B, C) &gt; 0$: Counter-clockwise (CCW) turn (left).
+- $\text{orient}(A, B, C) &lt; 0$: Clockwise (CW) turn (right).
+- $\text{orient}(A, B, C) = 0$: Collinear points.</p>
+</li>
+<li>
+<p><strong>Convex Hull (Graham Scan)</strong>:
+Given a set of $n$ points in $\mathbb{R}^2$, the convex hull is the minimal convex polygon enclosing all points. Graham scan sorts points by polar angle with respect to the lowest point and maintains a stack of hull vertices, popping vertices whenever the orientation test fails to make a counter-clockwise turn, executing in optimal $O(n \log n)$ time.</p>
+</li>
+<li>
+<p><strong>Frame Budgets and Compositing</strong>:
+To maintain butter-smooth display refresh rates, graphics render pipelines must strictly finish all CPU UI layout, GPU vertex shading, fragment shading, and display surface compositing before the next VSYNC pulse:
+$$T_{\text{frame}} \le \frac{1000\text{ ms}}{\text{Refresh Rate (Hz)}} \implies 16.67\text{ ms at } 60\text{Hz}, \quad 8.33\text{ ms at } 120\text{Hz}$$</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Visual interfaces are the primary cognitive medium through which human beings interact with digital computing systems. When you interact with a mobile banking app, navigate a 3D mapping service, or play a video game, the underlying operating system executes millions of matrix multiplications, trigonometric transformations, and rasterization passes every single second. Without a rigorous grounding in computational geometry and linear algebra, graphical applications suffer from severe visual artifacts: texture distortion, jagged aliased edges, camera orientation glitches, and jittery frame drops.</p>
+<p>Euler angle gimbal lock is a notorious failure mode in 3D systems. When pitch aligns with yaw in an aerospace simulator or 3D camera controller, one degree of rotational freedom vanishes entirely, causing camera spinning and orientation disorientation. Understanding quaternions eliminates this catastrophic singularity, providing mathematically continuous rotational interpolation that powers aerospace flight software and modern game engines alike.</p>
+<p>Furthermore, frame budget discipline is the hallmark of professional mobile and graphics engineering. Human visual perception detects display stutter (jank) when a single frame misses its 16.6ms or 8.3ms VSYNC deadline. In modern mobile UI frameworks like Flutter, achieving 120fps on high-refresh-rate displays requires decoupling widget layout from GPU rasterization and utilizing efficient 2D tessellation algorithms. A deep mastery of homogeneous transformation matrices, orientation tests, convex hulls, and frame budgets enables engineers to build hyper-responsive, cinematic visual experiences.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates 3D homogeneous coordinate transformations, matrix composition, and vector transformation. The oracle constructs translation, scaling, and rotation matrices, verifies that matrix multiplication order is strictly non-commutative ($T \cdot R \neq R \cdot T$), and asserts that rotating a 3D vector around the Z-axis produces mathematically precise coordinate projections. This pipeline forms the mathematical core of model-view-projection shaders in modern graphics hardware architectures.</p>
+<div class="lab demo" data-demo="p23-oracle-homogeneous-transforms">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>3D Homogeneous Matrix Transformation and Pipeline Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def identity_4x4() -&gt; list[list[float]]:
+    return [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0]
+    ]
+
+def translation_matrix(tx: float, ty: float, tz: float) -&gt; list[list[float]]:
+    m = identity_4x4()
+    m[0][3] = tx
+    m[1][3] = ty
+    m[2][3] = tz
+    return m
+
+def scale_matrix(sx: float, sy: float, sz: float) -&gt; list[list[float]]:
+    m = identity_4x4()
+    m[0][0] = sx
+    m[1][1] = sy
+    m[2][2] = sz
+    return m
+
+def rotate_z_matrix(theta_rad: float) -&gt; list[list[float]]:
+    m = identity_4x4()
+    c = math.cos(theta_rad)
+    s = math.sin(theta_rad)
+    m[0][0] = c; m[0][1] = -s
+    m[1][0] = s; m[1][1] = c
+    return m
+
+def multiply_4x4(m1: list[list[float]], m2: list[list[float]]) -&gt; list[list[float]]:
+    res = [[0.0] * 4 for _ in range(4)]
+    for i in range(4):
+        for j in range(4):
+            res[i][j] = sum(m1[i][k] * m2[k][j] for k in range(4))
+    return res
+
+def transform_point(m: list[list[float]], p: tuple[float, float, float]) -&gt; tuple[float, float, float]:
+    v = [p[0], p[1], p[2], 1.0]
+    res = [sum(m[i][j] * v[j] for j in range(4)) for i in range(4)]
+    w = res[3]
+    return (res[0] / w, res[1] / w, res[2] / w)
+
+# Test vertex at (1, 0, 0)
+vertex = (1.0, 0.0, 0.0)
+
+# Rotate 90 degrees around Z: should move to (0, 1, 0)
+r_z_90 = rotate_z_matrix(math.pi / 2)
+rotated = transform_point(r_z_90, vertex)
+print(&quot;Rotated point (90 deg Z):&quot;, tuple(round(x, 4) for x in rotated))
+assert round(rotated[0], 2) == 0.0 and round(rotated[1], 2) == 1.0 and round(rotated[2], 2) == 0.0
+
+# Non-commutativity demonstration:
+# Case 1: Translate by (10, 0, 0) then Scale by (2, 2, 2) -&gt; S * T
+t = translation_matrix(10.0, 0.0, 0.0)
+s = scale_matrix(2.0, 2.0, 2.0)
+
+st = multiply_4x4(s, t) # Scale * Translate
+ts = multiply_4x4(t, s) # Translate * Scale
+
+p_st = transform_point(st, (1.0, 0.0, 0.0)) # (1 + 10) * 2 = 22
+p_ts = transform_point(ts, (1.0, 0.0, 0.0)) # (1 * 2) + 10 = 12
+
+print(&quot;Scale * Translate on (1,0,0):&quot;, p_st)
+print(&quot;Translate * Scale on (1,0,0):&quot;, p_ts)
+assert p_st[0] == 22.0
+assert p_ts[0] == 12.0
+assert p_st != p_ts # Demonstrates non-commutativity!
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment evaluates 2D computational geometry primitives: the signed cross-product orientation test and the Graham scan convex hull algorithm. We trace the boundary of an arbitrary 2D point cloud, verifying that interior points are eliminated and the minimal enclosing convex polygon is ordered counter-clockwise. This algorithm is essential for spatial partitioning, collision detection, and bounding volume computation in real-time graphics engines.</p>
+<div class="lab demo" data-demo="p23-experiment-orientation-convex-hull">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>2D Orientation Primitive and Graham Scan Convex Hull Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def orientation(p1: tuple, p2: tuple, p3: tuple) -&gt; int:
+    val = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])
+    if abs(val) &lt; 1e-9: return 0  # Collinear
+    return 1 if val &gt; 0 else -1   # 1 = CCW, -1 = CW
+
+def convex_hull_graham(points: list[tuple]) -&gt; list[tuple]:
+    pts = sorted(set(points))
+    if len(pts) &lt;= 2: return pts
+    
+    # Andrew&#x27;s monotone chain variant of Graham scan
+    lower = []
+    for p in pts:
+        while len(lower) &gt;= 2 and orientation(lower[-2], lower[-1], p) &lt;= 0:
+            lower.pop()
+        lower.append(p)
+        
+    upper = []
+    for p in reversed(pts):
+        while len(upper) &gt;= 2 and orientation(upper[-2], upper[-1], p) &lt;= 0:
+            upper.pop()
+        upper.append(p)
+        
+    return lower[:-1] + upper[:-1]
+
+# 2D points: square with corners (0,0), (4,0), (4,4), (0,4) and an interior point (2,2)
+point_cloud = [(0, 0), (4, 0), (4, 4), (0, 4), (2, 2), (1, 3)]
+hull = convex_hull_graham(point_cloud)
+
+print(&quot;Input points:&quot;, point_cloud)
+print(&quot;Convex Hull vertices:&quot;, hull)
+
+# Interior points (2,2) and (1,3) must be excluded
+assert (2, 2) not in hull
+assert (1, 3) not in hull
+assert len(hull) == 4
+assert set(hull) == {(0, 0), (4, 0), (4, 4), (0, 4)}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-orientation-and-segment-intersection" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>2D Orientation Test and Line Segment Intersection</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement orientation and do_intersect functions to evaluate 2D point turn directions (CCW, CW, collinear) and determine whether two 2D line segments intersect in Euclidean space.</p></div>
+<textarea class="code" spellcheck="false">from typing import Tuple
+
+def orientation(p1: Tuple[float, float], p2: Tuple[float, float], p3: Tuple[float, float]) -&gt; int:
+    pass
+
+def do_intersect(p1: Tuple[float, float], q1: Tuple[float, float], p2: Tuple[float, float], q2: Tuple[float, float]) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_orientation_directions():
+    # Counter-clockwise turn
+    assert orientation((0, 0), (2, 0), (1, 2)) == 1
+    # Clockwise turn
+    assert orientation((0, 0), (1, 2), (2, 0)) == -1
+    # Collinear points
+    assert orientation((0, 0), (1, 1), (2, 2)) == 0
+
+def test_intersecting_segments():
+    # Crossing segments: (1, 1)-(4, 4) crosses (1, 4)-(4, 1)
+    assert do_intersect((1, 1), (4, 4), (1, 4), (4, 1))
+
+def test_non_intersecting_and_collinear():
+    # Parallel segments
+    assert not do_intersect((0, 0), (0, 4), (2, 0), (2, 4))
+    # Collinear overlapping segments
+    assert do_intersect((0, 0), (3, 0), (2, 0), (5, 0))
+    # Collinear non-overlapping
+    assert not do_intersect((0, 0), (1, 0), (2, 0), (3, 0))
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-homogeneous-transformation-matrix" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>4x4 Homogeneous Transformation Matrix Pipeline</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement Transform3D providing 4x4 translation, scale, Z-axis rotation matrices, matrix multiplication, and 3D point coordinate transformations in projective homogeneous space for computer graphics pipelines.</p></div>
+<textarea class="code" spellcheck="false">from typing import List, Tuple
+
+class Transform3D:
+    @staticmethod
+    def identity() -&gt; List[List[float]]:
+        pass
+
+    @staticmethod
+    def translate(tx: float, ty: float, tz: float) -&gt; List[List[float]]:
+        pass
+
+    @staticmethod
+    def scale(sx: float, sy: float, sz: float) -&gt; List[List[float]]:
+        pass
+
+    @staticmethod
+    def rotate_z(theta_rad: float) -&gt; List[List[float]]:
+        pass
+
+    @staticmethod
+    def multiply(m1: List[List[float]], m2: List[List[float]]) -&gt; List[List[float]]:
+        pass
+
+    @staticmethod
+    def transform_point(matrix: List[List[float]], point: Tuple[float, float, float]) -&gt; Tuple[float, float, float]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_translation_and_scale():
+    t = Transform3D.translate(5.0, -3.0, 10.0)
+    p = Transform3D.transform_point(t, (1.0, 2.0, 3.0))
+    assert p == (6.0, -1.0, 13.0)
+    
+    s = Transform3D.scale(2.0, 3.0, 4.0)
+    p_scaled = Transform3D.transform_point(s, (1.0, 2.0, 3.0))
+    assert p_scaled == (2.0, 6.0, 12.0)
+
+def test_rotation_z():
+    import math
+    r = Transform3D.rotate_z(math.pi / 2) # 90 degrees
+    p = Transform3D.transform_point(r, (1.0, 0.0, 0.0))
+    assert round(p[0], 2) == 0.0
+    assert round(p[1], 2) == 1.0
+    assert round(p[2], 2) == 0.0
+
+def test_composed_transform_order():
+    t = Transform3D.translate(10.0, 0.0, 0.0)
+    s = Transform3D.scale(2.0, 2.0, 2.0)
+    
+    # Scale then Translate: T * S * p
+    ts = Transform3D.multiply(t, s)
+    p = Transform3D.transform_point(ts, (1.0, 0.0, 0.0)) # (1 * 2) + 10 = 12
+    assert p[0] == 12.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-quaternion-rotation" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Quaternion 3D Rotation and Singularity-Free Interpolation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement Quaternion supporting axis-angle initialization, Hamilton products, conjugate inversion, and singularity-free 3D vector rotation without Euler angle gimbal lock for graphics and animation engines.</p></div>
+<textarea class="code" spellcheck="false">from typing import Tuple
+
+class Quaternion:
+    def __init__(self, w: float, x: float, y: float, z: float):
+        pass
+
+    @classmethod
+    def from_axis_angle(cls, axis: Tuple[float, float, float], angle_rad: float) -&gt; &#x27;Quaternion&#x27;:
+        pass
+
+    def multiply(self, other: &#x27;Quaternion&#x27;) -&gt; &#x27;Quaternion&#x27;:
+        pass
+
+    def conjugate(self) -&gt; &#x27;Quaternion&#x27;:
+        pass
+
+    def rotate_vector(self, v: Tuple[float, float, float]) -&gt; Tuple[float, float, float]:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_quaternion_axis_rotation():
+    import math
+    # Rotate (1, 0, 0) by 90 degrees around Z axis (0, 0, 1) -&gt; (0, 1, 0)
+    q = Quaternion.from_axis_angle((0, 0, 1), math.pi / 2)
+    v_rot = q.rotate_vector((1.0, 0.0, 0.0))
+    assert v_rot == (0.0, 1.0, 0.0)
+
+def test_quaternion_composition():
+    import math
+    # Two 90 degree rotations around Z should equal 180 degrees -&gt; (-1, 0, 0)
+    q90 = Quaternion.from_axis_angle((0, 0, 1), math.pi / 2)
+    q180 = q90.multiply(q90)
+    v_rot = q180.rotate_vector((1.0, 0.0, 0.0))
+    assert v_rot == (-1.0, 0.0, 0.0)
+
+def test_quaternion_zero_axis_error():
+    try:
+        Quaternion.from_axis_angle((0, 0, 0), 1.0)
+        assert False, &quot;Should raise ValueError for zero axis&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-graham-scan-convex-hull" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>2D Graham Scan Convex Hull Construction Algorithm</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement convex_hull using Graham scan or monotone chain algorithms to determine the minimal enclosing convex polygon for arbitrary 2D point clouds in O(n log n) time.</p></div>
+<textarea class="code" spellcheck="false">from typing import List, Tuple
+
+def convex_hull(points: List[Tuple[float, float]]) -&gt; List[Tuple[float, float]]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_convex_hull_square_with_interior():
+    # Square with corners and interior points
+    pts = [(0, 0), (4, 0), (4, 4), (0, 4), (2, 2), (1, 1), (3, 2)]
+    hull = convex_hull(pts)
+    assert len(hull) == 4
+    assert set(hull) == {(0, 0), (4, 0), (4, 4), (0, 4)}
+
+def test_convex_hull_triangle():
+    pts = [(0, 0), (5, 0), (2, 4)]
+    hull = convex_hull(pts)
+    assert len(hull) == 3
+    assert set(hull) == {(0, 0), (5, 0), (2, 4)}
+
+def test_convex_hull_collinear_and_small():
+    pts_line = [(0, 0), (1, 1), (2, 2)]
+    hull_line = convex_hull(pts_line)
+    assert len(hull_line) == 2
+    assert set(hull_line) == {(0, 0), (2, 2)}
+    
+    assert convex_hull([(1, 1)]) == [(1, 1)]
+    assert convex_hull([]) == []
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"3D Euler angles (pitch, yaw, roll) are sufficient for all rotational animations in games and graphics."</strong> Euler angles suffer from gimbal lock—a mathematical singularity where two axes align, losing a rotational degree of freedom and causing chaotic camera flips. Quaternions provide smooth, singularity-free spherical interpolation (SLERP).</li>
+<li><strong>"Vector graphics like SVG or PDF are always faster to render than raster images like PNG or WebP."</strong> Vector graphics must be tessellated into geometry meshes and rasterized by the GPU every time they are displayed or scaled. For complex vector paths with thousands of curves, rasterization is substantially slower than blitting pre-rendered PNG pixels.</li>
+<li><strong>"Anti-aliasing is just blurring pixels to make graphics look smooth."</strong> Anti-aliasing techniques (such as Multisampling MSAA or Supersonic SSAA) evaluate sub-pixel geometry coverage functions to compute mathematically accurate energy distributions of light across pixel boundaries, removing staircase artifacts without loss of edge crispness.</li>
+<li><strong>"A monitor displaying 60Hz only needs to show new frames whenever data changes."</strong> Even when visual content is static, displays require a continuous VSYNC refresh stream to maintain panel luminance and prevent flicker. In animated scenes, delivering a frame in 17ms instead of 16.6ms causes a dropped frame and visible stutter.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Computational geometry and graphics algorithms break or encounter extreme degradation in specific edge cases:
+1. <strong>Floating-Point Precision Degeneracy in Geometric Predicates</strong>: The orientation cross-product $(B_x - A_x)(C_y - A_y) - (B_y - A_y)(C_x - A_x)$ is notoriously vulnerable to floating-point rounding errors when points are nearly collinear. A tiny precision error can flip the sign, causing convex hull algorithms to enter infinite loops or self-intersect. Production systems require exact geometric predicates (Shewchuk's robust predicates).
+2. <strong>Overdraw and Fill-Rate Bottlenecks</strong>: In mobile scenes with multiple overlapping translucent layers (e.g. glassmorphism blur effects in Flutter), every pixel is shaded and re-shaded multiple times, exceeding the mobile GPU's memory fill-rate bandwidth and dropping frame rates below 60fps.
+3. <strong>Z-Fighting in Distant Depth Buffers</strong>: When two 3D coplanar polygons have very close depth values, limited precision in the 24-bit floating-point z-buffer causes pixels to alternately pass and fail the depth test, producing flickering visual interference artifacts.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Graphics and computational geometry techniques power production visual systems:
+- <strong>Flutter Impeller Engine</strong>: Google's modern Flutter rendering backend replaces runtime Skia shader compilation with an ahead-of-time (AOT) tessellator, triangulating curves into GPU vertex buffers for predictable 120fps UI performance without jank.
+- <strong>Geographic Information Systems (GIS)</strong>: Mapbox, Google Maps, and Uber calculate route intersections, geofences, and spatial boundaries using 2D segment intersection tests and point-in-polygon ray-casting algorithms.
+- <strong>Computer Vision and Robotics</strong>: Autonomous vehicles build 3D convex hulls and bounding boxes around detected pedestrian lidar point clouds to calculate collision-free trajectories in real time.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why are homogeneous coordinates (x, y, z, 1) used in 3D graphics?</p></div><div class="a" hidden><p>They allow translation, rotation, scaling, and projective transformations to all be unified as single 4x4 matrix multiplications, enabling efficient composition.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is gimbal lock and how do quaternions prevent it?</p></div><div class="a" hidden><p>Gimbal lock is the loss of one rotational degree of freedom when Euler axes align. Quaternions represent rotations as 4D hypercomplex numbers, providing singularity-free continuous rotation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>How does the 2D orientation test determine clockwise vs counter-clockwise turns?</p></div><div class="a" hidden><p>By taking the 2x2 determinant cross-product (Bx - Ax)(Cy - Ay) - (By - Ay)(Cx - Ax): positive indicates counter-clockwise (left), negative indicates clockwise (right), zero is collinear.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the time complexity of the Graham scan convex hull algorithm?</p></div><div class="a" hidden><p>O(n log n) dominated by initial point sorting; the subsequent monotone stack hull construction runs in linear O(n) time.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the frame budget for a 60Hz display and a 120Hz display?</p></div><div class="a" hidden><p>16.67ms per frame for 60Hz, and 8.33ms per frame for 120Hz; exceeding this budget causes dropped frames (jank).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why is gamma correction needed in graphics pipelines?</p></div><div class="a" hidden><p>Human vision perceives light logarithmically; gamma encoding (V^(1/2.2)) compresses linear luminance to allocate more bits to darker tones where human eyes have higher sensitivity.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement 4x4 homogeneous transformation matrices, compute 3D spatial rotations with quaternions, perform 2D orientation and segment intersection tests, construct Graham scan convex hulls, and maintain strict VSYNC frame budgets.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Sutherland, Ivan E. (1963). Sketchpad: A Man-Machine Graphical Communication System. AFIPS Spring Joint Computer Conference.</li>
+<li>Catmull, Edwin (1974). A Subdivision Algorithm for Computer Display of Curved Surfaces. University of Utah.</li>
+<li>Shoemake, Ken (1985). Animating Rotation with Quaternion Curves. ACM SIGGRAPH, 19(3), 245-254.</li>
+<li>Graham, Ronald L. (1972). An Efficient Algorithm for Determining the Convex Hull of a Finite Planar Set. Information Processing Letters, 1(4), 132-133.</li>
+</ul></section>
+<footer class="pager"><a href="P21.html">&larr; P21 Parallel computing</a>
+<a href="S02.html">S02 The Flutter rendering pipeline &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P23", "packages": ["numpy"], "exercises": {"ex1-orientation-and-segment-intersection": {"starter": "from typing import Tuple\n\ndef orientation(p1: Tuple[float, float], p2: Tuple[float, float], p3: Tuple[float, float]) -> int:\n    pass\n\ndef do_intersect(p1: Tuple[float, float], q1: Tuple[float, float], p2: Tuple[float, float], q2: Tuple[float, float]) -> bool:\n    pass\n", "solution": "from typing import Tuple\n\ndef orientation(p1: Tuple[float, float], p2: Tuple[float, float], p3: Tuple[float, float]) -> int:\n    val = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])\n    if abs(val) < 1e-9:\n        return 0\n    return 1 if val > 0 else -1\n\ndef _on_segment(p: Tuple[float, float], q: Tuple[float, float], r: Tuple[float, float]) -> bool:\n    return (q[0] <= max(p[0], r[0]) and q[0] >= min(p[0], r[0]) and\n            q[1] <= max(p[1], r[1]) and q[1] >= min(p[1], r[1]))\n\ndef do_intersect(p1: Tuple[float, float], q1: Tuple[float, float], p2: Tuple[float, float], q2: Tuple[float, float]) -> bool:\n    o1 = orientation(p1, q1, p2)\n    o2 = orientation(p1, q1, q2)\n    o3 = orientation(p2, q2, p1)\n    o4 = orientation(p2, q2, q1)\n\n    # General case: straddle\n    if o1 != o2 and o3 != o4:\n        return True\n\n    # Special collinear cases\n    if o1 == 0 and _on_segment(p1, p2, q1): return True\n    if o2 == 0 and _on_segment(p1, q2, q1): return True\n    if o3 == 0 and _on_segment(p2, p1, q2): return True\n    if o4 == 0 and _on_segment(p2, q1, q2): return True\n\n    return False\n", "tests": "def test_orientation_directions():\n    # Counter-clockwise turn\n    assert orientation((0, 0), (2, 0), (1, 2)) == 1\n    # Clockwise turn\n    assert orientation((0, 0), (1, 2), (2, 0)) == -1\n    # Collinear points\n    assert orientation((0, 0), (1, 1), (2, 2)) == 0\n\ndef test_intersecting_segments():\n    # Crossing segments: (1, 1)-(4, 4) crosses (1, 4)-(4, 1)\n    assert do_intersect((1, 1), (4, 4), (1, 4), (4, 1))\n\ndef test_non_intersecting_and_collinear():\n    # Parallel segments\n    assert not do_intersect((0, 0), (0, 4), (2, 0), (2, 4))\n    # Collinear overlapping segments\n    assert do_intersect((0, 0), (3, 0), (2, 0), (5, 0))\n    # Collinear non-overlapping\n    assert not do_intersect((0, 0), (1, 0), (2, 0), (3, 0))\n", "mutants": ["def orientation(p1, p2, p3): assert False, 'mutant injected'\ndef do_intersect(p1, q1, p2, q2): pass\n", "def orientation(p1, p2, p3):\n    val = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])\n    return 1 if val >= 0 else -1\ndef do_intersect(p1, q1, p2, q2):\n    # Mutant always returns True\n    return True\n"], "hints": ["Calculate the signed 2x2 determinant cross product for orientation.", "Check that orientation o1 != o2 and o3 != o4 for general segment intersection.", "Check on_segment bounds when points are collinear."], "level": "warmup", "title": "2D Orientation Test and Line Segment Intersection"}, "ex2-homogeneous-transformation-matrix": {"starter": "from typing import List, Tuple\n\nclass Transform3D:\n    @staticmethod\n    def identity() -> List[List[float]]:\n        pass\n\n    @staticmethod\n    def translate(tx: float, ty: float, tz: float) -> List[List[float]]:\n        pass\n\n    @staticmethod\n    def scale(sx: float, sy: float, sz: float) -> List[List[float]]:\n        pass\n\n    @staticmethod\n    def rotate_z(theta_rad: float) -> List[List[float]]:\n        pass\n\n    @staticmethod\n    def multiply(m1: List[List[float]], m2: List[List[float]]) -> List[List[float]]:\n        pass\n\n    @staticmethod\n    def transform_point(matrix: List[List[float]], point: Tuple[float, float, float]) -> Tuple[float, float, float]:\n        pass\n", "solution": "from typing import List, Tuple\nimport math\n\nclass Transform3D:\n    @staticmethod\n    def identity() -> List[List[float]]:\n        return [\n            [1.0, 0.0, 0.0, 0.0],\n            [0.0, 1.0, 0.0, 0.0],\n            [0.0, 0.0, 1.0, 0.0],\n            [0.0, 0.0, 0.0, 1.0]\n        ]\n\n    @staticmethod\n    def translate(tx: float, ty: float, tz: float) -> List[List[float]]:\n        m = Transform3D.identity()\n        m[0][3] = tx\n        m[1][3] = ty\n        m[2][3] = tz\n        return m\n\n    @staticmethod\n    def scale(sx: float, sy: float, sz: float) -> List[List[float]]:\n        m = Transform3D.identity()\n        m[0][0] = sx\n        m[1][1] = sy\n        m[2][2] = sz\n        return m\n\n    @staticmethod\n    def rotate_z(theta_rad: float) -> List[List[float]]:\n        m = Transform3D.identity()\n        c = math.cos(theta_rad)\n        s = math.sin(theta_rad)\n        m[0][0] = c\n        m[0][1] = -s\n        m[1][0] = s\n        m[1][1] = c\n        return m\n\n    @staticmethod\n    def multiply(m1: List[List[float]], m2: List[List[float]]) -> List[List[float]]:\n        res = [[0.0] * 4 for _ in range(4)]\n        for i in range(4):\n            for j in range(4):\n                res[i][j] = sum(m1[i][k] * m2[k][j] for k in range(4))\n        return res\n\n    @staticmethod\n    def transform_point(matrix: List[List[float]], point: Tuple[float, float, float]) -> Tuple[float, float, float]:\n        v = [point[0], point[1], point[2], 1.0]\n        out = [sum(matrix[i][j] * v[j] for j in range(4)) for i in range(4)]\n        w = out[3] if abs(out[3]) > 1e-12 else 1.0\n        return (out[0] / w, out[1] / w, out[2] / w)\n", "tests": "def test_translation_and_scale():\n    t = Transform3D.translate(5.0, -3.0, 10.0)\n    p = Transform3D.transform_point(t, (1.0, 2.0, 3.0))\n    assert p == (6.0, -1.0, 13.0)\n    \n    s = Transform3D.scale(2.0, 3.0, 4.0)\n    p_scaled = Transform3D.transform_point(s, (1.0, 2.0, 3.0))\n    assert p_scaled == (2.0, 6.0, 12.0)\n\ndef test_rotation_z():\n    import math\n    r = Transform3D.rotate_z(math.pi / 2) # 90 degrees\n    p = Transform3D.transform_point(r, (1.0, 0.0, 0.0))\n    assert round(p[0], 2) == 0.0\n    assert round(p[1], 2) == 1.0\n    assert round(p[2], 2) == 0.0\n\ndef test_composed_transform_order():\n    t = Transform3D.translate(10.0, 0.0, 0.0)\n    s = Transform3D.scale(2.0, 2.0, 2.0)\n    \n    # Scale then Translate: T * S * p\n    ts = Transform3D.multiply(t, s)\n    p = Transform3D.transform_point(ts, (1.0, 0.0, 0.0)) # (1 * 2) + 10 = 12\n    assert p[0] == 12.0\n", "mutants": ["class Transform3D:\n    @staticmethod\n    def identity(): assert False, 'mutant injected'\n    @staticmethod\n    def translate(tx, ty, tz): pass\n    @staticmethod\n    def scale(sx, sy, sz): pass\n    @staticmethod\n    def rotate_z(theta): pass\n    @staticmethod\n    def multiply(m1, m2): pass\n    @staticmethod\n    def transform_point(matrix, point): pass\n", "class Transform3D:\n    @staticmethod\n    def identity(): return [[1,0,0,0],[0,1,0,0],[0,0,1,0],[0,0,0,1]]\n    @staticmethod\n    def translate(tx, ty, tz): return Transform3D.identity() # Mutant ignores translation!\n    @staticmethod\n    def scale(sx, sy, sz): return Transform3D.identity()\n    @staticmethod\n    def rotate_z(theta): return Transform3D.identity()\n    @staticmethod\n    def multiply(m1, m2): return m1\n    @staticmethod\n    def transform_point(m, p): return p\n"], "hints": ["Place translation components in column 3 of the 4x4 matrix.", "Implement 4x4 matrix multiplication using row-column dot products.", "Divide coordinates by homogeneous w in transform_point."], "level": "core", "title": "4x4 Homogeneous Transformation Matrix Pipeline"}, "ex3-quaternion-rotation": {"starter": "from typing import Tuple\n\nclass Quaternion:\n    def __init__(self, w: float, x: float, y: float, z: float):\n        pass\n\n    @classmethod\n    def from_axis_angle(cls, axis: Tuple[float, float, float], angle_rad: float) -> 'Quaternion':\n        pass\n\n    def multiply(self, other: 'Quaternion') -> 'Quaternion':\n        pass\n\n    def conjugate(self) -> 'Quaternion':\n        pass\n\n    def rotate_vector(self, v: Tuple[float, float, float]) -> Tuple[float, float, float]:\n        pass\n", "solution": "from typing import Tuple\nimport math\n\nclass Quaternion:\n    def __init__(self, w: float, x: float, y: float, z: float):\n        self.w = float(w)\n        self.x = float(x)\n        self.y = float(y)\n        self.z = float(z)\n\n    @classmethod\n    def from_axis_angle(cls, axis: Tuple[float, float, float], angle_rad: float) -> 'Quaternion':\n        norm = math.sqrt(axis[0]**2 + axis[1]**2 + axis[2]**2)\n        if norm == 0:\n            raise ValueError(\"Axis vector cannot be zero\")\n        ax = axis[0] / norm\n        ay = axis[1] / norm\n        az = axis[2] / norm\n        \n        half_angle = angle_rad / 2.0\n        sin_half = math.sin(half_angle)\n        return cls(\n            math.cos(half_angle),\n            ax * sin_half,\n            ay * sin_half,\n            az * sin_half\n        )\n\n    def multiply(self, other: 'Quaternion') -> 'Quaternion':\n        w1, x1, y1, z1 = self.w, self.x, self.y, self.z\n        w2, x2, y2, z2 = other.w, other.x, other.y, other.z\n        return Quaternion(\n            w1 * w2 - x1 * x2 - y1 * y2 - z1 * z2,\n            w1 * x2 + x1 * w2 + y1 * z2 - z1 * y2,\n            w1 * y2 - x1 * z2 + y1 * w2 + z1 * x2,\n            w1 * z2 + x1 * y2 - y1 * x2 + z1 * w2\n        )\n\n    def conjugate(self) -> 'Quaternion':\n        return Quaternion(self.w, -self.x, -self.y, -self.z)\n\n    def rotate_vector(self, v: Tuple[float, float, float]) -> Tuple[float, float, float]:\n        p = Quaternion(0.0, v[0], v[1], v[2])\n        # v' = q * p * q_conj\n        q_rot = self.multiply(p).multiply(self.conjugate())\n        return (round(q_rot.x, 6), round(q_rot.y, 6), round(q_rot.z, 6))\n", "tests": "def test_quaternion_axis_rotation():\n    import math\n    # Rotate (1, 0, 0) by 90 degrees around Z axis (0, 0, 1) -> (0, 1, 0)\n    q = Quaternion.from_axis_angle((0, 0, 1), math.pi / 2)\n    v_rot = q.rotate_vector((1.0, 0.0, 0.0))\n    assert v_rot == (0.0, 1.0, 0.0)\n\ndef test_quaternion_composition():\n    import math\n    # Two 90 degree rotations around Z should equal 180 degrees -> (-1, 0, 0)\n    q90 = Quaternion.from_axis_angle((0, 0, 1), math.pi / 2)\n    q180 = q90.multiply(q90)\n    v_rot = q180.rotate_vector((1.0, 0.0, 0.0))\n    assert v_rot == (-1.0, 0.0, 0.0)\n\ndef test_quaternion_zero_axis_error():\n    try:\n        Quaternion.from_axis_angle((0, 0, 0), 1.0)\n        assert False, \"Should raise ValueError for zero axis\"\n    except ValueError:\n        pass\n", "mutants": ["class Quaternion:\n    def __init__(self, w, x, y, z): pass\n    @classmethod\n    def from_axis_angle(cls, axis, angle_rad): assert False, 'mutant injected'\n    def multiply(self, other): pass\n    def conjugate(self): pass\n    def rotate_vector(self, v): pass\n", "class Quaternion:\n    def __init__(self, w, x, y, z): self.w=w; self.x=x; self.y=y; self.z=z\n    @classmethod\n    def from_axis_angle(cls, a, rad): return cls(1, 0, 0, 0)\n    def multiply(self, o): return self\n    def conjugate(self): return self\n    def rotate_vector(self, v): return (v[0], v[1], v[2]) # Mutant returns unchanged vector\n"], "hints": ["Normalize the rotation axis vector in from_axis_angle.", "Apply the Hamilton product formula for quaternion multiplication.", "Compute rotated vector using q * p * q.conjugate()."], "level": "core", "title": "Quaternion 3D Rotation and Singularity-Free Interpolation"}, "ex4-graham-scan-convex-hull": {"starter": "from typing import List, Tuple\n\ndef convex_hull(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:\n    pass\n", "solution": "from typing import List, Tuple\n\ndef _orientation(p1: Tuple[float, float], p2: Tuple[float, float], p3: Tuple[float, float]) -> float:\n    return (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])\n\ndef convex_hull(points: List[Tuple[float, float]]) -> List[Tuple[float, float]]:\n    pts = sorted(set(points))\n    if len(pts) <= 2:\n        return pts\n\n    # Monotone chain algorithm (Graham variant)\n    lower = []\n    for p in pts:\n        while len(lower) >= 2 and _orientation(lower[-2], lower[-1], p) <= 0:\n            lower.pop()\n        lower.append(p)\n\n    upper = []\n    for p in reversed(pts):\n        while len(upper) >= 2 and _orientation(upper[-2], upper[-1], p) <= 0:\n            upper.pop()\n        upper.append(p)\n\n    return lower[:-1] + upper[:-1]\n", "tests": "def test_convex_hull_square_with_interior():\n    # Square with corners and interior points\n    pts = [(0, 0), (4, 0), (4, 4), (0, 4), (2, 2), (1, 1), (3, 2)]\n    hull = convex_hull(pts)\n    assert len(hull) == 4\n    assert set(hull) == {(0, 0), (4, 0), (4, 4), (0, 4)}\n\ndef test_convex_hull_triangle():\n    pts = [(0, 0), (5, 0), (2, 4)]\n    hull = convex_hull(pts)\n    assert len(hull) == 3\n    assert set(hull) == {(0, 0), (5, 0), (2, 4)}\n\ndef test_convex_hull_collinear_and_small():\n    pts_line = [(0, 0), (1, 1), (2, 2)]\n    hull_line = convex_hull(pts_line)\n    assert len(hull_line) == 2\n    assert set(hull_line) == {(0, 0), (2, 2)}\n    \n    assert convex_hull([(1, 1)]) == [(1, 1)]\n    assert convex_hull([]) == []\n", "mutants": ["def convex_hull(points): assert False, 'mutant injected'\n", "def convex_hull(points):\n    # Mutant returns all unique points without filtering interior points\n    return sorted(set(points))\n"], "hints": ["Sort points lexicographically by X then Y.", "Construct lower and upper hulls using a monotone stack popping on non-left turns.", "Combine lower and upper hulls omitting duplicate endpoints."], "level": "boss", "title": "2D Graham Scan Convex Hull Construction Algorithm"}}, "demos": {"p23-oracle-homogeneous-transforms": {"code": "import math\n\ndef identity_4x4() -> list[list[float]]:\n    return [\n        [1.0, 0.0, 0.0, 0.0],\n        [0.0, 1.0, 0.0, 0.0],\n        [0.0, 0.0, 1.0, 0.0],\n        [0.0, 0.0, 0.0, 1.0]\n    ]\n\ndef translation_matrix(tx: float, ty: float, tz: float) -> list[list[float]]:\n    m = identity_4x4()\n    m[0][3] = tx\n    m[1][3] = ty\n    m[2][3] = tz\n    return m\n\ndef scale_matrix(sx: float, sy: float, sz: float) -> list[list[float]]:\n    m = identity_4x4()\n    m[0][0] = sx\n    m[1][1] = sy\n    m[2][2] = sz\n    return m\n\ndef rotate_z_matrix(theta_rad: float) -> list[list[float]]:\n    m = identity_4x4()\n    c = math.cos(theta_rad)\n    s = math.sin(theta_rad)\n    m[0][0] = c; m[0][1] = -s\n    m[1][0] = s; m[1][1] = c\n    return m\n\ndef multiply_4x4(m1: list[list[float]], m2: list[list[float]]) -> list[list[float]]:\n    res = [[0.0] * 4 for _ in range(4)]\n    for i in range(4):\n        for j in range(4):\n            res[i][j] = sum(m1[i][k] * m2[k][j] for k in range(4))\n    return res\n\ndef transform_point(m: list[list[float]], p: tuple[float, float, float]) -> tuple[float, float, float]:\n    v = [p[0], p[1], p[2], 1.0]\n    res = [sum(m[i][j] * v[j] for j in range(4)) for i in range(4)]\n    w = res[3]\n    return (res[0] / w, res[1] / w, res[2] / w)\n\n# Test vertex at (1, 0, 0)\nvertex = (1.0, 0.0, 0.0)\n\n# Rotate 90 degrees around Z: should move to (0, 1, 0)\nr_z_90 = rotate_z_matrix(math.pi / 2)\nrotated = transform_point(r_z_90, vertex)\nprint(\"Rotated point (90 deg Z):\", tuple(round(x, 4) for x in rotated))\nassert round(rotated[0], 2) == 0.0 and round(rotated[1], 2) == 1.0 and round(rotated[2], 2) == 0.0\n\n# Non-commutativity demonstration:\n# Case 1: Translate by (10, 0, 0) then Scale by (2, 2, 2) -> S * T\nt = translation_matrix(10.0, 0.0, 0.0)\ns = scale_matrix(2.0, 2.0, 2.0)\n\nst = multiply_4x4(s, t) # Scale * Translate\nts = multiply_4x4(t, s) # Translate * Scale\n\np_st = transform_point(st, (1.0, 0.0, 0.0)) # (1 + 10) * 2 = 22\np_ts = transform_point(ts, (1.0, 0.0, 0.0)) # (1 * 2) + 10 = 12\n\nprint(\"Scale * Translate on (1,0,0):\", p_st)\nprint(\"Translate * Scale on (1,0,0):\", p_ts)\nassert p_st[0] == 22.0\nassert p_ts[0] == 12.0\nassert p_st != p_ts # Demonstrates non-commutativity!\n", "mutants": ["import math\ndef identity_4x4(): return [[float(i == j) for j in range(4)] for i in range(4)]\ndef translation_matrix(tx, ty, tz):\n    m = identity_4x4(); m[0][3] = tx; m[1][3] = ty; m[2][3] = tz; return m\ndef scale_matrix(sx, sy, sz):\n    m = identity_4x4(); m[0][0] = sx; m[1][1] = sy; m[2][2] = sz; return m\ndef rotate_z_matrix(theta):\n    # Mutant returns identity matrix without rotating!\n    return identity_4x4()\ndef multiply_4x4(m1, m2):\n    res = [[0.0] * 4 for _ in range(4)]\n    for i in range(4):\n        for j in range(4):\n            res[i][j] = sum(m1[i][k] * m2[k][j] for k in range(4))\n    return res\ndef transform_point(m, p):\n    v = [p[0], p[1], p[2], 1.0]\n    res = [sum(m[i][j] * v[j] for j in range(4)) for i in range(4)]\n    w = res[3] if abs(res[3]) > 1e-9 else 1.0\n    return (res[0]/w, res[1]/w, res[2]/w)\n\nr_z_90 = rotate_z_matrix(math.pi / 2)\nrotated = transform_point(r_z_90, (1.0, 0.0, 0.0))\nassert round(rotated[1], 2) == 1.0, \"Rotation by 90 deg around Z must map (1,0,0) to (0,1,0)\"\n"]}, "p23-experiment-orientation-convex-hull": {"code": "def orientation(p1: tuple, p2: tuple, p3: tuple) -> int:\n    val = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0])\n    if abs(val) < 1e-9: return 0  # Collinear\n    return 1 if val > 0 else -1   # 1 = CCW, -1 = CW\n\ndef convex_hull_graham(points: list[tuple]) -> list[tuple]:\n    pts = sorted(set(points))\n    if len(pts) <= 2: return pts\n    \n    # Andrew's monotone chain variant of Graham scan\n    lower = []\n    for p in pts:\n        while len(lower) >= 2 and orientation(lower[-2], lower[-1], p) <= 0:\n            lower.pop()\n        lower.append(p)\n        \n    upper = []\n    for p in reversed(pts):\n        while len(upper) >= 2 and orientation(upper[-2], upper[-1], p) <= 0:\n            upper.pop()\n        upper.append(p)\n        \n    return lower[:-1] + upper[:-1]\n\n# 2D points: square with corners (0,0), (4,0), (4,4), (0,4) and an interior point (2,2)\npoint_cloud = [(0, 0), (4, 0), (4, 4), (0, 4), (2, 2), (1, 3)]\nhull = convex_hull_graham(point_cloud)\n\nprint(\"Input points:\", point_cloud)\nprint(\"Convex Hull vertices:\", hull)\n\n# Interior points (2,2) and (1,3) must be excluded\nassert (2, 2) not in hull\nassert (1, 3) not in hull\nassert len(hull) == 4\nassert set(hull) == {(0, 0), (4, 0), (4, 4), (0, 4)}\n", "mutants": ["def orientation(p1, p2, p3): return 0\ndef convex_hull_graham(pts): return pts # Mutant returns all points without filtering interior!\n\npoint_cloud = [(0, 0), (4, 0), (4, 4), (0, 4), (2, 2)]\nhull = convex_hull_graham(point_cloud)\nassert (2, 2) not in hull, \"Convex hull must exclude interior points\"\n"]}}, "cards": [{"q": "Why are homogeneous coordinates (x, y, z, 1) used in 3D graphics?", "a": "They allow translation, rotation, scaling, and projective transformations to all be unified as single 4x4 matrix multiplications, enabling efficient composition."}, {"q": "What is gimbal lock and how do quaternions prevent it?", "a": "Gimbal lock is the loss of one rotational degree of freedom when Euler axes align. Quaternions represent rotations as 4D hypercomplex numbers, providing singularity-free continuous rotation."}, {"q": "How does the 2D orientation test determine clockwise vs counter-clockwise turns?", "a": "By taking the 2x2 determinant cross-product (Bx - Ax)(Cy - Ay) - (By - Ay)(Cx - Ax): positive indicates counter-clockwise (left), negative indicates clockwise (right), zero is collinear."}, {"q": "What is the time complexity of the Graham scan convex hull algorithm?", "a": "O(n log n) dominated by initial point sorting; the subsequent monotone stack hull construction runs in linear O(n) time."}, {"q": "What is the frame budget for a 60Hz display and a 120Hz display?", "a": "16.67ms per frame for 60Hz, and 8.33ms per frame for 120Hz; exceeding this budget causes dropped frames (jank)."}, {"q": "Why is gamma correction needed in graphics pipelines?", "a": "Human vision perceives light logarithmically; gamma encoding (V^(1/2.2)) compresses linear luminance to allocate more bits to darker tones where human eyes have higher sensitivity."}], "title": "Graphics, geometry and interaction"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

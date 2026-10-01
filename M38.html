@@ -1,0 +1,1314 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M38 Abstract algebra for computing</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M38">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-3 · ~5h20</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M38</p><h1>Abstract algebra for computing</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M29.html">M29</a> <a href="M16.html">M16</a></div><div><b>Covers:</b> university algebra, CS2023 SEC, CS2023 NC</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>groups, axioms and examples</li><li>cyclic groups</li><li>Lagrange&#x27;s theorem</li><li>rings and fields</li><li>finite fields GF(p) and GF(2^n)</li><li>polynomial arithmetic mod 2</li><li>CRC as polynomial division</li><li>Hamming codes</li><li>homomorphisms and isomorphisms</li><li>symmetry groups</li><li>discrete logarithm and Diffie-Hellman</li><li>zero-knowledge proofs (Schnorr identification) and Shamir secret sharing</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Neha ships firmware over a flaky serial link. Every image carries a checksum — the sum of all the bytes, truncated to 16 bits — and the device refuses anything that does not match.</p>
+<p>A device comes back bricked. The checksum had matched.</p>
+<p>She pulls the image off the device and diffs it against the original. Two bytes are swapped. Byte 4019 holds what byte 4020 should, and vice versa. The sum is identical, because addition does not care what order you add things in.</p>
+<p>That is the bug, and it is not really a bug in her code. It is a bug in her <em>choice of algebra</em>. She picked a structure whose operation is commutative, so the structure is blind to position. Any corruption that permutes bytes is invisible to it, forever, no matter how many bits of checksum she adds.</p>
+<p>She switches to CRC32 and the swapped-byte corruption is caught instantly. CRC is not a cleverer sum. It is <strong>division</strong> — the message is treated as a polynomial whose coefficients live in a field with two elements, divided by a fixed generator polynomial, and the remainder is the check value. In that structure position is everything, because $x^{4019}$ and $x^{4020}$ are different terms.</p>
+<p>And then the part that makes this a module rather than an anecdote. The same two-element field underlies AES. The same "division leaves a remainder" structure gives Hamming codes that <em>correct</em> errors rather than merely detecting them. The same idea of a group with a hard-to-invert operation gives Diffie-Hellman, Shamir's secret sharing and zero-knowledge proofs. Neha went looking for a better checksum and found the structure that most of applied computing is built on.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>group</strong> is a set with one operation that is associative, has an identity, and gives every element an inverse. That is enough structure to prove surprisingly strong things — <strong>Lagrange's theorem</strong>, that the size of any subgroup divides the size of the group, is the one that does most of the work.</p>
+<p>A <strong>ring</strong> adds a second operation (multiplication), and a <strong>field</strong> is a ring where every non-zero element has a multiplicative inverse. Fields are where you can do all four arithmetic operations, which is why they are the setting for codes and cryptography.</p>
+<p>The <strong>finite fields</strong> are the interesting ones for computing. $\mathrm{GF}(p)$ is arithmetic mod a prime. $\mathrm{GF}(2^n)$ is polynomial arithmetic mod 2 <em>and</em> mod an irreducible polynomial, which is exactly what CRC, Reed-Solomon and AES use.</p>
+<p><strong>Homomorphisms</strong> are structure-preserving maps, and they are what lets you prove two apparently different systems are the same one in disguise.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Groups</h2>
+<p>A <strong>group</strong> $(G,\ast)$ satisfies:</p>
+<ol>
+<li><strong>Closure:</strong> $a\ast b\in G$</li>
+<li><strong>Associativity:</strong> $(a\ast b)\ast c=a\ast(b\ast c)$</li>
+<li><strong>Identity:</strong> some $e$ with $e\ast a=a\ast e=a$</li>
+<li><strong>Inverses:</strong> each $a$ has $a^{-1}$ with $a\ast a^{-1}=e$</li>
+</ol>
+<p>It is <strong>abelian</strong> when $a\ast b=b\ast a$. Note commutativity is <em>not</em> required — and Neha's checksum failed precisely because she used an abelian one.</p>
+<table>
+<thead>
+<tr>
+<th>Group</th>
+<th>Elements</th>
+<th>Operation</th>
+<th>Order</th>
+<th>Abelian?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$\mathbb{Z}_n$</td>
+<td>$\{0,\dots,n-1\}$</td>
+<td>$+\bmod n$</td>
+<td>$n$</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>$\mathbb{Z}_p^\*$</td>
+<td>$\{1,\dots,p-1\}$</td>
+<td>$\times\bmod p$</td>
+<td>$p-1$</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>$S_n$</td>
+<td>permutations</td>
+<td>composition</td>
+<td>$n!$</td>
+<td>no for $n\ge3$</td>
+</tr>
+<tr>
+<td>$D_n$</td>
+<td>symmetries of an $n$-gon</td>
+<td>composition</td>
+<td>$2n$</td>
+<td>no for $n\ge3$</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>order of an element</strong> $a$ is the least $k&gt;0$ with $a^k=e$. A group is <strong>cyclic</strong> when some element generates all of it; $\mathbb{Z}_n$ always is, and $\mathbb{Z}_p^\*$ is cyclic for every prime $p$ — a generator is called a <strong>primitive root</strong>.</p>
+<p><strong>Lagrange's theorem.</strong> If $H\le G$ and $G$ is finite, then $|H|$ divides $|G|$. Consequences:</p>
+<ul>
+<li>The order of every element divides $|G|$</li>
+<li>$a^{|G|}=e$ for every $a$ — which <strong>is</strong> Fermat's little theorem in $\mathbb{Z}_p^\*$, and Euler's theorem in $\mathbb{Z}_n^\*$</li>
+<li>Every group of prime order is cyclic, and has no subgroups but the trivial ones</li>
+</ul>
+<h2>Rings and fields</h2>
+<p>A <strong>ring</strong> has two operations: $(R,+)$ abelian, $\times$ associative and distributing over $+$. A <strong>field</strong> additionally has $\times$ commutative with an identity, and an inverse for every non-zero element.</p>
+<p>$\mathbb{Z}_n$ is a field <strong>iff $n$ is prime</strong>. For composite $n$ there are zero divisors — $2\times3=0$ in $\mathbb{Z}_6$ — and a zero divisor can never have an inverse.</p>
+<p><strong>Every finite field has order $p^n$</strong> for a prime $p$, and for each such order there is exactly one field up to isomorphism, written $\mathrm{GF}(p^n)$.</p>
+<h2>GF(2) and GF(2^n)</h2>
+<p>$\mathrm{GF}(2)=\{0,1\}$ with addition = <strong>XOR</strong> and multiplication = <strong>AND</strong>. This is the whole reason binary computers and this algebra fit together so well: addition is subtraction is XOR, and there are no carries.</p>
+<p>$\mathrm{GF}(2^n)$ is <strong>polynomials over $\mathrm{GF}(2)$ of degree $&lt;n$, modulo an irreducible polynomial</strong> of degree $n$. A byte is a polynomial:</p>
+<p>$$\texttt{0b10001011} \;\longleftrightarrow\; x^7+x^3+x+1$$</p>
+<ul>
+<li><strong>Addition</strong> is XOR of the bit patterns — no carries anywhere.</li>
+<li><strong>Multiplication</strong> is polynomial multiplication followed by reduction mod the irreducible polynomial.</li>
+</ul>
+<p>AES uses $\mathrm{GF}(2^8)$ with $x^8+x^4+x^3+x+1$ (<code>0x11B</code>). Irreducibility matters for exactly the reason primality did: a reducible modulus gives zero divisors and the inverses disappear.</p>
+<h2>CRC as polynomial division</h2>
+<p>Treat the message bits as a polynomial $M(x)$ over $\mathrm{GF}(2)$. Pick a generator $G(x)$ of degree $r$. The CRC is</p>
+<p>$$R(x) = x^r M(x) \bmod G(x)$$</p>
+<p>and the transmitted word $x^rM(x)+R(x)$ is <strong>divisible by $G(x)$</strong>. The receiver divides; a non-zero remainder means error.</p>
+<p>What it catches follows from the algebra. An error pattern $E(x)$ is undetected <strong>iff $G(x)\mid E(x)$</strong>. So:</p>
+<ul>
+<li>all single-bit errors, if $G$ has at least two terms</li>
+<li>all odd-numbered-bit errors, if $(x+1)\mid G$</li>
+<li>all burst errors shorter than $r$, since $G\nmid x^k\cdot(\text{short polynomial})$</li>
+</ul>
+<p>A sum, by contrast, catches none of Neha's transpositions, because it never sees position at all.</p>
+<h2>Hamming codes</h2>
+<p>The $(7,4)$ Hamming code sends 4 data bits with 3 parity bits. With generator $G$ and parity-check matrix $H$ over $\mathrm{GF}(2)$:</p>
+<p>$$c = mG, \qquad s = Hc^{T}$$</p>
+<p>The <strong>syndrome</strong> $s$ is zero for a valid codeword, and for a single-bit error in position $i$ it equals column $i$ of $H$ — so arranging the columns as the binary numbers $1..7$ makes the syndrome <em>literally spell out the error position</em>. Minimum distance 3: corrects 1 error, detects 2. In general a code with minimum distance $d$ corrects $\lfloor\frac{d-1}{2}\rfloor$ errors.</p>
+<h2>Homomorphisms</h2>
+<p>A map $\varphi:G\to H$ is a <strong>homomorphism</strong> when $\varphi(a\ast b)=\varphi(a)\circ\varphi(b)$. It is an <strong>isomorphism</strong> when also bijective, and then the two groups are the same object with relabelled elements.</p>
+<p>The <strong>kernel</strong> $\ker\varphi=\{a:\varphi(a)=e_H\}$ is a normal subgroup, and the <strong>first isomorphism theorem</strong> says $G/\ker\varphi\cong\mathrm{im}\,\varphi$. Concretely: $\exp:(\mathbb{R},+)\to(\mathbb{R}^{&gt;0},\times)$ is an isomorphism, which is why logarithms turn multiplication into addition — and it is the model for what the discrete logarithm <em>would</em> be if it were easy.</p>
+<h2>Discrete log, Diffie-Hellman, Shamir, Schnorr</h2>
+<p>In $\mathbb{Z}_p^\*$ with generator $g$, computing $g^a\bmod p$ is fast (square-and-multiply, $O(\log a)$) while recovering $a$ from $g^a$ — the <strong>discrete logarithm</strong> — has no known polynomial algorithm. That asymmetry is the whole foundation.</p>
+<p><strong>Diffie-Hellman.</strong> Alice sends $A=g^a$, Bob sends $B=g^b$; both compute $g^{ab}$ as $B^a=A^b$. An eavesdropper sees $g,p,g^a,g^b$ and must solve discrete log (or the Diffie-Hellman problem) to get $g^{ab}$.</p>
+<p><strong>Shamir's secret sharing.</strong> Hide a secret $s$ as the constant term of a random degree-$(t-1)$ polynomial over $\mathrm{GF}(p)$; hand out points. Any $t$ shares determine the polynomial by Lagrange interpolation, and recover $s=f(0)$. Any $t-1$ shares leave <strong>every</strong> value of $s$ equally likely — <em>information-theoretic</em> security, not computational. This is M37's entropy claim made concrete: the conditional entropy of the secret given $t-1$ shares is exactly its prior entropy.</p>
+<p><strong>Schnorr identification (zero-knowledge).</strong> Peggy proves she knows $x$ with $y=g^x$ without revealing $x$:</p>
+<ol>
+<li><strong>Commit:</strong> pick random $r$, send $t=g^r$</li>
+<li><strong>Challenge:</strong> Victor sends random $c$</li>
+<li><strong>Respond:</strong> Peggy sends $s=r+cx \bmod q$</li>
+<li><strong>Verify:</strong> check $g^s = t\cdot y^c$</li>
+</ol>
+<p>It is <em>sound</em> because anyone who can answer two different challenges on the same $t$ reveals $x$ (subtract the two responses). It is <em>zero-knowledge</em> because a simulator who knows $c$ in advance can produce an identically distributed transcript with no knowledge of $x$ at all — pick $s$ at random and set $t=g^sy^{-c}$. Nothing in the transcript can therefore carry information about $x$.</p>
+<h2>A pinch of history</h2>
+<p>Évariste Galois invented group theory to settle which polynomials are solvable by radicals, and wrote much of it down the night before the duel that killed him at 20 in 1832. Lagrange's theorem predates the group concept. Finite fields are called Galois fields for him.</p>
+<p>Richard Hamming, frustrated by weekend batch jobs that crashed on a parity error and discarded everything, built the first error-<em>correcting</em> code in 1950. W. Wesley Peterson described CRCs in 1961. Diffie and Hellman published public key exchange in 1976 — Clifford Cocks and Malcolm Williamson had found equivalent ideas at GCHQ a few years earlier but could not publish. Adi Shamir's secret sharing is from 1979, Goldwasser, Micali and Rackoff defined zero-knowledge in 1985, and Claus Schnorr's protocol is from 1989.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: Lagrange's theorem.</strong> Let $H\le G$. For $a\in G$ the <strong>left coset</strong> $aH=\{ah:h\in H\}$ has three properties:</p>
+<ul>
+<li><em>Every element is in some coset</em>, since $a=ae\in aH$.</li>
+<li><em>Cosets are disjoint or identical.</em> If $c\in aH\cap bH$ then $c=ah_1=bh_2$, so $a=bh_2h_1^{-1}$, and then $aH=bh_2h_1^{-1}H=bH$ since $h_2h_1^{-1}H=H$.</li>
+<li><em>All cosets have the same size</em>, because $h\mapsto ah$ is a bijection $H\to aH$ (its inverse is multiplication by $a^{-1}$).</li>
+</ul>
+<p>So the cosets <strong>partition</strong> $G$ into equal-sized blocks of size $|H|$. Hence $|G|=[G:H]\cdot|H|$ and $|H|$ divides $|G|$. Applying this to $H=\langle a\rangle$ gives $\mathrm{ord}(a)\mid|G|$, hence $a^{|G|}=e$ — <strong>and that is Fermat's little theorem, which needed no number theory at all.</strong></p>
+<p><strong>Result 2: $\mathbb{Z}_n$ is a field iff $n$ is prime.</strong> If $n=ab$ with $1&lt;a,b&lt;n$ then $a\cdot b\equiv0$ while $a,b\ne0$. Were $a$ invertible, $b=a^{-1}(ab)=a^{-1}\cdot0=0$, a contradiction — so $a$ has no inverse. Conversely if $n=p$ is prime and $a\not\equiv0$, then $\gcd(a,p)=1$, so Bézout gives $ua+vp=1$, i.e. $ua\equiv1\pmod p$: $u$ is the inverse. <strong>Exactly the same argument, with "irreducible" for "prime", shows $\mathrm{GF}(2)[x]/(f)$ is a field iff $f$ is irreducible.</strong></p>
+<p><strong>Result 3: why the Hamming syndrome names the error position.</strong> Let $H$ be the $3\times7$ matrix whose $i$-th column is the binary representation of $i$. A codeword satisfies $Hc^T=0$. If a single error flips position $i$, the received word is $c+e_i$, so</p>
+<p>$$H(c+e_i)^T = Hc^T + He_i^T = 0 + (\text{column } i) = \text{binary}(i)$$</p>
+<p>The syndrome <em>is</em> the position, read as a binary numeral. This works because the columns are <strong>distinct and non-zero</strong>, which is also exactly the condition for minimum distance 3: any two columns are different, so no two single-bit errors share a syndrome.</p>
+<p><strong>Result 4: Shamir's scheme is information-theoretically secure.</strong> Given $t-1$ points of a degree-$(t-1)$ polynomial over $\mathrm{GF}(p)$, take any candidate secret $s&#x27;$. The $t-1$ points plus $(0,s&#x27;)$ are $t$ points with distinct $x$-coordinates, and over a field there is <strong>exactly one</strong> polynomial of degree $&lt;t$ through $t$ such points (Vandermonde is invertible). So every $s&#x27;$ is consistent with exactly one polynomial, and all are equally likely. The posterior equals the prior — <strong>no computational assumption anywhere</strong>, which is what separates this from Diffie-Hellman.</p>
+<p><strong>Result 5: Schnorr is sound and reveals nothing.</strong></p>
+<p><em>Soundness.</em> Suppose a prover answers two challenges $c_1\ne c_2$ on the same commitment $t$, with responses $s_1,s_2$. Both verify, so $g^{s_1}=ty^{c_1}$ and $g^{s_2}=ty^{c_2}$. Dividing, $g^{s_1-s_2}=y^{c_1-c_2}$, so $y=g^{(s_1-s_2)(c_1-c_2)^{-1}}$ and the secret is $x=(s_1-s_2)(c_1-c_2)^{-1}\bmod q$. <strong>Anyone who can answer two challenges knows $x$.</strong></p>
+<p><em>Zero knowledge.</em> A simulator that gets to pick $c$ first chooses $s$ uniformly, sets $t=g^sy^{-c}$, and outputs $(t,c,s)$. This verifies by construction, and $(t,c,s)$ has exactly the same distribution as a real transcript — in both, $s$ is uniform and $t$ is determined by $s$ and $c$. Since the transcript can be produced <em>without</em> $x$, it cannot contain information about $x$.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle verifies structure by exhaustive check rather than by assertion.</p>
+<p>Group axioms are confirmed over every triple. Lagrange's theorem is checked by enumerating <strong>every</strong> subgroup of several groups and confirming each order divides. Field axioms for $\mathrm{GF}(2^4)$ are verified against brute-force inverse search. The CRC is computed two independent ways — bitwise shift-and-XOR, and honest polynomial long division over $\mathrm{GF}(2)$ — which must agree bit for bit.</p>
+<p>The mutant uses a <em>reducible</em> polynomial as the $\mathrm{GF}(2^4)$ modulus, which still gives closure and associativity but silently destroys the field.</p>
+<div class="lab demo" data-demo="m38-structures-verified">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Group and field axioms, checked exhaustively</h3></div>
+
+<textarea class="code" spellcheck="false">from itertools import product
+
+
+def is_group(elems, op):
+    &quot;&quot;&quot;Check all four axioms by exhaustive search.&quot;&quot;&quot;
+    s = set(elems)
+    for a, b in product(elems, repeat=2):
+        if op(a, b) not in s:
+            return False, &quot;not closed&quot;
+    ident = [e for e in elems if all(op(e, a) == a and op(a, e) == a for a in elems)]
+    if len(ident) != 1:
+        return False, &quot;no unique identity&quot;
+    e = ident[0]
+    for a, b, c in product(elems, repeat=3):
+        if op(op(a, b), c) != op(a, op(b, c)):
+            return False, &quot;not associative&quot;
+    for a in elems:
+        if not any(op(a, b) == e and op(b, a) == e for b in elems):
+            return False, f&quot;no inverse for {a}&quot;
+    return True, e
+
+
+def is_abelian(elems, op):
+    return all(op(a, b) == op(b, a) for a, b in product(elems, repeat=2))
+
+
+# --- a selection of groups ---
+Z6 = (list(range(6)), lambda a, b: (a + b) % 6)
+Z7star = (list(range(1, 7)), lambda a, b: (a * b) % 7)
+perms = [p for p in product(range(3), repeat=3) if len(set(p)) == 3]
+S3 = (perms, lambda p, q: tuple(p[q[i]] for i in range(3)))
+
+print(f&quot;{&#x27;group&#x27;:&gt;10} {&#x27;order&#x27;:&gt;6} {&#x27;is a group&#x27;:&gt;12} {&#x27;identity&#x27;:&gt;12} {&#x27;abelian&#x27;:&gt;9}&quot;)
+for name, (elems, op) in ((&quot;Z6&quot;, Z6), (&quot;Z7*&quot;, Z7star), (&quot;S3&quot;, S3)):
+    ok, e = is_group(elems, op)
+    print(f&quot;{name:&gt;10} {len(elems):&gt;6} {str(ok):&gt;12} {str(e):&gt;12} &quot;
+          f&quot;{str(is_abelian(elems, op)):&gt;9}&quot;)
+    assert ok, (name, e)
+assert is_abelian(*Z6) and is_abelian(*Z7star)
+assert not is_abelian(*S3), &quot;S3 is the smallest non-abelian group&quot;
+# a non-group: multiplication mod 6 has no inverse for 2
+assert not is_group(list(range(1, 6)), lambda a, b: (a * b) % 6)[0]
+
+# --- Lagrange, by enumerating EVERY subgroup ---
+print()
+
+
+def all_subgroups(elems, op):
+    &quot;&quot;&quot;Every subset that is itself a group, found by closure from generators.&quot;&quot;&quot;
+    found = set()
+    n = len(elems)
+    for mask in range(1, 1 &lt;&lt; n):
+        sub = [elems[i] for i in range(n) if mask &gt;&gt; i &amp; 1]
+        if len(sub) &gt; n:
+            continue
+        ok, _ = is_group(sub, op)
+        if ok:
+            found.add(frozenset(sub))
+    return found
+
+
+for name, (elems, op) in ((&quot;Z6&quot;, Z6), (&quot;Z7*&quot;, Z7star), (&quot;S3&quot;, S3)):
+    subs = all_subgroups(elems, op)
+    orders = sorted({len(s) for s in subs})
+    print(f&quot;  {name:&gt;4}: |G| = {len(elems)}, subgroup orders found {orders}&quot;)
+    for s in subs:
+        assert len(elems) % len(s) == 0, f&quot;Lagrange fails for {name}: {len(s)}&quot;
+    # every divisor is realised for a cyclic group, but NOT in general
+    if name in (&quot;Z6&quot;, &quot;Z7*&quot;):
+        divs = [d for d in range(1, len(elems) + 1) if len(elems) % d == 0]
+        assert orders == divs, f&quot;{name} is cyclic so every divisor occurs&quot;
+print(&quot;  every subgroup order divides the group order&quot;)
+# S3 has order 6 but NO subgroup of order 4 - and 4 does not divide 6
+assert 4 not in {len(s) for s in all_subgroups(*S3)}
+
+# --- element orders divide the group order; Fermat falls out ---
+print()
+
+
+def order_of(a, elems, op, e):
+    x, k = a, 1
+    while x != e:
+        x, k = op(x, a), k + 1
+    return k
+
+
+for p in (5, 7, 11, 13):
+    elems = list(range(1, p))
+    op = lambda a, b, p=p: (a * b) % p
+    for a in elems:
+        o = order_of(a, elems, op, 1)
+        assert (p - 1) % o == 0, (p, a, o)
+        assert pow(a, p - 1, p) == 1, &quot;Fermat&#x27;s little theorem, from Lagrange&quot;
+    gens = [a for a in elems if order_of(a, elems, op, 1) == p - 1]
+    print(f&quot;  Z_{p}* has order {p - 1}, primitive roots: {gens}&quot;)
+    assert gens, &quot;Z_p* is cyclic for every prime p&quot;
+
+# --- GF(2^4) is a field, checked against brute force ---
+print()
+MOD = 0b10011          # x^4 + x + 1, irreducible
+
+
+def gf_mul(a, b, mod=MOD, bits=4):
+    r = 0
+    while b:
+        if b &amp; 1:
+            r ^= a
+        b &gt;&gt;= 1
+        a &lt;&lt;= 1
+        if a &gt;&gt; bits &amp; 1:
+            a ^= mod
+    return r
+
+
+field = list(range(16))
+# addition is XOR, which is a group
+ok, e = is_group(field, lambda a, b: a ^ b)
+assert ok and e == 0, &quot;addition in GF(2^n) is XOR&quot;
+# non-zero elements form a multiplicative group
+ok, e = is_group(list(range(1, 16)), gf_mul)
+print(f&quot;GF(2^4) with modulus 0b{MOD:b}: multiplicative group? {ok}, identity {e}&quot;)
+assert ok and e == 1
+# distributivity, exhaustively
+for a, b, c in product(field, repeat=3):
+    assert gf_mul(a, b ^ c) == gf_mul(a, b) ^ gf_mul(a, c)
+print(&quot;  distributivity verified over all 4096 triples&quot;)
+# every non-zero element has an inverse, found by search
+inv = {}
+for a in range(1, 16):
+    cand = [b for b in range(1, 16) if gf_mul(a, b) == 1]
+    assert len(cand) == 1, (a, cand)
+    inv[a] = cand[0]
+print(f&quot;  inverses: {inv}&quot;)
+# the multiplicative group is cyclic, with a generator
+gens = []
+for g in range(2, 16):
+    seen, x = set(), 1
+    for _ in range(15):
+        x = gf_mul(x, g)
+        seen.add(x)
+    if len(seen) == 15:
+        gens.append(g)
+print(f&quot;  generators of the multiplicative group: {gens}&quot;)
+assert gens, &quot;the multiplicative group of a finite field is cyclic&quot;
+
+# --- CRC two ways: shift-and-XOR against honest long division ---
+print()
+GEN = 0b100000111        # degree 8
+
+
+def crc_shift(data_bits, gen=GEN, r=8):
+    reg = 0
+    for bit in data_bits + [0] * r:
+        reg = (reg &lt;&lt; 1) | bit
+        if reg &gt;&gt; r &amp; 1:
+            reg ^= gen
+    return reg
+
+
+def poly_divmod(num_bits, gen=GEN):
+    &quot;&quot;&quot;Honest polynomial long division over GF(2).&quot;&quot;&quot;
+    num = list(num_bits)
+    gdeg = gen.bit_length() - 1
+    gbits = [(gen &gt;&gt; (gdeg - i)) &amp; 1 for i in range(gdeg + 1)]
+    for i in range(len(num) - gdeg):
+        if num[i]:
+            for j, gb in enumerate(gbits):
+                num[i + j] ^= gb
+    rem = num[len(num) - gdeg:]
+    return sum(b &lt;&lt; (gdeg - 1 - i) for i, b in enumerate(rem))
+
+
+import random
+rng = random.Random(1950)
+for trial in range(200):
+    bits = [rng.randrange(2) for _ in range(rng.randrange(8, 40))]
+    a = crc_shift(bits)
+    b = poly_divmod(bits + [0] * 8)
+    assert a == b, (bits, a, b)
+print(&quot;CRC by shift-and-XOR agrees with polynomial long division on 200 messages&quot;)
+# the transmitted word really is divisible by the generator
+bits = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0]
+crc = crc_shift(bits)
+word = bits + [(crc &gt;&gt; (7 - i)) &amp; 1 for i in range(8)]
+assert poly_divmod(word) == 0, &quot;message + CRC must divide exactly&quot;
+print(f&quot;message+CRC divides the generator exactly: remainder &quot;
+      f&quot;{poly_divmod(word)}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Four predictions.</p>
+<p><strong>First, Neha's failure is structural.</strong> A sum must miss every transposition, and a CRC must catch essentially all of them. We corrupt messages at random and count.</p>
+<p><strong>Second, Hamming codes correct, not merely detect.</strong> Every single-bit error in any of 7 positions should be located exactly by the syndrome.</p>
+<p><strong>Third, Diffie-Hellman really agrees</strong>, and the discrete log that would break it is measurably harder than the exponentiation that builds it.</p>
+<p><strong>Fourth, Shamir's threshold is sharp.</strong> $t$ shares recover the secret exactly; $t-1$ leave every secret equally possible.</p>
+<div class="lab demo" data-demo="m38-codes-and-secrets">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Why the checksum failed, and what the algebra buys</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from itertools import product
+
+rng = random.Random(1832)
+
+# --- 1. checksum versus CRC on real corruptions ---
+GEN = 0b100000111
+
+
+def crc8(data):
+    reg = 0
+    for byte in data:
+        reg ^= byte
+        for _ in range(8):
+            reg = ((reg &lt;&lt; 1) ^ GEN) &amp; 0xFF if reg &amp; 0x80 else (reg &lt;&lt; 1) &amp; 0xFF
+    return reg
+
+
+def checksum(data):
+    return sum(data) &amp; 0xFF
+
+
+def corrupt(data, kind):
+    d = list(data)
+    if kind == &quot;swap two bytes&quot;:
+        i = rng.randrange(len(d) - 1)
+        j = rng.randrange(len(d) - 1)
+        while d[i] == d[j]:
+            i, j = rng.randrange(len(d)), rng.randrange(len(d))
+        d[i], d[j] = d[j], d[i]
+    elif kind == &quot;single bit flip&quot;:
+        i = rng.randrange(len(d))
+        d[i] ^= 1 &lt;&lt; rng.randrange(8)
+    elif kind == &quot;reorder all bytes&quot;:
+        rng.shuffle(d)
+    elif kind == &quot;burst of 6 bits&quot;:
+        i = rng.randrange(len(d))
+        d[i] ^= rng.randrange(1, 64)
+    return d
+
+
+print(f&quot;{&#x27;corruption&#x27;:&gt;22} {&#x27;checksum catches&#x27;:&gt;18} {&#x27;CRC-8 catches&#x27;:&gt;16}&quot;)
+results = {}
+for kind in (&quot;single bit flip&quot;, &quot;swap two bytes&quot;, &quot;reorder all bytes&quot;,
+             &quot;burst of 6 bits&quot;):
+    cs_caught = crc_caught = 0
+    trials = 2000
+    for _ in range(trials):
+        data = [rng.randrange(256) for _ in range(16)]
+        bad = corrupt(data, kind)
+        if bad == data:
+            trials -= 1
+            continue
+        if checksum(bad) != checksum(data):
+            cs_caught += 1
+        if crc8(bad) != crc8(data):
+            crc_caught += 1
+    results[kind] = (cs_caught / trials, crc_caught / trials)
+    print(f&quot;{kind:&gt;22} {cs_caught / trials:&gt;18.3f} {crc_caught / trials:&gt;16.3f}&quot;)
+
+print()
+print(&quot;predicted: a sum is blind to ORDER, so it must catch no transposition&quot;)
+print(&quot;           at all, while the CRC sees position and catches nearly all&quot;)
+assert results[&quot;swap two bytes&quot;][0] == 0.0, &quot;a sum CANNOT see a transposition&quot;
+assert results[&quot;reorder all bytes&quot;][0] == 0.0, &quot;nor any permutation&quot;
+assert results[&quot;swap two bytes&quot;][1] &gt; 0.98, &quot;the CRC catches them&quot;
+assert results[&quot;reorder all bytes&quot;][1] &gt; 0.98
+# a sum does catch single-bit flips, so it is not useless - just wrong here
+assert results[&quot;single bit flip&quot;][0] &gt; 0.9
+assert results[&quot;single bit flip&quot;][1] == 1.0, &quot;CRC catches EVERY single-bit error&quot;
+assert results[&quot;burst of 6 bits&quot;][1] == 1.0, &quot;and every burst shorter than r&quot;
+
+# --- 2. Hamming (7,4) corrects single-bit errors ---
+print()
+H = [[0, 0, 0, 1, 1, 1, 1],
+     [0, 1, 1, 0, 0, 1, 1],
+     [1, 0, 1, 0, 1, 0, 1]]    # columns are binary 1..7
+# Positions 1..7 hold (p1, p2, d1, p3, d2, d3, d4): the parities sit at the
+# powers of two, which is what makes the syndrome read as a position.
+G = [[1, 1, 1, 0, 0, 0, 0],
+     [1, 0, 0, 1, 1, 0, 0],
+     [0, 1, 0, 1, 0, 1, 0],
+     [1, 1, 0, 1, 0, 0, 1]]
+
+
+def encode(msg):
+    return [sum(msg[i] * G[i][j] for i in range(4)) % 2 for j in range(7)]
+
+
+def syndrome(word):
+    return [sum(H[r][j] * word[j] for j in range(7)) % 2 for r in range(3)]
+
+
+def syndrome_value(s):
+    return s[0] * 4 + s[1] * 2 + s[2]
+
+
+codewords = [encode(list(m)) for m in product((0, 1), repeat=4)]
+assert len(set(map(tuple, codewords))) == 16
+for c in codewords:
+    assert syndrome_value(syndrome(c)) == 0, &quot;a codeword has zero syndrome&quot;
+
+# minimum distance
+dmin = min(sum(a != b for a, b in zip(c1, c2))
+           for i, c1 in enumerate(codewords) for c2 in codewords[i + 1:])
+print(f&quot;Hamming(7,4): {len(codewords)} codewords, minimum distance {dmin}&quot;)
+assert dmin == 3, &quot;distance 3 corrects one error and detects two&quot;
+
+fixed = 0
+for c in codewords:
+    for pos in range(7):
+        bad = list(c)
+        bad[pos] ^= 1
+        v = syndrome_value(syndrome(bad))
+        assert v == pos + 1, f&quot;the syndrome must name the position: {v} vs {pos + 1}&quot;
+        bad[v - 1] ^= 1
+        assert bad == c, &quot;and flipping it back must restore the codeword&quot;
+        fixed += 1
+print(f&quot;  corrected all {fixed} single-bit errors; the syndrome IS the position&quot;)
+print()
+print(&quot;predicted: syndrome = column i of H = binary(i), so decoding is a lookup&quot;)
+# two errors are detected but mis-corrected, exactly as distance 3 predicts
+mis = 0
+for c in codewords[:4]:
+    for i, j in product(range(7), repeat=2):
+        if i &lt; j:
+            bad = list(c)
+            bad[i] ^= 1
+            bad[j] ^= 1
+            assert syndrome_value(syndrome(bad)) != 0, &quot;two errors are detected&quot;
+            v = syndrome_value(syndrome(bad))
+            guess = list(bad)
+            guess[v - 1] ^= 1
+            if guess != c:
+                mis += 1
+print(f&quot;  but of the double errors tried, {mis} were &#x27;corrected&#x27; to the WRONG &quot;
+      f&quot;codeword - distance 3 cannot fix two&quot;)
+assert mis &gt; 0, &quot;distance 3 cannot correct two errors&quot;
+
+# --- 3. Diffie-Hellman, and the cost asymmetry ---
+print()
+p, g = 2147483647, 7          # a Mersenne prime
+a, b = rng.randrange(2, 10 ** 6), rng.randrange(2, 10 ** 6)
+A, B = pow(g, a, p), pow(g, b, p)
+assert pow(B, a, p) == pow(A, b, p), &quot;both sides must agree&quot;
+shared = pow(B, a, p)
+print(f&quot;Diffie-Hellman over p = {p}: shared secret {shared}&quot;)
+print(f&quot;  Alice computed B^a, Bob computed A^b - identical: &quot;
+      f&quot;{pow(B, a, p) == pow(A, b, p)}&quot;)
+assert shared == pow(g, (a * b) % (p - 1), p) or shared == pow(pow(g, a, p), b, p)
+
+# the asymmetry, measured on a small prime where brute force is possible
+small_p, small_g = 7919, 7
+secret = 4321
+pub = pow(small_g, secret, small_p)
+steps_up = small_p.bit_length() * 2            # square-and-multiply
+x, steps_down = 1, 0
+for k in range(1, small_p):
+    x = (x * small_g) % small_p
+    steps_down += 1
+    if x == pub:
+        break
+print(f&quot;  on p = {small_p}: exponentiation ~{steps_up} multiplications, &quot;
+      f&quot;brute-force discrete log took {steps_down}&quot;)
+assert steps_down &gt; 50 * steps_up, &quot;the inverse direction is vastly more work&quot;
+print()
+print(&quot;predicted: forward is logarithmic in the exponent, backward has no known&quot;)
+print(&quot;           polynomial method - and that gap IS the security&quot;)
+
+# --- 4. Shamir&#x27;s threshold is sharp ---
+print()
+P = 2087
+T = 3
+
+
+def make_shares(secret, t, n, prime=P):
+    coeffs = [secret] + [rng.randrange(prime) for _ in range(t - 1)]
+    pts = []
+    for i in range(1, n + 1):
+        y = 0
+        for c in reversed(coeffs):
+            y = (y * i + c) % prime
+        pts.append((i, y))
+    return pts
+
+
+def recover(points, prime=P):
+    &quot;&quot;&quot;Lagrange interpolation at x = 0, over GF(p).&quot;&quot;&quot;
+    total = 0
+    for i, (xi, yi) in enumerate(points):
+        num, den = 1, 1
+        for j, (xj, _) in enumerate(points):
+            if i != j:
+                num = (num * (-xj)) % prime
+                den = (den * (xi - xj)) % prime
+        total = (total + yi * num * pow(den, prime - 2, prime)) % prime
+    return total
+
+
+secret = 1729
+shares = make_shares(secret, T, 6)
+print(f&quot;secret {secret}, threshold {T}, shares {shares}&quot;)
+for subset in ((0, 1, 2), (1, 3, 5), (2, 4, 5), (0, 3, 4)):
+    got = recover([shares[i] for i in subset])
+    assert got == secret, (subset, got)
+print(f&quot;  any {T} shares recover it exactly; tried 4 different triples&quot;)
+# four shares also work, since the polynomial is over-determined but consistent
+assert recover(shares[:4]) == secret
+
+# with T-1 shares EVERY secret remains possible
+two = shares[:2]
+possible = set()
+for candidate in range(P):
+    pts = [(0, candidate)] + two
+    # three points determine a unique quadratic; check it matches the shares
+    if recover(pts[:3]) == candidate:
+        possible.add(candidate)
+print(f&quot;  with only {T - 1} shares, {len(possible)} of {P} secrets remain &quot;
+      f&quot;consistent&quot;)
+assert len(possible) == P, &quot;every secret is still possible - that is perfect secrecy&quot;
+print()
+print(&quot;predicted: the threshold is SHARP. t shares give the secret exactly;&quot;)
+print(&quot;           t-1 shares leave the posterior equal to the prior.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the first table is the whole story, and the number that matters is the exact zero. A checksum caught <strong>0.000</strong> of two-byte transpositions and 0.000 of full reorderings — not "few", not "sometimes", but none, in two thousand trials each, and it would be zero in two billion. Widening it to 16 or 32 bits changes nothing, because the failure is not a shortage of bits; it is that addition is commutative and therefore structurally blind to position. The CRC caught essentially all of them, and <strong>every</strong> single-bit error and <strong>every</strong> six-bit burst — those are not statistics but theorems, which is why they come out as exactly 1.000.</p>
+<p>The Hamming panel shows the step up from detecting to correcting: all 112 single-bit errors were located and repaired, because the syndrome is literally the binary numeral of the error position. The double-error rows show the matching limit — distance 3 cannot correct two errors, and the decoder confidently "corrects" to the wrong codeword, which is the right thing to understand before trusting any code.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m38-ex1-groups" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Group axioms, orders and cyclic groups</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>is_closed(elems, op)</code>, <code>find_identity(elems, op)</code> returning the identity or <code>None</code>, <code>is_associative(elems, op)</code>, <code>has_inverses(elems, op)</code> and <code>is_group(elems, op)</code>. Write <code>element_order(a, elems, op)</code> raising <code>ValueError</code> when the set is not a group. Write <code>is_cyclic(elems, op)</code> and <code>generators(elems, op)</code>. Write <code>compose_perm(p, q)</code> composing permutations given as tuples, raising <code>ValueError</code> on a length mismatch.</p></div>
+<textarea class="code" spellcheck="false">def is_closed(elems, op):
+    &quot;&quot;&quot;True when the operation stays inside the set.&quot;&quot;&quot;
+    return False
+
+
+def find_identity(elems, op):
+    &quot;&quot;&quot;The identity element, or None.&quot;&quot;&quot;
+    return None
+
+
+def is_associative(elems, op):
+    &quot;&quot;&quot;True when the operation is associative.&quot;&quot;&quot;
+    return False
+
+
+def has_inverses(elems, op):
+    &quot;&quot;&quot;True when every element has an inverse.&quot;&quot;&quot;
+    return False
+
+
+def is_group(elems, op):
+    &quot;&quot;&quot;All four axioms.&quot;&quot;&quot;
+    return False
+
+
+def element_order(a, elems, op):
+    &quot;&quot;&quot;The least k &gt; 0 with a^k = e.&quot;&quot;&quot;
+    return 0
+
+
+def is_cyclic(elems, op):
+    &quot;&quot;&quot;True when some element generates the whole group.&quot;&quot;&quot;
+    return False
+
+
+def generators(elems, op):
+    &quot;&quot;&quot;Every element that generates the whole group.&quot;&quot;&quot;
+    return []
+
+
+def compose_perm(p, q):
+    &quot;&quot;&quot;The permutation p after q.&quot;&quot;&quot;
+    return ()
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_axioms_on_familiar_groups():
+    add6 = (list(range(6)), lambda a, b: (a + b) % 6)
+    assert is_closed(*add6) and is_associative(*add6)
+    assert find_identity(*add6) == 0
+    assert has_inverses(*add6) and is_group(*add6)
+    mul7 = (list(range(1, 7)), lambda a, b: (a * b) % 7)
+    assert is_group(*mul7) and find_identity(*mul7) == 1
+    # multiplication mod 6 on {1..5} is NOT a group: 2, 3 and 4 have no inverse
+    mul6 = (list(range(1, 6)), lambda a, b: (a * b) % 6)
+    assert not is_group(*mul6)
+    assert not is_closed(*mul6), &quot;2 * 3 = 0, which is outside the set&quot;
+    # subtraction mod 6 is closed with an identity but not associative
+    sub6 = (list(range(6)), lambda a, b: (a - b) % 6)
+    assert is_closed(*sub6)
+    assert not is_associative(*sub6)
+    assert not is_group(*sub6)
+    # A one-sided identity is not an identity. Under right projection every
+    # element is a LEFT identity and none is a right one, so there is no
+    # identity at all.
+    assert find_identity([0, 1, 2], lambda a, b: b) is None
+    assert find_identity([0, 1, 2], lambda a, b: a) is None
+    assert not is_group([0, 1, 2], lambda a, b: b)
+    # Associativity must be checked on genuine TRIPLES. |a - b| satisfies it
+    # for every (a, a, a) and still fails: ||1-2|-3| = 2 but |1-|2-3|| = 0.
+    absdiff = lambda a, b: abs(a - b)
+    assert all(absdiff(absdiff(a, a), a) == absdiff(a, absdiff(a, a))
+               for a in range(4)), &quot;it passes the lazy test&quot;
+    assert not is_associative([0, 1, 2, 3], absdiff), &quot;but it is not associative&quot;
+    assert not is_group([0, 1, 2, 3], absdiff)
+    try:
+        is_closed([], lambda a, b: a)
+        assert False, &quot;an empty set must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_orders_and_cyclic_structure():
+    add6 = (list(range(6)), lambda a, b: (a + b) % 6)
+    assert element_order(0, *add6) == 1
+    assert element_order(1, *add6) == 6
+    assert element_order(2, *add6) == 3
+    assert element_order(3, *add6) == 2
+    # every order divides the group order: Lagrange
+    for a in range(6):
+        assert 6 % element_order(a, *add6) == 0
+    assert is_cyclic(*add6)
+    assert sorted(generators(*add6)) == [1, 5]
+    mul7 = (list(range(1, 7)), lambda a, b: (a * b) % 7)
+    assert is_cyclic(*mul7), &quot;Z_p* is cyclic for prime p&quot;
+    assert sorted(generators(*mul7)) == [3, 5]
+    for a in range(1, 7):
+        assert 6 % element_order(a, *mul7) == 0
+    try:
+        element_order(2, list(range(1, 6)), lambda a, b: (a * b) % 6)
+        assert False, &quot;a non-group must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_permutations_form_a_non_abelian_group():
+    from itertools import product
+    perms = [p for p in product(range(3), repeat=3) if len(set(p)) == 3]
+    assert len(perms) == 6
+    assert is_group(perms, compose_perm)
+    assert find_identity(perms, compose_perm) == (0, 1, 2)
+    # S3 is NOT abelian, which is why it is the interesting small example
+    a, b = (1, 0, 2), (0, 2, 1)
+    assert compose_perm(a, b) != compose_perm(b, a)
+    # and it is not cyclic: no single element has order 6
+    assert not is_cyclic(perms, compose_perm)
+    assert max(element_order(p, perms, compose_perm) for p in perms) == 3
+    # orders still divide 6
+    for p in perms:
+        assert 6 % element_order(p, perms, compose_perm) == 0
+    for bad in (lambda: compose_perm((0, 1), (0, 1, 2)),
+                lambda: compose_perm((0, 0, 1), (0, 1, 2))):
+        try:
+            bad()
+            assert False, &quot;an invalid permutation must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m38-ex2-lagrange" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Subgroups, cosets, Lagrange and homomorphisms</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>generated_subgroup(a, elems, op)</code> returning the cyclic subgroup. Write <code>left_cosets(subgroup, elems, op)</code> returning a list of frozensets. Write <code>index(subgroup, elems, op)</code>. Write <code>lagrange_holds(subgroup, elems, op)</code>. Write <code>is_homomorphism(phi, g_elems, g_op, h_op)</code>. Write <code>kernel(phi, g_elems, h_identity)</code>. Write <code>is_isomorphism(phi, g_elems, g_op, h_elems, h_op)</code>.</p></div>
+<textarea class="code" spellcheck="false">def generated_subgroup(a, elems, op):
+    &quot;&quot;&quot;The cyclic subgroup generated by a.&quot;&quot;&quot;
+    return set()
+
+
+def left_cosets(subgroup, elems, op):
+    &quot;&quot;&quot;All distinct left cosets aH.&quot;&quot;&quot;
+    return []
+
+
+def index(subgroup, elems, op):
+    &quot;&quot;&quot;The number of distinct cosets.&quot;&quot;&quot;
+    return 0
+
+
+def lagrange_holds(subgroup, elems, op):
+    &quot;&quot;&quot;True when |H| divides |G|.&quot;&quot;&quot;
+    return False
+
+
+def is_homomorphism(phi, g_elems, g_op, h_op):
+    &quot;&quot;&quot;True when phi preserves the operation.&quot;&quot;&quot;
+    return False
+
+
+def kernel(phi, g_elems, h_identity):
+    &quot;&quot;&quot;Elements mapping to the identity of H.&quot;&quot;&quot;
+    return set()
+
+
+def is_isomorphism(phi, g_elems, g_op, h_elems, h_op):
+    &quot;&quot;&quot;True when phi is a bijective homomorphism.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_subgroups_and_cosets():
+    Z6 = (list(range(6)), lambda a, b: (a + b) % 6)
+    assert generated_subgroup(2, *Z6) == {0, 2, 4}
+    assert generated_subgroup(3, *Z6) == {0, 3}
+    assert generated_subgroup(1, *Z6) == set(range(6))
+    assert generated_subgroup(0, *Z6) == {0}
+    # cosets of {0,2,4} partition Z6 into two blocks of three
+    cos = left_cosets({0, 2, 4}, *Z6)
+    assert len(cos) == 2
+    assert all(len(c) == 3 for c in cos)
+    assert set().union(*cos) == set(range(6))
+    assert index({0, 2, 4}, *Z6) == 2
+    assert index({0, 3}, *Z6) == 3
+    assert index({0}, *Z6) == 6
+    try:
+        generated_subgroup(99, *Z6)
+        assert False, &quot;an element outside the group must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_lagrange_and_its_consequence():
+    Z6 = (list(range(6)), lambda a, b: (a + b) % 6)
+    for a in range(6):
+        H = generated_subgroup(a, *Z6)
+        assert lagrange_holds(H, *Z6), a
+        assert 6 % len(H) == 0
+        # |H| * index = |G|
+        assert len(H) * index(H, *Z6) == 6
+    # Fermat&#x27;s little theorem is Lagrange applied to Z_p*
+    for p in (5, 7, 11, 13):
+        elems = list(range(1, p))
+        op = lambda a, b, p=p: (a * b) % p
+        for a in elems:
+            H = generated_subgroup(a, elems, op)
+            assert (p - 1) % len(H) == 0
+            assert pow(a, p - 1, p) == 1
+    # a non-subgroup fails the partition check
+    assert not lagrange_holds({0, 1, 2}, *Z6), &quot;that subset is not a subgroup&quot;
+
+
+def test_homomorphisms_and_isomorphisms():
+    Z6 = (list(range(6)), lambda a, b: (a + b) % 6)
+    Z3 = (list(range(3)), lambda a, b: (a + b) % 3)
+    Z2 = (list(range(2)), lambda a, b: (a + b) % 2)
+    # reduction mod 3 is a homomorphism Z6 -&gt; Z3
+    phi = lambda a: a % 3
+    assert is_homomorphism(phi, Z6[0], Z6[1], Z3[1])
+    assert kernel(phi, Z6[0], 0) == {0, 3}
+    # the first isomorphism theorem: |G| / |ker| = |image|
+    assert len(Z6[0]) // len(kernel(phi, Z6[0], 0)) == 3
+    # it is onto but not injective, so not an isomorphism
+    assert not is_isomorphism(phi, Z6[0], Z6[1], Z3[0], Z3[1])
+    # Z6 IS isomorphic to Z7* via 3^k, which is the discrete log in reverse
+    Z7s = (list(range(1, 7)), lambda a, b: (a * b) % 7)
+    psi = lambda k: pow(3, k, 7)
+    assert is_homomorphism(psi, Z6[0], Z6[1], Z7s[1])
+    assert is_isomorphism(psi, Z6[0], Z6[1], Z7s[0], Z7s[1])
+    assert kernel(psi, Z6[0], 1) == {0}, &quot;an isomorphism has trivial kernel&quot;
+    # a map that is not a homomorphism
+    assert not is_homomorphism(lambda a: (a + 1) % 3, Z6[0], Z6[1], Z3[1])
+    # parity is a homomorphism Z6 -&gt; Z2
+    assert is_homomorphism(lambda a: a % 2, Z6[0], Z6[1], Z2[1])
+    assert kernel(lambda a: a % 2, Z6[0], 0) == {0, 2, 4}
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m38-ex3-fields" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Rings, fields, GF(p) and GF(2^n)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>is_field_zp(n)</code> returning <code>True</code> when <code>Z_n</code> is a field. Write <code>zp_inverse(a, p)</code> raising <code>ValueError</code> when none exists. Write <code>zero_divisors(n)</code> listing non-zero <code>a</code> with some non-zero <code>b</code> giving <code>a*b == 0 mod n</code>. Write <code>gf2_mul(a, b, mod, bits)</code> for GF(2^n). Write <code>gf2_add(a, b)</code>. Write <code>is_irreducible_gf2(poly, degree)</code> by trial division. Write <code>gf2_inverse(a, mod, bits)</code> by search, raising <code>ValueError</code> for zero.</p></div>
+<textarea class="code" spellcheck="false">def is_field_zp(n):
+    &quot;&quot;&quot;True when Z_n is a field.&quot;&quot;&quot;
+    return False
+
+
+def zp_inverse(a, p):
+    &quot;&quot;&quot;The multiplicative inverse of a mod p.&quot;&quot;&quot;
+    return 0
+
+
+def zero_divisors(n):
+    &quot;&quot;&quot;Non-zero elements that multiply to zero mod n.&quot;&quot;&quot;
+    return []
+
+
+def gf2_add(a, b):
+    &quot;&quot;&quot;Addition in GF(2^n).&quot;&quot;&quot;
+    return 0
+
+
+def gf2_mul(a, b, mod, bits):
+    &quot;&quot;&quot;Multiplication in GF(2^n).&quot;&quot;&quot;
+    return 0
+
+
+def is_irreducible_gf2(poly, degree):
+    &quot;&quot;&quot;True when the polynomial is irreducible over GF(2).&quot;&quot;&quot;
+    return False
+
+
+def gf2_inverse(a, mod, bits):
+    &quot;&quot;&quot;The multiplicative inverse in GF(2^n).&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_zp_is_a_field_exactly_for_primes():
+    for p in (2, 3, 5, 7, 11, 13, 17, 97):
+        assert is_field_zp(p) is True, p
+    for n in (4, 6, 8, 9, 10, 12, 15, 100):
+        assert is_field_zp(n) is False, n
+    # in a field every non-zero element inverts
+    for p in (5, 7, 13):
+        for a in range(1, p):
+            inv = zp_inverse(a, p)
+            assert (a * inv) % p == 1, (p, a, inv)
+        assert zero_divisors(p) == [], &quot;a field has no zero divisors&quot;
+    # a composite modulus has zero divisors, and they are exactly the
+    # elements sharing a factor with n
+    from math import gcd
+    assert zero_divisors(6) == [2, 3, 4]
+    assert zero_divisors(4) == [2]
+    for n in (6, 8, 12):
+        assert zero_divisors(n) == sorted(a for a in range(1, n) if gcd(a, n) &gt; 1)
+    try:
+        zp_inverse(2, 6)
+        assert False, &quot;2 has no inverse mod 6&quot;
+    except ValueError:
+        pass
+    try:
+        zp_inverse(0, 7)
+        assert False, &quot;zero has no inverse&quot;
+    except ValueError:
+        pass
+
+
+def test_gf2_arithmetic():
+    MOD, BITS = 0b10011, 4          # x^4 + x + 1
+    # addition is XOR and is its own inverse
+    assert gf2_add(0b1010, 0b0110) == 0b1100
+    for a in range(16):
+        assert gf2_add(a, a) == 0, &quot;every element is its own additive inverse&quot;
+        assert gf2_add(a, 0) == a
+    # multiplication: identity, commutativity, associativity
+    for a in range(16):
+        assert gf2_mul(a, 1, MOD, BITS) == a
+        assert gf2_mul(a, 0, MOD, BITS) == 0
+        for b in range(16):
+            assert gf2_mul(a, b, MOD, BITS) == gf2_mul(b, a, MOD, BITS)
+    for a in range(16):
+        for b in range(16):
+            for c in range(4):
+                left = gf2_mul(gf2_mul(a, b, MOD, BITS), c, MOD, BITS)
+                right = gf2_mul(a, gf2_mul(b, c, MOD, BITS), MOD, BITS)
+                assert left == right, (a, b, c)
+    # distributivity
+    for a in range(16):
+        for b in range(16):
+            for c in range(4):
+                assert gf2_mul(a, gf2_add(b, c), MOD, BITS) == \
+                    gf2_add(gf2_mul(a, b, MOD, BITS), gf2_mul(a, c, MOD, BITS))
+    try:
+        gf2_mul(1, 1, 0b1011, 4)
+        assert False, &quot;a modulus of the wrong degree must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_irreducibility_decides_whether_it_is_a_field():
+    # x^4+x+1 and x^4+x^3+1 are irreducible; x^4+x^3+x^2+x+1 is not
+    assert is_irreducible_gf2(0b10011, 4) is True
+    assert is_irreducible_gf2(0b11001, 4) is True
+    # x^4+x^3+x^2+x+1 LOOKS like it should factor and does not: it has no
+    # root in GF(2) (five ones sum to 1) and is not the square of x^2+x+1.
+    assert is_irreducible_gf2(0b11111, 4) is True
+    assert is_irreducible_gf2(0b10101, 4) is False     # (x^2+x+1)^2
+    assert is_irreducible_gf2(0b10001, 4) is False     # (x+1)^4
+    assert is_irreducible_gf2(0b111, 2) is True        # x^2+x+1
+    assert is_irreducible_gf2(0b100, 2) is False       # x^2
+    assert is_irreducible_gf2(0b100011011, 8) is True  # the AES polynomial
+    # with an irreducible modulus every non-zero element inverts
+    for mod in (0b10011, 0b11001, 0b11111):
+        for a in range(1, 16):
+            b = gf2_inverse(a, mod, 4)
+            assert gf2_mul(a, b, mod, 4) == 1, (mod, a, b)
+    # with a REDUCIBLE one, some element has no inverse at all
+    missing = []
+    for a in range(1, 16):
+        try:
+            gf2_inverse(a, 0b10101, 4)
+        except ValueError:
+            missing.append(a)
+    assert missing == [7, 9, 14], missing
+    # 7 is x^2+x+1, and 7 * 7 = 0 in this ring: a zero divisor, so no inverse
+    assert gf2_mul(7, 7, 0b10101, 4) == 0, &quot;a reducible modulus creates zero divisors&quot;
+    try:
+        gf2_inverse(0, 0b10011, 4)
+        assert False, &quot;zero has no inverse&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m38-ex4-crc" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>CRC as polynomial division, and Hamming codes</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>poly_mod2(dividend_bits, generator)</code> returning the remainder as an integer. Write <code>crc(data_bits, generator)</code> appending <code>r</code> zeros first. Write <code>crc_check(word_bits, generator)</code> returning <code>True</code> when the remainder is zero. Write <code>bytes_to_bits(data)</code>. Write <code>hamming_encode(msg4)</code> returning 7 bits. Write <code>hamming_syndrome(word7)</code> returning the integer position (0 for no error). Write <code>hamming_decode(word7)</code> correcting one error and returning the 4 data bits.</p></div>
+<textarea class="code" spellcheck="false">def poly_mod2(dividend_bits, generator):
+    &quot;&quot;&quot;Remainder of polynomial division over GF(2).&quot;&quot;&quot;
+    return 0
+
+
+def crc(data_bits, generator):
+    &quot;&quot;&quot;The CRC of a bit list.&quot;&quot;&quot;
+    return 0
+
+
+def crc_check(word_bits, generator):
+    &quot;&quot;&quot;True when the word divides the generator exactly.&quot;&quot;&quot;
+    return False
+
+
+def bytes_to_bits(data):
+    &quot;&quot;&quot;A list of bits, most significant first.&quot;&quot;&quot;
+    return []
+
+
+def hamming_encode(msg4):
+    &quot;&quot;&quot;Encode 4 data bits as 7.&quot;&quot;&quot;
+    return []
+
+
+def hamming_syndrome(word7):
+    &quot;&quot;&quot;The error position, 1..7, or 0 if none.&quot;&quot;&quot;
+    return 0
+
+
+def hamming_decode(word7):
+    &quot;&quot;&quot;Correct one error and return the 4 data bits.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_crc_is_polynomial_division():
+    GEN = 0b100000111
+    # the transmitted word is divisible by the generator, by construction
+    for msg in ([1, 0, 1, 1], [1] * 20, [0, 0, 1], [1, 0, 1, 0, 1, 0, 1, 1, 1]):
+        c = crc(msg, GEN)
+        r = GEN.bit_length() - 1
+        word = msg + [(c &gt;&gt; (r - 1 - i)) &amp; 1 for i in range(r)]
+        assert crc_check(word, GEN) is True, msg
+        assert poly_mod2(word, GEN) == 0
+    # a remainder is always smaller than the generator
+    for msg in ([1, 0, 1, 1], [1] * 30):
+        assert 0 &lt;= crc(msg, GEN) &lt; (1 &lt;&lt; (GEN.bit_length() - 1))
+    assert bytes_to_bits([0b10110010]) == [1, 0, 1, 1, 0, 0, 1, 0]
+    assert len(bytes_to_bits([0, 255, 7])) == 24
+    for bad in (lambda: crc([], GEN), lambda: bytes_to_bits([256]),
+                lambda: poly_mod2([1, 0], 1)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_crc_catches_what_a_sum_cannot():
+    import random
+    GEN = 0b100000111
+    rng = random.Random(1961)
+    r = GEN.bit_length() - 1
+
+    def word_for(data):
+        bits = bytes_to_bits(data)
+        c = crc(bits, GEN)
+        return bits + [(c &gt;&gt; (r - 1 - i)) &amp; 1 for i in range(r)]
+
+    # EVERY single-bit error is caught: that is a theorem, not a statistic
+    data = [rng.randrange(256) for _ in range(8)]
+    w = word_for(data)
+    for pos in range(len(w)):
+        bad = list(w)
+        bad[pos] ^= 1
+        assert crc_check(bad, GEN) is False, pos
+    # transpositions of bytes are caught, where a sum sees nothing
+    caught = 0
+    for _ in range(200):
+        d = [rng.randrange(256) for _ in range(8)]
+        i, j = 0, 1
+        while d[i] == d[j]:
+            i, j = rng.randrange(8), rng.randrange(8)
+        swapped = list(d)
+        swapped[i], swapped[j] = swapped[j], swapped[i]
+        assert sum(swapped) == sum(d), &quot;a sum is blind to this&quot;
+        if crc(bytes_to_bits(swapped), GEN) != crc(bytes_to_bits(d), GEN):
+            caught += 1
+    assert caught &gt;= 198, caught
+    # every burst shorter than the degree is caught
+    for _ in range(200):
+        d = [rng.randrange(256) for _ in range(8)]
+        w = word_for(d)
+        start = rng.randrange(len(w) - r)
+        bad = list(w)
+        pattern = rng.randrange(1, 1 &lt;&lt; (r - 1))
+        for k in range(r - 1):
+            bad[start + k] ^= (pattern &gt;&gt; k) &amp; 1
+        if bad != w:
+            assert crc_check(bad, GEN) is False
+
+
+def test_hamming_corrects_every_single_error():
+    from itertools import product
+    words = [hamming_encode(list(m)) for m in product((0, 1), repeat=4)]
+    assert len(set(map(tuple, words))) == 16
+    for m in product((0, 1), repeat=4):
+        w = hamming_encode(list(m))
+        assert hamming_syndrome(w) == 0, &quot;a clean codeword has syndrome 0&quot;
+        assert hamming_decode(w) == list(m), &quot;and decodes to the message&quot;
+        # every single-bit error is located and repaired
+        for pos in range(7):
+            bad = list(w)
+            bad[pos] ^= 1
+            assert hamming_syndrome(bad) == pos + 1, (m, pos)
+            assert hamming_decode(bad) == list(m), (m, pos)
+    # minimum distance 3
+    dmin = min(sum(a != b for a, b in zip(w1, w2))
+               for i, w1 in enumerate(words) for w2 in words[i + 1:])
+    assert dmin == 3
+    # two errors are DETECTED but cannot be corrected
+    w = hamming_encode([1, 0, 1, 1])
+    bad = list(w)
+    bad[0] ^= 1
+    bad[3] ^= 1
+    assert hamming_syndrome(bad) != 0, &quot;a double error is detected&quot;
+    assert hamming_decode(bad) != [1, 0, 1, 1], &quot;but mis-corrected&quot;
+    for bad_call in (lambda: hamming_encode([1, 0, 1]),
+                     lambda: hamming_syndrome([1] * 6),
+                     lambda: hamming_encode([1, 0, 1, 2])):
+        try:
+            bad_call()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m38-ex5-crypto" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Discrete log, Diffie-Hellman, Shamir and Schnorr</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>mod_exp(base, exp, mod)</code> by square-and-multiply. Write <code>discrete_log_bruteforce(g, h, p, limit=100000)</code> returning the exponent or <code>None</code>. Write <code>diffie_hellman(p, g, a, b)</code> returning <code>(A, B, shared)</code>, raising <code>ValueError</code> if the shared values disagree. Write <code>shamir_split(secret, t, n, p, randfunc)</code> and <code>shamir_recover(points, p)</code> by Lagrange interpolation at zero. Write <code>schnorr_prove(x, r, c, q)</code> returning <code>s</code>, and <code>schnorr_verify(y, t, c, s, g, p)</code>. Write <code>schnorr_extract(c1, s1, c2, s2, q)</code> recovering the secret from two transcripts.</p></div>
+<textarea class="code" spellcheck="false">def mod_exp(base, exp, mod):
+    &quot;&quot;&quot;base ** exp mod mod, by square-and-multiply.&quot;&quot;&quot;
+    return 0
+
+
+def discrete_log_bruteforce(g, h, p, limit=100000):
+    &quot;&quot;&quot;The smallest k with g^k = h mod p, or None.&quot;&quot;&quot;
+    return None
+
+
+def diffie_hellman(p, g, a, b):
+    &quot;&quot;&quot;(A, B, shared secret).&quot;&quot;&quot;
+    return (0, 0, 0)
+
+
+def shamir_split(secret, t, n, p, randfunc):
+    &quot;&quot;&quot;n shares of a secret, any t of which suffice.&quot;&quot;&quot;
+    return []
+
+
+def shamir_recover(points, p):
+    &quot;&quot;&quot;The secret, by Lagrange interpolation at x = 0.&quot;&quot;&quot;
+    return 0
+
+
+def schnorr_prove(x, r, c, q):
+    &quot;&quot;&quot;The response s = r + c x mod q.&quot;&quot;&quot;
+    return 0
+
+
+def schnorr_verify(y, t, c, s, g, p):
+    &quot;&quot;&quot;True when g^s = t * y^c.&quot;&quot;&quot;
+    return False
+
+
+def schnorr_extract(c1, s1, c2, s2, q):
+    &quot;&quot;&quot;Recover x from two responses to the same commitment.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_mod_exp_and_discrete_log():
+    assert mod_exp(2, 10, 1000) == 24
+    assert mod_exp(3, 0, 7) == 1
+    assert mod_exp(5, 1, 7) == 5
+    assert mod_exp(7, 100, 13) == pow(7, 100, 13)
+    for b in (2, 3, 5, 11):
+        for e in (0, 1, 7, 64, 1000):
+            assert mod_exp(b, e, 1009) == pow(b, e, 1009), (b, e)
+    # the two directions, on a prime small enough to brute force
+    p, g = 1013, 3
+    for secret in (2, 57, 500, 1000):
+        h = mod_exp(g, secret, p)
+        k = discrete_log_bruteforce(g, h, p)
+        assert k is not None
+        assert mod_exp(g, k, p) == h, (secret, k)
+    # a value outside the subgroup has no logarithm
+    assert discrete_log_bruteforce(4, 3, 7, limit=50) is None
+    for bad in (lambda: mod_exp(2, -1, 7), lambda: mod_exp(2, 3, 0)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_diffie_hellman_agrees():
+    p, g = 2147483647, 7
+    for a, b in ((3, 5), (12345, 67890), (999983, 31337)):
+        A, B, shared = diffie_hellman(p, g, a, b)
+        assert A == mod_exp(g, a, p)
+        assert B == mod_exp(g, b, p)
+        # both sides really computed the same thing, two different ways
+        assert shared == mod_exp(B, a, p) == mod_exp(A, b, p)
+        assert shared != A and shared != B
+    # different private keys give different shared secrets
+    _, _, s1 = diffie_hellman(p, g, 11, 13)
+    _, _, s2 = diffie_hellman(p, g, 11, 17)
+    assert s1 != s2
+    # the public values leak nothing directly usable
+    A, B, shared = diffie_hellman(p, g, 4242, 2424)
+    assert shared != (A * B) % p
+    for bad in (lambda: diffie_hellman(2, 1, 1, 1),
+                lambda: diffie_hellman(1013, 3, 0, 5)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_shamir_threshold_and_schnorr():
+    import random
+    rng = random.Random(1979)
+    P = 7919
+    secret = 1234
+    shares = shamir_split(secret, 3, 6, P, lambda: rng.randrange(P))
+    assert len(shares) == 6
+    assert len({x for x, _ in shares}) == 6
+    # any 3 shares recover it, and so do more
+    from itertools import combinations
+    for subset in list(combinations(range(6), 3))[:10]:
+        assert shamir_recover([shares[i] for i in subset], P) == secret, subset
+    assert shamir_recover(shares[:4], P) == secret
+    assert shamir_recover(shares, P) == secret
+    # 2 shares do NOT determine it: a different third point gives a different
+    # answer, so every secret stays possible
+    two = shares[:2]
+    got = {shamir_recover(two + [(99, y)], P) for y in range(0, P, 97)}
+    assert len(got) &gt; 50, &quot;two shares leave many secrets consistent&quot;
+    # a threshold of 1 is just the secret itself
+    one = shamir_split(secret, 1, 3, P, lambda: rng.randrange(P))
+    assert all(y == secret for _, y in one)
+    for bad in (lambda: shamir_split(5, 4, 3, P, lambda: 0),
+                lambda: shamir_split(P + 1, 2, 3, P, lambda: 0),
+                lambda: shamir_recover([(1, 2), (1, 3)], P)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+    # --- Schnorr: honest proofs verify, and reusing r leaks the secret ---
+    p, q, g = 2963, 1481, 4      # q = (p-1)/2 prime, g of order q
+    assert mod_exp(g, q, p) == 1
+    x = 777
+    y = mod_exp(g, x, p)
+    for r in (11, 2345, 1000):
+        t = mod_exp(g, r, p)
+        for c in (1, 42, 1480):
+            s = schnorr_prove(x, r, c, q)
+            assert schnorr_verify(y, t, c, s, g, p) is True, (r, c)
+        # a wrong response fails
+        assert schnorr_verify(y, t, 42, (schnorr_prove(x, r, 42, q) + 1) % q,
+                              g, p) is False
+    # soundness: two challenges on ONE commitment reveal x
+    r = 3141
+    c1, c2 = 101, 202
+    s1 = schnorr_prove(x, r, c1, q)
+    s2 = schnorr_prove(x, r, c2, q)
+    assert schnorr_extract(c1, s1, c2, s2, q) == x, &quot;reusing r leaks the secret&quot;
+    # zero knowledge: a simulator with the challenge first makes a valid
+    # transcript knowing nothing
+    c = 555
+    s_sim = rng.randrange(q)
+    t_sim = (mod_exp(g, s_sim, p) * mod_exp(mod_exp(y, c, p), p - 2, p)) % p
+    assert schnorr_verify(y, t_sim, c, s_sim, g, p) is True, \
+        &quot;a transcript provable without x carries no information about x&quot;
+    try:
+        schnorr_extract(5, 1, 5, 2, q)
+        assert False, &quot;equal challenges must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"A wider checksum is a stronger checksum."</strong> Not against the errors it is structurally blind to. Neha's sum misses every transposition at 16 bits, at 32, and at 1024, because the failure is commutativity, not width.</li>
+<li><strong>"CRC is a hash, so it is a bit like a cryptographic one."</strong> CRC is linear: $\mathrm{CRC}(a\oplus b)=\mathrm{CRC}(a)\oplus\mathrm{CRC}(b)$. That makes it excellent against random noise and useless against an adversary, who can adjust the message to keep any CRC fixed.</li>
+<li><strong>"Addition in GF(2^n) is addition."</strong> It is XOR. There are no carries, every element is its own additive inverse, and $a+a=0$.</li>
+<li><strong>"Any polynomial works as the GF(2^n) modulus."</strong> It must be <strong>irreducible</strong>, for exactly the reason $\mathbb{Z}_n$ needs $n$ prime: a reducible modulus creates zero divisors and the inverses vanish.</li>
+<li><strong>"Lagrange's theorem says every divisor of |G| is the order of some subgroup."</strong> The converse is false. $A_4$ has order 12 and no subgroup of order 6. Lagrange constrains; it does not construct.</li>
+<li><strong>"Diffie-Hellman gives you authentication."</strong> It gives a shared secret with <em>someone</em>. Without authentication that someone may be a machine-in-the-middle running two exchanges.</li>
+<li><strong>"Zero knowledge means the verifier learns nothing at all."</strong> The verifier learns the statement is true. What is proved is that they learn nothing <em>beyond</em> that — formalised by the existence of a simulator.</li>
+<li><strong>"Shamir's secret sharing is computationally secure."</strong> It is <em>information-theoretically</em> secure: with $t-1$ shares every secret remains exactly as likely as before. No amount of computation helps, which is strictly stronger than what Diffie-Hellman offers.</li>
+<li><strong>"Hamming codes correct any two errors because the distance is 3."</strong> Distance $d$ corrects $\lfloor\frac{d-1}{2}\rfloor=1$. Two errors are detected but silently mis-corrected.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>CRC's linearity is its fatal flaw against adversaries, and it was exactly how WEP was broken: the integrity check was a CRC, so an attacker could flip ciphertext bits and patch the CRC to match. Use a MAC when an adversary is in the picture.</p>
+<p>The textbook Schnorr and Diffie-Hellman here are deliberately minimal. Real deployments need: authenticated public values, a prime-order subgroup (otherwise small-subgroup attacks apply), and a <em>never</em>-reused nonce. The $r$-reuse extraction in the boss exercise is not a theoretical concern — it is how Sony's PlayStation 3 ECDSA signing key was recovered in 2010, and the same bug has appeared in Bitcoin wallets.</p>
+<p>Brute-force discrete log is here for illustration only. Baby-step giant-step runs in $O(\sqrt{p})$ and the number field sieve in sub-exponential time, so real parameters need thousands of bits — and Shor's algorithm breaks all of it on a sufficiently large quantum computer, which is why post-quantum schemes move to lattices rather than groups.</p>
+<p>Shamir's scheme needs genuinely random coefficients from a cryptographic source, and it provides no <em>verifiability</em>: a malicious participant can submit a wrong share and corrupt the reconstruction undetectably. Verifiable secret sharing exists for that reason.</p>
+<p>More broadly, finite fields are the easy case. Infinite rings, non-commutative rings and modules all behave differently, and most of the convenient facts used here — unique factorisation, every non-zero element invertible, a cyclic multiplicative group — are specific to finite fields.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Every storage and network layer you use runs on this. Ethernet, PCIe, USB, SATA and ZIP all carry CRCs. RAID-6 and every erasure-coded object store use Reed-Solomon over $\mathrm{GF}(2^8)$. ECC memory uses Hamming-family codes to correct single-bit errors in place, and QR codes survive being partly obscured because of Reed-Solomon.</p>
+<p>AES is $\mathrm{GF}(2^8)$ throughout: <code>MixColumns</code> is multiplication by a fixed polynomial, and the S-box is the multiplicative inverse in that field followed by an affine map. "Why is AES hard to break?" has an algebraic answer.</p>
+<p>Group structure shows up where people do not expect it. A CRDT's merge operation must be a commutative monoid, or replicas diverge. Hash table probing sequences are generated by a group action. Rubik's cube solvers are group theory with a search on top, and the symmetry group of a crystal or a molecule determines its spectrum.</p>
+<p>And in a code review, two questions from this module pay for themselves repeatedly. <em>What operation is this, and is it commutative?</em> — because if order matters to correctness and the check is commutative, the check is blind. And <em>is there an adversary?</em> — because CRC against noise is excellent engineering and CRC against an attacker is a vulnerability.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What are the four group axioms?</p></div><div class="a" hidden><p>Closure, associativity, an identity, and an inverse for every element. Commutativity is NOT required — abelian groups are the special case.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>State Lagrange's theorem and one consequence.</p></div><div class="a" hidden><p>The order of any subgroup divides the order of the group. Hence the order of every element divides |G|, so a^|G| = e — which IS Fermat's little theorem in Z_p*.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why does Lagrange's theorem hold?</p></div><div class="a" hidden><p>The left cosets of H partition G into disjoint blocks all of size |H|, because x -&gt; ax is a bijection from H onto aH.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>When is Z_n a field?</p></div><div class="a" hidden><p>Exactly when n is prime. A composite modulus has zero divisors, and a zero divisor can never be invertible.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What are addition and multiplication in GF(2^n)?</p></div><div class="a" hidden><p>Addition is XOR of the bit patterns, with no carries. Multiplication is polynomial multiplication reduced modulo an IRREDUCIBLE polynomial of degree n.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is a CRC, algebraically?</p></div><div class="a" hidden><p>The remainder of x^r M(x) divided by a generator polynomial G(x) over GF(2). An error E(x) goes undetected exactly when G(x) divides E(x).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Why does a plain checksum miss transpositions, whatever its width?</p></div><div class="a" hidden><p>Because addition is commutative, so the sum cannot see order. It is a structural blindness, not a shortage of bits.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Why does the Hamming syndrome identify the error position?</p></div><div class="a" hidden><p>The columns of H are the binary numerals 1..7, and a single error at position i gives syndrome equal to column i — the position written in binary.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>What does a code of minimum distance d guarantee?</p></div><div class="a" hidden><p>It corrects floor((d-1)/2) errors and detects d-1. Distance 3 corrects one and detects two.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What is a homomorphism, and what is its kernel?</p></div><div class="a" hidden><p>A map preserving the operation: phi(ab) = phi(a)phi(b). The kernel is what maps to the identity; it is a normal subgroup, and G/ker is isomorphic to the image.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="10"><div class="q"><p>Why is Shamir's secret sharing information-theoretically secure?</p></div><div class="a" hidden><p>With t-1 shares, every candidate secret is consistent with exactly one polynomial of degree &lt; t, so all remain equally likely. The posterior equals the prior, whatever computation is available.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="11"><div class="q"><p>Why is Schnorr zero-knowledge, and what breaks it?</p></div><div class="a" hidden><p>A simulator who knows the challenge first can produce an identically distributed transcript without the secret, so the transcript carries no information. Reusing the commitment r with two different challenges reveals x outright.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can state the group axioms and give a non-abelian example, you can prove Lagrange's theorem from the coset partition, you can say why $\mathbb{Z}_n$ is a field exactly for prime $n$ and why the same argument needs "irreducible" for $\mathrm{GF}(2^n)$, you can compute in $\mathrm{GF}(2^8)$ by hand, you can explain a CRC as polynomial division and say precisely which errors it must catch, you can decode a Hamming word by reading the syndrome as a position, you can explain why Neha's checksum was doomed whatever its width, you can explain why Shamir is stronger than Diffie-Hellman in the security it offers, and you pass the boss exercise without hints.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Joseph A. Gallian, <em>Contemporary Abstract Algebra</em>, 10th edition, Cengage.</li>
+<li>Rudolf Lidl and Harald Niederreiter, <em>Introduction to Finite Fields and their Applications</em>, Cambridge University Press.</li>
+<li>Richard W. Hamming, "Error Detecting and Error Correcting Codes", <em>Bell System Technical Journal</em>, 1950.</li>
+<li>Whitfield Diffie and Martin E. Hellman, "New Directions in Cryptography", <em>IEEE Transactions on Information Theory</em>, 1976.</li>
+<li>Adi Shamir, "How to Share a Secret", <em>Communications of the ACM</em>, 1979.</li>
+<li>Jonathan Katz and Yehuda Lindell, <em>Introduction to Modern Cryptography</em>, 3rd edition, CRC Press.</li>
+</ul></section>
+<footer class="pager"><a href="L06.html">&larr; L06 Tokens and embeddings</a>
+<a href="M39.html">M39 Fourier analysis and signals &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M38", "packages": [], "exercises": {"m38-ex1-groups": {"starter": "def is_closed(elems, op):\n    \"\"\"True when the operation stays inside the set.\"\"\"\n    return False\n\n\ndef find_identity(elems, op):\n    \"\"\"The identity element, or None.\"\"\"\n    return None\n\n\ndef is_associative(elems, op):\n    \"\"\"True when the operation is associative.\"\"\"\n    return False\n\n\ndef has_inverses(elems, op):\n    \"\"\"True when every element has an inverse.\"\"\"\n    return False\n\n\ndef is_group(elems, op):\n    \"\"\"All four axioms.\"\"\"\n    return False\n\n\ndef element_order(a, elems, op):\n    \"\"\"The least k > 0 with a^k = e.\"\"\"\n    return 0\n\n\ndef is_cyclic(elems, op):\n    \"\"\"True when some element generates the whole group.\"\"\"\n    return False\n\n\ndef generators(elems, op):\n    \"\"\"Every element that generates the whole group.\"\"\"\n    return []\n\n\ndef compose_perm(p, q):\n    \"\"\"The permutation p after q.\"\"\"\n    return ()\n", "solution": "from itertools import product\n\n\ndef is_closed(elems, op):\n    \"\"\"True when the operation stays inside the set.\"\"\"\n    if not elems:\n        raise ValueError(\"the set must be non-empty\")\n    s = set(elems)\n    return all(op(a, b) in s for a, b in product(elems, repeat=2))\n\n\ndef find_identity(elems, op):\n    \"\"\"The identity element, or None.\"\"\"\n    if not elems:\n        raise ValueError(\"the set must be non-empty\")\n    found = [e for e in elems\n             if all(op(e, a) == a and op(a, e) == a for a in elems)]\n    return found[0] if len(found) == 1 else None\n\n\ndef is_associative(elems, op):\n    \"\"\"True when the operation is associative.\"\"\"\n    return all(op(op(a, b), c) == op(a, op(b, c))\n               for a, b, c in product(elems, repeat=3))\n\n\ndef has_inverses(elems, op):\n    \"\"\"True when every element has an inverse.\"\"\"\n    e = find_identity(elems, op)\n    if e is None:\n        return False\n    return all(any(op(a, b) == e and op(b, a) == e for b in elems) for a in elems)\n\n\ndef is_group(elems, op):\n    \"\"\"All four axioms.\"\"\"\n    return (is_closed(elems, op) and find_identity(elems, op) is not None\n            and is_associative(elems, op) and has_inverses(elems, op))\n\n\ndef element_order(a, elems, op):\n    \"\"\"The least k > 0 with a^k = e.\"\"\"\n    if not is_group(elems, op):\n        raise ValueError(\"not a group\")\n    if a not in elems:\n        raise ValueError(\"the element must be in the group\")\n    e = find_identity(elems, op)\n    x, k = a, 1\n    while x != e:\n        x = op(x, a)\n        k += 1\n        if k > len(elems):\n            raise ValueError(\"the order exceeded the group size\")\n    return k\n\n\ndef is_cyclic(elems, op):\n    \"\"\"True when some element generates the whole group.\"\"\"\n    return bool(generators(elems, op))\n\n\ndef generators(elems, op):\n    \"\"\"Every element that generates the whole group.\"\"\"\n    if not is_group(elems, op):\n        raise ValueError(\"not a group\")\n    n = len(elems)\n    return [a for a in elems if element_order(a, elems, op) == n]\n\n\ndef compose_perm(p, q):\n    \"\"\"The permutation p after q: (p o q)(i) = p(q(i)).\"\"\"\n    if len(p) != len(q):\n        raise ValueError(\"permutations must have the same length\")\n    if sorted(p) != list(range(len(p))) or sorted(q) != list(range(len(q))):\n        raise ValueError(\"both must be permutations of 0..n-1\")\n    return tuple(p[q[i]] for i in range(len(p)))\n", "tests": "def test_axioms_on_familiar_groups():\n    add6 = (list(range(6)), lambda a, b: (a + b) % 6)\n    assert is_closed(*add6) and is_associative(*add6)\n    assert find_identity(*add6) == 0\n    assert has_inverses(*add6) and is_group(*add6)\n    mul7 = (list(range(1, 7)), lambda a, b: (a * b) % 7)\n    assert is_group(*mul7) and find_identity(*mul7) == 1\n    # multiplication mod 6 on {1..5} is NOT a group: 2, 3 and 4 have no inverse\n    mul6 = (list(range(1, 6)), lambda a, b: (a * b) % 6)\n    assert not is_group(*mul6)\n    assert not is_closed(*mul6), \"2 * 3 = 0, which is outside the set\"\n    # subtraction mod 6 is closed with an identity but not associative\n    sub6 = (list(range(6)), lambda a, b: (a - b) % 6)\n    assert is_closed(*sub6)\n    assert not is_associative(*sub6)\n    assert not is_group(*sub6)\n    # A one-sided identity is not an identity. Under right projection every\n    # element is a LEFT identity and none is a right one, so there is no\n    # identity at all.\n    assert find_identity([0, 1, 2], lambda a, b: b) is None\n    assert find_identity([0, 1, 2], lambda a, b: a) is None\n    assert not is_group([0, 1, 2], lambda a, b: b)\n    # Associativity must be checked on genuine TRIPLES. |a - b| satisfies it\n    # for every (a, a, a) and still fails: ||1-2|-3| = 2 but |1-|2-3|| = 0.\n    absdiff = lambda a, b: abs(a - b)\n    assert all(absdiff(absdiff(a, a), a) == absdiff(a, absdiff(a, a))\n               for a in range(4)), \"it passes the lazy test\"\n    assert not is_associative([0, 1, 2, 3], absdiff), \"but it is not associative\"\n    assert not is_group([0, 1, 2, 3], absdiff)\n    try:\n        is_closed([], lambda a, b: a)\n        assert False, \"an empty set must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_orders_and_cyclic_structure():\n    add6 = (list(range(6)), lambda a, b: (a + b) % 6)\n    assert element_order(0, *add6) == 1\n    assert element_order(1, *add6) == 6\n    assert element_order(2, *add6) == 3\n    assert element_order(3, *add6) == 2\n    # every order divides the group order: Lagrange\n    for a in range(6):\n        assert 6 % element_order(a, *add6) == 0\n    assert is_cyclic(*add6)\n    assert sorted(generators(*add6)) == [1, 5]\n    mul7 = (list(range(1, 7)), lambda a, b: (a * b) % 7)\n    assert is_cyclic(*mul7), \"Z_p* is cyclic for prime p\"\n    assert sorted(generators(*mul7)) == [3, 5]\n    for a in range(1, 7):\n        assert 6 % element_order(a, *mul7) == 0\n    try:\n        element_order(2, list(range(1, 6)), lambda a, b: (a * b) % 6)\n        assert False, \"a non-group must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_permutations_form_a_non_abelian_group():\n    from itertools import product\n    perms = [p for p in product(range(3), repeat=3) if len(set(p)) == 3]\n    assert len(perms) == 6\n    assert is_group(perms, compose_perm)\n    assert find_identity(perms, compose_perm) == (0, 1, 2)\n    # S3 is NOT abelian, which is why it is the interesting small example\n    a, b = (1, 0, 2), (0, 2, 1)\n    assert compose_perm(a, b) != compose_perm(b, a)\n    # and it is not cyclic: no single element has order 6\n    assert not is_cyclic(perms, compose_perm)\n    assert max(element_order(p, perms, compose_perm) for p in perms) == 3\n    # orders still divide 6\n    for p in perms:\n        assert 6 % element_order(p, perms, compose_perm) == 0\n    for bad in (lambda: compose_perm((0, 1), (0, 1, 2)),\n                lambda: compose_perm((0, 0, 1), (0, 1, 2))):\n        try:\n            bad()\n            assert False, \"an invalid permutation must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["from itertools import product\n\n\ndef is_closed(elems, op):\n    if not elems:\n        raise ValueError(\"the set must be non-empty\")\n    s = set(elems)\n    return all(op(a, b) in s for a, b in product(elems, repeat=2))\n\n\ndef find_identity(elems, op):\n    \"\"\"Bug: only checks the left identity, so a one-sided identity passes.\"\"\"\n    if not elems:\n        raise ValueError(\"the set must be non-empty\")\n    found = [e for e in elems if all(op(e, a) == a for a in elems)]\n    return found[0] if found else None\n\n\ndef is_associative(elems, op):\n    \"\"\"Bug: only tests triples of equal elements, which almost everything\n    satisfies - including subtraction.\"\"\"\n    return all(op(op(a, a), a) == op(a, op(a, a)) for a in elems)\n\n\ndef has_inverses(elems, op):\n    e = find_identity(elems, op)\n    if e is None:\n        return False\n    return all(any(op(a, b) == e and op(b, a) == e for b in elems) for a in elems)\n\n\ndef is_group(elems, op):\n    return (is_closed(elems, op) and find_identity(elems, op) is not None\n            and is_associative(elems, op) and has_inverses(elems, op))\n\n\ndef element_order(a, elems, op):\n    if not is_group(elems, op):\n        raise ValueError(\"not a group\")\n    if a not in elems:\n        raise ValueError(\"the element must be in the group\")\n    e = find_identity(elems, op)\n    x, k = a, 1\n    while x != e:\n        x = op(x, a)\n        k += 1\n        if k > len(elems):\n            raise ValueError(\"the order exceeded the group size\")\n    return k\n\n\ndef is_cyclic(elems, op):\n    return bool(generators(elems, op))\n\n\ndef generators(elems, op):\n    if not is_group(elems, op):\n        raise ValueError(\"not a group\")\n    n = len(elems)\n    return [a for a in elems if element_order(a, elems, op) == n]\n\n\ndef compose_perm(p, q):\n    if len(p) != len(q):\n        raise ValueError(\"permutations must have the same length\")\n    if sorted(p) != list(range(len(p))) or sorted(q) != list(range(len(q))):\n        raise ValueError(\"both must be permutations of 0..n-1\")\n    return tuple(p[q[i]] for i in range(len(p)))\n", "from itertools import product\n\n\ndef is_closed(elems, op):\n    if not elems:\n        raise ValueError(\"the set must be non-empty\")\n    s = set(elems)\n    return all(op(a, b) in s for a, b in product(elems, repeat=2))\n\n\ndef find_identity(elems, op):\n    if not elems:\n        raise ValueError(\"the set must be non-empty\")\n    found = [e for e in elems\n             if all(op(e, a) == a and op(a, e) == a for a in elems)]\n    return found[0] if len(found) == 1 else None\n\n\ndef is_associative(elems, op):\n    return all(op(op(a, b), c) == op(a, op(b, c))\n               for a, b, c in product(elems, repeat=3))\n\n\ndef has_inverses(elems, op):\n    e = find_identity(elems, op)\n    if e is None:\n        return False\n    return all(any(op(a, b) == e and op(b, a) == e for b in elems) for a in elems)\n\n\ndef is_group(elems, op):\n    return (is_closed(elems, op) and find_identity(elems, op) is not None\n            and is_associative(elems, op) and has_inverses(elems, op))\n\n\ndef element_order(a, elems, op):\n    \"\"\"Bug: counts from zero, so every order is reported one too small.\"\"\"\n    if not is_group(elems, op):\n        raise ValueError(\"not a group\")\n    if a not in elems:\n        raise ValueError(\"the element must be in the group\")\n    e = find_identity(elems, op)\n    x, k = a, 0\n    while x != e:\n        x = op(x, a)\n        k += 1\n        if k > len(elems):\n            raise ValueError(\"the order exceeded the group size\")\n    return k\n\n\ndef is_cyclic(elems, op):\n    return bool(generators(elems, op))\n\n\ndef generators(elems, op):\n    \"\"\"Bug: returns every element of maximal order rather than only those of\n    order exactly |G|, so a non-cyclic group is reported cyclic.\"\"\"\n    if not is_group(elems, op):\n        raise ValueError(\"not a group\")\n    best = max(element_order(a, elems, op) for a in elems)\n    return [a for a in elems if element_order(a, elems, op) == best]\n\n\ndef compose_perm(p, q):\n    if len(p) != len(q):\n        raise ValueError(\"permutations must have the same length\")\n    if sorted(p) != list(range(len(p))) or sorted(q) != list(range(len(q))):\n        raise ValueError(\"both must be permutations of 0..n-1\")\n    return tuple(p[q[i]] for i in range(len(p)))\n"], "hints": ["Associativity must be tested on all TRIPLES. Subtraction passes a test that only uses one element.", "A generator has order exactly `|G|`. An element of maximal order is not enough."], "level": "warmup", "title": "Group axioms, orders and cyclic groups"}, "m38-ex2-lagrange": {"starter": "def generated_subgroup(a, elems, op):\n    \"\"\"The cyclic subgroup generated by a.\"\"\"\n    return set()\n\n\ndef left_cosets(subgroup, elems, op):\n    \"\"\"All distinct left cosets aH.\"\"\"\n    return []\n\n\ndef index(subgroup, elems, op):\n    \"\"\"The number of distinct cosets.\"\"\"\n    return 0\n\n\ndef lagrange_holds(subgroup, elems, op):\n    \"\"\"True when |H| divides |G|.\"\"\"\n    return False\n\n\ndef is_homomorphism(phi, g_elems, g_op, h_op):\n    \"\"\"True when phi preserves the operation.\"\"\"\n    return False\n\n\ndef kernel(phi, g_elems, h_identity):\n    \"\"\"Elements mapping to the identity of H.\"\"\"\n    return set()\n\n\ndef is_isomorphism(phi, g_elems, g_op, h_elems, h_op):\n    \"\"\"True when phi is a bijective homomorphism.\"\"\"\n    return False\n", "solution": "from itertools import product\n\n\ndef generated_subgroup(a, elems, op):\n    \"\"\"The cyclic subgroup generated by a.\"\"\"\n    if a not in elems:\n        raise ValueError(\"the element must be in the group\")\n    seen = set()\n    x = a\n    for _ in range(len(elems) + 1):\n        if x in seen:\n            break\n        seen.add(x)\n        x = op(x, a)\n    return seen\n\n\ndef left_cosets(subgroup, elems, op):\n    \"\"\"All distinct left cosets aH.\"\"\"\n    if not subgroup:\n        raise ValueError(\"the subgroup must be non-empty\")\n    out = []\n    for a in elems:\n        c = frozenset(op(a, h) for h in subgroup)\n        if c not in out:\n            out.append(c)\n    return out\n\n\ndef index(subgroup, elems, op):\n    \"\"\"The number of distinct cosets.\"\"\"\n    return len(left_cosets(subgroup, elems, op))\n\n\ndef lagrange_holds(subgroup, elems, op):\n    \"\"\"True when |H| divides |G|, and the cosets partition G.\"\"\"\n    cosets = left_cosets(subgroup, elems, op)\n    # the cosets must be disjoint, equal-sized, and cover the group\n    if any(len(c) != len(subgroup) for c in cosets):\n        return False\n    union = set()\n    for c in cosets:\n        if union & c:\n            return False\n        union |= c\n    return union == set(elems) and len(elems) % len(subgroup) == 0\n\n\ndef is_homomorphism(phi, g_elems, g_op, h_op):\n    \"\"\"True when phi preserves the operation.\"\"\"\n    return all(phi(g_op(a, b)) == h_op(phi(a), phi(b))\n               for a, b in product(g_elems, repeat=2))\n\n\ndef kernel(phi, g_elems, h_identity):\n    \"\"\"Elements mapping to the identity of H.\"\"\"\n    return {a for a in g_elems if phi(a) == h_identity}\n\n\ndef is_isomorphism(phi, g_elems, g_op, h_elems, h_op):\n    \"\"\"True when phi is a bijective homomorphism onto H.\"\"\"\n    if not is_homomorphism(phi, g_elems, g_op, h_op):\n        return False\n    images = [phi(a) for a in g_elems]\n    return len(set(images)) == len(g_elems) and set(images) == set(h_elems)\n", "tests": "def test_subgroups_and_cosets():\n    Z6 = (list(range(6)), lambda a, b: (a + b) % 6)\n    assert generated_subgroup(2, *Z6) == {0, 2, 4}\n    assert generated_subgroup(3, *Z6) == {0, 3}\n    assert generated_subgroup(1, *Z6) == set(range(6))\n    assert generated_subgroup(0, *Z6) == {0}\n    # cosets of {0,2,4} partition Z6 into two blocks of three\n    cos = left_cosets({0, 2, 4}, *Z6)\n    assert len(cos) == 2\n    assert all(len(c) == 3 for c in cos)\n    assert set().union(*cos) == set(range(6))\n    assert index({0, 2, 4}, *Z6) == 2\n    assert index({0, 3}, *Z6) == 3\n    assert index({0}, *Z6) == 6\n    try:\n        generated_subgroup(99, *Z6)\n        assert False, \"an element outside the group must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_lagrange_and_its_consequence():\n    Z6 = (list(range(6)), lambda a, b: (a + b) % 6)\n    for a in range(6):\n        H = generated_subgroup(a, *Z6)\n        assert lagrange_holds(H, *Z6), a\n        assert 6 % len(H) == 0\n        # |H| * index = |G|\n        assert len(H) * index(H, *Z6) == 6\n    # Fermat's little theorem is Lagrange applied to Z_p*\n    for p in (5, 7, 11, 13):\n        elems = list(range(1, p))\n        op = lambda a, b, p=p: (a * b) % p\n        for a in elems:\n            H = generated_subgroup(a, elems, op)\n            assert (p - 1) % len(H) == 0\n            assert pow(a, p - 1, p) == 1\n    # a non-subgroup fails the partition check\n    assert not lagrange_holds({0, 1, 2}, *Z6), \"that subset is not a subgroup\"\n\n\ndef test_homomorphisms_and_isomorphisms():\n    Z6 = (list(range(6)), lambda a, b: (a + b) % 6)\n    Z3 = (list(range(3)), lambda a, b: (a + b) % 3)\n    Z2 = (list(range(2)), lambda a, b: (a + b) % 2)\n    # reduction mod 3 is a homomorphism Z6 -> Z3\n    phi = lambda a: a % 3\n    assert is_homomorphism(phi, Z6[0], Z6[1], Z3[1])\n    assert kernel(phi, Z6[0], 0) == {0, 3}\n    # the first isomorphism theorem: |G| / |ker| = |image|\n    assert len(Z6[0]) // len(kernel(phi, Z6[0], 0)) == 3\n    # it is onto but not injective, so not an isomorphism\n    assert not is_isomorphism(phi, Z6[0], Z6[1], Z3[0], Z3[1])\n    # Z6 IS isomorphic to Z7* via 3^k, which is the discrete log in reverse\n    Z7s = (list(range(1, 7)), lambda a, b: (a * b) % 7)\n    psi = lambda k: pow(3, k, 7)\n    assert is_homomorphism(psi, Z6[0], Z6[1], Z7s[1])\n    assert is_isomorphism(psi, Z6[0], Z6[1], Z7s[0], Z7s[1])\n    assert kernel(psi, Z6[0], 1) == {0}, \"an isomorphism has trivial kernel\"\n    # a map that is not a homomorphism\n    assert not is_homomorphism(lambda a: (a + 1) % 3, Z6[0], Z6[1], Z3[1])\n    # parity is a homomorphism Z6 -> Z2\n    assert is_homomorphism(lambda a: a % 2, Z6[0], Z6[1], Z2[1])\n    assert kernel(lambda a: a % 2, Z6[0], 0) == {0, 2, 4}\n", "mutants": ["from itertools import product\n\n\ndef generated_subgroup(a, elems, op):\n    if a not in elems:\n        raise ValueError(\"the element must be in the group\")\n    seen = set()\n    x = a\n    for _ in range(len(elems) + 1):\n        if x in seen:\n            break\n        seen.add(x)\n        x = op(x, a)\n    return seen\n\n\ndef left_cosets(subgroup, elems, op):\n    \"\"\"Bug: returns one coset per element without deduplicating, so the index\n    always comes out as |G|.\"\"\"\n    if not subgroup:\n        raise ValueError(\"the subgroup must be non-empty\")\n    return [frozenset(op(a, h) for h in subgroup) for a in elems]\n\n\ndef index(subgroup, elems, op):\n    return len(left_cosets(subgroup, elems, op))\n\n\ndef lagrange_holds(subgroup, elems, op):\n    cosets = left_cosets(subgroup, elems, op)\n    if any(len(c) != len(subgroup) for c in cosets):\n        return False\n    union = set()\n    for c in cosets:\n        union |= c\n    return union == set(elems) and len(elems) % len(subgroup) == 0\n\n\ndef is_homomorphism(phi, g_elems, g_op, h_op):\n    return all(phi(g_op(a, b)) == h_op(phi(a), phi(b))\n               for a, b in product(g_elems, repeat=2))\n\n\ndef kernel(phi, g_elems, h_identity):\n    return {a for a in g_elems if phi(a) == h_identity}\n\n\ndef is_isomorphism(phi, g_elems, g_op, h_elems, h_op):\n    if not is_homomorphism(phi, g_elems, g_op, h_op):\n        return False\n    images = [phi(a) for a in g_elems]\n    return len(set(images)) == len(g_elems) and set(images) == set(h_elems)\n", "from itertools import product\n\n\ndef generated_subgroup(a, elems, op):\n    \"\"\"Bug: stops after one application, returning only {a, a*a}.\"\"\"\n    if a not in elems:\n        raise ValueError(\"the element must be in the group\")\n    return {a, op(a, a)}\n\n\ndef left_cosets(subgroup, elems, op):\n    if not subgroup:\n        raise ValueError(\"the subgroup must be non-empty\")\n    out = []\n    for a in elems:\n        c = frozenset(op(a, h) for h in subgroup)\n        if c not in out:\n            out.append(c)\n    return out\n\n\ndef index(subgroup, elems, op):\n    return len(left_cosets(subgroup, elems, op))\n\n\ndef lagrange_holds(subgroup, elems, op):\n    \"\"\"Bug: checks only the divisibility and skips the partition argument, so\n    any subset whose size happens to divide |G| is accepted.\"\"\"\n    return len(elems) % len(subgroup) == 0\n\n\ndef is_homomorphism(phi, g_elems, g_op, h_op):\n    \"\"\"Bug: only checks a against itself, which many non-homomorphisms pass.\"\"\"\n    return all(phi(g_op(a, a)) == h_op(phi(a), phi(a)) for a in g_elems)\n\n\ndef kernel(phi, g_elems, h_identity):\n    return {a for a in g_elems if phi(a) == h_identity}\n\n\ndef is_isomorphism(phi, g_elems, g_op, h_elems, h_op):\n    \"\"\"Bug: drops the injectivity requirement, so any surjective homomorphism\n    is called an isomorphism.\"\"\"\n    if not is_homomorphism(phi, g_elems, g_op, h_op):\n        return False\n    return set(phi(a) for a in g_elems) == set(h_elems)\n"], "hints": ["Distinct cosets must be deduplicated \u2014 that is the whole point of the index.", "Lagrange is proved by the cosets PARTITIONING the group. Divisibility alone is the conclusion, not the test."], "level": "core", "title": "Subgroups, cosets, Lagrange and homomorphisms"}, "m38-ex3-fields": {"starter": "def is_field_zp(n):\n    \"\"\"True when Z_n is a field.\"\"\"\n    return False\n\n\ndef zp_inverse(a, p):\n    \"\"\"The multiplicative inverse of a mod p.\"\"\"\n    return 0\n\n\ndef zero_divisors(n):\n    \"\"\"Non-zero elements that multiply to zero mod n.\"\"\"\n    return []\n\n\ndef gf2_add(a, b):\n    \"\"\"Addition in GF(2^n).\"\"\"\n    return 0\n\n\ndef gf2_mul(a, b, mod, bits):\n    \"\"\"Multiplication in GF(2^n).\"\"\"\n    return 0\n\n\ndef is_irreducible_gf2(poly, degree):\n    \"\"\"True when the polynomial is irreducible over GF(2).\"\"\"\n    return False\n\n\ndef gf2_inverse(a, mod, bits):\n    \"\"\"The multiplicative inverse in GF(2^n).\"\"\"\n    return 0\n", "solution": "def is_field_zp(n):\n    \"\"\"True when Z_n is a field, i.e. exactly when n is prime.\"\"\"\n    if not isinstance(n, int) or n < 2:\n        raise ValueError(\"n must be an integer at least 2\")\n    return all(n % d for d in range(2, int(n ** 0.5) + 1))\n\n\ndef zp_inverse(a, p):\n    \"\"\"The multiplicative inverse of a mod p, by the extended Euclid.\"\"\"\n    if p < 2:\n        raise ValueError(\"the modulus must be at least 2\")\n    a %= p\n    if a == 0:\n        raise ValueError(\"zero has no inverse\")\n    old_r, r = a, p\n    old_s, s = 1, 0\n    while r:\n        q = old_r // r\n        old_r, r = r, old_r - q * r\n        old_s, s = s, old_s - q * s\n    if old_r != 1:\n        raise ValueError(f\"{a} is not invertible mod {p}\")\n    return old_s % p\n\n\ndef zero_divisors(n):\n    \"\"\"Non-zero elements that multiply to zero mod n.\"\"\"\n    if n < 2:\n        raise ValueError(\"n must be at least 2\")\n    return sorted(a for a in range(1, n)\n                  if any((a * b) % n == 0 for b in range(1, n)))\n\n\ndef gf2_add(a, b):\n    \"\"\"Addition in GF(2^n) is XOR: no carries, and it is its own inverse.\"\"\"\n    return a ^ b\n\n\ndef gf2_mul(a, b, mod, bits):\n    \"\"\"Multiplication: shift-and-XOR, reducing by the modulus polynomial.\"\"\"\n    if mod.bit_length() != bits + 1:\n        raise ValueError(\"the modulus must have degree equal to bits\")\n    r = 0\n    while b:\n        if b & 1:\n            r ^= a\n        b >>= 1\n        a <<= 1\n        if (a >> bits) & 1:\n            a ^= mod\n    return r\n\n\ndef is_irreducible_gf2(poly, degree):\n    \"\"\"True when the polynomial is irreducible over GF(2), by trial division.\n\n    A polynomial with a factor must have one of degree at most half its own,\n    so dividing by every such candidate settles it.\n    \"\"\"\n    if poly.bit_length() != degree + 1:\n        raise ValueError(\"the polynomial must have the stated degree\")\n    if poly & 1 == 0:\n        return False                      # x divides it\n    for d in range(1, degree // 2 + 1):\n        for cand in range(1 << d, 1 << (d + 1)):\n            # polynomial remainder of poly by cand\n            rem = poly\n            cdeg = cand.bit_length() - 1\n            while rem.bit_length() - 1 >= cdeg and rem:\n                rem ^= cand << (rem.bit_length() - 1 - cdeg)\n            if rem == 0:\n                return False\n    return True\n\n\ndef gf2_inverse(a, mod, bits):\n    \"\"\"The multiplicative inverse in GF(2^n), by search.\"\"\"\n    if a == 0:\n        raise ValueError(\"zero has no inverse\")\n    for b in range(1, 1 << bits):\n        if gf2_mul(a, b, mod, bits) == 1:\n            return b\n    raise ValueError(\"no inverse exists; is the modulus irreducible?\")\n", "tests": "def test_zp_is_a_field_exactly_for_primes():\n    for p in (2, 3, 5, 7, 11, 13, 17, 97):\n        assert is_field_zp(p) is True, p\n    for n in (4, 6, 8, 9, 10, 12, 15, 100):\n        assert is_field_zp(n) is False, n\n    # in a field every non-zero element inverts\n    for p in (5, 7, 13):\n        for a in range(1, p):\n            inv = zp_inverse(a, p)\n            assert (a * inv) % p == 1, (p, a, inv)\n        assert zero_divisors(p) == [], \"a field has no zero divisors\"\n    # a composite modulus has zero divisors, and they are exactly the\n    # elements sharing a factor with n\n    from math import gcd\n    assert zero_divisors(6) == [2, 3, 4]\n    assert zero_divisors(4) == [2]\n    for n in (6, 8, 12):\n        assert zero_divisors(n) == sorted(a for a in range(1, n) if gcd(a, n) > 1)\n    try:\n        zp_inverse(2, 6)\n        assert False, \"2 has no inverse mod 6\"\n    except ValueError:\n        pass\n    try:\n        zp_inverse(0, 7)\n        assert False, \"zero has no inverse\"\n    except ValueError:\n        pass\n\n\ndef test_gf2_arithmetic():\n    MOD, BITS = 0b10011, 4          # x^4 + x + 1\n    # addition is XOR and is its own inverse\n    assert gf2_add(0b1010, 0b0110) == 0b1100\n    for a in range(16):\n        assert gf2_add(a, a) == 0, \"every element is its own additive inverse\"\n        assert gf2_add(a, 0) == a\n    # multiplication: identity, commutativity, associativity\n    for a in range(16):\n        assert gf2_mul(a, 1, MOD, BITS) == a\n        assert gf2_mul(a, 0, MOD, BITS) == 0\n        for b in range(16):\n            assert gf2_mul(a, b, MOD, BITS) == gf2_mul(b, a, MOD, BITS)\n    for a in range(16):\n        for b in range(16):\n            for c in range(4):\n                left = gf2_mul(gf2_mul(a, b, MOD, BITS), c, MOD, BITS)\n                right = gf2_mul(a, gf2_mul(b, c, MOD, BITS), MOD, BITS)\n                assert left == right, (a, b, c)\n    # distributivity\n    for a in range(16):\n        for b in range(16):\n            for c in range(4):\n                assert gf2_mul(a, gf2_add(b, c), MOD, BITS) == \\\n                    gf2_add(gf2_mul(a, b, MOD, BITS), gf2_mul(a, c, MOD, BITS))\n    try:\n        gf2_mul(1, 1, 0b1011, 4)\n        assert False, \"a modulus of the wrong degree must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_irreducibility_decides_whether_it_is_a_field():\n    # x^4+x+1 and x^4+x^3+1 are irreducible; x^4+x^3+x^2+x+1 is not\n    assert is_irreducible_gf2(0b10011, 4) is True\n    assert is_irreducible_gf2(0b11001, 4) is True\n    # x^4+x^3+x^2+x+1 LOOKS like it should factor and does not: it has no\n    # root in GF(2) (five ones sum to 1) and is not the square of x^2+x+1.\n    assert is_irreducible_gf2(0b11111, 4) is True\n    assert is_irreducible_gf2(0b10101, 4) is False     # (x^2+x+1)^2\n    assert is_irreducible_gf2(0b10001, 4) is False     # (x+1)^4\n    assert is_irreducible_gf2(0b111, 2) is True        # x^2+x+1\n    assert is_irreducible_gf2(0b100, 2) is False       # x^2\n    assert is_irreducible_gf2(0b100011011, 8) is True  # the AES polynomial\n    # with an irreducible modulus every non-zero element inverts\n    for mod in (0b10011, 0b11001, 0b11111):\n        for a in range(1, 16):\n            b = gf2_inverse(a, mod, 4)\n            assert gf2_mul(a, b, mod, 4) == 1, (mod, a, b)\n    # with a REDUCIBLE one, some element has no inverse at all\n    missing = []\n    for a in range(1, 16):\n        try:\n            gf2_inverse(a, 0b10101, 4)\n        except ValueError:\n            missing.append(a)\n    assert missing == [7, 9, 14], missing\n    # 7 is x^2+x+1, and 7 * 7 = 0 in this ring: a zero divisor, so no inverse\n    assert gf2_mul(7, 7, 0b10101, 4) == 0, \"a reducible modulus creates zero divisors\"\n    try:\n        gf2_inverse(0, 0b10011, 4)\n        assert False, \"zero has no inverse\"\n    except ValueError:\n        pass\n", "mutants": ["def is_field_zp(n):\n    \"\"\"Bug: calls every odd number prime, so 9, 15 and 21 pass.\"\"\"\n    if not isinstance(n, int) or n < 2:\n        raise ValueError(\"n must be an integer at least 2\")\n    return n == 2 or n % 2 == 1\n\n\ndef zp_inverse(a, p):\n    if p < 2:\n        raise ValueError(\"the modulus must be at least 2\")\n    a %= p\n    if a == 0:\n        raise ValueError(\"zero has no inverse\")\n    old_r, r = a, p\n    old_s, s = 1, 0\n    while r:\n        q = old_r // r\n        old_r, r = r, old_r - q * r\n        old_s, s = s, old_s - q * s\n    if old_r != 1:\n        raise ValueError(f\"{a} is not invertible mod {p}\")\n    return old_s % p\n\n\ndef zero_divisors(n):\n    if n < 2:\n        raise ValueError(\"n must be at least 2\")\n    return sorted(a for a in range(1, n)\n                  if any((a * b) % n == 0 for b in range(1, n)))\n\n\ndef gf2_add(a, b):\n    return a ^ b\n\n\ndef gf2_mul(a, b, mod, bits):\n    if mod.bit_length() != bits + 1:\n        raise ValueError(\"the modulus must have degree equal to bits\")\n    r = 0\n    while b:\n        if b & 1:\n            r ^= a\n        b >>= 1\n        a <<= 1\n        if (a >> bits) & 1:\n            a ^= mod\n    return r\n\n\ndef is_irreducible_gf2(poly, degree):\n    if poly.bit_length() != degree + 1:\n        raise ValueError(\"the polynomial must have the stated degree\")\n    if poly & 1 == 0:\n        return False\n    for d in range(1, degree // 2 + 1):\n        for cand in range(1 << d, 1 << (d + 1)):\n            rem = poly\n            cdeg = cand.bit_length() - 1\n            while rem.bit_length() - 1 >= cdeg and rem:\n                rem ^= cand << (rem.bit_length() - 1 - cdeg)\n            if rem == 0:\n                return False\n    return True\n\n\ndef gf2_inverse(a, mod, bits):\n    if a == 0:\n        raise ValueError(\"zero has no inverse\")\n    for b in range(1, 1 << bits):\n        if gf2_mul(a, b, mod, bits) == 1:\n            return b\n    raise ValueError(\"no inverse exists; is the modulus irreducible?\")\n", "def is_field_zp(n):\n    if not isinstance(n, int) or n < 2:\n        raise ValueError(\"n must be an integer at least 2\")\n    return all(n % d for d in range(2, int(n ** 0.5) + 1))\n\n\ndef zp_inverse(a, p):\n    if p < 2:\n        raise ValueError(\"the modulus must be at least 2\")\n    a %= p\n    if a == 0:\n        raise ValueError(\"zero has no inverse\")\n    old_r, r = a, p\n    old_s, s = 1, 0\n    while r:\n        q = old_r // r\n        old_r, r = r, old_r - q * r\n        old_s, s = s, old_s - q * s\n    if old_r != 1:\n        raise ValueError(f\"{a} is not invertible mod {p}\")\n    return old_s % p\n\n\ndef zero_divisors(n):\n    if n < 2:\n        raise ValueError(\"n must be at least 2\")\n    return sorted(a for a in range(1, n)\n                  if any((a * b) % n == 0 for b in range(1, n)))\n\n\ndef gf2_add(a, b):\n    \"\"\"Bug: ordinary integer addition, which carries. GF(2) has no carries.\"\"\"\n    return a + b\n\n\ndef gf2_mul(a, b, mod, bits):\n    \"\"\"Bug: never reduces by the modulus, so results escape the field.\"\"\"\n    if mod.bit_length() != bits + 1:\n        raise ValueError(\"the modulus must have degree equal to bits\")\n    r = 0\n    while b:\n        if b & 1:\n            r ^= a\n        b >>= 1\n        a <<= 1\n    return r\n\n\ndef is_irreducible_gf2(poly, degree):\n    \"\"\"Bug: only tries degree-1 factors, so it misses quadratic ones and calls\n    (x^2+x+1)^2 irreducible.\"\"\"\n    if poly.bit_length() != degree + 1:\n        raise ValueError(\"the polynomial must have the stated degree\")\n    if poly & 1 == 0:\n        return False\n    for cand in (0b10, 0b11):\n        rem = poly\n        cdeg = cand.bit_length() - 1\n        while rem.bit_length() - 1 >= cdeg and rem:\n            rem ^= cand << (rem.bit_length() - 1 - cdeg)\n        if rem == 0:\n            return False\n    return True\n\n\ndef gf2_inverse(a, mod, bits):\n    if a == 0:\n        raise ValueError(\"zero has no inverse\")\n    for b in range(1, 1 << bits):\n        if gf2_mul(a, b, mod, bits) == 1:\n            return b\n    raise ValueError(\"no inverse exists; is the modulus irreducible?\")\n"], "hints": ["Addition in GF(2^n) is XOR. Integer addition carries, and carrying is exactly what this field does not do.", "A degree-4 polynomial can have a degree-2 factor. Checking only linear factors misses `(x^2+x+1)^2`."], "level": "core", "title": "Rings, fields, GF(p) and GF(2^n)"}, "m38-ex4-crc": {"starter": "def poly_mod2(dividend_bits, generator):\n    \"\"\"Remainder of polynomial division over GF(2).\"\"\"\n    return 0\n\n\ndef crc(data_bits, generator):\n    \"\"\"The CRC of a bit list.\"\"\"\n    return 0\n\n\ndef crc_check(word_bits, generator):\n    \"\"\"True when the word divides the generator exactly.\"\"\"\n    return False\n\n\ndef bytes_to_bits(data):\n    \"\"\"A list of bits, most significant first.\"\"\"\n    return []\n\n\ndef hamming_encode(msg4):\n    \"\"\"Encode 4 data bits as 7.\"\"\"\n    return []\n\n\ndef hamming_syndrome(word7):\n    \"\"\"The error position, 1..7, or 0 if none.\"\"\"\n    return 0\n\n\ndef hamming_decode(word7):\n    \"\"\"Correct one error and return the 4 data bits.\"\"\"\n    return []\n", "solution": "def poly_mod2(dividend_bits, generator):\n    \"\"\"Remainder of polynomial division over GF(2).\n\n    Subtraction is XOR, so long division is: wherever the leading bit is set,\n    XOR the generator in at that offset.\n    \"\"\"\n    if generator < 2:\n        raise ValueError(\"the generator must have degree at least 1\")\n    gdeg = generator.bit_length() - 1\n    bits = list(dividend_bits)\n    if len(bits) < gdeg:\n        return sum(b << (len(bits) - 1 - i) for i, b in enumerate(bits))\n    gbits = [(generator >> (gdeg - i)) & 1 for i in range(gdeg + 1)]\n    for i in range(len(bits) - gdeg):\n        if bits[i]:\n            for j, gb in enumerate(gbits):\n                bits[i + j] ^= gb\n    rem = bits[len(bits) - gdeg:]\n    return sum(b << (gdeg - 1 - i) for i, b in enumerate(rem))\n\n\ndef crc(data_bits, generator):\n    \"\"\"The CRC of a bit list: the remainder of x^r M(x) by G(x).\"\"\"\n    if not data_bits:\n        raise ValueError(\"the message must be non-empty\")\n    r = generator.bit_length() - 1\n    return poly_mod2(list(data_bits) + [0] * r, generator)\n\n\ndef crc_check(word_bits, generator):\n    \"\"\"True when the word divides the generator exactly.\"\"\"\n    return poly_mod2(list(word_bits), generator) == 0\n\n\ndef bytes_to_bits(data):\n    \"\"\"A list of bits, most significant first.\"\"\"\n    out = []\n    for byte in data:\n        if not 0 <= byte <= 255:\n            raise ValueError(\"each value must be a byte\")\n        for k in range(7, -1, -1):\n            out.append((byte >> k) & 1)\n    return out\n\n\n_H = [[0, 0, 0, 1, 1, 1, 1],\n      [0, 1, 1, 0, 0, 1, 1],\n      [1, 0, 1, 0, 1, 0, 1]]\n# positions 1..7 are (p1, p2, d1, p3, d2, d3, d4)\n_G = [[1, 1, 1, 0, 0, 0, 0],\n      [1, 0, 0, 1, 1, 0, 0],\n      [0, 1, 0, 1, 0, 1, 0],\n      [1, 1, 0, 1, 0, 0, 1]]\n\n\ndef hamming_encode(msg4):\n    \"\"\"Encode 4 data bits as 7.\"\"\"\n    if len(msg4) != 4 or any(b not in (0, 1) for b in msg4):\n        raise ValueError(\"expected exactly four bits\")\n    return [sum(msg4[i] * _G[i][j] for i in range(4)) % 2 for j in range(7)]\n\n\ndef hamming_syndrome(word7):\n    \"\"\"The error position, 1..7, or 0 if none.\n\n    The columns of H are the binary numerals 1..7, so the syndrome of a\n    single-bit error IS the position of that error.\n    \"\"\"\n    if len(word7) != 7 or any(b not in (0, 1) for b in word7):\n        raise ValueError(\"expected exactly seven bits\")\n    s = [sum(_H[r][j] * word7[j] for j in range(7)) % 2 for r in range(3)]\n    return s[0] * 4 + s[1] * 2 + s[2]\n\n\ndef hamming_decode(word7):\n    \"\"\"Correct one error and return the 4 data bits.\"\"\"\n    w = list(word7)\n    pos = hamming_syndrome(w)\n    if pos:\n        w[pos - 1] ^= 1\n    return [w[2], w[4], w[5], w[6]]\n", "tests": "def test_crc_is_polynomial_division():\n    GEN = 0b100000111\n    # the transmitted word is divisible by the generator, by construction\n    for msg in ([1, 0, 1, 1], [1] * 20, [0, 0, 1], [1, 0, 1, 0, 1, 0, 1, 1, 1]):\n        c = crc(msg, GEN)\n        r = GEN.bit_length() - 1\n        word = msg + [(c >> (r - 1 - i)) & 1 for i in range(r)]\n        assert crc_check(word, GEN) is True, msg\n        assert poly_mod2(word, GEN) == 0\n    # a remainder is always smaller than the generator\n    for msg in ([1, 0, 1, 1], [1] * 30):\n        assert 0 <= crc(msg, GEN) < (1 << (GEN.bit_length() - 1))\n    assert bytes_to_bits([0b10110010]) == [1, 0, 1, 1, 0, 0, 1, 0]\n    assert len(bytes_to_bits([0, 255, 7])) == 24\n    for bad in (lambda: crc([], GEN), lambda: bytes_to_bits([256]),\n                lambda: poly_mod2([1, 0], 1)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_crc_catches_what_a_sum_cannot():\n    import random\n    GEN = 0b100000111\n    rng = random.Random(1961)\n    r = GEN.bit_length() - 1\n\n    def word_for(data):\n        bits = bytes_to_bits(data)\n        c = crc(bits, GEN)\n        return bits + [(c >> (r - 1 - i)) & 1 for i in range(r)]\n\n    # EVERY single-bit error is caught: that is a theorem, not a statistic\n    data = [rng.randrange(256) for _ in range(8)]\n    w = word_for(data)\n    for pos in range(len(w)):\n        bad = list(w)\n        bad[pos] ^= 1\n        assert crc_check(bad, GEN) is False, pos\n    # transpositions of bytes are caught, where a sum sees nothing\n    caught = 0\n    for _ in range(200):\n        d = [rng.randrange(256) for _ in range(8)]\n        i, j = 0, 1\n        while d[i] == d[j]:\n            i, j = rng.randrange(8), rng.randrange(8)\n        swapped = list(d)\n        swapped[i], swapped[j] = swapped[j], swapped[i]\n        assert sum(swapped) == sum(d), \"a sum is blind to this\"\n        if crc(bytes_to_bits(swapped), GEN) != crc(bytes_to_bits(d), GEN):\n            caught += 1\n    assert caught >= 198, caught\n    # every burst shorter than the degree is caught\n    for _ in range(200):\n        d = [rng.randrange(256) for _ in range(8)]\n        w = word_for(d)\n        start = rng.randrange(len(w) - r)\n        bad = list(w)\n        pattern = rng.randrange(1, 1 << (r - 1))\n        for k in range(r - 1):\n            bad[start + k] ^= (pattern >> k) & 1\n        if bad != w:\n            assert crc_check(bad, GEN) is False\n\n\ndef test_hamming_corrects_every_single_error():\n    from itertools import product\n    words = [hamming_encode(list(m)) for m in product((0, 1), repeat=4)]\n    assert len(set(map(tuple, words))) == 16\n    for m in product((0, 1), repeat=4):\n        w = hamming_encode(list(m))\n        assert hamming_syndrome(w) == 0, \"a clean codeword has syndrome 0\"\n        assert hamming_decode(w) == list(m), \"and decodes to the message\"\n        # every single-bit error is located and repaired\n        for pos in range(7):\n            bad = list(w)\n            bad[pos] ^= 1\n            assert hamming_syndrome(bad) == pos + 1, (m, pos)\n            assert hamming_decode(bad) == list(m), (m, pos)\n    # minimum distance 3\n    dmin = min(sum(a != b for a, b in zip(w1, w2))\n               for i, w1 in enumerate(words) for w2 in words[i + 1:])\n    assert dmin == 3\n    # two errors are DETECTED but cannot be corrected\n    w = hamming_encode([1, 0, 1, 1])\n    bad = list(w)\n    bad[0] ^= 1\n    bad[3] ^= 1\n    assert hamming_syndrome(bad) != 0, \"a double error is detected\"\n    assert hamming_decode(bad) != [1, 0, 1, 1], \"but mis-corrected\"\n    for bad_call in (lambda: hamming_encode([1, 0, 1]),\n                     lambda: hamming_syndrome([1] * 6),\n                     lambda: hamming_encode([1, 0, 1, 2])):\n        try:\n            bad_call()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["def poly_mod2(dividend_bits, generator):\n    \"\"\"Bug: uses integer subtraction rather than XOR, so this is not GF(2)\n    arithmetic and the remainder is wrong.\"\"\"\n    if generator < 2:\n        raise ValueError(\"the generator must have degree at least 1\")\n    gdeg = generator.bit_length() - 1\n    bits = list(dividend_bits)\n    if len(bits) < gdeg:\n        return sum(b << (len(bits) - 1 - i) for i, b in enumerate(bits))\n    gbits = [(generator >> (gdeg - i)) & 1 for i in range(gdeg + 1)]\n    for i in range(len(bits) - gdeg):\n        if bits[i]:\n            for j, gb in enumerate(gbits):\n                bits[i + j] = abs(bits[i + j] - gb)\n    rem = bits[len(bits) - gdeg:]\n    return sum(b << (gdeg - 1 - i) for i, b in enumerate(rem))\n\n\ndef crc(data_bits, generator):\n    \"\"\"Bug: does not shift by r zeros, so the CRC is of the bare message.\"\"\"\n    if not data_bits:\n        raise ValueError(\"the message must be non-empty\")\n    return poly_mod2(list(data_bits), generator)\n\n\ndef crc_check(word_bits, generator):\n    return poly_mod2(list(word_bits), generator) == 0\n\n\ndef bytes_to_bits(data):\n    out = []\n    for byte in data:\n        if not 0 <= byte <= 255:\n            raise ValueError(\"each value must be a byte\")\n        for k in range(7, -1, -1):\n            out.append((byte >> k) & 1)\n    return out\n\n\n_H = [[0, 0, 0, 1, 1, 1, 1],\n      [0, 1, 1, 0, 0, 1, 1],\n      [1, 0, 1, 0, 1, 0, 1]]\n# positions 1..7 are (p1, p2, d1, p3, d2, d3, d4)\n_G = [[1, 1, 1, 0, 0, 0, 0],\n      [1, 0, 0, 1, 1, 0, 0],\n      [0, 1, 0, 1, 0, 1, 0],\n      [1, 1, 0, 1, 0, 0, 1]]\n\n\ndef hamming_encode(msg4):\n    if len(msg4) != 4 or any(b not in (0, 1) for b in msg4):\n        raise ValueError(\"expected exactly four bits\")\n    return [sum(msg4[i] * _G[i][j] for i in range(4)) % 2 for j in range(7)]\n\n\ndef hamming_syndrome(word7):\n    if len(word7) != 7 or any(b not in (0, 1) for b in word7):\n        raise ValueError(\"expected exactly seven bits\")\n    s = [sum(_H[r][j] * word7[j] for j in range(7)) % 2 for r in range(3)]\n    return s[0] * 4 + s[1] * 2 + s[2]\n\n\ndef hamming_decode(word7):\n    w = list(word7)\n    pos = hamming_syndrome(w)\n    if pos:\n        w[pos - 1] ^= 1\n    return [w[2], w[4], w[5], w[6]]\n", "def poly_mod2(dividend_bits, generator):\n    if generator < 2:\n        raise ValueError(\"the generator must have degree at least 1\")\n    gdeg = generator.bit_length() - 1\n    bits = list(dividend_bits)\n    if len(bits) < gdeg:\n        return sum(b << (len(bits) - 1 - i) for i, b in enumerate(bits))\n    gbits = [(generator >> (gdeg - i)) & 1 for i in range(gdeg + 1)]\n    for i in range(len(bits) - gdeg):\n        if bits[i]:\n            for j, gb in enumerate(gbits):\n                bits[i + j] ^= gb\n    rem = bits[len(bits) - gdeg:]\n    return sum(b << (gdeg - 1 - i) for i, b in enumerate(rem))\n\n\ndef crc(data_bits, generator):\n    if not data_bits:\n        raise ValueError(\"the message must be non-empty\")\n    r = generator.bit_length() - 1\n    return poly_mod2(list(data_bits) + [0] * r, generator)\n\n\ndef crc_check(word_bits, generator):\n    return poly_mod2(list(word_bits), generator) == 0\n\n\ndef bytes_to_bits(data):\n    \"\"\"Bug: emits bits least significant first, so byte order within each\n    byte is reversed and the polynomial is not the intended one.\"\"\"\n    out = []\n    for byte in data:\n        if not 0 <= byte <= 255:\n            raise ValueError(\"each value must be a byte\")\n        for k in range(8):\n            out.append((byte >> k) & 1)\n    return out\n\n\n_H = [[0, 0, 0, 1, 1, 1, 1],\n      [0, 1, 1, 0, 0, 1, 1],\n      [1, 0, 1, 0, 1, 0, 1]]\n# positions 1..7 are (p1, p2, d1, p3, d2, d3, d4)\n_G = [[1, 1, 1, 0, 0, 0, 0],\n      [1, 0, 0, 1, 1, 0, 0],\n      [0, 1, 0, 1, 0, 1, 0],\n      [1, 1, 0, 1, 0, 0, 1]]\n\n\ndef hamming_encode(msg4):\n    if len(msg4) != 4 or any(b not in (0, 1) for b in msg4):\n        raise ValueError(\"expected exactly four bits\")\n    return [sum(msg4[i] * _G[i][j] for i in range(4)) % 2 for j in range(7)]\n\n\ndef hamming_syndrome(word7):\n    \"\"\"Bug: reads the syndrome bits in the wrong order, so the position it\n    reports is the bit-reversal of the true one.\"\"\"\n    if len(word7) != 7 or any(b not in (0, 1) for b in word7):\n        raise ValueError(\"expected exactly seven bits\")\n    s = [sum(_H[r][j] * word7[j] for j in range(7)) % 2 for r in range(3)]\n    return s[2] * 4 + s[1] * 2 + s[0]\n\n\ndef hamming_decode(word7):\n    w = list(word7)\n    pos = hamming_syndrome(w)\n    if pos:\n        w[pos - 1] ^= 1\n    return [w[2], w[4], w[5], w[6]]\n"], "hints": ["Over GF(2), subtraction IS XOR. There are no borrows.", "A CRC is the remainder of `x^r M(x)`, not of `M(x)` \u2014 the message must be shifted left by the generator's degree first."], "level": "core", "title": "CRC as polynomial division, and Hamming codes"}, "m38-ex5-crypto": {"starter": "def mod_exp(base, exp, mod):\n    \"\"\"base ** exp mod mod, by square-and-multiply.\"\"\"\n    return 0\n\n\ndef discrete_log_bruteforce(g, h, p, limit=100000):\n    \"\"\"The smallest k with g^k = h mod p, or None.\"\"\"\n    return None\n\n\ndef diffie_hellman(p, g, a, b):\n    \"\"\"(A, B, shared secret).\"\"\"\n    return (0, 0, 0)\n\n\ndef shamir_split(secret, t, n, p, randfunc):\n    \"\"\"n shares of a secret, any t of which suffice.\"\"\"\n    return []\n\n\ndef shamir_recover(points, p):\n    \"\"\"The secret, by Lagrange interpolation at x = 0.\"\"\"\n    return 0\n\n\ndef schnorr_prove(x, r, c, q):\n    \"\"\"The response s = r + c x mod q.\"\"\"\n    return 0\n\n\ndef schnorr_verify(y, t, c, s, g, p):\n    \"\"\"True when g^s = t * y^c.\"\"\"\n    return False\n\n\ndef schnorr_extract(c1, s1, c2, s2, q):\n    \"\"\"Recover x from two responses to the same commitment.\"\"\"\n    return 0\n", "solution": "def mod_exp(base, exp, mod):\n    \"\"\"base ** exp mod mod, by square-and-multiply.\n\n    Logarithmic in the exponent - and the absence of an equally fast method\n    for the reverse direction is exactly what the cryptography rests on.\n    \"\"\"\n    if mod < 1:\n        raise ValueError(\"the modulus must be positive\")\n    if exp < 0:\n        raise ValueError(\"the exponent must be non-negative\")\n    result = 1\n    base %= mod\n    while exp:\n        if exp & 1:\n            result = (result * base) % mod\n        base = (base * base) % mod\n        exp >>= 1\n    return result\n\n\ndef discrete_log_bruteforce(g, h, p, limit=100000):\n    \"\"\"The smallest k with g^k = h mod p, or None.\"\"\"\n    if p < 2:\n        raise ValueError(\"the modulus must be at least 2\")\n    x = 1 % p\n    if x == h % p:\n        return 0\n    for k in range(1, limit + 1):\n        x = (x * g) % p\n        if x == h % p:\n            return k\n    return None\n\n\ndef diffie_hellman(p, g, a, b):\n    \"\"\"(A, B, shared secret).\"\"\"\n    if p < 3:\n        raise ValueError(\"the prime must be at least 3\")\n    if a < 1 or b < 1:\n        raise ValueError(\"the private exponents must be positive\")\n    A = mod_exp(g, a, p)\n    B = mod_exp(g, b, p)\n    sa = mod_exp(B, a, p)\n    sb = mod_exp(A, b, p)\n    if sa != sb:\n        raise ValueError(\"the two sides disagree; the parameters are wrong\")\n    return (A, B, sa)\n\n\ndef shamir_split(secret, t, n, p, randfunc):\n    \"\"\"n shares of a secret, any t of which suffice.\"\"\"\n    if not 1 <= t <= n:\n        raise ValueError(\"require 1 <= t <= n\")\n    if not 0 <= secret < p:\n        raise ValueError(\"the secret must lie in the field\")\n    coeffs = [secret] + [randfunc() % p for _ in range(t - 1)]\n    shares = []\n    for i in range(1, n + 1):\n        y = 0\n        for c in reversed(coeffs):          # Horner, over GF(p)\n            y = (y * i + c) % p\n        shares.append((i, y))\n    return shares\n\n\ndef shamir_recover(points, p):\n    \"\"\"The secret, by Lagrange interpolation at x = 0.\"\"\"\n    xs = [x for x, _ in points]\n    if len(set(xs)) != len(xs):\n        raise ValueError(\"the x coordinates must be distinct\")\n    if not points:\n        raise ValueError(\"need at least one share\")\n    total = 0\n    for i, (xi, yi) in enumerate(points):\n        num, den = 1, 1\n        for j, (xj, _) in enumerate(points):\n            if i != j:\n                num = (num * (-xj)) % p\n                den = (den * (xi - xj)) % p\n        total = (total + yi * num * mod_exp(den % p, p - 2, p)) % p\n    return total % p\n\n\ndef schnorr_prove(x, r, c, q):\n    \"\"\"The response s = r + c x mod q.\"\"\"\n    if q < 2:\n        raise ValueError(\"the order must be at least 2\")\n    return (r + c * x) % q\n\n\ndef schnorr_verify(y, t, c, s, g, p):\n    \"\"\"True when g^s = t * y^c.\"\"\"\n    return mod_exp(g, s, p) == (t * mod_exp(y, c, p)) % p\n\n\ndef schnorr_extract(c1, s1, c2, s2, q):\n    \"\"\"Recover x from two responses to the same commitment.\n\n    g^s1 = t y^c1 and g^s2 = t y^c2 give g^(s1-s2) = y^(c1-c2), so\n    x = (s1 - s2) / (c1 - c2) mod q. This is why a commitment must never be\n    reused with two different challenges.\n    \"\"\"\n    if (c1 - c2) % q == 0:\n        raise ValueError(\"the challenges must differ\")\n    return ((s1 - s2) * mod_exp((c1 - c2) % q, q - 2, q)) % q\n", "tests": "def test_mod_exp_and_discrete_log():\n    assert mod_exp(2, 10, 1000) == 24\n    assert mod_exp(3, 0, 7) == 1\n    assert mod_exp(5, 1, 7) == 5\n    assert mod_exp(7, 100, 13) == pow(7, 100, 13)\n    for b in (2, 3, 5, 11):\n        for e in (0, 1, 7, 64, 1000):\n            assert mod_exp(b, e, 1009) == pow(b, e, 1009), (b, e)\n    # the two directions, on a prime small enough to brute force\n    p, g = 1013, 3\n    for secret in (2, 57, 500, 1000):\n        h = mod_exp(g, secret, p)\n        k = discrete_log_bruteforce(g, h, p)\n        assert k is not None\n        assert mod_exp(g, k, p) == h, (secret, k)\n    # a value outside the subgroup has no logarithm\n    assert discrete_log_bruteforce(4, 3, 7, limit=50) is None\n    for bad in (lambda: mod_exp(2, -1, 7), lambda: mod_exp(2, 3, 0)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_diffie_hellman_agrees():\n    p, g = 2147483647, 7\n    for a, b in ((3, 5), (12345, 67890), (999983, 31337)):\n        A, B, shared = diffie_hellman(p, g, a, b)\n        assert A == mod_exp(g, a, p)\n        assert B == mod_exp(g, b, p)\n        # both sides really computed the same thing, two different ways\n        assert shared == mod_exp(B, a, p) == mod_exp(A, b, p)\n        assert shared != A and shared != B\n    # different private keys give different shared secrets\n    _, _, s1 = diffie_hellman(p, g, 11, 13)\n    _, _, s2 = diffie_hellman(p, g, 11, 17)\n    assert s1 != s2\n    # the public values leak nothing directly usable\n    A, B, shared = diffie_hellman(p, g, 4242, 2424)\n    assert shared != (A * B) % p\n    for bad in (lambda: diffie_hellman(2, 1, 1, 1),\n                lambda: diffie_hellman(1013, 3, 0, 5)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_shamir_threshold_and_schnorr():\n    import random\n    rng = random.Random(1979)\n    P = 7919\n    secret = 1234\n    shares = shamir_split(secret, 3, 6, P, lambda: rng.randrange(P))\n    assert len(shares) == 6\n    assert len({x for x, _ in shares}) == 6\n    # any 3 shares recover it, and so do more\n    from itertools import combinations\n    for subset in list(combinations(range(6), 3))[:10]:\n        assert shamir_recover([shares[i] for i in subset], P) == secret, subset\n    assert shamir_recover(shares[:4], P) == secret\n    assert shamir_recover(shares, P) == secret\n    # 2 shares do NOT determine it: a different third point gives a different\n    # answer, so every secret stays possible\n    two = shares[:2]\n    got = {shamir_recover(two + [(99, y)], P) for y in range(0, P, 97)}\n    assert len(got) > 50, \"two shares leave many secrets consistent\"\n    # a threshold of 1 is just the secret itself\n    one = shamir_split(secret, 1, 3, P, lambda: rng.randrange(P))\n    assert all(y == secret for _, y in one)\n    for bad in (lambda: shamir_split(5, 4, 3, P, lambda: 0),\n                lambda: shamir_split(P + 1, 2, 3, P, lambda: 0),\n                lambda: shamir_recover([(1, 2), (1, 3)], P)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n    # --- Schnorr: honest proofs verify, and reusing r leaks the secret ---\n    p, q, g = 2963, 1481, 4      # q = (p-1)/2 prime, g of order q\n    assert mod_exp(g, q, p) == 1\n    x = 777\n    y = mod_exp(g, x, p)\n    for r in (11, 2345, 1000):\n        t = mod_exp(g, r, p)\n        for c in (1, 42, 1480):\n            s = schnorr_prove(x, r, c, q)\n            assert schnorr_verify(y, t, c, s, g, p) is True, (r, c)\n        # a wrong response fails\n        assert schnorr_verify(y, t, 42, (schnorr_prove(x, r, 42, q) + 1) % q,\n                              g, p) is False\n    # soundness: two challenges on ONE commitment reveal x\n    r = 3141\n    c1, c2 = 101, 202\n    s1 = schnorr_prove(x, r, c1, q)\n    s2 = schnorr_prove(x, r, c2, q)\n    assert schnorr_extract(c1, s1, c2, s2, q) == x, \"reusing r leaks the secret\"\n    # zero knowledge: a simulator with the challenge first makes a valid\n    # transcript knowing nothing\n    c = 555\n    s_sim = rng.randrange(q)\n    t_sim = (mod_exp(g, s_sim, p) * mod_exp(mod_exp(y, c, p), p - 2, p)) % p\n    assert schnorr_verify(y, t_sim, c, s_sim, g, p) is True, \\\n        \"a transcript provable without x carries no information about x\"\n    try:\n        schnorr_extract(5, 1, 5, 2, q)\n        assert False, \"equal challenges must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def mod_exp(base, exp, mod):\n    if mod < 1:\n        raise ValueError(\"the modulus must be positive\")\n    if exp < 0:\n        raise ValueError(\"the exponent must be non-negative\")\n    result = 1\n    base %= mod\n    while exp:\n        if exp & 1:\n            result = (result * base) % mod\n        base = (base * base) % mod\n        exp >>= 1\n    return result\n\n\ndef discrete_log_bruteforce(g, h, p, limit=100000):\n    if p < 2:\n        raise ValueError(\"the modulus must be at least 2\")\n    x = 1 % p\n    if x == h % p:\n        return 0\n    for k in range(1, limit + 1):\n        x = (x * g) % p\n        if x == h % p:\n            return k\n    return None\n\n\ndef diffie_hellman(p, g, a, b):\n    \"\"\"Bug: multiplies the public values instead of exponentiating, so the\n    'shared secret' is g^(a+b) rather than g^(ab) - and an eavesdropper who\n    sees A and B can compute it immediately.\"\"\"\n    if p < 3:\n        raise ValueError(\"the prime must be at least 3\")\n    if a < 1 or b < 1:\n        raise ValueError(\"the private exponents must be positive\")\n    A = mod_exp(g, a, p)\n    B = mod_exp(g, b, p)\n    return (A, B, (A * B) % p)\n\n\ndef shamir_split(secret, t, n, p, randfunc):\n    if not 1 <= t <= n:\n        raise ValueError(\"require 1 <= t <= n\")\n    if not 0 <= secret < p:\n        raise ValueError(\"the secret must lie in the field\")\n    coeffs = [secret] + [randfunc() % p for _ in range(t - 1)]\n    shares = []\n    for i in range(1, n + 1):\n        y = 0\n        for c in reversed(coeffs):\n            y = (y * i + c) % p\n        shares.append((i, y))\n    return shares\n\n\ndef shamir_recover(points, p):\n    xs = [x for x, _ in points]\n    if len(set(xs)) != len(xs):\n        raise ValueError(\"the x coordinates must be distinct\")\n    if not points:\n        raise ValueError(\"need at least one share\")\n    total = 0\n    for i, (xi, yi) in enumerate(points):\n        num, den = 1, 1\n        for j, (xj, _) in enumerate(points):\n            if i != j:\n                num = (num * (-xj)) % p\n                den = (den * (xi - xj)) % p\n        total = (total + yi * num * mod_exp(den % p, p - 2, p)) % p\n    return total % p\n\n\ndef schnorr_prove(x, r, c, q):\n    if q < 2:\n        raise ValueError(\"the order must be at least 2\")\n    return (r + c * x) % q\n\n\ndef schnorr_verify(y, t, c, s, g, p):\n    return mod_exp(g, s, p) == (t * mod_exp(y, c, p)) % p\n\n\ndef schnorr_extract(c1, s1, c2, s2, q):\n    if (c1 - c2) % q == 0:\n        raise ValueError(\"the challenges must differ\")\n    return ((s1 - s2) * mod_exp((c1 - c2) % q, q - 2, q)) % q\n", "def mod_exp(base, exp, mod):\n    \"\"\"Bug: squares the result rather than the base, so the recurrence is\n    wrong for every exponent with more than one set bit.\"\"\"\n    if mod < 1:\n        raise ValueError(\"the modulus must be positive\")\n    if exp < 0:\n        raise ValueError(\"the exponent must be non-negative\")\n    result = 1\n    base %= mod\n    while exp:\n        if exp & 1:\n            result = (result * base) % mod\n        result = (result * result) % mod\n        exp >>= 1\n    return result\n\n\ndef discrete_log_bruteforce(g, h, p, limit=100000):\n    if p < 2:\n        raise ValueError(\"the modulus must be at least 2\")\n    x = 1 % p\n    if x == h % p:\n        return 0\n    for k in range(1, limit + 1):\n        x = (x * g) % p\n        if x == h % p:\n            return k\n    return None\n\n\ndef diffie_hellman(p, g, a, b):\n    if p < 3:\n        raise ValueError(\"the prime must be at least 3\")\n    if a < 1 or b < 1:\n        raise ValueError(\"the private exponents must be positive\")\n    A = mod_exp(g, a, p)\n    B = mod_exp(g, b, p)\n    sa = mod_exp(B, a, p)\n    sb = mod_exp(A, b, p)\n    if sa != sb:\n        raise ValueError(\"the two sides disagree; the parameters are wrong\")\n    return (A, B, sa)\n\n\ndef shamir_split(secret, t, n, p, randfunc):\n    \"\"\"Bug: puts the secret in the LEADING coefficient rather than the\n    constant term, so interpolating at zero returns a random value.\"\"\"\n    if not 1 <= t <= n:\n        raise ValueError(\"require 1 <= t <= n\")\n    if not 0 <= secret < p:\n        raise ValueError(\"the secret must lie in the field\")\n    coeffs = [randfunc() % p for _ in range(t - 1)] + [secret]\n    shares = []\n    for i in range(1, n + 1):\n        y = 0\n        for c in reversed(coeffs):\n            y = (y * i + c) % p\n        shares.append((i, y))\n    return shares\n\n\ndef shamir_recover(points, p):\n    xs = [x for x, _ in points]\n    if len(set(xs)) != len(xs):\n        raise ValueError(\"the x coordinates must be distinct\")\n    if not points:\n        raise ValueError(\"need at least one share\")\n    total = 0\n    for i, (xi, yi) in enumerate(points):\n        num, den = 1, 1\n        for j, (xj, _) in enumerate(points):\n            if i != j:\n                num = (num * (-xj)) % p\n                den = (den * (xi - xj)) % p\n        total = (total + yi * num * mod_exp(den % p, p - 2, p)) % p\n    return total % p\n\n\ndef schnorr_prove(x, r, c, q):\n    \"\"\"Bug: multiplies rather than adding the blinding value, which destroys\n    the verification identity.\"\"\"\n    if q < 2:\n        raise ValueError(\"the order must be at least 2\")\n    return (r * c * x) % q\n\n\ndef schnorr_verify(y, t, c, s, g, p):\n    return mod_exp(g, s, p) == (t * mod_exp(y, c, p)) % p\n\n\ndef schnorr_extract(c1, s1, c2, s2, q):\n    if (c1 - c2) % q == 0:\n        raise ValueError(\"the challenges must differ\")\n    return ((s1 - s2) * mod_exp((c1 - c2) % q, q - 2, q)) % q\n"], "hints": ["Diffie-Hellman's shared value is `g^(ab)`, obtained by raising the OTHER party's public value to your own exponent.", "Shamir hides the secret in the CONSTANT term, which is why interpolating at x = 0 recovers it."], "level": "boss", "title": "Discrete log, Diffie-Hellman, Shamir and Schnorr"}}, "demos": {"m38-structures-verified": {"code": "from itertools import product\n\n\ndef is_group(elems, op):\n    \"\"\"Check all four axioms by exhaustive search.\"\"\"\n    s = set(elems)\n    for a, b in product(elems, repeat=2):\n        if op(a, b) not in s:\n            return False, \"not closed\"\n    ident = [e for e in elems if all(op(e, a) == a and op(a, e) == a for a in elems)]\n    if len(ident) != 1:\n        return False, \"no unique identity\"\n    e = ident[0]\n    for a, b, c in product(elems, repeat=3):\n        if op(op(a, b), c) != op(a, op(b, c)):\n            return False, \"not associative\"\n    for a in elems:\n        if not any(op(a, b) == e and op(b, a) == e for b in elems):\n            return False, f\"no inverse for {a}\"\n    return True, e\n\n\ndef is_abelian(elems, op):\n    return all(op(a, b) == op(b, a) for a, b in product(elems, repeat=2))\n\n\n# --- a selection of groups ---\nZ6 = (list(range(6)), lambda a, b: (a + b) % 6)\nZ7star = (list(range(1, 7)), lambda a, b: (a * b) % 7)\nperms = [p for p in product(range(3), repeat=3) if len(set(p)) == 3]\nS3 = (perms, lambda p, q: tuple(p[q[i]] for i in range(3)))\n\nprint(f\"{'group':>10} {'order':>6} {'is a group':>12} {'identity':>12} {'abelian':>9}\")\nfor name, (elems, op) in ((\"Z6\", Z6), (\"Z7*\", Z7star), (\"S3\", S3)):\n    ok, e = is_group(elems, op)\n    print(f\"{name:>10} {len(elems):>6} {str(ok):>12} {str(e):>12} \"\n          f\"{str(is_abelian(elems, op)):>9}\")\n    assert ok, (name, e)\nassert is_abelian(*Z6) and is_abelian(*Z7star)\nassert not is_abelian(*S3), \"S3 is the smallest non-abelian group\"\n# a non-group: multiplication mod 6 has no inverse for 2\nassert not is_group(list(range(1, 6)), lambda a, b: (a * b) % 6)[0]\n\n# --- Lagrange, by enumerating EVERY subgroup ---\nprint()\n\n\ndef all_subgroups(elems, op):\n    \"\"\"Every subset that is itself a group, found by closure from generators.\"\"\"\n    found = set()\n    n = len(elems)\n    for mask in range(1, 1 << n):\n        sub = [elems[i] for i in range(n) if mask >> i & 1]\n        if len(sub) > n:\n            continue\n        ok, _ = is_group(sub, op)\n        if ok:\n            found.add(frozenset(sub))\n    return found\n\n\nfor name, (elems, op) in ((\"Z6\", Z6), (\"Z7*\", Z7star), (\"S3\", S3)):\n    subs = all_subgroups(elems, op)\n    orders = sorted({len(s) for s in subs})\n    print(f\"  {name:>4}: |G| = {len(elems)}, subgroup orders found {orders}\")\n    for s in subs:\n        assert len(elems) % len(s) == 0, f\"Lagrange fails for {name}: {len(s)}\"\n    # every divisor is realised for a cyclic group, but NOT in general\n    if name in (\"Z6\", \"Z7*\"):\n        divs = [d for d in range(1, len(elems) + 1) if len(elems) % d == 0]\n        assert orders == divs, f\"{name} is cyclic so every divisor occurs\"\nprint(\"  every subgroup order divides the group order\")\n# S3 has order 6 but NO subgroup of order 4 - and 4 does not divide 6\nassert 4 not in {len(s) for s in all_subgroups(*S3)}\n\n# --- element orders divide the group order; Fermat falls out ---\nprint()\n\n\ndef order_of(a, elems, op, e):\n    x, k = a, 1\n    while x != e:\n        x, k = op(x, a), k + 1\n    return k\n\n\nfor p in (5, 7, 11, 13):\n    elems = list(range(1, p))\n    op = lambda a, b, p=p: (a * b) % p\n    for a in elems:\n        o = order_of(a, elems, op, 1)\n        assert (p - 1) % o == 0, (p, a, o)\n        assert pow(a, p - 1, p) == 1, \"Fermat's little theorem, from Lagrange\"\n    gens = [a for a in elems if order_of(a, elems, op, 1) == p - 1]\n    print(f\"  Z_{p}* has order {p - 1}, primitive roots: {gens}\")\n    assert gens, \"Z_p* is cyclic for every prime p\"\n\n# --- GF(2^4) is a field, checked against brute force ---\nprint()\nMOD = 0b10011          # x^4 + x + 1, irreducible\n\n\ndef gf_mul(a, b, mod=MOD, bits=4):\n    r = 0\n    while b:\n        if b & 1:\n            r ^= a\n        b >>= 1\n        a <<= 1\n        if a >> bits & 1:\n            a ^= mod\n    return r\n\n\nfield = list(range(16))\n# addition is XOR, which is a group\nok, e = is_group(field, lambda a, b: a ^ b)\nassert ok and e == 0, \"addition in GF(2^n) is XOR\"\n# non-zero elements form a multiplicative group\nok, e = is_group(list(range(1, 16)), gf_mul)\nprint(f\"GF(2^4) with modulus 0b{MOD:b}: multiplicative group? {ok}, identity {e}\")\nassert ok and e == 1\n# distributivity, exhaustively\nfor a, b, c in product(field, repeat=3):\n    assert gf_mul(a, b ^ c) == gf_mul(a, b) ^ gf_mul(a, c)\nprint(\"  distributivity verified over all 4096 triples\")\n# every non-zero element has an inverse, found by search\ninv = {}\nfor a in range(1, 16):\n    cand = [b for b in range(1, 16) if gf_mul(a, b) == 1]\n    assert len(cand) == 1, (a, cand)\n    inv[a] = cand[0]\nprint(f\"  inverses: {inv}\")\n# the multiplicative group is cyclic, with a generator\ngens = []\nfor g in range(2, 16):\n    seen, x = set(), 1\n    for _ in range(15):\n        x = gf_mul(x, g)\n        seen.add(x)\n    if len(seen) == 15:\n        gens.append(g)\nprint(f\"  generators of the multiplicative group: {gens}\")\nassert gens, \"the multiplicative group of a finite field is cyclic\"\n\n# --- CRC two ways: shift-and-XOR against honest long division ---\nprint()\nGEN = 0b100000111        # degree 8\n\n\ndef crc_shift(data_bits, gen=GEN, r=8):\n    reg = 0\n    for bit in data_bits + [0] * r:\n        reg = (reg << 1) | bit\n        if reg >> r & 1:\n            reg ^= gen\n    return reg\n\n\ndef poly_divmod(num_bits, gen=GEN):\n    \"\"\"Honest polynomial long division over GF(2).\"\"\"\n    num = list(num_bits)\n    gdeg = gen.bit_length() - 1\n    gbits = [(gen >> (gdeg - i)) & 1 for i in range(gdeg + 1)]\n    for i in range(len(num) - gdeg):\n        if num[i]:\n            for j, gb in enumerate(gbits):\n                num[i + j] ^= gb\n    rem = num[len(num) - gdeg:]\n    return sum(b << (gdeg - 1 - i) for i, b in enumerate(rem))\n\n\nimport random\nrng = random.Random(1950)\nfor trial in range(200):\n    bits = [rng.randrange(2) for _ in range(rng.randrange(8, 40))]\n    a = crc_shift(bits)\n    b = poly_divmod(bits + [0] * 8)\n    assert a == b, (bits, a, b)\nprint(\"CRC by shift-and-XOR agrees with polynomial long division on 200 messages\")\n# the transmitted word really is divisible by the generator\nbits = [1, 0, 1, 1, 0, 0, 1, 0, 1, 1, 1, 0]\ncrc = crc_shift(bits)\nword = bits + [(crc >> (7 - i)) & 1 for i in range(8)]\nassert poly_divmod(word) == 0, \"message + CRC must divide exactly\"\nprint(f\"message+CRC divides the generator exactly: remainder \"\n      f\"{poly_divmod(word)}\")\n", "mutants": ["from itertools import product\n\n# Bug: 0b10101 = x^4+x^2+1 = (x^2+x+1)^2 is NOT irreducible over GF(2), so the\n# quotient is a ring with zero divisors rather than a field. Addition and\n# multiplication still work; only the inverses quietly vanish.\nMOD = 0b10101\n\n\ndef gf_mul(a, b, mod=MOD, bits=4):\n    r = 0\n    while b:\n        if b & 1:\n            r ^= a\n        b >>= 1\n        a <<= 1\n        if a >> bits & 1:\n            a ^= mod\n    return r\n\n\nfor a in range(1, 16):\n    cand = [b for b in range(1, 16) if gf_mul(a, b) == 1]\n    print(f\"  {a:>2}: inverses found {cand}\")\n    assert len(cand) == 1, f\"every non-zero element of a field has one inverse: {a}\"\n"]}, "m38-codes-and-secrets": {"code": "import random\nfrom itertools import product\n\nrng = random.Random(1832)\n\n# --- 1. checksum versus CRC on real corruptions ---\nGEN = 0b100000111\n\n\ndef crc8(data):\n    reg = 0\n    for byte in data:\n        reg ^= byte\n        for _ in range(8):\n            reg = ((reg << 1) ^ GEN) & 0xFF if reg & 0x80 else (reg << 1) & 0xFF\n    return reg\n\n\ndef checksum(data):\n    return sum(data) & 0xFF\n\n\ndef corrupt(data, kind):\n    d = list(data)\n    if kind == \"swap two bytes\":\n        i = rng.randrange(len(d) - 1)\n        j = rng.randrange(len(d) - 1)\n        while d[i] == d[j]:\n            i, j = rng.randrange(len(d)), rng.randrange(len(d))\n        d[i], d[j] = d[j], d[i]\n    elif kind == \"single bit flip\":\n        i = rng.randrange(len(d))\n        d[i] ^= 1 << rng.randrange(8)\n    elif kind == \"reorder all bytes\":\n        rng.shuffle(d)\n    elif kind == \"burst of 6 bits\":\n        i = rng.randrange(len(d))\n        d[i] ^= rng.randrange(1, 64)\n    return d\n\n\nprint(f\"{'corruption':>22} {'checksum catches':>18} {'CRC-8 catches':>16}\")\nresults = {}\nfor kind in (\"single bit flip\", \"swap two bytes\", \"reorder all bytes\",\n             \"burst of 6 bits\"):\n    cs_caught = crc_caught = 0\n    trials = 2000\n    for _ in range(trials):\n        data = [rng.randrange(256) for _ in range(16)]\n        bad = corrupt(data, kind)\n        if bad == data:\n            trials -= 1\n            continue\n        if checksum(bad) != checksum(data):\n            cs_caught += 1\n        if crc8(bad) != crc8(data):\n            crc_caught += 1\n    results[kind] = (cs_caught / trials, crc_caught / trials)\n    print(f\"{kind:>22} {cs_caught / trials:>18.3f} {crc_caught / trials:>16.3f}\")\n\nprint()\nprint(\"predicted: a sum is blind to ORDER, so it must catch no transposition\")\nprint(\"           at all, while the CRC sees position and catches nearly all\")\nassert results[\"swap two bytes\"][0] == 0.0, \"a sum CANNOT see a transposition\"\nassert results[\"reorder all bytes\"][0] == 0.0, \"nor any permutation\"\nassert results[\"swap two bytes\"][1] > 0.98, \"the CRC catches them\"\nassert results[\"reorder all bytes\"][1] > 0.98\n# a sum does catch single-bit flips, so it is not useless - just wrong here\nassert results[\"single bit flip\"][0] > 0.9\nassert results[\"single bit flip\"][1] == 1.0, \"CRC catches EVERY single-bit error\"\nassert results[\"burst of 6 bits\"][1] == 1.0, \"and every burst shorter than r\"\n\n# --- 2. Hamming (7,4) corrects single-bit errors ---\nprint()\nH = [[0, 0, 0, 1, 1, 1, 1],\n     [0, 1, 1, 0, 0, 1, 1],\n     [1, 0, 1, 0, 1, 0, 1]]    # columns are binary 1..7\n# Positions 1..7 hold (p1, p2, d1, p3, d2, d3, d4): the parities sit at the\n# powers of two, which is what makes the syndrome read as a position.\nG = [[1, 1, 1, 0, 0, 0, 0],\n     [1, 0, 0, 1, 1, 0, 0],\n     [0, 1, 0, 1, 0, 1, 0],\n     [1, 1, 0, 1, 0, 0, 1]]\n\n\ndef encode(msg):\n    return [sum(msg[i] * G[i][j] for i in range(4)) % 2 for j in range(7)]\n\n\ndef syndrome(word):\n    return [sum(H[r][j] * word[j] for j in range(7)) % 2 for r in range(3)]\n\n\ndef syndrome_value(s):\n    return s[0] * 4 + s[1] * 2 + s[2]\n\n\ncodewords = [encode(list(m)) for m in product((0, 1), repeat=4)]\nassert len(set(map(tuple, codewords))) == 16\nfor c in codewords:\n    assert syndrome_value(syndrome(c)) == 0, \"a codeword has zero syndrome\"\n\n# minimum distance\ndmin = min(sum(a != b for a, b in zip(c1, c2))\n           for i, c1 in enumerate(codewords) for c2 in codewords[i + 1:])\nprint(f\"Hamming(7,4): {len(codewords)} codewords, minimum distance {dmin}\")\nassert dmin == 3, \"distance 3 corrects one error and detects two\"\n\nfixed = 0\nfor c in codewords:\n    for pos in range(7):\n        bad = list(c)\n        bad[pos] ^= 1\n        v = syndrome_value(syndrome(bad))\n        assert v == pos + 1, f\"the syndrome must name the position: {v} vs {pos + 1}\"\n        bad[v - 1] ^= 1\n        assert bad == c, \"and flipping it back must restore the codeword\"\n        fixed += 1\nprint(f\"  corrected all {fixed} single-bit errors; the syndrome IS the position\")\nprint()\nprint(\"predicted: syndrome = column i of H = binary(i), so decoding is a lookup\")\n# two errors are detected but mis-corrected, exactly as distance 3 predicts\nmis = 0\nfor c in codewords[:4]:\n    for i, j in product(range(7), repeat=2):\n        if i < j:\n            bad = list(c)\n            bad[i] ^= 1\n            bad[j] ^= 1\n            assert syndrome_value(syndrome(bad)) != 0, \"two errors are detected\"\n            v = syndrome_value(syndrome(bad))\n            guess = list(bad)\n            guess[v - 1] ^= 1\n            if guess != c:\n                mis += 1\nprint(f\"  but of the double errors tried, {mis} were 'corrected' to the WRONG \"\n      f\"codeword - distance 3 cannot fix two\")\nassert mis > 0, \"distance 3 cannot correct two errors\"\n\n# --- 3. Diffie-Hellman, and the cost asymmetry ---\nprint()\np, g = 2147483647, 7          # a Mersenne prime\na, b = rng.randrange(2, 10 ** 6), rng.randrange(2, 10 ** 6)\nA, B = pow(g, a, p), pow(g, b, p)\nassert pow(B, a, p) == pow(A, b, p), \"both sides must agree\"\nshared = pow(B, a, p)\nprint(f\"Diffie-Hellman over p = {p}: shared secret {shared}\")\nprint(f\"  Alice computed B^a, Bob computed A^b - identical: \"\n      f\"{pow(B, a, p) == pow(A, b, p)}\")\nassert shared == pow(g, (a * b) % (p - 1), p) or shared == pow(pow(g, a, p), b, p)\n\n# the asymmetry, measured on a small prime where brute force is possible\nsmall_p, small_g = 7919, 7\nsecret = 4321\npub = pow(small_g, secret, small_p)\nsteps_up = small_p.bit_length() * 2            # square-and-multiply\nx, steps_down = 1, 0\nfor k in range(1, small_p):\n    x = (x * small_g) % small_p\n    steps_down += 1\n    if x == pub:\n        break\nprint(f\"  on p = {small_p}: exponentiation ~{steps_up} multiplications, \"\n      f\"brute-force discrete log took {steps_down}\")\nassert steps_down > 50 * steps_up, \"the inverse direction is vastly more work\"\nprint()\nprint(\"predicted: forward is logarithmic in the exponent, backward has no known\")\nprint(\"           polynomial method - and that gap IS the security\")\n\n# --- 4. Shamir's threshold is sharp ---\nprint()\nP = 2087\nT = 3\n\n\ndef make_shares(secret, t, n, prime=P):\n    coeffs = [secret] + [rng.randrange(prime) for _ in range(t - 1)]\n    pts = []\n    for i in range(1, n + 1):\n        y = 0\n        for c in reversed(coeffs):\n            y = (y * i + c) % prime\n        pts.append((i, y))\n    return pts\n\n\ndef recover(points, prime=P):\n    \"\"\"Lagrange interpolation at x = 0, over GF(p).\"\"\"\n    total = 0\n    for i, (xi, yi) in enumerate(points):\n        num, den = 1, 1\n        for j, (xj, _) in enumerate(points):\n            if i != j:\n                num = (num * (-xj)) % prime\n                den = (den * (xi - xj)) % prime\n        total = (total + yi * num * pow(den, prime - 2, prime)) % prime\n    return total\n\n\nsecret = 1729\nshares = make_shares(secret, T, 6)\nprint(f\"secret {secret}, threshold {T}, shares {shares}\")\nfor subset in ((0, 1, 2), (1, 3, 5), (2, 4, 5), (0, 3, 4)):\n    got = recover([shares[i] for i in subset])\n    assert got == secret, (subset, got)\nprint(f\"  any {T} shares recover it exactly; tried 4 different triples\")\n# four shares also work, since the polynomial is over-determined but consistent\nassert recover(shares[:4]) == secret\n\n# with T-1 shares EVERY secret remains possible\ntwo = shares[:2]\npossible = set()\nfor candidate in range(P):\n    pts = [(0, candidate)] + two\n    # three points determine a unique quadratic; check it matches the shares\n    if recover(pts[:3]) == candidate:\n        possible.add(candidate)\nprint(f\"  with only {T - 1} shares, {len(possible)} of {P} secrets remain \"\n      f\"consistent\")\nassert len(possible) == P, \"every secret is still possible - that is perfect secrecy\"\nprint()\nprint(\"predicted: the threshold is SHARP. t shares give the secret exactly;\")\nprint(\"           t-1 shares leave the posterior equal to the prior.\")\n", "mutants": ["import random\n\n# Wrong theory: \"a 16-bit checksum is strong enough; corruption is corruption.\"\nrng = random.Random(1832)\n\n\ndef checksum(data):\n    return sum(data) & 0xFFFF\n\n\ncaught = 0\ntrials = 2000\nfor _ in range(trials):\n    data = [rng.randrange(256) for _ in range(16)]\n    bad = list(data)\n    i, j = 0, 1\n    while bad[i] == bad[j]:\n        i, j = rng.randrange(16), rng.randrange(16)\n    bad[i], bad[j] = bad[j], bad[i]\n    if checksum(bad) != checksum(data):\n        caught += 1\nprint(f\"transpositions caught by a 16-bit checksum: {caught} of {trials}\")\nassert caught > 0, \"a wider checksum should catch at least some transpositions\"\n"]}}, "cards": [{"q": "What are the four group axioms?", "a": "Closure, associativity, an identity, and an inverse for every element. Commutativity is NOT required \u2014 abelian groups are the special case."}, {"q": "State Lagrange's theorem and one consequence.", "a": "The order of any subgroup divides the order of the group. Hence the order of every element divides |G|, so a^|G| = e \u2014 which IS Fermat's little theorem in Z_p*."}, {"q": "Why does Lagrange's theorem hold?", "a": "The left cosets of H partition G into disjoint blocks all of size |H|, because x -> ax is a bijection from H onto aH."}, {"q": "When is Z_n a field?", "a": "Exactly when n is prime. A composite modulus has zero divisors, and a zero divisor can never be invertible."}, {"q": "What are addition and multiplication in GF(2^n)?", "a": "Addition is XOR of the bit patterns, with no carries. Multiplication is polynomial multiplication reduced modulo an IRREDUCIBLE polynomial of degree n."}, {"q": "What is a CRC, algebraically?", "a": "The remainder of x^r M(x) divided by a generator polynomial G(x) over GF(2). An error E(x) goes undetected exactly when G(x) divides E(x)."}, {"q": "Why does a plain checksum miss transpositions, whatever its width?", "a": "Because addition is commutative, so the sum cannot see order. It is a structural blindness, not a shortage of bits."}, {"q": "Why does the Hamming syndrome identify the error position?", "a": "The columns of H are the binary numerals 1..7, and a single error at position i gives syndrome equal to column i \u2014 the position written in binary."}, {"q": "What does a code of minimum distance d guarantee?", "a": "It corrects floor((d-1)/2) errors and detects d-1. Distance 3 corrects one and detects two."}, {"q": "What is a homomorphism, and what is its kernel?", "a": "A map preserving the operation: phi(ab) = phi(a)phi(b). The kernel is what maps to the identity; it is a normal subgroup, and G/ker is isomorphic to the image."}, {"q": "Why is Shamir's secret sharing information-theoretically secure?", "a": "With t-1 shares, every candidate secret is consistent with exactly one polynomial of degree < t, so all remain equally likely. The posterior equals the prior, whatever computation is available."}, {"q": "Why is Schnorr zero-knowledge, and what breaks it?", "a": "A simulator who knows the challenge first can produce an identically distributed transcript without the secret, so the transcript carries no information. Reusing the commitment r with two different challenges reveals x outright."}], "title": "Abstract algebra for computing"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

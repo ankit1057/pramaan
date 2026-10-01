@@ -1,0 +1,751 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M25 Differential equations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M25">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~4h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M25</p><h1>Differential equations</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M24.html">M24</a></div><div><b>Covers:</b> NCERT 12: Differential Equations</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>order and degree</li><li>general and particular solutions</li><li>forming a differential equation</li><li>separable equations</li><li>homogeneous equations</li><li>linear first-order equations and the integrating factor</li><li>growth, decay and cooling models</li><li>Euler&#x27;s method and RK4 with error vs step size</li><li>stability</li><li>energy drift and why orbits need symplectic integrators (leapfrog/Verlet), not RK4</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Nani pours Arjun a cup of tea, far too hot. He wants to know when it will be drinkable.</p>
+<p>He measures. Ninety degrees now. The room is thirty. Five minutes later it is seventy-five.</p>
+<p>He does the obvious thing: it lost fifteen degrees in five minutes, so three degrees a minute, so it will reach the room's thirty in another twenty minutes. He waits twenty minutes and finds the tea at forty-two, still too hot.</p>
+<p>He is annoyed. His arithmetic was fine.</p>
+<p>Nani says the thing he missed. "The tea does not cool at a speed. It cools because it is <em>hotter than the room</em>. When it is sixty degrees hotter it rushes to cool. When it is five degrees hotter it barely bothers. The cooling slows down because the reason for cooling is going away."</p>
+<p>Arjun realises he cannot write down the temperature at all. What he <em>can</em> write down is a sentence about its <strong>rate</strong>: the rate of cooling is proportional to how far above the room it is. That is not an equation for the answer. It is an equation about the answer's slope.</p>
+<p>Here is the surprise: that sentence about slopes is <em>enough</em>. From it, and the single fact that the tea started at ninety, the entire cooling curve is determined — every temperature at every future moment. You describe a thing you cannot see by describing how fast it changes, and the mathematics hands you back the thing itself.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>differential equation</strong> relates a function to its own derivatives. You cannot write $y$ directly, but you can say something true about $\frac{dy}{dx}$.</p>
+<p>Most laws of nature are of this form, because physics describes <em>rates</em>: how fast something cools, falls, grows, decays or oscillates. The quantity itself is what you want; the rate is what you can state.</p>
+<p><strong>Solving</strong> means finding the functions satisfying the relation. There are usually infinitely many — a whole family — and an <strong>initial condition</strong> picks one out. "Tea cools in proportion to its excess temperature" gives a family of curves; "it started at ninety" selects yours.</p>
+<p>Three families of first-order equation are solvable by hand: <strong>separable</strong>, <strong>homogeneous</strong> and <strong>linear</strong>. Most other equations are not solvable in closed form at all, so you solve them <strong>numerically</strong> — stepping forward in small increments. The last part of this module is about the fact that not all numerical steppers are equal, and that for some problems the obvious best one is quietly wrong.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Order, degree and solutions</h2>
+<p>The <strong>order</strong> of a differential equation is the order of the highest derivative appearing. The <strong>degree</strong> is the power to which that highest derivative is raised, <em>after</em> the equation has been made polynomial in its derivatives; if it cannot be (because a derivative sits inside a sine or a logarithm), the degree is undefined.</p>
+<p>For example, $\left(\frac{d^2y}{dx^2}\right)^3 + \left(\frac{dy}{dx}\right)^5 + y = 0$ has order 2 and degree 3.</p>
+<p>A <strong>general solution</strong> of an $n$-th order equation contains $n$ arbitrary constants. A <strong>particular solution</strong> fixes them using initial or boundary conditions.</p>
+<p><strong>Forming</strong> a differential equation reverses this: take a family with $n$ constants, differentiate $n$ times, and eliminate the constants. The family $y = Ae^{x}$ gives $\frac{dy}{dx}=y$; the family $x^2+y^2=r^2$ gives $\frac{dy}{dx} = -\frac{x}{y}$.</p>
+<h2>Solvable first-order forms</h2>
+<p><strong>Separable:</strong> $\frac{dy}{dx} = g(x)h(y)$. Separate and integrate:</p>
+<p>$$\int\frac{dy}{h(y)} = \int g(x)\,dx + C$$</p>
+<p><strong>Homogeneous:</strong> $\frac{dy}{dx} = F\left(\frac{y}{x}\right)$. Substitute $v=\frac{y}{x}$, so $y = vx$ and $\frac{dy}{dx} = v + x\frac{dv}{dx}$, which turns it into a separable equation in $v$.</p>
+<p><strong>Linear first order:</strong> $\frac{dy}{dx}+P(x)y = Q(x)$. Multiply by the <strong>integrating factor</strong></p>
+<p>$$\mu(x) = e^{\int P(x)dx}$$</p>
+<p>chosen precisely so the left side becomes the derivative of a product:</p>
+<p>$$\frac{d}{dx}\left(\mu y\right) = \mu Q \quad\Longrightarrow\quad y = \frac{1}{\mu}\left(\int \mu Q\,dx + C\right)$$</p>
+<h2>The standard models</h2>
+<p><strong>Exponential growth and decay:</strong> $\frac{dy}{dt}=ky$ gives $y = y_0e^{kt}$. With $k&lt;0$ this is radioactive decay, with <strong>half-life</strong> $t_{1/2} = \frac{\ln 2}{|k|}$.</p>
+<p><strong>Newton's law of cooling:</strong> $\frac{dT}{dt} = -k(T - T_{\text{room}})$, whose solution is</p>
+<p>$$T(t) = T_{\text{room}} + (T_0-T_{\text{room}})e^{-kt}$$</p>
+<p>This is Arjun's tea. Note that $T$ approaches the room temperature but never reaches it — the exponential decays towards zero without arriving, which is why his linear extrapolation was so badly wrong.</p>
+<p><strong>Logistic growth:</strong> $\frac{dy}{dt} = ky\left(1-\frac{y}{M}\right)$, which grows exponentially while small and saturates at the capacity $M$.</p>
+<h2>Numerical methods</h2>
+<p>For $\frac{dy}{dt}=f(t,y)$ with $y(t_0)=y_0$ and step $h$:</p>
+<p><strong>Euler:</strong> $y_{n+1} = y_n + h f(t_n,y_n)$. Local error $O(h^2)$, global error $O(h)$ — <strong>first order</strong>.</p>
+<p><strong>Classical Runge-Kutta (RK4):</strong></p>
+<p>$$k_1 = f(t_n,y_n),\quad k_2 = f\left(t_n+\tfrac h2, y_n+\tfrac h2 k_1\right),\quad k_3 = f\left(t_n+\tfrac h2, y_n+\tfrac h2 k_2\right),\quad k_4 = f(t_n+h, y_n+hk_3)$$
+$$y_{n+1} = y_n + \frac{h}{6}\left(k_1+2k_2+2k_3+k_4\right)$$</p>
+<p>Global error $O(h^4)$ — <strong>fourth order</strong>.</p>
+<p><strong>Stability.</strong> Accuracy and stability are different. On the test equation $y&#x27;=\lambda y$ with $\lambda&lt;0$, explicit Euler produces $y_{n+1}=(1+h\lambda)y_n$, which stays bounded only when $|1+h\lambda|\le1$, that is $h \le \frac{2}{|\lambda|}$. Exceed that and the numerical solution oscillates and explodes while the true solution decays quietly to zero. A <strong>stiff</strong> equation is one where stability, not accuracy, dictates a punishingly small step; implicit methods such as backward Euler, $y_{n+1}=y_n+hf(t_{n+1},y_{n+1})$, are stable for every $h$ and are the right tool.</p>
+<h2>Symplectic integrators</h2>
+<p>For a mechanical system — an orbit, a pendulum, a spring — the total energy should be constant forever. RK4 is accurate but <strong>not symplectic</strong>: its small per-step energy error accumulates in one direction, so a simulated planet slowly spirals in or out. The drift is not a bug in the arithmetic; it is a structural property of the method.</p>
+<p><strong>Leapfrog (velocity Verlet)</strong>, for $\ddot{x} = a(x)$:</p>
+<p>$$v_{n+1/2} = v_n + \frac h2 a(x_n), \qquad x_{n+1} = x_n + h\,v_{n+1/2}, \qquad v_{n+1} = v_{n+1/2} + \frac h2 a(x_{n+1})$$</p>
+<p>Leapfrog is only second order in accuracy — <em>worse</em> than RK4 — yet its energy error stays <strong>bounded and oscillating</strong> rather than drifting, for arbitrarily long runs. For a long simulation this matters far more than the order, and it is why every molecular-dynamics and orbital code uses a symplectic method.</p>
+<h2>A pinch of history</h2>
+<p>Newton and Leibniz created differential equations alongside calculus in the 1670s and 1680s. The <em>Principia</em> (1687) is one long differential-equation problem: from an inverse-square force, derive Kepler's ellipses.</p>
+<p>Euler's method is Euler's, from the 1760s. Carl Runge (1895) and Martin Kutta (1901) developed the higher-order family, and the classical fourth-order scheme is Kutta's 1901 formulation. Newton's law of cooling appeared in a 1701 paper published anonymously in the <em>Philosophical Transactions</em>.</p>
+<p>Verlet integration is older than its 1967 use by Loup Verlet in molecular dynamics: Jean Baptiste Delambre used it in 1791, and it was rediscovered repeatedly. The modern understanding — that symplectic methods conserve a nearby "shadow" Hamiltonian exactly, which is <em>why</em> their energy error stays bounded — belongs to the backward error analysis of the 1980s and 1990s.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: the integrating factor is not a trick.</strong></p>
+<ol>
+<li>We want to solve $y&#x27; + P(x)y = Q(x)$. The left side is <em>almost</em> a product rule.</li>
+<li>Multiply by an unknown $\mu(x)$: $\mu y&#x27; + \mu P y = \mu Q$.</li>
+<li><strong>The non-obvious step:</strong> we want the left side to be exactly $\frac{d}{dx}(\mu y) = \mu y&#x27; + \mu&#x27; y$. Comparing, we need $\mu&#x27; = \mu P$.</li>
+<li>That is itself a separable equation, with solution $\mu = e^{\int P\,dx}$.</li>
+<li>With that choice, the equation reads $\frac{d}{dx}(\mu y) = \mu Q$, so integrating both sides gives $\mu y = \int\mu Q\,dx + C$.</li>
+</ol>
+<p>So $\mu$ is not pulled from a hat; it is the unique multiplier that makes the left side a derivative of a product.</p>
+<p><strong>Result 2: Newton's cooling law solves to an exponential.</strong> Let $u = T - T_{\text{room}}$, so $u&#x27; = T&#x27;$ and the equation becomes $u&#x27; = -ku$. Separating, $\frac{du}{u} = -k\,dt$, so $\ln|u| = -kt + c$ and $u = u_0e^{-kt}$. Restoring $T$:</p>
+<p>$$T(t) = T_{\text{room}} + (T_0-T_{\text{room}})e^{-kt}$$</p>
+<p>Arjun's error is now visible. He assumed the rate stayed at $-3$ per minute, which is the <em>tangent line</em> at $t=0$. Linear approximation is good locally and wrong globally, exactly as M23 warned, and here the curvature always works the same way, so the tangent always overshoots downward.</p>
+<p><strong>Result 3: the stability condition for explicit Euler.</strong></p>
+<ol>
+<li>Apply Euler to $y&#x27;=\lambda y$: $y_{n+1} = y_n + h\lambda y_n = (1+h\lambda)y_n$.</li>
+<li>So $y_n = (1+h\lambda)^n y_0$: a geometric progression, as in M14.</li>
+<li>It tends to zero exactly when $|1+h\lambda| &lt; 1$.</li>
+<li>For real $\lambda&lt;0$ this means $-1 &lt; 1+h\lambda &lt; 1$, so $0 &lt; h &lt; \frac{2}{|\lambda|}$.</li>
+<li>Beyond that threshold $|1+h\lambda| &gt; 1$ and the numerical solution grows without bound, alternating in sign, while the exact solution decays.</li>
+</ol>
+<p>The failure is not gradual. At $h$ just under the threshold the answer is poor but bounded; just over it, the computation explodes. This is why "take a smaller step if it looks wrong" is sometimes the only fix and sometimes hopeless — if the problem is stiff, the required $h$ may be absurdly small and you need an implicit method instead.</p>
+<p><strong>Result 4: why leapfrog conserves energy and RK4 does not.</strong> The honest version of this needs backward error analysis, but the idea is statable. A symplectic method preserves the geometric structure of phase space — areas are preserved under the step map, exactly as they are under the true dynamics. The consequence is that the method solves, <em>exactly</em>, a slightly different system whose energy is a small perturbation of the true one. Since it conserves that shadow energy exactly, the true energy can only oscillate around it, never drift. RK4 preserves no such structure: its errors have a systematic component, and systematic errors accumulate linearly in time. The experiment below measures precisely this difference.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle solves the same initial-value problem two genuinely independent ways.</p>
+<p>The <strong>analytic</strong> route uses the closed-form solution derived by separation or by an integrating factor, and evaluates it at the required time. It never takes a step.</p>
+<p>The <strong>numerical</strong> route integrates the differential equation forward with RK4 and a fine step. It never sees the formula.</p>
+<p>If a solution formula were wrong — a sign in an exponent, a missing integrating factor — the two would part company immediately. The mutant below uses $e^{+kt}$ in the cooling law, which turns cooling into runaway heating and is a sign error people genuinely make.</p>
+<div class="lab demo" data-demo="m25-analytic-vs-rk4">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Closed-form solutions against a Runge-Kutta integration</h3></div>
+
+<textarea class="code" spellcheck="false">from math import exp, log, sin, cos
+
+
+def rk4(f, t0, y0, t1, steps=20000):
+    &quot;&quot;&quot;Fourth-order Runge-Kutta. Knows nothing about closed forms.&quot;&quot;&quot;
+    h = (t1 - t0) / steps
+    t, y = t0, y0
+    for _ in range(steps):
+        k1 = f(t, y)
+        k2 = f(t + h / 2, y + h / 2 * k1)
+        k3 = f(t + h / 2, y + h / 2 * k2)
+        k4 = f(t + h, y + h * k3)
+        y += h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        t += h
+    return y
+
+
+ROOM, T0, K = 30.0, 90.0, 0.05
+cooling_rhs = lambda t, T: -K * (T - ROOM)
+cooling_exact = lambda t: ROOM + (T0 - ROOM) * exp(-K * t)
+
+print(&quot;Arjun&#x27;s tea: room 30, start 90, k = 0.05 per minute&quot;)
+print(f&quot;{&#x27;minutes&#x27;:&gt;9} {&#x27;exact&#x27;:&gt;12} {&#x27;RK4&#x27;:&gt;12} {&#x27;linear guess&#x27;:&gt;14}&quot;)
+for t in (0, 5, 10, 25, 60):
+    e = cooling_exact(t)
+    n = rk4(cooling_rhs, 0.0, T0, float(t), steps=4000) if t else T0
+    linear = T0 - 3.0 * t          # Arjun&#x27;s tangent-line extrapolation
+    print(f&quot;{t:&gt;9} {e:&gt;12.6f} {n:&gt;12.6f} {linear:&gt;14.2f}&quot;)
+    assert abs(e - n) &lt; 1e-8, &quot;the closed form and RK4 must agree&quot;
+
+# After 5 minutes the tea really is at 75, which is where Arjun started.
+assert abs(cooling_exact(5.0) - 76.7) &lt; 1.0
+# His linear guess says 30 degrees at t = 20; the truth is much hotter.
+print()
+print(&quot;at t = 20: linear guess&quot;, T0 - 3.0 * 20, &quot; actual&quot;, round(cooling_exact(20.0), 2))
+assert cooling_exact(20.0) &gt; 50.0, &quot;the tangent-line extrapolation is badly low&quot;
+# The tea approaches the room temperature but never reaches it.
+# (At t = 1000 the excess is 60*e^-50, which rounds to zero in a float, so
+#  measure at t = 200 where the excess is still representable.)
+assert cooling_exact(200.0) &gt; ROOM
+assert 0 &lt; cooling_exact(200.0) - ROOM &lt; 1e-2
+
+CASES = [
+    # exponential growth: y&#x27; = 2y, y(0)=3  -&gt;  3 e^(2t)
+    (&quot;growth&quot;, lambda t, y: 2 * y, lambda t: 3 * exp(2 * t), 0.0, 3.0, 1.0),
+    # decay: y&#x27; = -0.7y, y(0)=5
+    (&quot;decay&quot;, lambda t, y: -0.7 * y, lambda t: 5 * exp(-0.7 * t), 0.0, 5.0, 3.0),
+    # separable: y&#x27; = x y, y(0)=1  -&gt;  e^(x^2/2)
+    (&quot;y&#x27; = x y&quot;, lambda t, y: t * y, lambda t: exp(t * t / 2), 0.0, 1.0, 1.5),
+    # linear with integrating factor: y&#x27; + y = 1, y(0)=0  -&gt;  1 - e^(-t)
+    (&quot;y&#x27; + y = 1&quot;, lambda t, y: 1 - y, lambda t: 1 - exp(-t), 0.0, 0.0, 4.0),
+    # linear, non-constant: y&#x27; + (1/t) y = 1 for t&gt;0, y(1)=0.5  -&gt;  t/2
+    (&quot;y&#x27; + y/t = 1&quot;, lambda t, y: 1 - y / t, lambda t: t / 2, 1.0, 0.5, 4.0),
+    # logistic: y&#x27; = y(1 - y), y(0)=0.1
+    (&quot;logistic&quot;, lambda t, y: y * (1 - y),
+     lambda t: 1 / (1 + 9 * exp(-t)), 0.0, 0.1, 6.0),
+]
+
+print()
+print(f&quot;{&#x27;equation&#x27;:&gt;14} {&#x27;exact&#x27;:&gt;16} {&#x27;RK4&#x27;:&gt;16} {&#x27;gap&#x27;:&gt;12}&quot;)
+for name, rhs, exact, t0, y0, t1 in CASES:
+    e = exact(t1)
+    n = rk4(rhs, t0, y0, t1, steps=20000)
+    print(f&quot;{name:&gt;14} {e:&gt;16.10f} {n:&gt;16.10f} {abs(e - n):&gt;12.2e}&quot;)
+    assert abs(e - n) &lt; 1e-7, f&quot;the two routes must agree for {name}&quot;
+
+# Half-life: the time to halve is independent of where you start.
+k = 0.7
+half = log(2) / k
+decay = lambda t: exp(-k * t)
+print()
+print(&quot;half-life check: k = 0.7 gives t_half =&quot;, round(half, 6))
+for start in (0.0, 1.0, 5.0):
+    assert abs(decay(start + half) / decay(start) - 0.5) &lt; 1e-12
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Three predictions, each measurable.</p>
+<p><strong>First, error orders.</strong> Euler is first order and RK4 fourth. Halving the step should halve Euler's error and divide RK4's by sixteen.</p>
+<p><strong>Second, stability.</strong> Explicit Euler on $y&#x27;=\lambda y$ with $\lambda = -50$ should stay bounded only while $h &lt; \frac{2}{50} = 0.04$. Just below that it decays; just above, it explodes — a sharp threshold, not a gradual degradation.</p>
+<p><strong>Third, and most interesting: energy drift.</strong> On a harmonic oscillator, RK4 is far more <em>accurate</em> per step than leapfrog, yet over a long run RK4's energy drifts steadily while leapfrog's merely wobbles. We measure both.</p>
+<div class="lab demo" data-demo="m25-orders-stability-and-drift">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Accuracy, stability, and why accuracy is not the whole story</h3></div>
+
+<textarea class="code" spellcheck="false">from math import exp, sin, cos, sqrt
+
+
+def euler(f, t0, y0, t1, n):
+    h = (t1 - t0) / n
+    t, y = t0, y0
+    for _ in range(n):
+        y += h * f(t, y)
+        t += h
+    return y
+
+
+def rk4(f, t0, y0, t1, n):
+    h = (t1 - t0) / n
+    t, y = t0, y0
+    for _ in range(n):
+        k1 = f(t, y)
+        k2 = f(t + h / 2, y + h / 2 * k1)
+        k3 = f(t + h / 2, y + h / 2 * k2)
+        k4 = f(t + h, y + h * k3)
+        y += h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+        t += h
+    return y
+
+
+# --- 1. Error orders on y&#x27; = -y, y(0)=1, exact e^-1 at t=1 ---
+rhs = lambda t, y: -y
+EXACT = exp(-1.0)
+print(&quot;y&#x27; = -y on [0,1]; exact =&quot;, round(EXACT, 12))
+print(f&quot;{&#x27;n&#x27;:&gt;7} {&#x27;Euler error&#x27;:&gt;15} {&#x27;ratio&#x27;:&gt;8} {&#x27;RK4 error&#x27;:&gt;15} {&#x27;ratio&#x27;:&gt;8}&quot;)
+e_prev = r_prev = None
+e_ratios, r_ratios = [], []
+for n in (10, 20, 40, 80, 160):
+    ee = abs(euler(rhs, 0, 1.0, 1, n) - EXACT)
+    re = abs(rk4(rhs, 0, 1.0, 1, n) - EXACT)
+    er = (e_prev / ee) if e_prev else float(&quot;nan&quot;)
+    rr = (r_prev / re) if r_prev else float(&quot;nan&quot;)
+    if e_prev:
+        e_ratios.append(er)
+        r_ratios.append(rr)
+    print(f&quot;{n:&gt;7} {ee:&gt;15.3e} {er:&gt;8.2f} {re:&gt;15.3e} {rr:&gt;8.2f}&quot;)
+    e_prev, r_prev = ee, re
+
+print()
+print(&quot;predicted: Euler is first order (ratio 2), RK4 fourth order (ratio 16)&quot;)
+for r in e_ratios:
+    assert 1.8 &lt; r &lt; 2.2, f&quot;Euler ratio {r} is not about 2&quot;
+for r in r_ratios[:3]:
+    assert 14 &lt; r &lt; 18, f&quot;RK4 ratio {r} is not about 16&quot;
+
+# --- 2. Stability threshold for explicit Euler on y&#x27; = -50 y ---
+LAM = -50.0
+stiff = lambda t, y: LAM * y
+threshold = 2.0 / abs(LAM)
+print()
+print(f&quot;explicit Euler on y&#x27; = {LAM} y; predicted stability limit h &lt; {threshold}&quot;)
+print(f&quot;{&#x27;h&#x27;:&gt;10} {&#x27;|y| after 40 steps&#x27;:&gt;22} {&#x27;bounded?&#x27;:&gt;10}&quot;)
+for h in (0.01, 0.03, 0.039, 0.041, 0.05, 0.08):
+    n = 40
+    y = 1.0
+    for _ in range(n):
+        y += h * LAM * y
+    bounded = abs(y) &lt;= 1.0
+    print(f&quot;{h:&gt;10.3f} {abs(y):&gt;22.3e} {str(bounded):&gt;10}&quot;)
+    if h &lt; threshold:
+        assert bounded, f&quot;h = {h} is below the limit and must stay bounded&quot;
+    else:
+        assert not bounded, f&quot;h = {h} is above the limit and must blow up&quot;
+
+# --- 3. Energy drift: RK4 versus leapfrog on a harmonic oscillator ---
+# x&#x27;&#x27; = -x, energy E = (x^2 + v^2)/2, exactly 0.5 for x0=1, v0=0.
+def energy(x, v):
+    return 0.5 * (x * x + v * v)
+
+
+def rk4_oscillator(x, v, h, steps):
+    for _ in range(steps):
+        def deriv(xx, vv):
+            return vv, -xx
+        k1x, k1v = deriv(x, v)
+        k2x, k2v = deriv(x + h / 2 * k1x, v + h / 2 * k1v)
+        k3x, k3v = deriv(x + h / 2 * k2x, v + h / 2 * k2v)
+        k4x, k4v = deriv(x + h * k3x, v + h * k3v)
+        x += h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x)
+        v += h / 6 * (k1v + 2 * k2v + 2 * k3v + k4v)
+    return x, v
+
+
+def leapfrog_oscillator(x, v, h, steps):
+    for _ in range(steps):
+        v_half = v + h / 2 * (-x)
+        x = x + h * v_half
+        v = v_half + h / 2 * (-x)
+    return x, v
+
+
+H = 0.1
+E0 = 0.5
+print()
+print(&quot;harmonic oscillator, h = 0.1, energy should stay at 0.5 forever&quot;)
+print(f&quot;{&#x27;periods&#x27;:&gt;9} {&#x27;RK4 energy&#x27;:&gt;16} {&#x27;RK4 drift&#x27;:&gt;14} {&#x27;leapfrog energy&#x27;:&gt;18} {&#x27;LF drift&#x27;:&gt;14}&quot;)
+rk_drifts, lf_drifts = [], []
+for periods in (10, 100, 1000, 5000):
+    steps = int(periods * 2 * 3.141592653589793 / H)
+    xr, vr = rk4_oscillator(1.0, 0.0, H, steps)
+    xl, vl = leapfrog_oscillator(1.0, 0.0, H, steps)
+    er, el = energy(xr, vr), energy(xl, vl)
+    rk_drifts.append(abs(er - E0))
+    lf_drifts.append(abs(el - E0))
+    print(f&quot;{periods:&gt;9} {er:&gt;16.10f} {abs(er - E0):&gt;14.3e} {el:&gt;18.10f} {abs(el - E0):&gt;14.3e}&quot;)
+
+print()
+print(&quot;predicted: RK4&#x27;s energy error GROWS with the length of the run&quot;)
+print(&quot;predicted: leapfrog&#x27;s energy error stays BOUNDED however long you run&quot;)
+assert rk_drifts[0] &lt; rk_drifts[1] &lt; rk_drifts[2] &lt; rk_drifts[3], &quot;RK4 must drift steadily&quot;
+assert rk_drifts[3] &gt; 100 * rk_drifts[0], &quot;and the drift must grow with the run&quot;
+# Leapfrog&#x27;s error OSCILLATES inside a bound rather than sitting still, so the
+# right claims are: it stays bounded, and it does not increase monotonically.
+assert max(lf_drifts) &lt; 1e-3, &quot;leapfrog&#x27;s energy error must stay bounded&quot;
+assert lf_drifts[3] &lt; lf_drifts[2], &quot;and it must come back down, not accumulate&quot;
+assert rk_drifts[3] &gt; 5 * lf_drifts[3], &quot;so RK4 ends up the worse of the two&quot;
+print()
+print(&quot;RK4 drift grew by a factor of&quot;, round(rk_drifts[3] / rk_drifts[0], 1))
+print(&quot;leapfrog drift never exceeded&quot;, f&quot;{max(lf_drifts):.1e}&quot;, &quot;and fell again&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the striking result is the third table. RK4 is roughly a thousand times more accurate than leapfrog <em>per step</em>, and after five thousand periods it is the one that has lost the plot — its energy has drifted steadily in one direction, while leapfrog's merely oscillates within a narrow band it never leaves. The lesson is that "which method is more accurate" is the wrong question for a long simulation; the right question is "which structural property must survive". If energy must be conserved, choose a method that conserves it, even at the cost of order. This is also why the stability table has a hard edge rather than a slope: stability is a yes-or-no property of the step size, and no amount of extra accuracy rescues a step beyond the threshold.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m25-ex1-order-degree" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Order, degree and verifying a solution</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>A differential equation is described by a dict with keys <code>"highest_order"</code> (an integer) and <code>"power_of_highest"</code> (an integer, or <code>None</code> when the equation is not polynomial in its derivatives). Write <code>order(eq)</code> and <code>degree(eq)</code> returning those, with <code>degree</code> returning <code>None</code> for the non-polynomial case. Write <code>verify_solution(y, dy, rhs, points)</code> returning <code>True</code> when <code>dy(x)</code> equals <code>rhs(x, y(x))</code> within 1e-6 at every point. Write <code>general_solution_constants(order_value)</code> returning the number of arbitrary constants a general solution carries. Raise <code>ValueError</code> for a non-positive order.</p></div>
+<textarea class="code" spellcheck="false">def order(eq):
+    &quot;&quot;&quot;The order of the equation.&quot;&quot;&quot;
+    return 0
+
+
+def degree(eq):
+    &quot;&quot;&quot;The degree, or None when undefined.&quot;&quot;&quot;
+    return None
+
+
+def verify_solution(y, dy, rhs, points):
+    &quot;&quot;&quot;True when y satisfies the equation at every point.&quot;&quot;&quot;
+    return False
+
+
+def general_solution_constants(order_value):
+    &quot;&quot;&quot;How many arbitrary constants a general solution has.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_order_and_degree():
+    # (y&#x27;&#x27;)^3 + (y&#x27;)^5 + y = 0 has order 2 and degree 3
+    eq = {&quot;highest_order&quot;: 2, &quot;power_of_highest&quot;: 3}
+    assert order(eq) == 2
+    assert degree(eq) == 3
+    # a first-order linear equation
+    assert order({&quot;highest_order&quot;: 1, &quot;power_of_highest&quot;: 1}) == 1
+    # sin(y&#x27;) = x is not polynomial in y&#x27;, so the degree is undefined
+    assert degree({&quot;highest_order&quot;: 1, &quot;power_of_highest&quot;: None}) is None
+    try:
+        order({&quot;highest_order&quot;: 0, &quot;power_of_highest&quot;: 1})
+        assert False, &quot;a zero order must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_verifying_solutions():
+    from math import exp
+    pts = [0.0, 0.5, 1.0, 2.0, -1.0]
+    # y = 3 e^(2x) solves y&#x27; = 2y
+    y = lambda x: 3 * exp(2 * x)
+    dy = lambda x: 6 * exp(2 * x)
+    assert verify_solution(y, dy, lambda x, yy: 2 * yy, pts) is True
+    # it does NOT solve y&#x27; = 3y
+    assert verify_solution(y, dy, lambda x, yy: 3 * yy, pts) is False
+    # y = x^2/2 solves y&#x27; = x
+    assert verify_solution(lambda x: x * x / 2, lambda x: x,
+                           lambda x, yy: x, pts) is True
+    # A case that AGREES at the first point and fails later, so checking only
+    # the first point would wrongly accept it.
+    y2, dy2 = (lambda x: x * x), (lambda x: 2 * x)
+    rhs2 = lambda x, yy: 2 * x + x ** 3
+    assert abs(dy2(0.0) - rhs2(0.0, y2(0.0))) &lt; 1e-9      # agrees at x = 0
+    assert abs(dy2(1.0) - rhs2(1.0, y2(1.0))) &gt; 0.5       # disagrees at x = 1
+    assert verify_solution(y2, dy2, rhs2, [0.0, 1.0]) is False
+
+
+def test_constants_match_the_order():
+    assert general_solution_constants(1) == 1
+    assert general_solution_constants(2) == 2
+    assert general_solution_constants(4) == 4
+    # a family with one constant comes from a first-order equation:
+    # y = C e^x has y&#x27; = y for EVERY C
+    from math import exp
+    pts = [0.0, 1.0, 2.0]
+    for C in (1.0, -2.5, 7.0):
+        y = lambda x, c=C: c * exp(x)
+        dy = lambda x, c=C: c * exp(x)
+        assert verify_solution(y, dy, lambda x, yy: yy, pts) is True
+    try:
+        general_solution_constants(0)
+        assert False, &quot;a zero order must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m25-ex2-separable" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Separable equations and the standard models</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>exponential_model(y0, k, t)</code> returning <code>y0 * exp(k*t)</code>. Write <code>half_life(k)</code> returning <code>log(2)/abs(k)</code>, raising <code>ValueError</code> when <code>k</code> is zero. Write <code>newton_cooling(t0_temp, room, k, t)</code> returning the temperature at time <code>t</code>. Write <code>cooling_time(t0_temp, room, k, target)</code> returning the time to reach a target temperature, raising <code>ValueError</code> when the target is not strictly between the room temperature and the start (so the target is actually reachable). Write <code>logistic(y0, k, capacity, t)</code> for the logistic curve.</p></div>
+<textarea class="code" spellcheck="false">def exponential_model(y0, k, t):
+    &quot;&quot;&quot;y0 e^(kt).&quot;&quot;&quot;
+    return 0.0
+
+
+def half_life(k):
+    &quot;&quot;&quot;Time for a decaying quantity to halve.&quot;&quot;&quot;
+    return 0.0
+
+
+def newton_cooling(t0_temp, room, k, t):
+    &quot;&quot;&quot;Temperature at time t under Newton&#x27;s law of cooling.&quot;&quot;&quot;
+    return 0.0
+
+
+def cooling_time(t0_temp, room, k, target):
+    &quot;&quot;&quot;Time to reach the target temperature.&quot;&quot;&quot;
+    return 0.0
+
+
+def logistic(y0, k, capacity, t):
+    &quot;&quot;&quot;Logistic growth.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_exponential_and_half_life():
+    from math import exp, log
+    assert abs(exponential_model(3.0, 2.0, 0.0) - 3.0) &lt; 1e-12
+    assert abs(exponential_model(3.0, 2.0, 1.0) - 3 * exp(2)) &lt; 1e-12
+    k = 0.7
+    h = half_life(k)
+    assert abs(h - log(2) / k) &lt; 1e-12
+    # halving is independent of the starting point
+    for start in (0.0, 1.0, 5.0):
+        before = exponential_model(1.0, -k, start)
+        after = exponential_model(1.0, -k, start + h)
+        assert abs(after / before - 0.5) &lt; 1e-12
+    try:
+        half_life(0.0)
+        assert False, &quot;a zero rate must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_newton_cooling_matches_the_story():
+    # room 30, start 90, k = 0.05
+    assert abs(newton_cooling(90, 30, 0.05, 0) - 90.0) &lt; 1e-12
+    # it approaches the room temperature without reaching it
+    # (at t = 1000 the excess underflows to zero in a float, so use t = 200)
+    assert newton_cooling(90, 30, 0.05, 200) &gt; 30.0
+    assert 0 &lt; newton_cooling(90, 30, 0.05, 200) - 30.0 &lt; 1e-2
+    # monotone decreasing
+    temps = [newton_cooling(90, 30, 0.05, t) for t in range(0, 60, 5)]
+    assert all(a &gt; b for a, b in zip(temps, temps[1:]))
+    # the time to reach a target is consistent with the forward formula
+    t = cooling_time(90, 30, 0.05, 60)
+    assert abs(newton_cooling(90, 30, 0.05, t) - 60.0) &lt; 1e-9
+    # the linear extrapolation from the first five minutes is far too low
+    rate = (newton_cooling(90, 30, 0.05, 5) - 90) / 5
+    assert 90 + rate * 20 &lt; newton_cooling(90, 30, 0.05, 20) - 5
+
+
+def test_unreachable_targets_and_logistic():
+    for bad in (30.0, 29.0, 90.0, 95.0):
+        try:
+            cooling_time(90, 30, 0.05, bad)
+            assert False, f&quot;target {bad} must raise ValueError&quot;
+        except ValueError:
+            pass
+    # logistic: starts near y0, saturates at the capacity
+    assert abs(logistic(0.1, 1.0, 1.0, 0.0) - 0.1) &lt; 1e-12
+    assert abs(logistic(0.1, 1.0, 1.0, 50.0) - 1.0) &lt; 1e-9
+    # it never exceeds the capacity and always increases
+    vals = [logistic(0.1, 1.0, 1.0, t / 2) for t in range(0, 40)]
+    assert all(v &lt;= 1.0 + 1e-12 for v in vals)
+    assert all(a &lt; b for a, b in zip(vals, vals[1:]))
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m25-ex3-linear" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Linear first-order equations and the integrating factor</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>integrating_factor(P_integral, x)</code> returning <code>exp(P_integral(x))</code> where <code>P_integral</code> is an antiderivative of <code>P</code>. Write <code>solve_linear(P_integral, Q, x0, y0, x, steps=4000)</code> solving <code>y' + P(x) y = Q(x)</code> by the integrating-factor formula, computing the integral of <code>mu*Q</code> numerically with Simpson's rule. Write <code>check_linear(P, Q, y, dy, points)</code> returning <code>True</code> when <code>dy(x) + P(x)*y(x)</code> equals <code>Q(x)</code> at every point within 1e-6. Raise <code>ValueError</code> for a non-positive <code>steps</code>.</p></div>
+<textarea class="code" spellcheck="false">def integrating_factor(P_integral, x):
+    &quot;&quot;&quot;exp of the integral of P.&quot;&quot;&quot;
+    return 0.0
+
+
+def solve_linear(P_integral, Q, x0, y0, x, steps=4000):
+    &quot;&quot;&quot;Solve y&#x27; + P y = Q by the integrating-factor formula.&quot;&quot;&quot;
+    return 0.0
+
+
+def check_linear(P, Q, y, dy, points):
+    &quot;&quot;&quot;True when y solves the equation at every point.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_constant_coefficient_case():
+    from math import exp
+    # y&#x27; + y = 1, y(0) = 0  -&gt;  y = 1 - e^(-x)
+    P_int = lambda x: x                      # integral of P = 1
+    Q = lambda x: 1.0
+    for x in (0.5, 1.0, 2.0, 4.0):
+        got = solve_linear(P_int, Q, 0.0, 0.0, x)
+        assert abs(got - (1 - exp(-x))) &lt; 1e-7, x
+    # the integrating factor here is e^x
+    assert abs(integrating_factor(P_int, 2.0) - exp(2.0)) &lt; 1e-12
+
+
+def test_non_constant_coefficient_case():
+    from math import log
+    # y&#x27; + y/x = 1 for x &gt; 0, y(1) = 0.5  -&gt;  y = x/2
+    P_int = lambda x: log(x)                 # integral of 1/x
+    Q = lambda x: 1.0
+    for x in (1.5, 2.0, 4.0):
+        got = solve_linear(P_int, Q, 1.0, 0.5, x)
+        assert abs(got - x / 2) &lt; 1e-7, x
+    # the integrating factor is x itself
+    assert abs(integrating_factor(P_int, 3.0) - 3.0) &lt; 1e-12
+
+
+def test_check_linear_and_errors():
+    from math import exp
+    # y = 1 - e^(-x) really solves y&#x27; + y = 1
+    y = lambda x: 1 - exp(-x)
+    dy = lambda x: exp(-x)
+    pts = [0.0, 0.5, 1.0, 3.0]
+    assert check_linear(lambda x: 1.0, lambda x: 1.0, y, dy, pts) is True
+    # but it does not solve y&#x27; + 2y = 1
+    assert check_linear(lambda x: 2.0, lambda x: 1.0, y, dy, pts) is False
+    # y = x/2 solves y&#x27; + y/x = 1
+    assert check_linear(lambda x: 1 / x, lambda x: 1.0,
+                        lambda x: x / 2, lambda x: 0.5, [1.0, 2.0, 5.0]) is True
+    try:
+        solve_linear(lambda x: x, lambda x: 1.0, 0.0, 0.0, 1.0, steps=0)
+        assert False, &quot;zero steps must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m25-ex4-numerical" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Euler, RK4 and their error orders</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>euler_step(f, t, y, h)</code> and <code>rk4_step(f, t, y, h)</code> returning the next value. Write <code>integrate(f, t0, y0, t1, n, stepper)</code> applying a stepper <code>n</code> times. Write <code>error_ratios(f, exact, t0, y0, t1, stepper, ns)</code> returning the consecutive error ratios as <code>n</code> doubles. Write <code>euler_stable(lam, h)</code> returning <code>True</code> when <code>abs(1 + h*lam) &lt;= 1</code>. Raise <code>ValueError</code> for a non-positive <code>n</code> or <code>h</code>.</p></div>
+<textarea class="code" spellcheck="false">def euler_step(f, t, y, h):
+    &quot;&quot;&quot;One explicit Euler step.&quot;&quot;&quot;
+    return 0.0
+
+
+def rk4_step(f, t, y, h):
+    &quot;&quot;&quot;One classical RK4 step.&quot;&quot;&quot;
+    return 0.0
+
+
+def integrate(f, t0, y0, t1, n, stepper):
+    &quot;&quot;&quot;Apply the stepper n times from t0 to t1.&quot;&quot;&quot;
+    return 0.0
+
+
+def error_ratios(f, exact, t0, y0, t1, stepper, ns):
+    &quot;&quot;&quot;Consecutive error ratios as n doubles.&quot;&quot;&quot;
+    return []
+
+
+def euler_stable(lam, h):
+    &quot;&quot;&quot;True when explicit Euler stays bounded on y&#x27; = lam y.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_single_steps_hand_checked():
+    # y&#x27; = y, y(0) = 1, h = 0.1. Euler gives 1.1 exactly.
+    f = lambda t, y: y
+    assert abs(euler_step(f, 0.0, 1.0, 0.1) - 1.1) &lt; 1e-12
+    # RK4 is far closer to e^0.1 = 1.105170918...
+    from math import exp
+    assert abs(rk4_step(f, 0.0, 1.0, 0.1) - exp(0.1)) &lt; 1e-7
+    assert abs(euler_step(f, 0.0, 1.0, 0.1) - exp(0.1)) &gt; 1e-3
+    try:
+        euler_step(f, 0.0, 1.0, 0.0)
+        assert False, &quot;h = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_error_orders():
+    from math import exp
+    f = lambda t, y: -y
+    exact = exp(-1.0)
+    ns = [10, 20, 40, 80]
+    e_ratios = error_ratios(f, exact, 0.0, 1.0, 1.0, euler_step, ns)
+    r_ratios = error_ratios(f, exact, 0.0, 1.0, 1.0, rk4_step, ns)
+    for r in e_ratios:
+        assert 1.8 &lt; r &lt; 2.2, f&quot;Euler must be first order, got {r}&quot;
+    for r in r_ratios[:2]:
+        assert 14 &lt; r &lt; 18, f&quot;RK4 must be fourth order, got {r}&quot;
+    # RK4 with 10 steps already beats Euler with 80
+    assert abs(integrate(f, 0.0, 1.0, 1.0, 10, rk4_step) - exact) &lt; \
+           abs(integrate(f, 0.0, 1.0, 1.0, 80, euler_step) - exact)
+
+
+def test_stability_threshold():
+    lam = -50.0
+    limit = 2.0 / abs(lam)        # 0.04
+    assert euler_stable(lam, 0.01) is True
+    assert euler_stable(lam, 0.039) is True
+    assert euler_stable(lam, 0.041) is False
+    assert euler_stable(lam, 0.1) is False
+    # and the prediction matches what actually happens
+    f = lambda t, y: lam * y
+    small = integrate(f, 0.0, 1.0, 0.39, 10, euler_step)      # h = 0.039
+    big = integrate(f, 0.0, 1.0, 0.41, 10, euler_step)        # h = 0.041
+    assert abs(small) &lt;= 1.0
+    assert abs(big) &gt; 1.0
+    try:
+        euler_stable(lam, -0.1)
+        assert False, &quot;a negative h must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m25-ex5-symplectic" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Energy drift and symplectic integration</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>For the harmonic oscillator <code>x'' = -x</code>, write <code>energy(x, v)</code> returning <code>(x*x + v*v)/2</code>. Write <code>rk4_oscillator(x, v, h, steps)</code> and <code>leapfrog_oscillator(x, v, h, steps)</code> returning the final <code>(x, v)</code>. Write <code>energy_drift(method, x0, v0, h, steps)</code> returning the absolute change in energy from start to finish. Write <code>drift_grows(method, x0, v0, h, step_counts)</code> returning <code>True</code> when the drift increases monotonically across the given run lengths. Raise <code>ValueError</code> for a non-positive <code>h</code> or <code>steps</code>.</p></div>
+<textarea class="code" spellcheck="false">def energy(x, v):
+    &quot;&quot;&quot;Total energy of the oscillator.&quot;&quot;&quot;
+    return 0.0
+
+
+def rk4_oscillator(x, v, h, steps):
+    &quot;&quot;&quot;Integrate with RK4.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def leapfrog_oscillator(x, v, h, steps):
+    &quot;&quot;&quot;Integrate with velocity Verlet.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def energy_drift(method, x0, v0, h, steps):
+    &quot;&quot;&quot;Absolute change in energy over the run.&quot;&quot;&quot;
+    return 0.0
+
+
+def drift_grows(method, x0, v0, h, step_counts):
+    &quot;&quot;&quot;True when the drift increases with run length.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_both_methods_track_the_motion_short_term():
+    from math import cos, sin
+    h, steps = 0.01, 600          # about one period
+    for method in (rk4_oscillator, leapfrog_oscillator):
+        x, v = method(1.0, 0.0, h, steps)
+        t = h * steps
+        assert abs(x - cos(t)) &lt; 1e-2, method.__name__
+        assert abs(v + sin(t)) &lt; 1e-2, method.__name__
+    # energy starts at exactly 0.5
+    assert abs(energy(1.0, 0.0) - 0.5) &lt; 1e-15
+    assert abs(energy(0.0, 1.0) - 0.5) &lt; 1e-15
+
+
+def test_rk4_drifts_while_leapfrog_does_not():
+    h = 0.1
+    counts = [1000, 10000, 100000]
+    rk_drifts = [energy_drift(rk4_oscillator, 1.0, 0.0, h, n) for n in counts]
+    lf_drifts = [energy_drift(leapfrog_oscillator, 1.0, 0.0, h, n) for n in counts]
+    # RK4&#x27;s energy error grows steadily with the length of the run
+    assert rk_drifts[0] &lt; rk_drifts[1] &lt; rk_drifts[2]
+    assert rk_drifts[2] &gt; 20 * rk_drifts[0]
+    assert drift_grows(rk4_oscillator, 1.0, 0.0, h, counts) is True
+    # leapfrog&#x27;s stays bounded no matter how long the run
+    assert max(lf_drifts) &lt; 1e-2
+    assert max(lf_drifts) / max(min(lf_drifts), 1e-18) &lt; 100
+
+
+def test_accuracy_versus_structure_and_errors():
+    # Over a SHORT run RK4 is far more accurate than leapfrog.
+    h, steps = 0.1, 100
+    rk_err = energy_drift(rk4_oscillator, 1.0, 0.0, h, steps)
+    lf_err = energy_drift(leapfrog_oscillator, 1.0, 0.0, h, steps)
+    assert rk_err &lt; lf_err, &quot;RK4 wins on accuracy over a short run&quot;
+    # Over a LONG run the ordering reverses, which is the whole point.
+    long_steps = 200000
+    rk_long = energy_drift(rk4_oscillator, 1.0, 0.0, h, long_steps)
+    lf_long = energy_drift(leapfrog_oscillator, 1.0, 0.0, h, long_steps)
+    assert rk_long &gt; lf_long, &quot;leapfrog wins on structure over a long run&quot;
+    try:
+        leapfrog_oscillator(1.0, 0.0, 0.0, 10)
+        assert False, &quot;h = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        rk4_oscillator(1.0, 0.0, 0.1, 0)
+        assert False, &quot;zero steps must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Solving a differential equation means finding a number."</strong> It means finding a <em>function</em>, and usually a whole family of them. One initial condition per order picks out a single member.</li>
+<li><strong>"The rate is constant, so I can extrapolate linearly."</strong> Arjun's error. The rate is itself a function of the state, and the whole point of a differential equation is that it changes as the state changes. A tangent line is reliable only locally.</li>
+<li><strong>"The integrating factor is a trick to memorise."</strong> It is the unique multiplier that makes the left side an exact derivative, and it falls out of solving $\mu&#x27;=\mu P$. Deriving it takes two lines.</li>
+<li><strong>"A more accurate method is always the better choice."</strong> RK4 is roughly a thousand times more accurate per step than leapfrog and is the wrong tool for a long orbital simulation, because it does not conserve energy. Order is not the only property that matters.</li>
+<li><strong>"If the numerical solution blows up, use a smaller step."</strong> Sometimes right and sometimes hopeless. For a stiff problem the stable step may be absurdly small; the fix is an implicit method, not a finer grid.</li>
+<li><strong>"Accuracy and stability are the same thing."</strong> They are independent. A method can be high order and unstable at a given step, or low order and unconditionally stable.</li>
+<li><strong>"Newton's law of cooling says the tea reaches room temperature."</strong> It approaches it asymptotically and never arrives. The exponential has no zero.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Not every differential equation has a solution, and not every solution is unique. $\frac{dy}{dx}=y^{2/3}$ with $y(0)=0$ has both $y\equiv0$ and $y = \frac{x^3}{27}$ — the right side is continuous but not Lipschitz at the origin, and the Picard-Lindelöf theorem's hypothesis fails exactly there. Uniqueness is a theorem with conditions, not a given.</p>
+<p>Solutions can also <strong>blow up in finite time</strong>. $\frac{dy}{dt}=y^2$ with $y(0)=1$ gives $y=\frac{1}{1-t}$, which escapes to infinity at $t=1$ even though the equation looks mild. A numerical solver will happily march past that point producing nonsense.</p>
+<p>The vast majority of differential equations have no closed-form solution. Separable, homogeneous and linear cover the textbook cases and little else, which is why numerical methods are the normal situation rather than a fallback.</p>
+<p>Numerically, the error formulas assume smoothness, the stability analysis above is for a single linear equation (a system has a stability region governed by all its eigenvalues), and a stiff system — where eigenvalues differ by many orders of magnitude — forces the step size down to the fastest scale even when nothing interesting is happening on it. Chemical kinetics and circuit simulation are routinely stiff.</p>
+<p>Finally, chaos. For a chaotic system such as the three-body problem or the Lorenz equations, nearby solutions separate exponentially, so beyond a horizon no amount of accuracy preserves the trajectory. There, the honest goal is statistical behaviour, not the path — and conserving structure, as leapfrog does, matters more than tracking a trajectory that cannot be tracked.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Differential equations are the model behind any system with momentum. A spring-based animation — Flutter's <code>SpringSimulation</code>, iOS's spring animators — is literally $m\ddot{x} = -kx - c\dot{x}$ solved per frame, and the damping ratio decides whether the UI overshoots, oscillates or settles. A fling with friction is exponential decay; the "velocity" of a scroll decaying to rest is Arjun's tea.</p>
+<p>Exponential decay is the maths of exponential backoff, of a moving-average smoother (where the smoothing constant <em>is</em> a decay rate), and of a low-pass filter on noisy sensor data. Logistic growth models adoption curves and saturating load.</p>
+<p>The numerical half matters whenever a device simulates physics: a game loop, a particle effect, a physics-based gesture. The energy-drift result is the practical reason a naive game physics loop makes objects gain energy and jitter — and why fixed-timestep integration with a symplectic method is the standard advice. And the stability threshold explains why a physics simulation explodes when the frame rate drops and the timestep grows: the problem is not accuracy, it is that the step crossed a hard stability boundary.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does a differential equation describe, and why is that useful?</p></div><div class="a" hidden><p>A relation between a function and its derivatives. It is useful because physical laws state rates, not the quantities themselves.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>How many arbitrary constants does the general solution of an n-th order equation have?</p></div><div class="a" hidden><p>Exactly n, and n initial or boundary conditions are needed to pin down a particular solution.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Where does the integrating factor come from?</p></div><div class="a" hidden><p>From requiring that multiplying by mu makes the left side exactly (mu y)', which forces mu' = mu P and so mu = exp(integral of P).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>In Newton's law of cooling, what decays exponentially?</p></div><div class="a" hidden><p>The excess temperature over the surroundings, not the temperature itself. So the body approaches ambient without ever reaching it.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>State the stability condition for explicit Euler on y' = lambda y with lambda negative.</p></div><div class="a" hidden><p>The step must satisfy |1 + h*lambda| &lt;= 1, that is h &lt; 2/|lambda|. Beyond that the solution explodes while the true one decays.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the difference between accuracy and stability?</p></div><div class="a" hidden><p>Accuracy is how close one step is to the truth; stability is whether errors grow or shrink as steps accumulate. A method can be high order and unstable.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>What is a stiff equation and what do you do about it?</p></div><div class="a" hidden><p>One where stability, not accuracy, forces a tiny step, usually because of widely separated time scales. Use an implicit method such as backward Euler.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Why does RK4 lose energy on an orbit while leapfrog does not?</p></div><div class="a" hidden><p>RK4 preserves no geometric structure, so its errors accumulate systematically. Leapfrog is symplectic: it exactly conserves a nearby shadow energy, so the true energy only oscillates.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Leapfrog is only second order and RK4 is fourth. Why would anyone choose leapfrog?</p></div><div class="a" hidden><p>For a long simulation, bounded energy error matters more than per-step accuracy. RK4's drift grows without limit; leapfrog's does not.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>Give an equation whose solution blows up in finite time.</p></div><div class="a" hidden><p>y' = y^2 with y(0) = 1 has solution 1/(1-t), which escapes at t = 1.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why the tea does not cool at a steady speed, you can derive the integrating factor rather than recall it, you can solve separable and linear first-order equations by hand and check the answer by substitution, you can state the stability condition for explicit Euler and explain why exceeding it is a cliff rather than a slope, you pass the boss exercise without hints, and you can say why a game physics loop should use a symplectic integrator at a fixed timestep.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 12, chapter on Differential Equations.</li>
+<li>Morris Tenenbaum and Harry Pollard, <em>Ordinary Differential Equations</em>, Dover.</li>
+<li>Hairer, Lubich and Wanner, <em>Geometric Numerical Integration</em>, Springer (symplectic methods and backward error analysis).</li>
+<li>Press, Teukolsky, Vetterling and Flannery, <em>Numerical Recipes</em>, 3rd edition, chapter on ordinary differential equations.</li>
+<li>Loup Verlet, "Computer Experiments on Classical Fluids", <em>Physical Review</em>, 1967.</li>
+</ul></section>
+<footer class="pager"><a href="M24.html">&larr; M24 Integration</a>
+<a href="M26.html">M26 Matrices and determinants &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M25", "packages": [], "exercises": {"m25-ex1-order-degree": {"starter": "def order(eq):\n    \"\"\"The order of the equation.\"\"\"\n    return 0\n\n\ndef degree(eq):\n    \"\"\"The degree, or None when undefined.\"\"\"\n    return None\n\n\ndef verify_solution(y, dy, rhs, points):\n    \"\"\"True when y satisfies the equation at every point.\"\"\"\n    return False\n\n\ndef general_solution_constants(order_value):\n    \"\"\"How many arbitrary constants a general solution has.\"\"\"\n    return 0\n", "solution": "def order(eq):\n    \"\"\"The order of the equation.\"\"\"\n    value = eq[\"highest_order\"]\n    if not isinstance(value, int) or value <= 0:\n        raise ValueError(\"the order must be a positive integer\")\n    return value\n\n\ndef degree(eq):\n    \"\"\"The degree, or None when undefined.\"\"\"\n    order(eq)\n    return eq.get(\"power_of_highest\")\n\n\ndef verify_solution(y, dy, rhs, points):\n    \"\"\"True when y satisfies the equation at every point.\"\"\"\n    for x in points:\n        if abs(dy(x) - rhs(x, y(x))) > 1e-6:\n            return False\n    return True\n\n\ndef general_solution_constants(order_value):\n    \"\"\"How many arbitrary constants a general solution has.\"\"\"\n    if not isinstance(order_value, int) or order_value <= 0:\n        raise ValueError(\"the order must be a positive integer\")\n    return order_value\n", "tests": "def test_order_and_degree():\n    # (y'')^3 + (y')^5 + y = 0 has order 2 and degree 3\n    eq = {\"highest_order\": 2, \"power_of_highest\": 3}\n    assert order(eq) == 2\n    assert degree(eq) == 3\n    # a first-order linear equation\n    assert order({\"highest_order\": 1, \"power_of_highest\": 1}) == 1\n    # sin(y') = x is not polynomial in y', so the degree is undefined\n    assert degree({\"highest_order\": 1, \"power_of_highest\": None}) is None\n    try:\n        order({\"highest_order\": 0, \"power_of_highest\": 1})\n        assert False, \"a zero order must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_verifying_solutions():\n    from math import exp\n    pts = [0.0, 0.5, 1.0, 2.0, -1.0]\n    # y = 3 e^(2x) solves y' = 2y\n    y = lambda x: 3 * exp(2 * x)\n    dy = lambda x: 6 * exp(2 * x)\n    assert verify_solution(y, dy, lambda x, yy: 2 * yy, pts) is True\n    # it does NOT solve y' = 3y\n    assert verify_solution(y, dy, lambda x, yy: 3 * yy, pts) is False\n    # y = x^2/2 solves y' = x\n    assert verify_solution(lambda x: x * x / 2, lambda x: x,\n                           lambda x, yy: x, pts) is True\n    # A case that AGREES at the first point and fails later, so checking only\n    # the first point would wrongly accept it.\n    y2, dy2 = (lambda x: x * x), (lambda x: 2 * x)\n    rhs2 = lambda x, yy: 2 * x + x ** 3\n    assert abs(dy2(0.0) - rhs2(0.0, y2(0.0))) < 1e-9      # agrees at x = 0\n    assert abs(dy2(1.0) - rhs2(1.0, y2(1.0))) > 0.5       # disagrees at x = 1\n    assert verify_solution(y2, dy2, rhs2, [0.0, 1.0]) is False\n\n\ndef test_constants_match_the_order():\n    assert general_solution_constants(1) == 1\n    assert general_solution_constants(2) == 2\n    assert general_solution_constants(4) == 4\n    # a family with one constant comes from a first-order equation:\n    # y = C e^x has y' = y for EVERY C\n    from math import exp\n    pts = [0.0, 1.0, 2.0]\n    for C in (1.0, -2.5, 7.0):\n        y = lambda x, c=C: c * exp(x)\n        dy = lambda x, c=C: c * exp(x)\n        assert verify_solution(y, dy, lambda x, yy: yy, pts) is True\n    try:\n        general_solution_constants(0)\n        assert False, \"a zero order must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def order(eq):\n    \"\"\"Bug: adds one to the order.\"\"\"\n    value = eq[\"highest_order\"]\n    if not isinstance(value, int) or value <= 0:\n        raise ValueError(\"the order must be a positive integer\")\n    return value + 1\n\n\ndef degree(eq):\n    order(eq)\n    return eq.get(\"power_of_highest\")\n\n\ndef verify_solution(y, dy, rhs, points):\n    for x in points:\n        if abs(dy(x) - rhs(x, y(x))) > 1e-6:\n            return False\n    return True\n\n\ndef general_solution_constants(order_value):\n    if not isinstance(order_value, int) or order_value <= 0:\n        raise ValueError(\"the order must be a positive integer\")\n    return order_value\n", "def order(eq):\n    value = eq[\"highest_order\"]\n    if not isinstance(value, int) or value <= 0:\n        raise ValueError(\"the order must be a positive integer\")\n    return value\n\n\ndef degree(eq):\n    order(eq)\n    return eq.get(\"power_of_highest\")\n\n\ndef verify_solution(y, dy, rhs, points):\n    \"\"\"Bug: checks only the first point, so a wrong solution can slip through.\"\"\"\n    if not points:\n        return True\n    x = points[0]\n    return abs(dy(x) - rhs(x, y(x))) <= 1e-6\n\n\ndef general_solution_constants(order_value):\n    if not isinstance(order_value, int) or order_value <= 0:\n        raise ValueError(\"the order must be a positive integer\")\n    return order_value\n"], "hints": ["The order is the highest derivative present; the degree is the power that derivative is raised to once the equation is polynomial in its derivatives.", "To verify a solution, substitute it into the equation and check the two sides agree at *every* test point."], "level": "warmup", "title": "Order, degree and verifying a solution"}, "m25-ex2-separable": {"starter": "def exponential_model(y0, k, t):\n    \"\"\"y0 e^(kt).\"\"\"\n    return 0.0\n\n\ndef half_life(k):\n    \"\"\"Time for a decaying quantity to halve.\"\"\"\n    return 0.0\n\n\ndef newton_cooling(t0_temp, room, k, t):\n    \"\"\"Temperature at time t under Newton's law of cooling.\"\"\"\n    return 0.0\n\n\ndef cooling_time(t0_temp, room, k, target):\n    \"\"\"Time to reach the target temperature.\"\"\"\n    return 0.0\n\n\ndef logistic(y0, k, capacity, t):\n    \"\"\"Logistic growth.\"\"\"\n    return 0.0\n", "solution": "from math import exp, log\n\n\ndef exponential_model(y0, k, t):\n    \"\"\"y0 e^(kt).\"\"\"\n    return y0 * exp(k * t)\n\n\ndef half_life(k):\n    \"\"\"Time for a decaying quantity to halve.\"\"\"\n    if k == 0:\n        raise ValueError(\"a zero rate never halves\")\n    return log(2) / abs(k)\n\n\ndef newton_cooling(t0_temp, room, k, t):\n    \"\"\"Temperature at time t under Newton's law of cooling.\"\"\"\n    return room + (t0_temp - room) * exp(-k * t)\n\n\ndef cooling_time(t0_temp, room, k, target):\n    \"\"\"Time to reach the target temperature.\"\"\"\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    lo, hi = min(room, t0_temp), max(room, t0_temp)\n    if not lo < target < hi:\n        raise ValueError(\"the target must lie strictly between room and start\")\n    return -log((target - room) / (t0_temp - room)) / k\n\n\ndef logistic(y0, k, capacity, t):\n    \"\"\"Logistic growth.\"\"\"\n    if capacity <= 0 or y0 <= 0:\n        raise ValueError(\"capacity and y0 must be positive\")\n    a = (capacity - y0) / y0\n    return capacity / (1 + a * exp(-k * t))\n", "tests": "def test_exponential_and_half_life():\n    from math import exp, log\n    assert abs(exponential_model(3.0, 2.0, 0.0) - 3.0) < 1e-12\n    assert abs(exponential_model(3.0, 2.0, 1.0) - 3 * exp(2)) < 1e-12\n    k = 0.7\n    h = half_life(k)\n    assert abs(h - log(2) / k) < 1e-12\n    # halving is independent of the starting point\n    for start in (0.0, 1.0, 5.0):\n        before = exponential_model(1.0, -k, start)\n        after = exponential_model(1.0, -k, start + h)\n        assert abs(after / before - 0.5) < 1e-12\n    try:\n        half_life(0.0)\n        assert False, \"a zero rate must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_newton_cooling_matches_the_story():\n    # room 30, start 90, k = 0.05\n    assert abs(newton_cooling(90, 30, 0.05, 0) - 90.0) < 1e-12\n    # it approaches the room temperature without reaching it\n    # (at t = 1000 the excess underflows to zero in a float, so use t = 200)\n    assert newton_cooling(90, 30, 0.05, 200) > 30.0\n    assert 0 < newton_cooling(90, 30, 0.05, 200) - 30.0 < 1e-2\n    # monotone decreasing\n    temps = [newton_cooling(90, 30, 0.05, t) for t in range(0, 60, 5)]\n    assert all(a > b for a, b in zip(temps, temps[1:]))\n    # the time to reach a target is consistent with the forward formula\n    t = cooling_time(90, 30, 0.05, 60)\n    assert abs(newton_cooling(90, 30, 0.05, t) - 60.0) < 1e-9\n    # the linear extrapolation from the first five minutes is far too low\n    rate = (newton_cooling(90, 30, 0.05, 5) - 90) / 5\n    assert 90 + rate * 20 < newton_cooling(90, 30, 0.05, 20) - 5\n\n\ndef test_unreachable_targets_and_logistic():\n    for bad in (30.0, 29.0, 90.0, 95.0):\n        try:\n            cooling_time(90, 30, 0.05, bad)\n            assert False, f\"target {bad} must raise ValueError\"\n        except ValueError:\n            pass\n    # logistic: starts near y0, saturates at the capacity\n    assert abs(logistic(0.1, 1.0, 1.0, 0.0) - 0.1) < 1e-12\n    assert abs(logistic(0.1, 1.0, 1.0, 50.0) - 1.0) < 1e-9\n    # it never exceeds the capacity and always increases\n    vals = [logistic(0.1, 1.0, 1.0, t / 2) for t in range(0, 40)]\n    assert all(v <= 1.0 + 1e-12 for v in vals)\n    assert all(a < b for a, b in zip(vals, vals[1:]))\n", "mutants": ["from math import exp, log\n\n\ndef exponential_model(y0, k, t):\n    return y0 * exp(k * t)\n\n\ndef half_life(k):\n    \"\"\"Bug: uses log(2)*k instead of log(2)/k.\"\"\"\n    if k == 0:\n        raise ValueError(\"a zero rate never halves\")\n    return log(2) * abs(k)\n\n\ndef newton_cooling(t0_temp, room, k, t):\n    return room + (t0_temp - room) * exp(-k * t)\n\n\ndef cooling_time(t0_temp, room, k, target):\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    lo, hi = min(room, t0_temp), max(room, t0_temp)\n    if not lo < target < hi:\n        raise ValueError(\"the target must lie strictly between room and start\")\n    return -log((target - room) / (t0_temp - room)) / k\n\n\ndef logistic(y0, k, capacity, t):\n    if capacity <= 0 or y0 <= 0:\n        raise ValueError(\"capacity and y0 must be positive\")\n    a = (capacity - y0) / y0\n    return capacity / (1 + a * exp(-k * t))\n", "from math import exp, log\n\n\ndef exponential_model(y0, k, t):\n    return y0 * exp(k * t)\n\n\ndef half_life(k):\n    if k == 0:\n        raise ValueError(\"a zero rate never halves\")\n    return log(2) / abs(k)\n\n\ndef newton_cooling(t0_temp, room, k, t):\n    \"\"\"Bug: decays the whole temperature, not the excess over the room.\"\"\"\n    return room + t0_temp * exp(-k * t)\n\n\ndef cooling_time(t0_temp, room, k, target):\n    if k <= 0:\n        raise ValueError(\"k must be positive\")\n    lo, hi = min(room, t0_temp), max(room, t0_temp)\n    if not lo < target < hi:\n        raise ValueError(\"the target must lie strictly between room and start\")\n    return -log((target - room) / (t0_temp - room)) / k\n\n\ndef logistic(y0, k, capacity, t):\n    if capacity <= 0 or y0 <= 0:\n        raise ValueError(\"capacity and y0 must be positive\")\n    a = (capacity - y0) / y0\n    return capacity / (1 + a * exp(-k * t))\n"], "hints": ["In Newton's cooling law it is the *excess* over the room temperature that decays exponentially, not the temperature itself.", "The half-life satisfies `exp(-k*t) = 1/2`, so take logs: `t = log(2)/k`."], "level": "core", "title": "Separable equations and the standard models"}, "m25-ex3-linear": {"starter": "def integrating_factor(P_integral, x):\n    \"\"\"exp of the integral of P.\"\"\"\n    return 0.0\n\n\ndef solve_linear(P_integral, Q, x0, y0, x, steps=4000):\n    \"\"\"Solve y' + P y = Q by the integrating-factor formula.\"\"\"\n    return 0.0\n\n\ndef check_linear(P, Q, y, dy, points):\n    \"\"\"True when y solves the equation at every point.\"\"\"\n    return False\n", "solution": "from math import exp\n\n\ndef _simpson(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"steps must be positive\")\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef integrating_factor(P_integral, x):\n    \"\"\"exp of the integral of P.\"\"\"\n    return exp(P_integral(x))\n\n\ndef solve_linear(P_integral, Q, x0, y0, x, steps=4000):\n    \"\"\"Solve y' + P y = Q by the integrating-factor formula.\"\"\"\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n    mu = lambda t: integrating_factor(P_integral, t)\n    integral = _simpson(lambda t: mu(t) * Q(t), x0, x, steps)\n    return (mu(x0) * y0 + integral) / mu(x)\n\n\ndef check_linear(P, Q, y, dy, points):\n    \"\"\"True when y solves the equation at every point.\"\"\"\n    for x in points:\n        if abs(dy(x) + P(x) * y(x) - Q(x)) > 1e-6:\n            return False\n    return True\n", "tests": "def test_constant_coefficient_case():\n    from math import exp\n    # y' + y = 1, y(0) = 0  ->  y = 1 - e^(-x)\n    P_int = lambda x: x                      # integral of P = 1\n    Q = lambda x: 1.0\n    for x in (0.5, 1.0, 2.0, 4.0):\n        got = solve_linear(P_int, Q, 0.0, 0.0, x)\n        assert abs(got - (1 - exp(-x))) < 1e-7, x\n    # the integrating factor here is e^x\n    assert abs(integrating_factor(P_int, 2.0) - exp(2.0)) < 1e-12\n\n\ndef test_non_constant_coefficient_case():\n    from math import log\n    # y' + y/x = 1 for x > 0, y(1) = 0.5  ->  y = x/2\n    P_int = lambda x: log(x)                 # integral of 1/x\n    Q = lambda x: 1.0\n    for x in (1.5, 2.0, 4.0):\n        got = solve_linear(P_int, Q, 1.0, 0.5, x)\n        assert abs(got - x / 2) < 1e-7, x\n    # the integrating factor is x itself\n    assert abs(integrating_factor(P_int, 3.0) - 3.0) < 1e-12\n\n\ndef test_check_linear_and_errors():\n    from math import exp\n    # y = 1 - e^(-x) really solves y' + y = 1\n    y = lambda x: 1 - exp(-x)\n    dy = lambda x: exp(-x)\n    pts = [0.0, 0.5, 1.0, 3.0]\n    assert check_linear(lambda x: 1.0, lambda x: 1.0, y, dy, pts) is True\n    # but it does not solve y' + 2y = 1\n    assert check_linear(lambda x: 2.0, lambda x: 1.0, y, dy, pts) is False\n    # y = x/2 solves y' + y/x = 1\n    assert check_linear(lambda x: 1 / x, lambda x: 1.0,\n                        lambda x: x / 2, lambda x: 0.5, [1.0, 2.0, 5.0]) is True\n    try:\n        solve_linear(lambda x: x, lambda x: 1.0, 0.0, 0.0, 1.0, steps=0)\n        assert False, \"zero steps must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import exp\n\n\ndef _simpson(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"steps must be positive\")\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef integrating_factor(P_integral, x):\n    \"\"\"Bug: a negative exponent, so the factor undoes rather than helps.\"\"\"\n    return exp(-P_integral(x))\n\n\ndef solve_linear(P_integral, Q, x0, y0, x, steps=4000):\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n    mu = lambda t: integrating_factor(P_integral, t)\n    integral = _simpson(lambda t: mu(t) * Q(t), x0, x, steps)\n    return (mu(x0) * y0 + integral) / mu(x)\n\n\ndef check_linear(P, Q, y, dy, points):\n    for x in points:\n        if abs(dy(x) + P(x) * y(x) - Q(x)) > 1e-6:\n            return False\n    return True\n", "from math import exp\n\n\ndef _simpson(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"steps must be positive\")\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef integrating_factor(P_integral, x):\n    return exp(P_integral(x))\n\n\ndef solve_linear(P_integral, Q, x0, y0, x, steps=4000):\n    \"\"\"Bug: forgets to divide by mu(x) at the end.\"\"\"\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n    mu = lambda t: integrating_factor(P_integral, t)\n    integral = _simpson(lambda t: mu(t) * Q(t), x0, x, steps)\n    return mu(x0) * y0 + integral\n\n\ndef check_linear(P, Q, y, dy, points):\n    for x in points:\n        if abs(dy(x) + P(x) * y(x) - Q(x)) > 1e-6:\n            return False\n    return True\n"], "hints": ["The integrating factor is `exp(+ integral of P)`, chosen so that `(mu*y)' = mu*y' + mu*P*y`.", "After integrating `mu*Q`, you still have `mu*y` on the left. Divide by `mu(x)` to isolate `y`."], "level": "core", "title": "Linear first-order equations and the integrating factor"}, "m25-ex4-numerical": {"starter": "def euler_step(f, t, y, h):\n    \"\"\"One explicit Euler step.\"\"\"\n    return 0.0\n\n\ndef rk4_step(f, t, y, h):\n    \"\"\"One classical RK4 step.\"\"\"\n    return 0.0\n\n\ndef integrate(f, t0, y0, t1, n, stepper):\n    \"\"\"Apply the stepper n times from t0 to t1.\"\"\"\n    return 0.0\n\n\ndef error_ratios(f, exact, t0, y0, t1, stepper, ns):\n    \"\"\"Consecutive error ratios as n doubles.\"\"\"\n    return []\n\n\ndef euler_stable(lam, h):\n    \"\"\"True when explicit Euler stays bounded on y' = lam y.\"\"\"\n    return False\n", "solution": "def euler_step(f, t, y, h):\n    \"\"\"One explicit Euler step.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return y + h * f(t, y)\n\n\ndef rk4_step(f, t, y, h):\n    \"\"\"One classical RK4 step.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    k1 = f(t, y)\n    k2 = f(t + h / 2, y + h / 2 * k1)\n    k3 = f(t + h / 2, y + h / 2 * k2)\n    k4 = f(t + h, y + h * k3)\n    return y + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)\n\n\ndef integrate(f, t0, y0, t1, n, stepper):\n    \"\"\"Apply the stepper n times from t0 to t1.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    h = (t1 - t0) / n\n    t, y = t0, y0\n    for _ in range(n):\n        y = stepper(f, t, y, h)\n        t += h\n    return y\n\n\ndef error_ratios(f, exact, t0, y0, t1, stepper, ns):\n    \"\"\"Consecutive error ratios as n doubles.\"\"\"\n    errors = [abs(integrate(f, t0, y0, t1, n, stepper) - exact) for n in ns]\n    return [float(\"inf\") if cur == 0 else prev / cur\n            for prev, cur in zip(errors, errors[1:])]\n\n\ndef euler_stable(lam, h):\n    \"\"\"True when explicit Euler stays bounded on y' = lam y.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return abs(1 + h * lam) <= 1\n", "tests": "def test_single_steps_hand_checked():\n    # y' = y, y(0) = 1, h = 0.1. Euler gives 1.1 exactly.\n    f = lambda t, y: y\n    assert abs(euler_step(f, 0.0, 1.0, 0.1) - 1.1) < 1e-12\n    # RK4 is far closer to e^0.1 = 1.105170918...\n    from math import exp\n    assert abs(rk4_step(f, 0.0, 1.0, 0.1) - exp(0.1)) < 1e-7\n    assert abs(euler_step(f, 0.0, 1.0, 0.1) - exp(0.1)) > 1e-3\n    try:\n        euler_step(f, 0.0, 1.0, 0.0)\n        assert False, \"h = 0 must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_error_orders():\n    from math import exp\n    f = lambda t, y: -y\n    exact = exp(-1.0)\n    ns = [10, 20, 40, 80]\n    e_ratios = error_ratios(f, exact, 0.0, 1.0, 1.0, euler_step, ns)\n    r_ratios = error_ratios(f, exact, 0.0, 1.0, 1.0, rk4_step, ns)\n    for r in e_ratios:\n        assert 1.8 < r < 2.2, f\"Euler must be first order, got {r}\"\n    for r in r_ratios[:2]:\n        assert 14 < r < 18, f\"RK4 must be fourth order, got {r}\"\n    # RK4 with 10 steps already beats Euler with 80\n    assert abs(integrate(f, 0.0, 1.0, 1.0, 10, rk4_step) - exact) < \\\n           abs(integrate(f, 0.0, 1.0, 1.0, 80, euler_step) - exact)\n\n\ndef test_stability_threshold():\n    lam = -50.0\n    limit = 2.0 / abs(lam)        # 0.04\n    assert euler_stable(lam, 0.01) is True\n    assert euler_stable(lam, 0.039) is True\n    assert euler_stable(lam, 0.041) is False\n    assert euler_stable(lam, 0.1) is False\n    # and the prediction matches what actually happens\n    f = lambda t, y: lam * y\n    small = integrate(f, 0.0, 1.0, 0.39, 10, euler_step)      # h = 0.039\n    big = integrate(f, 0.0, 1.0, 0.41, 10, euler_step)        # h = 0.041\n    assert abs(small) <= 1.0\n    assert abs(big) > 1.0\n    try:\n        euler_stable(lam, -0.1)\n        assert False, \"a negative h must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def euler_step(f, t, y, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return y + h * f(t, y)\n\n\ndef rk4_step(f, t, y, h):\n    \"\"\"Bug: averages the four slopes equally instead of weighting 1,2,2,1.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    k1 = f(t, y)\n    k2 = f(t + h / 2, y + h / 2 * k1)\n    k3 = f(t + h / 2, y + h / 2 * k2)\n    k4 = f(t + h, y + h * k3)\n    return y + h / 4 * (k1 + k2 + k3 + k4)\n\n\ndef integrate(f, t0, y0, t1, n, stepper):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    h = (t1 - t0) / n\n    t, y = t0, y0\n    for _ in range(n):\n        y = stepper(f, t, y, h)\n        t += h\n    return y\n\n\ndef error_ratios(f, exact, t0, y0, t1, stepper, ns):\n    errors = [abs(integrate(f, t0, y0, t1, n, stepper) - exact) for n in ns]\n    return [float(\"inf\") if cur == 0 else prev / cur\n            for prev, cur in zip(errors, errors[1:])]\n\n\ndef euler_stable(lam, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return abs(1 + h * lam) <= 1\n", "def euler_step(f, t, y, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return y + h * f(t, y)\n\n\ndef rk4_step(f, t, y, h):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    k1 = f(t, y)\n    k2 = f(t + h / 2, y + h / 2 * k1)\n    k3 = f(t + h / 2, y + h / 2 * k2)\n    k4 = f(t + h, y + h * k3)\n    return y + h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)\n\n\ndef integrate(f, t0, y0, t1, n, stepper):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    h = (t1 - t0) / n\n    t, y = t0, y0\n    for _ in range(n):\n        y = stepper(f, t, y, h)\n        t += h\n    return y\n\n\ndef error_ratios(f, exact, t0, y0, t1, stepper, ns):\n    errors = [abs(integrate(f, t0, y0, t1, n, stepper) - exact) for n in ns]\n    return [float(\"inf\") if cur == 0 else prev / cur\n            for prev, cur in zip(errors, errors[1:])]\n\n\ndef euler_stable(lam, h):\n    \"\"\"Bug: tests h*lam rather than 1 + h*lam, so the threshold is wrong.\"\"\"\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    return abs(h * lam) <= 1\n"], "hints": ["RK4 weights the middle two slopes twice as heavily: `(k1 + 2k2 + 2k3 + k4)/6`.", "The stability factor is `1 + h*lambda`; the method stays bounded only while its magnitude is at most 1."], "level": "core", "title": "Euler, RK4 and their error orders"}, "m25-ex5-symplectic": {"starter": "def energy(x, v):\n    \"\"\"Total energy of the oscillator.\"\"\"\n    return 0.0\n\n\ndef rk4_oscillator(x, v, h, steps):\n    \"\"\"Integrate with RK4.\"\"\"\n    return (0.0, 0.0)\n\n\ndef leapfrog_oscillator(x, v, h, steps):\n    \"\"\"Integrate with velocity Verlet.\"\"\"\n    return (0.0, 0.0)\n\n\ndef energy_drift(method, x0, v0, h, steps):\n    \"\"\"Absolute change in energy over the run.\"\"\"\n    return 0.0\n\n\ndef drift_grows(method, x0, v0, h, step_counts):\n    \"\"\"True when the drift increases with run length.\"\"\"\n    return False\n", "solution": "def energy(x, v):\n    \"\"\"Total energy of the oscillator.\"\"\"\n    return 0.5 * (x * x + v * v)\n\n\ndef _check(h, steps):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n\n\ndef rk4_oscillator(x, v, h, steps):\n    \"\"\"Integrate with RK4.\"\"\"\n    _check(h, steps)\n    for _ in range(steps):\n        k1x, k1v = v, -x\n        k2x, k2v = v + h / 2 * k1v, -(x + h / 2 * k1x)\n        k3x, k3v = v + h / 2 * k2v, -(x + h / 2 * k2x)\n        k4x, k4v = v + h * k3v, -(x + h * k3x)\n        x += h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x)\n        v += h / 6 * (k1v + 2 * k2v + 2 * k3v + k4v)\n    return (x, v)\n\n\ndef leapfrog_oscillator(x, v, h, steps):\n    \"\"\"Integrate with velocity Verlet.\"\"\"\n    _check(h, steps)\n    for _ in range(steps):\n        v_half = v + h / 2 * (-x)\n        x = x + h * v_half\n        v = v_half + h / 2 * (-x)\n    return (x, v)\n\n\ndef energy_drift(method, x0, v0, h, steps):\n    \"\"\"Absolute change in energy over the run.\"\"\"\n    start = energy(x0, v0)\n    x, v = method(x0, v0, h, steps)\n    return abs(energy(x, v) - start)\n\n\ndef drift_grows(method, x0, v0, h, step_counts):\n    \"\"\"True when the drift increases with run length.\"\"\"\n    drifts = [energy_drift(method, x0, v0, h, n) for n in step_counts]\n    return all(a < b for a, b in zip(drifts, drifts[1:]))\n", "tests": "def test_both_methods_track_the_motion_short_term():\n    from math import cos, sin\n    h, steps = 0.01, 600          # about one period\n    for method in (rk4_oscillator, leapfrog_oscillator):\n        x, v = method(1.0, 0.0, h, steps)\n        t = h * steps\n        assert abs(x - cos(t)) < 1e-2, method.__name__\n        assert abs(v + sin(t)) < 1e-2, method.__name__\n    # energy starts at exactly 0.5\n    assert abs(energy(1.0, 0.0) - 0.5) < 1e-15\n    assert abs(energy(0.0, 1.0) - 0.5) < 1e-15\n\n\ndef test_rk4_drifts_while_leapfrog_does_not():\n    h = 0.1\n    counts = [1000, 10000, 100000]\n    rk_drifts = [energy_drift(rk4_oscillator, 1.0, 0.0, h, n) for n in counts]\n    lf_drifts = [energy_drift(leapfrog_oscillator, 1.0, 0.0, h, n) for n in counts]\n    # RK4's energy error grows steadily with the length of the run\n    assert rk_drifts[0] < rk_drifts[1] < rk_drifts[2]\n    assert rk_drifts[2] > 20 * rk_drifts[0]\n    assert drift_grows(rk4_oscillator, 1.0, 0.0, h, counts) is True\n    # leapfrog's stays bounded no matter how long the run\n    assert max(lf_drifts) < 1e-2\n    assert max(lf_drifts) / max(min(lf_drifts), 1e-18) < 100\n\n\ndef test_accuracy_versus_structure_and_errors():\n    # Over a SHORT run RK4 is far more accurate than leapfrog.\n    h, steps = 0.1, 100\n    rk_err = energy_drift(rk4_oscillator, 1.0, 0.0, h, steps)\n    lf_err = energy_drift(leapfrog_oscillator, 1.0, 0.0, h, steps)\n    assert rk_err < lf_err, \"RK4 wins on accuracy over a short run\"\n    # Over a LONG run the ordering reverses, which is the whole point.\n    long_steps = 200000\n    rk_long = energy_drift(rk4_oscillator, 1.0, 0.0, h, long_steps)\n    lf_long = energy_drift(leapfrog_oscillator, 1.0, 0.0, h, long_steps)\n    assert rk_long > lf_long, \"leapfrog wins on structure over a long run\"\n    try:\n        leapfrog_oscillator(1.0, 0.0, 0.0, 10)\n        assert False, \"h = 0 must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        rk4_oscillator(1.0, 0.0, 0.1, 0)\n        assert False, \"zero steps must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def energy(x, v):\n    \"\"\"Bug: forgets the factor of one half.\"\"\"\n    return x * x + v * v\n\n\ndef _check(h, steps):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n\n\ndef rk4_oscillator(x, v, h, steps):\n    _check(h, steps)\n    for _ in range(steps):\n        k1x, k1v = v, -x\n        k2x, k2v = v + h / 2 * k1v, -(x + h / 2 * k1x)\n        k3x, k3v = v + h / 2 * k2v, -(x + h / 2 * k2x)\n        k4x, k4v = v + h * k3v, -(x + h * k3x)\n        x += h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x)\n        v += h / 6 * (k1v + 2 * k2v + 2 * k3v + k4v)\n    return (x, v)\n\n\ndef leapfrog_oscillator(x, v, h, steps):\n    _check(h, steps)\n    for _ in range(steps):\n        v_half = v + h / 2 * (-x)\n        x = x + h * v_half\n        v = v_half + h / 2 * (-x)\n    return (x, v)\n\n\ndef energy_drift(method, x0, v0, h, steps):\n    start = energy(x0, v0)\n    x, v = method(x0, v0, h, steps)\n    return abs(energy(x, v) - start)\n\n\ndef drift_grows(method, x0, v0, h, step_counts):\n    drifts = [energy_drift(method, x0, v0, h, n) for n in step_counts]\n    return all(a < b for a, b in zip(drifts, drifts[1:]))\n", "def energy(x, v):\n    return 0.5 * (x * x + v * v)\n\n\ndef _check(h, steps):\n    if h <= 0:\n        raise ValueError(\"h must be positive\")\n    if steps <= 0:\n        raise ValueError(\"steps must be positive\")\n\n\ndef rk4_oscillator(x, v, h, steps):\n    _check(h, steps)\n    for _ in range(steps):\n        k1x, k1v = v, -x\n        k2x, k2v = v + h / 2 * k1v, -(x + h / 2 * k1x)\n        k3x, k3v = v + h / 2 * k2v, -(x + h / 2 * k2x)\n        k4x, k4v = v + h * k3v, -(x + h * k3x)\n        x += h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x)\n        v += h / 6 * (k1v + 2 * k2v + 2 * k3v + k4v)\n    return (x, v)\n\n\ndef leapfrog_oscillator(x, v, h, steps):\n    \"\"\"Bug: uses the OLD position for the second half-kick, which destroys\n    the symplectic property and makes it drift like any ordinary method.\"\"\"\n    _check(h, steps)\n    for _ in range(steps):\n        old_x = x\n        v_half = v + h / 2 * (-x)\n        x = x + h * v_half\n        v = v_half + h / 2 * (-old_x)\n    return (x, v)\n\n\ndef energy_drift(method, x0, v0, h, steps):\n    start = energy(x0, v0)\n    x, v = method(x0, v0, h, steps)\n    return abs(energy(x, v) - start)\n\n\ndef drift_grows(method, x0, v0, h, step_counts):\n    drifts = [energy_drift(method, x0, v0, h, n) for n in step_counts]\n    return all(a < b for a, b in zip(drifts, drifts[1:]))\n"], "hints": ["In velocity Verlet the second half-kick must use the *new* position, after the drift step. Using the old one breaks the symmetry that makes it symplectic.", "Compare the methods over both a short and a long run. The ranking reverses, and that reversal is the point of the exercise."], "level": "boss", "title": "Energy drift and symplectic integration"}}, "demos": {"m25-analytic-vs-rk4": {"code": "from math import exp, log, sin, cos\n\n\ndef rk4(f, t0, y0, t1, steps=20000):\n    \"\"\"Fourth-order Runge-Kutta. Knows nothing about closed forms.\"\"\"\n    h = (t1 - t0) / steps\n    t, y = t0, y0\n    for _ in range(steps):\n        k1 = f(t, y)\n        k2 = f(t + h / 2, y + h / 2 * k1)\n        k3 = f(t + h / 2, y + h / 2 * k2)\n        k4 = f(t + h, y + h * k3)\n        y += h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)\n        t += h\n    return y\n\n\nROOM, T0, K = 30.0, 90.0, 0.05\ncooling_rhs = lambda t, T: -K * (T - ROOM)\ncooling_exact = lambda t: ROOM + (T0 - ROOM) * exp(-K * t)\n\nprint(\"Arjun's tea: room 30, start 90, k = 0.05 per minute\")\nprint(f\"{'minutes':>9} {'exact':>12} {'RK4':>12} {'linear guess':>14}\")\nfor t in (0, 5, 10, 25, 60):\n    e = cooling_exact(t)\n    n = rk4(cooling_rhs, 0.0, T0, float(t), steps=4000) if t else T0\n    linear = T0 - 3.0 * t          # Arjun's tangent-line extrapolation\n    print(f\"{t:>9} {e:>12.6f} {n:>12.6f} {linear:>14.2f}\")\n    assert abs(e - n) < 1e-8, \"the closed form and RK4 must agree\"\n\n# After 5 minutes the tea really is at 75, which is where Arjun started.\nassert abs(cooling_exact(5.0) - 76.7) < 1.0\n# His linear guess says 30 degrees at t = 20; the truth is much hotter.\nprint()\nprint(\"at t = 20: linear guess\", T0 - 3.0 * 20, \" actual\", round(cooling_exact(20.0), 2))\nassert cooling_exact(20.0) > 50.0, \"the tangent-line extrapolation is badly low\"\n# The tea approaches the room temperature but never reaches it.\n# (At t = 1000 the excess is 60*e^-50, which rounds to zero in a float, so\n#  measure at t = 200 where the excess is still representable.)\nassert cooling_exact(200.0) > ROOM\nassert 0 < cooling_exact(200.0) - ROOM < 1e-2\n\nCASES = [\n    # exponential growth: y' = 2y, y(0)=3  ->  3 e^(2t)\n    (\"growth\", lambda t, y: 2 * y, lambda t: 3 * exp(2 * t), 0.0, 3.0, 1.0),\n    # decay: y' = -0.7y, y(0)=5\n    (\"decay\", lambda t, y: -0.7 * y, lambda t: 5 * exp(-0.7 * t), 0.0, 5.0, 3.0),\n    # separable: y' = x y, y(0)=1  ->  e^(x^2/2)\n    (\"y' = x y\", lambda t, y: t * y, lambda t: exp(t * t / 2), 0.0, 1.0, 1.5),\n    # linear with integrating factor: y' + y = 1, y(0)=0  ->  1 - e^(-t)\n    (\"y' + y = 1\", lambda t, y: 1 - y, lambda t: 1 - exp(-t), 0.0, 0.0, 4.0),\n    # linear, non-constant: y' + (1/t) y = 1 for t>0, y(1)=0.5  ->  t/2\n    (\"y' + y/t = 1\", lambda t, y: 1 - y / t, lambda t: t / 2, 1.0, 0.5, 4.0),\n    # logistic: y' = y(1 - y), y(0)=0.1\n    (\"logistic\", lambda t, y: y * (1 - y),\n     lambda t: 1 / (1 + 9 * exp(-t)), 0.0, 0.1, 6.0),\n]\n\nprint()\nprint(f\"{'equation':>14} {'exact':>16} {'RK4':>16} {'gap':>12}\")\nfor name, rhs, exact, t0, y0, t1 in CASES:\n    e = exact(t1)\n    n = rk4(rhs, t0, y0, t1, steps=20000)\n    print(f\"{name:>14} {e:>16.10f} {n:>16.10f} {abs(e - n):>12.2e}\")\n    assert abs(e - n) < 1e-7, f\"the two routes must agree for {name}\"\n\n# Half-life: the time to halve is independent of where you start.\nk = 0.7\nhalf = log(2) / k\ndecay = lambda t: exp(-k * t)\nprint()\nprint(\"half-life check: k = 0.7 gives t_half =\", round(half, 6))\nfor start in (0.0, 1.0, 5.0):\n    assert abs(decay(start + half) / decay(start) - 0.5) < 1e-12\n", "mutants": ["from math import exp\n\n\ndef rk4(f, t0, y0, t1, steps=20000):\n    h = (t1 - t0) / steps\n    t, y = t0, y0\n    for _ in range(steps):\n        k1 = f(t, y)\n        k2 = f(t + h / 2, y + h / 2 * k1)\n        k3 = f(t + h / 2, y + h / 2 * k2)\n        k4 = f(t + h, y + h * k3)\n        y += h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)\n        t += h\n    return y\n\n\nROOM, T0, K = 30.0, 90.0, 0.05\ncooling_rhs = lambda t, T: -K * (T - ROOM)\n# Bug: a positive exponent, turning cooling into runaway heating.\ncooling_exact = lambda t: ROOM + (T0 - ROOM) * exp(K * t)\n\nfor t in (0, 5, 10, 25):\n    e = cooling_exact(t)\n    n = rk4(cooling_rhs, 0.0, T0, float(t), steps=4000) if t else T0\n    print(f\"  t={t:>3} exact={e:.6f} rk4={n:.6f}\")\n    assert abs(e - n) < 1e-8, \"the closed form and RK4 must agree\"\n"]}, "m25-orders-stability-and-drift": {"code": "from math import exp, sin, cos, sqrt\n\n\ndef euler(f, t0, y0, t1, n):\n    h = (t1 - t0) / n\n    t, y = t0, y0\n    for _ in range(n):\n        y += h * f(t, y)\n        t += h\n    return y\n\n\ndef rk4(f, t0, y0, t1, n):\n    h = (t1 - t0) / n\n    t, y = t0, y0\n    for _ in range(n):\n        k1 = f(t, y)\n        k2 = f(t + h / 2, y + h / 2 * k1)\n        k3 = f(t + h / 2, y + h / 2 * k2)\n        k4 = f(t + h, y + h * k3)\n        y += h / 6 * (k1 + 2 * k2 + 2 * k3 + k4)\n        t += h\n    return y\n\n\n# --- 1. Error orders on y' = -y, y(0)=1, exact e^-1 at t=1 ---\nrhs = lambda t, y: -y\nEXACT = exp(-1.0)\nprint(\"y' = -y on [0,1]; exact =\", round(EXACT, 12))\nprint(f\"{'n':>7} {'Euler error':>15} {'ratio':>8} {'RK4 error':>15} {'ratio':>8}\")\ne_prev = r_prev = None\ne_ratios, r_ratios = [], []\nfor n in (10, 20, 40, 80, 160):\n    ee = abs(euler(rhs, 0, 1.0, 1, n) - EXACT)\n    re = abs(rk4(rhs, 0, 1.0, 1, n) - EXACT)\n    er = (e_prev / ee) if e_prev else float(\"nan\")\n    rr = (r_prev / re) if r_prev else float(\"nan\")\n    if e_prev:\n        e_ratios.append(er)\n        r_ratios.append(rr)\n    print(f\"{n:>7} {ee:>15.3e} {er:>8.2f} {re:>15.3e} {rr:>8.2f}\")\n    e_prev, r_prev = ee, re\n\nprint()\nprint(\"predicted: Euler is first order (ratio 2), RK4 fourth order (ratio 16)\")\nfor r in e_ratios:\n    assert 1.8 < r < 2.2, f\"Euler ratio {r} is not about 2\"\nfor r in r_ratios[:3]:\n    assert 14 < r < 18, f\"RK4 ratio {r} is not about 16\"\n\n# --- 2. Stability threshold for explicit Euler on y' = -50 y ---\nLAM = -50.0\nstiff = lambda t, y: LAM * y\nthreshold = 2.0 / abs(LAM)\nprint()\nprint(f\"explicit Euler on y' = {LAM} y; predicted stability limit h < {threshold}\")\nprint(f\"{'h':>10} {'|y| after 40 steps':>22} {'bounded?':>10}\")\nfor h in (0.01, 0.03, 0.039, 0.041, 0.05, 0.08):\n    n = 40\n    y = 1.0\n    for _ in range(n):\n        y += h * LAM * y\n    bounded = abs(y) <= 1.0\n    print(f\"{h:>10.3f} {abs(y):>22.3e} {str(bounded):>10}\")\n    if h < threshold:\n        assert bounded, f\"h = {h} is below the limit and must stay bounded\"\n    else:\n        assert not bounded, f\"h = {h} is above the limit and must blow up\"\n\n# --- 3. Energy drift: RK4 versus leapfrog on a harmonic oscillator ---\n# x'' = -x, energy E = (x^2 + v^2)/2, exactly 0.5 for x0=1, v0=0.\ndef energy(x, v):\n    return 0.5 * (x * x + v * v)\n\n\ndef rk4_oscillator(x, v, h, steps):\n    for _ in range(steps):\n        def deriv(xx, vv):\n            return vv, -xx\n        k1x, k1v = deriv(x, v)\n        k2x, k2v = deriv(x + h / 2 * k1x, v + h / 2 * k1v)\n        k3x, k3v = deriv(x + h / 2 * k2x, v + h / 2 * k2v)\n        k4x, k4v = deriv(x + h * k3x, v + h * k3v)\n        x += h / 6 * (k1x + 2 * k2x + 2 * k3x + k4x)\n        v += h / 6 * (k1v + 2 * k2v + 2 * k3v + k4v)\n    return x, v\n\n\ndef leapfrog_oscillator(x, v, h, steps):\n    for _ in range(steps):\n        v_half = v + h / 2 * (-x)\n        x = x + h * v_half\n        v = v_half + h / 2 * (-x)\n    return x, v\n\n\nH = 0.1\nE0 = 0.5\nprint()\nprint(\"harmonic oscillator, h = 0.1, energy should stay at 0.5 forever\")\nprint(f\"{'periods':>9} {'RK4 energy':>16} {'RK4 drift':>14} {'leapfrog energy':>18} {'LF drift':>14}\")\nrk_drifts, lf_drifts = [], []\nfor periods in (10, 100, 1000, 5000):\n    steps = int(periods * 2 * 3.141592653589793 / H)\n    xr, vr = rk4_oscillator(1.0, 0.0, H, steps)\n    xl, vl = leapfrog_oscillator(1.0, 0.0, H, steps)\n    er, el = energy(xr, vr), energy(xl, vl)\n    rk_drifts.append(abs(er - E0))\n    lf_drifts.append(abs(el - E0))\n    print(f\"{periods:>9} {er:>16.10f} {abs(er - E0):>14.3e} {el:>18.10f} {abs(el - E0):>14.3e}\")\n\nprint()\nprint(\"predicted: RK4's energy error GROWS with the length of the run\")\nprint(\"predicted: leapfrog's energy error stays BOUNDED however long you run\")\nassert rk_drifts[0] < rk_drifts[1] < rk_drifts[2] < rk_drifts[3], \"RK4 must drift steadily\"\nassert rk_drifts[3] > 100 * rk_drifts[0], \"and the drift must grow with the run\"\n# Leapfrog's error OSCILLATES inside a bound rather than sitting still, so the\n# right claims are: it stays bounded, and it does not increase monotonically.\nassert max(lf_drifts) < 1e-3, \"leapfrog's energy error must stay bounded\"\nassert lf_drifts[3] < lf_drifts[2], \"and it must come back down, not accumulate\"\nassert rk_drifts[3] > 5 * lf_drifts[3], \"so RK4 ends up the worse of the two\"\nprint()\nprint(\"RK4 drift grew by a factor of\", round(rk_drifts[3] / rk_drifts[0], 1))\nprint(\"leapfrog drift never exceeded\", f\"{max(lf_drifts):.1e}\", \"and fell again\")\n", "mutants": ["from math import exp\n\nLAM = -50.0\nthreshold = 2.0 / abs(LAM)\nprint(f\"explicit Euler on y' = {LAM} y; predicted stability limit h < {threshold}\")\nfor h in (0.01, 0.03, 0.05, 0.08):\n    y = 1.0\n    for _ in range(40):\n        y += h * LAM * y\n    bounded = abs(y) <= 1.0\n    print(f\"  h={h:.3f} |y|={abs(y):.3e} bounded={bounded}\")\n    # Wrong theory: claims explicit Euler is stable for every step size.\n    assert bounded, f\"h = {h} must stay bounded\"\n"]}}, "cards": [{"q": "What does a differential equation describe, and why is that useful?", "a": "A relation between a function and its derivatives. It is useful because physical laws state rates, not the quantities themselves."}, {"q": "How many arbitrary constants does the general solution of an n-th order equation have?", "a": "Exactly n, and n initial or boundary conditions are needed to pin down a particular solution."}, {"q": "Where does the integrating factor come from?", "a": "From requiring that multiplying by mu makes the left side exactly (mu y)', which forces mu' = mu P and so mu = exp(integral of P)."}, {"q": "In Newton's law of cooling, what decays exponentially?", "a": "The excess temperature over the surroundings, not the temperature itself. So the body approaches ambient without ever reaching it."}, {"q": "State the stability condition for explicit Euler on y' = lambda y with lambda negative.", "a": "The step must satisfy |1 + h*lambda| <= 1, that is h < 2/|lambda|. Beyond that the solution explodes while the true one decays."}, {"q": "What is the difference between accuracy and stability?", "a": "Accuracy is how close one step is to the truth; stability is whether errors grow or shrink as steps accumulate. A method can be high order and unstable."}, {"q": "What is a stiff equation and what do you do about it?", "a": "One where stability, not accuracy, forces a tiny step, usually because of widely separated time scales. Use an implicit method such as backward Euler."}, {"q": "Why does RK4 lose energy on an orbit while leapfrog does not?", "a": "RK4 preserves no geometric structure, so its errors accumulate systematically. Leapfrog is symplectic: it exactly conserves a nearby shadow energy, so the true energy only oscillates."}, {"q": "Leapfrog is only second order and RK4 is fourth. Why would anyone choose leapfrog?", "a": "For a long simulation, bounded energy error matters more than per-step accuracy. RK4's drift grows without limit; leapfrog's does not."}, {"q": "Give an equation whose solution blows up in finite time.", "a": "y' = y^2 with y(0) = 1 has solution 1/(1-t), which escapes at t = 1."}], "title": "Differential equations"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

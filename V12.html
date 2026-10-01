@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V12 The oracle problem: how do you know the answer is right?</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V12">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V12</p><h1>The oracle problem: how do you know the answer is right?</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V01.html">V01</a> <a href="P02.html">P02</a></div><div><b>Covers:</b> software testing theory, CS2023 SE</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>test oracles: specified, derived, implicit, human</li><li>the oracle problem</li><li>specifications and postconditions</li><li>differential testing</li><li>reference implementations and golden outputs</li><li>metamorphic relations</li><li>pseudo-oracles</li><li>limits of N-version programming</li><li>round-trip properties</li><li>the parity oracle pattern (execute the reference, compare effects, &#x27;superset never contradicting&#x27;, INCONCLUSIVE when a stub is missing)</li><li>verification vs validation: building it right vs building the right thing</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Imagine you are building a pocket calculator out of cardboard gears, rubber bands, and wooden toothpicks. You want to test if your machine can correctly multiply large numbers like $3,847 \times 9,122$. You punch the numbers into your cardboard machine, turn the hand crank, and the display clicks: $35,092,334$.</p>
+<p>How do you know if your machine is right?</p>
+<p>To check the cardboard machine, you have to know the true answer. But if you already knew the true answer, you would not need a calculator in the first place! If you multiply the numbers with a pencil on paper, what if your pencil arithmetic makes a silly mistake? What if you compare your cardboard calculator to your friend's calculator, and they both give different numbers—which one is broken?</p>
+<p>This puzzle is called the Oracle Problem. A test oracle is any mechanism that knows whether a computer program behaved correctly or incorrectly. When you cannot afford an all-knowing human oracle, you have to be clever. You can test properties: $A \times B$ must equal $B \times A$. Multiplying by 1 must never change the number. Adding $A$ to itself $B$ times must match the product. By checking relationships that must always hold true, you can catch lies without ever knowing the secret answer in advance.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>The oracle problem is the fundamental challenge in software engineering: determining whether the observed output of an executed program is correct. While formal specifications and human testers serve as classical oracles, exhaustive human verification is impossible at scale.</p>
+<p>Modern verification overcomes the oracle problem through alternative mechanisms: differential testing (comparing multiple independent implementations), metamorphic testing (checking relations between inputs and outputs when the correct output is unknown), round-trip properties (encoding and decoding to verify invertibility), and the Parity Oracle pattern (comparing execution effects against an authoritative reference engine).</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let program under test be $P: I \to O$, with specification $S \subseteq I \times O$.
+1. <strong>The Oracle Problem:</strong> Deciding $(x, P(x)) \in S$ for arbitrary $x \in I$ is generally undecidable or economically intractable.
+2. <strong>Differential Testing (McKeeman):</strong> Given independent implementations $P_1, P_2, \dots, P_k$:
+   $$\text{Oracle}(x) \iff P_1(x) = P_2(x) = \dots = P_k(x)$$
+3. <strong>Metamorphic Relations (Chen et al.):</strong> A relation $R \subseteq I^k \times O^k$ such that for any valid implementation:
+   $$\forall x_1, \dots, x_k \in I: \Phi(x_1, \dots, x_k) \implies R(P(x_1), \dots, P(x_k))$$
+   <em>Example:</em> Shortest path $d(u, v)$ in a graph satisfies triangle inequality $d(u, v) \le d(u, w) + d(w, v)$ without knowing $d(u, v)$ in advance.
+4. <strong>The Parity Oracle Pattern:</strong>
+   $$\text{Compare}(\text{Actual}, \text{Reference}) = \begin{cases}
+   \text{PASS} &amp; \text{if Actual effects are a sound superset of Reference} \\
+   \text{FAIL} &amp; \text{if Actual contradicts Reference} \\
+   \text{INCONCLUSIVE} &amp; \text{if Reference or Actual lacks required stub}
+   \end{cases}$$
+5. <strong>Verification vs Validation (Boehm):</strong>
+   - Verification: 'Are we building the product right?' (Conforming to specification).
+   - Validation: 'Are we building the right product?' (Meeting true customer requirements).</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why is N-version programming alone insufficient as a test oracle, and why is metamorphic testing mathematically superior when specifications are incomplete?</p>
+<p><strong>Step 1 (The common-mode failure flaw in N-version programming):</strong> Knight and Leveson (1986) empirically refuted the assumption that independently written implementations $P_1, P_2, \dots, P_N$ fail independently. Human programmers share cognitive biases, misread identical ambiguous specification clauses, and struggle with the same boundary edge cases. The probability of simultaneous failure $\mathbb{P}(P_1 \text{ fails} \wedge P_2 \text{ fails})$ is orders of magnitude higher than $\mathbb{P}(P_1) \times \mathbb{P}(P_2)$. Differential voting across $N$ versions will confidently accept a shared flaw as truth.</p>
+<p><strong>Step 2 (The metamorphic relation principle):</strong> Metamorphic testing bypasses the need for an external truth oracle by exploiting intrinsic mathematical properties of the problem domain. Let $f(x)$ be a complex function (e.g. image segmentation or search engine ranking) where evaluating $f(x)$ by hand is impossible. If we apply an input transformation $T$ whose effect on the output is known a priori ($f(T(x)) = g(f(x))$), we construct an exact oracle:
+$$\text{Check: } f(T(x)) \stackrel{?}{=} g(f(x))$$
+For example, in a search engine, adding an irrelevant keyword to a boolean query cannot increase the count of matched documents. If $P(\text{query AND unrelated}) &gt; P(\text{query})$, a defect exists with mathematical certainty, even if we do not know the true document counts!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>We compare a differential testing oracle against a metamorphic oracle for testing a matrix determinant algorithm. Method 1 (Differential Oracle) compares a custom LU decomposition against an independent brute-force permutation expansion $\sum_{\sigma} \text{sgn}(\sigma) \prod a_{i, \sigma(i)}$ on random $3 \times 3$ matrices. Method 2 (Metamorphic Oracle) checks the property that swapping two rows must negate the determinant: $\det(R_{1 \leftrightarrow 2}(A)) = -\det(A)$. Both independent verification oracles must agree that the reference determinant implementation is valid. The broken mutant computes determinant by multiplying only the main diagonal, and both oracles catch the bug.</p>
+<div class="lab demo" data-demo="oracle-differential-metamorphic">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Differential testing vs metamorphic relation verification on determinants</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+def det_lu(m):
+    # 3x3 LU decomposition determinant
+    a = [row[:] for row in m]
+    sign = 1
+    for i in range(3):
+        pivot = i
+        for r in range(i + 1, 3):
+            if abs(a[r][i]) &gt; abs(a[pivot][i]):
+                pivot = r
+        if abs(a[pivot][i]) &lt; 1e-12:
+            return 0.0
+        if pivot != i:
+            a[i], a[pivot] = a[pivot], a[i]
+            sign = -sign
+        for r in range(i + 1, 3):
+            factor = a[r][i] / a[i][i]
+            for c in range(i, 3):
+                a[r][c] -= factor * a[i][c]
+    return sign * a[0][0] * a[1][1] * a[2][2]
+
+def det_bruteforce_3x3(m):
+    # Independent Leibniz formula
+    return (m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1])
+          - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0])
+          + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]))
+
+rng = random.Random(42)
+for _ in range(50):
+    mat = [[rng.uniform(-5.0, 5.0) for _ in range(3)] for _ in range(3)]
+    d1 = det_lu(mat)
+    d2 = det_bruteforce_3x3(mat)
+    # Differential Oracle:
+    assert abs(d1 - d2) &lt; 1e-6, &quot;Differential oracle caught mismatch&quot;
+    # Metamorphic Oracle: Swapping rows 0 and 1 must negate determinant
+    mat_swapped = [mat[1], mat[0], mat[2]]
+    d_swap = det_lu(mat_swapped)
+    assert abs(d_swap - (-d1)) &lt; 1e-6, &quot;Metamorphic row-swap oracle caught mismatch&quot;
+
+print(&quot;Differential and Metamorphic oracles confirmed algorithm correctness across 50 trials.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We demonstrate how metamorphic relations expose subtle defects when no reference implementation exists. We test a simulated shortest-path routing algorithm on a directed weighted graph. The algorithm contains a subtle bug: it miscalculates edge weights on vertices with odd IDs. Although the true shortest path distances are unknown, the metamorphic triangle inequality relation must hold for all triples: $d(u, v) \le d(u, w) + d(w, v)$. We generate 100 random graph queries. Theory predicts that metamorphic relations detect the violation without knowing any true shortest path. We measure and verify this violation detection.</p>
+<div class="lab demo" data-demo="exp-metamorphic-testing">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Metamorphic testing exposes routing defects via triangle inequality</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+# Buggy distance estimator with hidden defect
+def buggy_distance(u, v):
+    # True distance is Manhattan |u_x - v_x| + |u_y - v_y|
+    # But if u is odd, it underestimates distance by subtracting 5
+    d = abs(u[0] - v[0]) + abs(u[1] - v[1])
+    if u[0] % 2 == 1:
+        d = max(0, d - 5)
+    return d
+
+rng = random.Random(999)
+violations = 0
+queries = 100
+
+for _ in range(queries):
+    u = (rng.randint(0, 20), rng.randint(0, 20))
+    v = (rng.randint(0, 20), rng.randint(0, 20))
+    w = (rng.randint(0, 20), rng.randint(0, 20))
+    
+    # Metamorphic Relation: d(u, v) &lt;= d(u, w) + d(w, v)
+    duv = buggy_distance(u, v)
+    duw = buggy_distance(u, w)
+    dwv = buggy_distance(w, v)
+    
+    # Triangle inequality must never be violated
+    if duv &gt; duw + dwv:
+        violations += 1
+
+print(f&quot;Total Triples Tested: {queries}&quot;)
+print(f&quot;Triangle Inequality Metamorphic Violations Caught: {violations}&quot;)
+
+assert violations &gt; 10, &quot;Metamorphic oracle failed to catch hidden routing defect&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-roundtrip-property" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Verify JSON encoder/decoder round-trip property</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a round-trip property verifier: <code>verify_roundtrip_codec(encode_fn, decode_fn, test_objects)</code>. For each object $x \in \text{test\_objects}$, verify that $\text{decode}(\text{encode}(x)) == x$. Return <code>{'all_passed': bool, 'failed_objects': list}</code>. If <code>test_objects</code> is empty, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def verify_roundtrip_codec(encode_fn, decode_fn, test_objects):
+    &quot;&quot;&quot;Verifies encode-decode round-trip property over test objects.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_valid_roundtrip():
+    import json
+    data = [{&quot;a&quot;: 1}, [1, 2, 3], &quot;hello&quot;, 42]
+    res = verify_roundtrip_codec(json.dumps, json.loads, data)
+    assert res[&#x27;all_passed&#x27;] is True
+    assert res[&#x27;failed_objects&#x27;] == []
+
+def test_broken_roundtrip():
+    # Flawed decoder drops keys
+    bad_dec = lambda s: {}
+    res = verify_roundtrip_codec(lambda o: str(o), bad_dec, [{&quot;a&quot;: 1}])
+    assert res[&#x27;all_passed&#x27;] is False
+    assert len(res[&#x27;failed_objects&#x27;]) == 1
+
+def test_empty_raises():
+    try:
+        verify_roundtrip_codec(lambda x: x, lambda x: x, [])
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-metamorphic-relation-checker" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Check metamorphic relations on image scaling algorithms</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a metamorphic checker for an image scaling function: <code>verify_scaling_metamorphic(scale_fn, image_grid, factor=2)</code>. Metamorphic relation 1: Scaling an image by factor $k$ and then rotating 90 degrees must equal rotating the image 90 degrees and then scaling by factor $k$: $\text{scale}(\text{rot90}(I), k) = \text{rot90}(\text{scale}(I, k))$. Metamorphic relation 2: Scaling by factor $1$ must equal identity. Return <code>{'m1_rot_scale_preserved': bool, 'm2_identity_preserved': bool}</code>. If <code>image_grid</code> is empty or non-rectangular, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def verify_scaling_metamorphic(scale_fn, image_grid, factor=2):
+    &quot;&quot;&quot;Verifies metamorphic scaling relations.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_nearest_neighbor_scaling():
+    def nn_scale(grid, k):
+        out = []
+        for r in grid:
+            scaled_r = [val for val in r for _ in range(k)]
+            for _ in range(k):
+                out.append(scaled_r[:])
+        return out
+        
+    img = [[1, 2], [3, 4]]
+    res = verify_scaling_metamorphic(nn_scale, img, factor=2)
+    assert res[&#x27;m1_rot_scale_preserved&#x27;] is True
+    assert res[&#x27;m2_identity_preserved&#x27;] is True
+
+def test_broken_scale_fails_mr():
+    # Flawed scale that transposes while scaling
+    bad_scale = lambda g, k: [list(r) for r in zip(*g)]
+    res = verify_scaling_metamorphic(bad_scale, [[1, 2], [3, 4]], factor=2)
+    assert res[&#x27;m1_rot_scale_preserved&#x27;] is False
+
+def test_non_rectangular():
+    try:
+        verify_scaling_metamorphic(lambda g, k: g, [[1, 2], [3]])
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-differential-testing-engine" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Multi-engine differential testing harness</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a differential test runner: <code>differential_test_runner(implementations, inputs)</code>. <code>implementations</code> is a dictionary <code>{'name': fn}</code> of at least two candidate functions. For each input in <code>inputs</code>, run all implementations. If all implementations return identical outputs, record a consensus. If any implementation disagrees, record a discrepancy: <code>{'input': x, 'outputs': {name: out}}</code>. Return <code>{'discrepancies_count': int, 'discrepancies': list, 'consensus_rate': float}</code>. If fewer than 2 implementations are provided, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def differential_test_runner(implementations, inputs):
+    &quot;&quot;&quot;Runs differential testing across multiple implementations.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_identical_implementations():
+    impls = {
+        &#x27;builtin&#x27;: lambda x: sorted(x),
+        &#x27;bubble&#x27;: lambda x: list(sorted(x))
+    }
+    inputs = [[3, 1, 2], [10, 5], [1]]
+    res = differential_test_runner(impls, inputs)
+    assert res[&#x27;discrepancies_count&#x27;] == 0
+    assert res[&#x27;consensus_rate&#x27;] == 1.0
+
+def test_divergent_implementation():
+    impls = {
+        &#x27;good&#x27;: lambda x: x * 2,
+        &#x27;bad&#x27;: lambda x: x * 3
+    }
+    res = differential_test_runner(impls, [1, 2, 0])
+    # x=0 matches (0 == 0), x=1 and x=2 diverge
+    assert res[&#x27;discrepancies_count&#x27;] == 2
+    assert res[&#x27;consensus_rate&#x27;] == 0.3333
+
+def test_too_few_implementations():
+    try:
+        differential_test_runner({&#x27;single&#x27;: lambda x: x}, [1, 2])
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-parity-oracle-boss" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>The Parity Oracle pattern: superset verification with missing stubs</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the Parity Oracle pattern: <code>parity_oracle(actual_effects, reference_effects)</code>. Both inputs are lists of dictionaries representing side-effects <code>{'target': str, 'action': str, 'value': any}</code>. The Actual implementation satisfies parity if: (1) Every effect in <code>reference_effects</code> is present in <code>actual_effects</code> with identical action and value, and (2) Any additional effects in <code>actual_effects</code> do not contradict reference targets. If a reference effect is missing in Actual, return <code>'FAIL'</code>. If an effect contains <code>{'status': 'NOT_IMPLEMENTED'}</code>, return <code>'INCONCLUSIVE'</code>. If Actual is a valid, non-contradictory superset of Reference, return <code>'PASS'</code>. If inputs are not lists, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def parity_oracle(actual_effects, reference_effects):
+    &quot;&quot;&quot;Evaluates system correctness under the Parity Oracle pattern.&quot;&quot;&quot;
+    return &quot;FAIL&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_exact_parity():
+    ref = [{&#x27;target&#x27;: &#x27;db.user&#x27;, &#x27;action&#x27;: &#x27;update&#x27;, &#x27;value&#x27;: 42}]
+    act = [{&#x27;target&#x27;: &#x27;db.user&#x27;, &#x27;action&#x27;: &#x27;update&#x27;, &#x27;value&#x27;: 42}]
+    assert parity_oracle(act, ref) == &#x27;PASS&#x27;
+
+def test_superset_parity():
+    # Actual performs an additional audit log effect without contradicting
+    ref = [{&#x27;target&#x27;: &#x27;db.user&#x27;, &#x27;action&#x27;: &#x27;update&#x27;, &#x27;value&#x27;: 42}]
+    act = [
+        {&#x27;target&#x27;: &#x27;db.user&#x27;, &#x27;action&#x27;: &#x27;update&#x27;, &#x27;value&#x27;: 42},
+        {&#x27;target&#x27;: &#x27;telemetry.log&#x27;, &#x27;action&#x27;: &#x27;emit&#x27;, &#x27;value&#x27;: &#x27;audit&#x27;}
+    ]
+    assert parity_oracle(act, ref) == &#x27;PASS&#x27;
+
+def test_contradiction_fails():
+    ref = [{&#x27;target&#x27;: &#x27;db.user&#x27;, &#x27;action&#x27;: &#x27;update&#x27;, &#x27;value&#x27;: 42}]
+    act = [{&#x27;target&#x27;: &#x27;db.user&#x27;, &#x27;action&#x27;: &#x27;update&#x27;, &#x27;value&#x27;: 99}]
+    assert parity_oracle(act, ref) == &#x27;FAIL&#x27;
+
+def test_inconclusive_on_stub():
+    ref = [{&#x27;target&#x27;: &#x27;db.user&#x27;, &#x27;action&#x27;: &#x27;update&#x27;, &#x27;value&#x27;: 42}]
+    act = [{&#x27;status&#x27;: &#x27;NOT_IMPLEMENTED&#x27;}]
+    assert parity_oracle(act, ref) == &#x27;INCONCLUSIVE&#x27;
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"If a function passes 100 unit tests, its test oracle is sound."</strong> A test oracle that merely checks <code>assert output is not None</code> will happily pass a function that outputs garbage.</li>
+<li><strong>"Metamorphic testing requires knowing the correct answer to an input."</strong> Metamorphic testing never checks the absolute output; it checks structural relationships between transformed inputs and outputs.</li>
+<li><strong>"Differential testing across two compilers guarantees finding all bugs."</strong> Knight-Leveson proved that independent programming teams share common-mode blind spots on edge cases.</li>
+<li><strong>"Verification and validation are synonyms."</strong> Verification asks 'Did we build the system to specification?'; validation asks 'Does the specification actually solve the user's real problem?'.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Differential testing breaks down when all available reference engines share an ambiguous upstream standards specification (e.g. conflicting interpretations of the ECMAScript or WebAssembly spec). Metamorphic relations break down on chaotic, non-smooth systems (such as numerical PDE solvers near bifurcations) where microscopic input perturbations yield drastically different valid topological outputs.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>When the same business rules run on both a web backend and a mobile client, the two implementations drift. The parity oracle pattern is the defence: the client executes the shared rule set, runs the reference assertions alongside it, and marks a case INCONCLUSIVE rather than PASS whenever a required stub is missing — so an untested path is never quietly mistaken for a passing one.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the Oracle Problem in software testing?</p></div><div class="a" hidden><p>The challenge of determining whether the observed output of an executed program on arbitrary inputs is correct without human intervention.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is Metamorphic Testing?</p></div><div class="a" hidden><p>A testing technique that detects defects by checking whether relations between multiple inputs and outputs hold (e.g. $f(2x) = 2f(x)$) without knowing the true output value.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What did the Knight-Leveson experiment prove about N-version programming?</p></div><div class="a" hidden><p>Independently written implementations fail to achieve statistical independence; human developers suffer from correlated common-mode cognitive errors.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the Parity Oracle pattern?</p></div><div class="a" hidden><p>A verification pattern that executes a reference engine, compares side-effects, accepts sound supersets, and reports INCONCLUSIVE when stubs are missing.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the difference between verification and validation (Boehm)?</p></div><div class="a" hidden><p>Verification checks conformity to specification ('building it right'); validation checks fitness for user purpose ('building the right thing').</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is differential testing?</p></div><div class="a" hidden><p>Providing identical inputs to multiple independent implementations of the same specification and flagging any discrepancy in their outputs as a potential defect.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain how metamorphic testing catches bugs without a ground-truth oracle, implement the Parity Oracle pattern from scratch, and design a differential testing harness.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Chen, T. Y., et al. 'Metamorphic Testing: A New Approach for Generating Next Test Cases.' <em>Technical Report HKUST-CS98-01</em>, 1998.</li>
+<li>Knight, J. C., and Leveson, N. G. 'An Experimental Evaluation of the Assumption of Independence in Multiversion Programming.' <em>IEEE TSE</em>, 12(1), 1986.</li>
+</ul></section>
+<footer class="pager"><a href="M30.html">&larr; M30 Linear algebra I: vector spaces and linear maps</a>
+<a href="M34.html">M34 Probability theory &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V12", "packages": [], "exercises": {"ex1-roundtrip-property": {"starter": "def verify_roundtrip_codec(encode_fn, decode_fn, test_objects):\n    \"\"\"Verifies encode-decode round-trip property over test objects.\"\"\"\n    return {}\n", "solution": "def verify_roundtrip_codec(encode_fn, decode_fn, test_objects):\n    \"\"\"Verifies encode-decode round-trip property over test objects.\"\"\"\n    if not test_objects:\n        raise ValueError(\"test_objects cannot be empty\")\n        \n    failed = []\n    for obj in test_objects:\n        try:\n            encoded = encode_fn(obj)\n            decoded = decode_fn(encoded)\n            if decoded != obj:\n                failed.append(obj)\n        except Exception:\n            failed.append(obj)\n            \n    return {\n        'all_passed': len(failed) == 0,\n        'failed_objects': failed\n    }\n", "tests": "def test_valid_roundtrip():\n    import json\n    data = [{\"a\": 1}, [1, 2, 3], \"hello\", 42]\n    res = verify_roundtrip_codec(json.dumps, json.loads, data)\n    assert res['all_passed'] is True\n    assert res['failed_objects'] == []\n\ndef test_broken_roundtrip():\n    # Flawed decoder drops keys\n    bad_dec = lambda s: {}\n    res = verify_roundtrip_codec(lambda o: str(o), bad_dec, [{\"a\": 1}])\n    assert res['all_passed'] is False\n    assert len(res['failed_objects']) == 1\n\ndef test_empty_raises():\n    try:\n        verify_roundtrip_codec(lambda x: x, lambda x: x, [])\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def verify_roundtrip_codec(encode_fn, decode_fn, test_objects):\n    # Ignores decode result and claims all pass\n    if not test_objects: raise ValueError(\"bad\")\n    return {'all_passed': True, 'failed_objects': []}\n", "def verify_roundtrip_codec(encode_fn, decode_fn, test_objects):\n    # Does not raise on empty\n    return {'all_passed': False, 'failed_objects': []}\n"], "hints": ["Decode the encoded object.", "Check if `decoded == obj`."], "level": "warmup", "title": "Verify JSON encoder/decoder round-trip property"}, "ex2-metamorphic-relation-checker": {"starter": "def verify_scaling_metamorphic(scale_fn, image_grid, factor=2):\n    \"\"\"Verifies metamorphic scaling relations.\"\"\"\n    return {}\n", "solution": "def verify_scaling_metamorphic(scale_fn, image_grid, factor=2):\n    \"\"\"Verifies metamorphic scaling relations.\"\"\"\n    if not image_grid or not isinstance(image_grid, list) or not image_grid[0]:\n        raise ValueError(\"Invalid grid\")\n    w = len(image_grid[0])\n    if any(len(row) != w for row in image_grid):\n        raise ValueError(\"Grid must be rectangular\")\n        \n    def rot90(grid):\n        # Rotate clockwise: zip(*grid[::-1])\n        return [list(r) for r in zip(*grid[::-1])]\n        \n    # MR1: scale(rot90(I)) == rot90(scale(I))\n    try:\n        res1 = scale_fn(rot90(image_grid), factor)\n        res2 = rot90(scale_fn(image_grid, factor))\n        m1_ok = (res1 == res2)\n    except Exception:\n        m1_ok = False\n        \n    # MR2: scale(I, 1) == I\n    try:\n        res_id = scale_fn(image_grid, 1)\n        m2_ok = (res_id == image_grid)\n    except Exception:\n        m2_ok = False\n        \n    return {\n        'm1_rot_scale_preserved': m1_ok,\n        'm2_identity_preserved': m2_ok\n    }\n", "tests": "def test_nearest_neighbor_scaling():\n    def nn_scale(grid, k):\n        out = []\n        for r in grid:\n            scaled_r = [val for val in r for _ in range(k)]\n            for _ in range(k):\n                out.append(scaled_r[:])\n        return out\n        \n    img = [[1, 2], [3, 4]]\n    res = verify_scaling_metamorphic(nn_scale, img, factor=2)\n    assert res['m1_rot_scale_preserved'] is True\n    assert res['m2_identity_preserved'] is True\n\ndef test_broken_scale_fails_mr():\n    # Flawed scale that transposes while scaling\n    bad_scale = lambda g, k: [list(r) for r in zip(*g)]\n    res = verify_scaling_metamorphic(bad_scale, [[1, 2], [3, 4]], factor=2)\n    assert res['m1_rot_scale_preserved'] is False\n\ndef test_non_rectangular():\n    try:\n        verify_scaling_metamorphic(lambda g, k: g, [[1, 2], [3]])\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def verify_scaling_metamorphic(scale_fn, image_grid, factor=2):\n    # Claims all relations pass\n    if not image_grid: raise ValueError(\"bad\")\n    return {'m1_rot_scale_preserved': True, 'm2_identity_preserved': True}\n", "def verify_scaling_metamorphic(scale_fn, image_grid, factor=2):\n    # Does not raise on non-rectangular\n    return {}\n"], "hints": ["Rotate matrix clockwise: `list(zip(*grid[::-1]))`.", "Compare `scale(rot90(I))` against `rot90(scale(I))`."], "level": "core", "title": "Check metamorphic relations on image scaling algorithms"}, "ex3-differential-testing-engine": {"starter": "def differential_test_runner(implementations, inputs):\n    \"\"\"Runs differential testing across multiple implementations.\"\"\"\n    return {}\n", "solution": "def differential_test_runner(implementations, inputs):\n    \"\"\"Runs differential testing across multiple implementations.\"\"\"\n    if len(implementations) < 2:\n        raise ValueError(\"Must provide at least 2 implementations\")\n    if not inputs:\n        return {'discrepancies_count': 0, 'discrepancies': [], 'consensus_rate': 1.0}\n        \n    discrepancies = []\n    consensus_count = 0\n    \n    for x in inputs:\n        outputs = {}\n        for name, fn in implementations.items():\n            try:\n                outputs[name] = fn(x)\n            except Exception as e:\n                outputs[name] = f\"ERROR: {type(e).__name__}\"\n                \n        # Check if all outputs are equal\n        vals = list(outputs.values())\n        if all(v == vals[0] for v in vals):\n            consensus_count += 1\n        else:\n            discrepancies.append({'input': x, 'outputs': outputs})\n            \n    return {\n        'discrepancies_count': len(discrepancies),\n        'discrepancies': discrepancies,\n        'consensus_rate': round(consensus_count / len(inputs), 4)\n    }\n", "tests": "def test_identical_implementations():\n    impls = {\n        'builtin': lambda x: sorted(x),\n        'bubble': lambda x: list(sorted(x))\n    }\n    inputs = [[3, 1, 2], [10, 5], [1]]\n    res = differential_test_runner(impls, inputs)\n    assert res['discrepancies_count'] == 0\n    assert res['consensus_rate'] == 1.0\n\ndef test_divergent_implementation():\n    impls = {\n        'good': lambda x: x * 2,\n        'bad': lambda x: x * 3\n    }\n    res = differential_test_runner(impls, [1, 2, 0])\n    # x=0 matches (0 == 0), x=1 and x=2 diverge\n    assert res['discrepancies_count'] == 2\n    assert res['consensus_rate'] == 0.3333\n\ndef test_too_few_implementations():\n    try:\n        differential_test_runner({'single': lambda x: x}, [1, 2])\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def differential_test_runner(implementations, inputs):\n    # Ignores discrepancies and claims 100% consensus\n    if len(implementations) < 2: raise ValueError(\"bad\")\n    return {'discrepancies_count': 0, 'discrepancies': [], 'consensus_rate': 1.0}\n", "def differential_test_runner(implementations, inputs):\n    # Does not raise on single implementation\n    return {}\n"], "hints": ["Evaluate all functions on input $x$.", "Check if all values in output dictionary are equal."], "level": "core", "title": "Multi-engine differential testing harness"}, "ex4-parity-oracle-boss": {"starter": "def parity_oracle(actual_effects, reference_effects):\n    \"\"\"Evaluates system correctness under the Parity Oracle pattern.\"\"\"\n    return \"FAIL\"\n", "solution": "def parity_oracle(actual_effects, reference_effects):\n    \"\"\"Evaluates system correctness under the Parity Oracle pattern.\"\"\"\n    if not isinstance(actual_effects, list) or not isinstance(reference_effects, list):\n        raise ValueError(\"Effects must be lists\")\n        \n    # Check for missing stubs\n    for eff in actual_effects + reference_effects:\n        if isinstance(eff, dict) and eff.get('status') == 'NOT_IMPLEMENTED':\n            return 'INCONCLUSIVE'\n            \n    actual_map = {e.get('target'): e for e in actual_effects if isinstance(e, dict)}\n    \n    # Verify reference effects are satisfied\n    for ref_eff in reference_effects:\n        if not isinstance(ref_eff, dict):\n            continue\n        tgt = ref_eff.get('target')\n        if tgt not in actual_map:\n            return 'FAIL'  # Missing mandatory reference effect\n        act = actual_map[tgt]\n        if act.get('action') != ref_eff.get('action') or act.get('value') != ref_eff.get('value'):\n            return 'FAIL'  # Contradicts reference\n            \n    return 'PASS'\n", "tests": "def test_exact_parity():\n    ref = [{'target': 'db.user', 'action': 'update', 'value': 42}]\n    act = [{'target': 'db.user', 'action': 'update', 'value': 42}]\n    assert parity_oracle(act, ref) == 'PASS'\n\ndef test_superset_parity():\n    # Actual performs an additional audit log effect without contradicting\n    ref = [{'target': 'db.user', 'action': 'update', 'value': 42}]\n    act = [\n        {'target': 'db.user', 'action': 'update', 'value': 42},\n        {'target': 'telemetry.log', 'action': 'emit', 'value': 'audit'}\n    ]\n    assert parity_oracle(act, ref) == 'PASS'\n\ndef test_contradiction_fails():\n    ref = [{'target': 'db.user', 'action': 'update', 'value': 42}]\n    act = [{'target': 'db.user', 'action': 'update', 'value': 99}]\n    assert parity_oracle(act, ref) == 'FAIL'\n\ndef test_inconclusive_on_stub():\n    ref = [{'target': 'db.user', 'action': 'update', 'value': 42}]\n    act = [{'status': 'NOT_IMPLEMENTED'}]\n    assert parity_oracle(act, ref) == 'INCONCLUSIVE'\n", "mutants": ["def parity_oracle(actual_effects, reference_effects):\n    # Returns PASS always\n    if not isinstance(actual_effects, list): raise ValueError(\"bad\")\n    return 'PASS'\n", "def parity_oracle(actual_effects, reference_effects):\n    # Does not check for NOT_IMPLEMENTED stubs\n    return 'FAIL'\n"], "hints": ["Return 'INCONCLUSIVE' if any effect has `status == 'NOT_IMPLEMENTED'`.", "Return 'PASS' if Actual is a non-contradictory superset."], "level": "boss", "title": "The Parity Oracle pattern: superset verification with missing stubs"}}, "demos": {"oracle-differential-metamorphic": {"code": "import random\n\ndef det_lu(m):\n    # 3x3 LU decomposition determinant\n    a = [row[:] for row in m]\n    sign = 1\n    for i in range(3):\n        pivot = i\n        for r in range(i + 1, 3):\n            if abs(a[r][i]) > abs(a[pivot][i]):\n                pivot = r\n        if abs(a[pivot][i]) < 1e-12:\n            return 0.0\n        if pivot != i:\n            a[i], a[pivot] = a[pivot], a[i]\n            sign = -sign\n        for r in range(i + 1, 3):\n            factor = a[r][i] / a[i][i]\n            for c in range(i, 3):\n                a[r][c] -= factor * a[i][c]\n    return sign * a[0][0] * a[1][1] * a[2][2]\n\ndef det_bruteforce_3x3(m):\n    # Independent Leibniz formula\n    return (m[0][0]*(m[1][1]*m[2][2] - m[1][2]*m[2][1])\n          - m[0][1]*(m[1][0]*m[2][2] - m[1][2]*m[2][0])\n          + m[0][2]*(m[1][0]*m[2][1] - m[1][1]*m[2][0]))\n\nrng = random.Random(42)\nfor _ in range(50):\n    mat = [[rng.uniform(-5.0, 5.0) for _ in range(3)] for _ in range(3)]\n    d1 = det_lu(mat)\n    d2 = det_bruteforce_3x3(mat)\n    # Differential Oracle:\n    assert abs(d1 - d2) < 1e-6, \"Differential oracle caught mismatch\"\n    # Metamorphic Oracle: Swapping rows 0 and 1 must negate determinant\n    mat_swapped = [mat[1], mat[0], mat[2]]\n    d_swap = det_lu(mat_swapped)\n    assert abs(d_swap - (-d1)) < 1e-6, \"Metamorphic row-swap oracle caught mismatch\"\n\nprint(\"Differential and Metamorphic oracles confirmed algorithm correctness across 50 trials.\")\n", "mutants": ["# Buggy implementation multiplies diagonal without elimination\ndef det_buggy(m): return m[0][0] * m[1][1] * m[2][2]\nm = [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0], [7.0, 8.0, 10.0]]\nd_bug = det_buggy(m)\nd_true = -3.0\nassert abs(d_bug - d_true) < 1e-6, \"Buggy diagonal multiplication caught\"\n"]}, "exp-metamorphic-testing": {"code": "import random\n\n# Buggy distance estimator with hidden defect\ndef buggy_distance(u, v):\n    # True distance is Manhattan |u_x - v_x| + |u_y - v_y|\n    # But if u is odd, it underestimates distance by subtracting 5\n    d = abs(u[0] - v[0]) + abs(u[1] - v[1])\n    if u[0] % 2 == 1:\n        d = max(0, d - 5)\n    return d\n\nrng = random.Random(999)\nviolations = 0\nqueries = 100\n\nfor _ in range(queries):\n    u = (rng.randint(0, 20), rng.randint(0, 20))\n    v = (rng.randint(0, 20), rng.randint(0, 20))\n    w = (rng.randint(0, 20), rng.randint(0, 20))\n    \n    # Metamorphic Relation: d(u, v) <= d(u, w) + d(w, v)\n    duv = buggy_distance(u, v)\n    duw = buggy_distance(u, w)\n    dwv = buggy_distance(w, v)\n    \n    # Triangle inequality must never be violated\n    if duv > duw + dwv:\n        violations += 1\n\nprint(f\"Total Triples Tested: {queries}\")\nprint(f\"Triangle Inequality Metamorphic Violations Caught: {violations}\")\n\nassert violations > 10, \"Metamorphic oracle failed to catch hidden routing defect\"\n", "mutants": ["violations = 0\nassert violations > 10, \"Metamorphic testing correctly caught\"\n"]}}, "cards": [{"q": "What is the Oracle Problem in software testing?", "a": "The challenge of determining whether the observed output of an executed program on arbitrary inputs is correct without human intervention."}, {"q": "What is Metamorphic Testing?", "a": "A testing technique that detects defects by checking whether relations between multiple inputs and outputs hold (e.g. $f(2x) = 2f(x)$) without knowing the true output value."}, {"q": "What did the Knight-Leveson experiment prove about N-version programming?", "a": "Independently written implementations fail to achieve statistical independence; human developers suffer from correlated common-mode cognitive errors."}, {"q": "What is the Parity Oracle pattern?", "a": "A verification pattern that executes a reference engine, compares side-effects, accepts sound supersets, and reports INCONCLUSIVE when stubs are missing."}, {"q": "What is the difference between verification and validation (Boehm)?", "a": "Verification checks conformity to specification ('building it right'); validation checks fitness for user purpose ('building the right thing')."}, {"q": "What is differential testing?", "a": "Providing identical inputs to multiple independent implementations of the same specification and flagging any discrepancy in their outputs as a potential defect."}], "title": "The oracle problem: how do you know the answer is right?"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

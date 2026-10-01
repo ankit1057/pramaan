@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P10 Security and cryptography</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P10">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P10</p><h1>Security and cryptography</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M29.html">M29</a> <a href="P09.html">P09</a></div><div><b>Covers:</b> CS2023 SEC</div>
+<details><summary>Everything this module teaches (21 items)</summary><ul class="must"><li>the CIA triad</li><li>threat modelling (STRIDE)</li><li>authentication vs authorisation</li><li>password hashing with salt (bcrypt, argon2)</li><li>cryptographic hash properties</li><li>MACs and HMAC</li><li>symmetric encryption, modes and AEAD</li><li>RSA and why textbook RSA without padding is insecure</li><li>key generation happens once</li><li>Diffie-Hellman and ECDHE</li><li>signatures, certificates and PKI</li><li>tokens (JWT pitfalls, refresh tokens)</li><li>injection, XSS and CSRF</li><li>secrets management</li><li>security design principles: least privilege, fail-safe defaults, open design, defence in depth and zero trust</li><li>memory-safety attacks: buffer overflows, stack smashing, use-after-free and integer overflow, with canaries, ASLR and NX as mitigations</li><li>access-control models: DAC, MAC, RBAC and ABAC, implemented with ACLs and capabilities</li><li>denial of service and DDoS: floods, amplification and mitigations</li><li>classical ciphers and frequency analysis, and Kerckhoffs&#x27;s principle (never roll your own crypto)</li><li>malware, social engineering and phishing, and computer-crime law (India&#x27;s IT Act 2000)</li><li>attacks on cryptography: birthday attacks, timing side channels, and the post-quantum threat</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1883, Dutch military linguist Auguste Kerckhoffs published a groundbreaking monograph in the Journal of Military Science titled "La Cryptographie Militaire." In this treatise, Kerckhoffs formulated a revolutionary principle that became the bedrock of modern information security: a cryptographic system should be designed under the assumption that the adversary knows everything about its internal mathematical algorithms and implementation details; security must depend entirely on keeping the secret key confidential. For over a century, military and civilian organizations resisted this wisdom, attempting "security through obscurity" by hiding flawed cipher designs.</p>
+<p>In 1976, Stanford researchers Whitfield Diffie and Martin Hellman shattered classical cryptography with their paper "New Directions in Cryptography." For thousands of years, encryption required a shared secret pre-arranged in person. Diffie and Hellman proved that two strangers could negotiate a shared symmetric key across a public, actively tapped channel using one-way mathematical functions and discrete logarithms. Decades later in April 2014, the lethal consequences of neglecting basic security fundamentals shocked the world with the Heartbleed bug in OpenSSL. A single missing buffer length validation check in memory-unsafe C code allowed anonymous remote attackers to read server memory across the TLS heartbeat protocol, silently exfiltrating private encryption keys, passwords, and session tokens from millions of HTTPS servers across the globe.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Security is the science of keeping data safe, authentic, and available even when hostile adversaries attempt to break into your systems. We protect the CIA triad: Confidentiality (secrets remain private), Integrity (data cannot be altered without detection), and Availability (services stay online). Cryptography gives us mathematical tools: hashing (SHA-256) to fingerprint files, salted slow hashes (Argon2) to protect passwords, symmetric ciphers (AES-GCM) to encrypt data quickly, and public-key math (Diffie-Hellman, RSA) to negotiate secure keys without meeting in person.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and threat modeling principles of cryptography and security systems are defined by:</p>
+<ol>
+<li>
+<p><strong>The CIA Triad &amp; STRIDE Threat Modeling</strong>:
+- <strong>CIA Triad</strong>: Confidentiality, Integrity, Availability.
+- <strong>STRIDE</strong>: Spoofing (broken authentication), Tampering (integrity violation), Repudiation (lack of auditability), Information Disclosure (confidentiality breach), Denial of Service (availability loss), Elevation of Privilege (broken authorization).</p>
+</li>
+<li>
+<p><strong>Cryptographic Hashes &amp; HMAC</strong>:
+A cryptographic hash function $H: \{0, 1\}^* \to \{0, 1\}^n$ must satisfy:
+- Preimage Resistance: Given $y$, computationally infeasible to find $x$ s.t. $H(x) = y$.
+- Second Preimage Resistance: Given $x$, infeasible to find $x&#x27; \ne x$ s.t. $H(x&#x27;) = H(x)$.
+- Collision Resistance: Infeasible to find any pair $x_1 \ne x_2$ s.t. $H(x_1) = H(x_2)$.
+  By the <strong>Birthday Paradox</strong>, collision search in $n$-bit space requires only $\approx 1.177 \cdot 2^{n/2}$ evaluations.
+- HMAC (Keyed-Hash Message Authentication Code):
+$$\text{HMAC}(K, m) = H\Big( (K \oplus \text{opad}) \parallel H\big((K \oplus \text{ipad}) \parallel m\big) \Big)$$
+where $\text{ipad} = 0\text{x}36$ and $\text{opad} = 0\text{x}5\text{C}$ repeated to block length.</p>
+</li>
+<li>
+<p><strong>Public-Key Cryptography &amp; Diffie-Hellman</strong>:
+Given large prime $p$ and generator $g$ in multiplicative group $\mathbb{Z}_p^*$:
+- Alice picks private $a \in [2, p-2]$, sends public $A = g^a \pmod p$.
+- Bob picks private $b \in [2, p-2]$, sends public $B = g^b \pmod p$.
+- Both compute shared secret:
+$$S = B^a \equiv (g^b)^a \equiv g^{ab} \equiv (g^a)^b \equiv A^b \pmod p$$
+Eavesdropper knowing $A$ and $B$ cannot compute $S$ without solving the <strong>Discrete Logarithm Problem</strong>.</p>
+</li>
+<li>
+<p><strong>Web Security &amp; Memory Protection</strong>:
+- SQL Injection: Defeated by parameterized prepared statements.
+- Cross-Site Scripting (XSS): Defeated by context-aware escaping and Content Security Policy (CSP).
+- Cross-Site Request Forgery (CSRF): Defeated by SameSite cookie flags and anti-CSRF tokens.
+- Memory Defenses: Stack Canaries, ASLR, and Non-Executable Stacks (NX/DEP).</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why developers must never design their own cryptographic algorithms or write custom cryptographic primitives requires analyzing the mathematical subtlety of side channels and algebraic attacks. In software development, intuition suggests that an ambitious engineer can devise a clever secret encoding or character scrambling routine that will baffle attackers. In reality, ad-hoc cryptography—violating Kerckhoffs's principle—is trivially broken through frequency analysis, linear cryptanalysis, or algebraic manipulation within hours.</p>
+<p>Even when standardized mathematical algorithms like RSA or AES are used, naive implementations fail through non-obvious vulnerabilities:
+1. <strong>Textbook RSA Insecurity</strong>: In textbook RSA, encrypting message $m$ via $c = m^e \pmod N$ is completely deterministic. An attacker can precompute encryptions of common values (like numbers or names) and compare ciphertexts. Worse, textbook RSA is multiplicatively homomorphic: $E(m_1) \cdot E(m_2) = (m_1 \cdot m_2)^e = E(m_1 \cdot m_2)$, enabling attackers to forge valid signatures on chosen messages. Production RSA requires randomized OAEP (Optimal Asymmetric Encryption Padding).
+2. <strong>Timing Side Channels</strong>: If a server compares an authentication token or HMAC signature using standard string equality (<code>if token == expected_token:</code>), the comparison routine terminates at the very first mismatched byte. An attacker measuring request latency down to the microsecond can determine how many leading bytes matched, recovering an entire 256-bit cryptographic signature byte-by-byte without breaking the underlying hash function.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The HMAC signature and constant-time verification oracle demonstrates how keyed-hash message authentication protects data against undetected tampering and forging attacks. In modern distributed systems and security protocols, keyed cryptographic hashes verify both authenticity and data integrity across untrusted network channels. The interactive oracle generates an HMAC-SHA256 signature, validates authentic payloads, verifies that a single flipped bit in the ciphertext causes immediate signature rejection, and enforces constant-time byte comparison to eliminate timing side-channel leakage.</p>
+<div class="lab demo" data-demo="p10-oracle-hmac-auth">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>HMAC-SHA256 Cryptographic Authentication Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">import hmac
+import hashlib
+
+def generate_hmac(key: bytes, msg: bytes) -&gt; bytes:
+    return hmac.new(key, msg, hashlib.sha256).digest()
+
+def verify_hmac(key: bytes, msg: bytes, expected_sig: bytes) -&gt; bool:
+    actual_sig = generate_hmac(key, msg)
+    # hmac.compare_digest executes in constant time
+    return hmac.compare_digest(actual_sig, expected_sig)
+
+key = b&quot;super_secret_shared_key_12345&quot;
+msg = b&quot;transfer_funds:recipient=alice:amount=500&quot;
+
+sig = generate_hmac(key, msg)
+assert verify_hmac(key, msg, sig) is True
+
+# Tampered message
+tampered_msg = b&quot;transfer_funds:recipient=alice:amount=999&quot;
+assert verify_hmac(key, tampered_msg, sig) is False
+
+# Tampered signature
+corrupted_sig = bytearray(sig)
+corrupted_sig[0] ^= 0x01  # flip 1 bit
+assert verify_hmac(key, msg, bytes(corrupted_sig)) is False
+
+print(&quot;HMAC authentication, message integrity, and constant-time verification passed.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the Birthday Paradox collision bound on truncated hash spaces. In an $n$-bit hash output space with $M = 2^n$ possible digests, theory dictates that a collection of $k \approx \sqrt{2 \ln(2) \cdot M} \approx 1.177 \sqrt{M}$ random hashes has a $50\%$ probability of containing a hash collision. We verify this probability threshold on a 16-bit hash space ($M=65,536$).</p>
+<div class="lab demo" data-demo="p10-exp-birthday-bound">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Birthday Paradox Hash Collision Bound Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def birthday_threshold(bits: int, target_prob: float = 0.5) -&gt; int:
+    # k approx sqrt(2 * M * ln(1 / (1 - p)))
+    total_states = 1 &lt;&lt; bits
+    return int(math.ceil(math.sqrt(2 * total_states * math.log(1.0 / (1.0 - target_prob)))))
+
+# For a 16-bit hash (65536 possible outputs):
+k_16 = birthday_threshold(16, target_prob=0.5)
+# k approx sqrt(2 * 65536 * ln(2)) = sqrt(131072 * 0.69315) = sqrt(90852) = 301.4 -&gt; 302
+assert 300 &lt;= k_16 &lt;= 305
+
+# For an 80-bit hash (insecure SHA-1 collision target):
+k_80 = birthday_threshold(80, target_prob=0.5)
+# In an 80-bit space (2^80 = 1.2e24), only ~2^40 (~1.1 trillion) samples needed
+assert k_80 &gt; 10**11
+
+print(f&quot;Birthday collision bound verified: 16-bit space needs only {k_16} items for 50% collision chance.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-hmac-sha256-signer" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>HMAC-SHA256 Signer and Constant-Time Comparator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement compute_hmac_hex(key: bytes, message: bytes) -&gt; str to generate an HMAC-SHA256 hex digest, and constant_time_compare(a: bytes, b: bytes) -&gt; bool that verifies byte equality without early termination timing side channels.</p></div>
+<textarea class="code" spellcheck="false">def compute_hmac_hex(key: bytes, message: bytes) -&gt; str:
+    pass
+
+def constant_time_compare(a: bytes, b: bytes) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_hmac_computation():
+    key = b&quot;secret_key&quot;
+    msg = b&quot;hello_world&quot;
+    sig = compute_hmac_hex(key, msg)
+    assert len(sig) == 64  # 32 bytes in hex = 64 chars
+    assert sig == compute_hmac_hex(key, msg)
+
+def test_constant_time_compare():
+    assert constant_time_compare(b&quot;password&quot;, b&quot;password&quot;) is True
+    assert constant_time_compare(b&quot;password&quot;, b&quot;passwore&quot;) is False
+    assert constant_time_compare(b&quot;short&quot;, b&quot;longer_string&quot;) is False
+    assert constant_time_compare(b&quot;&quot;, b&quot;&quot;) is True
+
+def test_hmac_avalanche_effect():
+    sig1 = compute_hmac_hex(b&quot;key&quot;, b&quot;message1&quot;)
+    sig2 = compute_hmac_hex(b&quot;key&quot;, b&quot;message2&quot;)
+    assert sig1 != sig2
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-diffie-hellman-key-exchange" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Diffie-Hellman Key Exchange Simulator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement diffie_hellman_shared_secret(p: int, g: int, priv_a: int, priv_b: int) -&gt; dict that computes public keys A and B and verifies that both parties independently compute the identical shared symmetric secret.</p></div>
+<textarea class="code" spellcheck="false">def diffie_hellman_shared_secret(p: int, g: int, priv_a: int, priv_b: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_dh_exchange_basic():
+    # p = 23, g = 5 (primitive root)
+    # Alice a = 6 -&gt; A = 5^6 mod 23 = 15625 mod 23 = 8
+    # Bob b = 15 -&gt; B = 5^15 mod 23 = 19
+    # Secret = 19^6 mod 23 = 2; 8^15 mod 23 = 2
+    res = diffie_hellman_shared_secret(p=23, g=5, priv_a=6, priv_b=15)
+    assert res[&quot;pub_a&quot;] == 8
+    assert res[&quot;pub_b&quot;] == 19
+    assert res[&quot;shared_secret&quot;] == 2
+
+def test_dh_exchange_larger_prime():
+    # RFC 3526 1536-bit MODP Group or small test prime
+    p = 7919  # prime
+    g = 7
+    res = diffie_hellman_shared_secret(p=p, g=g, priv_a=1234, priv_b=5678)
+    assert res[&quot;shared_secret&quot;] &gt; 0
+    assert res[&quot;shared_secret&quot;] &lt; p
+
+def test_dh_exchange_symmetry():
+    res1 = diffie_hellman_shared_secret(p=97, g=5, priv_a=10, priv_b=20)
+    res2 = diffie_hellman_shared_secret(p=97, g=5, priv_a=20, priv_b=10)
+    assert res1[&quot;shared_secret&quot;] == res2[&quot;shared_secret&quot;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-rbac-permission-evaluator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Role-Based Access Control (RBAC) with Role Hierarchy</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement evaluate_rbac_access(user_roles: list[str], role_hierarchy: dict, role_permissions: dict, requested_perm: str) -&gt; bool that evaluates whether a user is authorized for an action, recursively traversing role inheritance.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_rbac_access(user_roles: list[str], role_hierarchy: dict, role_permissions: dict, requested_perm: str) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_rbac_direct_permission():
+    perms = {&quot;editor&quot;: [&quot;edit_post&quot;, &quot;view_post&quot;], &quot;viewer&quot;: [&quot;view_post&quot;]}
+    hierarchy = {&quot;editor&quot;: [&quot;viewer&quot;]}
+    assert evaluate_rbac_access([&quot;editor&quot;], hierarchy, perms, &quot;edit_post&quot;) is True
+    assert evaluate_rbac_access([&quot;viewer&quot;], hierarchy, perms, &quot;edit_post&quot;) is False
+
+def test_rbac_inherited_permission():
+    perms = {&quot;admin&quot;: [&quot;*&quot;], &quot;manager&quot;: [&quot;approve_invoice&quot;], &quot;employee&quot;: [&quot;submit_expense&quot;]}
+    hierarchy = {&quot;admin&quot;: [&quot;manager&quot;], &quot;manager&quot;: [&quot;employee&quot;]}
+    # Admin inherits manager and employee
+    assert evaluate_rbac_access([&quot;admin&quot;], hierarchy, perms, &quot;submit_expense&quot;) is True
+    assert evaluate_rbac_access([&quot;manager&quot;], hierarchy, perms, &quot;submit_expense&quot;) is True
+    assert evaluate_rbac_access([&quot;employee&quot;], hierarchy, perms, &quot;approve_invoice&quot;) is False
+
+def test_rbac_no_roles():
+    assert evaluate_rbac_access([], {}, {}, &quot;any&quot;) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-jwt-token-verifier" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Secure JWT Token Verifier and Validator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement verify_jwt_token(token: str, secret: str, allowed_algorithms: list[str], current_timestamp: int) -&gt; dict to parse and cryptographically verify a JWT token, rejecting 'none' algorithm attacks, signature mismatches, and expired tokens.</p></div>
+<textarea class="code" spellcheck="false">def verify_jwt_token(token: str, secret: str, allowed_algorithms: list[str], current_timestamp: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_jwt_valid_hs256():
+    import base64, hmac, hashlib
+    # Header: {&quot;alg&quot;: &quot;HS256&quot;, &quot;typ&quot;: &quot;JWT&quot;} -&gt; eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9
+    h_b64 = &quot;eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9&quot;
+    # Payload: {&quot;sub&quot;: &quot;12345&quot;, &quot;name&quot;: &quot;Alice&quot;, &quot;exp&quot;: 2000000000}
+    p_b64 = base64.urlsafe_b64encode(b&#x27;{&quot;sub&quot;: &quot;12345&quot;, &quot;name&quot;: &quot;Alice&quot;, &quot;exp&quot;: 2000000000}&#x27;).decode(&quot;ascii&quot;).rstrip(&quot;=&quot;)
+    
+    secret = &quot;my_secret_key&quot;
+    signed_data = f&quot;{h_b64}.{p_b64}&quot;.encode(&quot;ascii&quot;)
+    sig_b64 = base64.urlsafe_b64encode(hmac.new(secret.encode(&quot;utf-8&quot;), signed_data, hashlib.sha256).digest()).decode(&quot;ascii&quot;).rstrip(&quot;=&quot;)
+    
+    token = f&quot;{h_b64}.{p_b64}.{sig_b64}&quot;
+    res = verify_jwt_token(token, secret, allowed_algorithms=[&quot;HS256&quot;], current_timestamp=1500000000)
+    assert res[&quot;is_valid&quot;] is True
+    assert res[&quot;payload&quot;][&quot;sub&quot;] == &quot;12345&quot;
+
+def test_jwt_algorithm_none_rejected():
+    h_b64 = &quot;eyJhbGciOiAibm9uZSIgfQ&quot;  # {&quot;alg&quot;: &quot;none&quot;}
+    p_b64 = &quot;eyJzdWIiOiAiYXR0YWNrZXIifQ&quot;  # {&quot;sub&quot;: &quot;attacker&quot;}
+    token = f&quot;{h_b64}.{p_b64}.&quot;
+    try:
+        verify_jwt_token(token, &quot;secret&quot;, allowed_algorithms=[&quot;HS256&quot;, &quot;none&quot;], current_timestamp=100)
+        assert False, &quot;Should reject &#x27;none&#x27; algorithm&quot;
+    except ValueError:
+        pass
+
+def test_jwt_expired():
+    import base64, hmac, hashlib
+    h_b64 = &quot;eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9&quot;
+    p_b64 = base64.urlsafe_b64encode(b&#x27;{&quot;sub&quot;: &quot;12345&quot;, &quot;exp&quot;: 1000}&#x27;).decode(&quot;ascii&quot;).rstrip(&quot;=&quot;)
+    secret = &quot;secret&quot;
+    sig_b64 = base64.urlsafe_b64encode(hmac.new(secret.encode(&quot;utf-8&quot;), f&quot;{h_b64}.{p_b64}&quot;.encode(&quot;ascii&quot;), hashlib.sha256).digest()).decode(&quot;ascii&quot;).rstrip(&quot;=&quot;)
+    token = f&quot;{h_b64}.{p_b64}.{sig_b64}&quot;
+    try:
+        verify_jwt_token(token, secret, allowed_algorithms=[&quot;HS256&quot;], current_timestamp=1005)
+        assert False, &quot;Should raise ValueError for expired token&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Base64 encoding is a form of encryption."</strong> Base64 is an open, reversible data representation scheme for packing binary bytes into ASCII text; it provides zero confidentiality and zero security.</li>
+<li><strong>"Fast cryptographic hash functions like SHA-256 are good for hashing user passwords."</strong> SHA-256 is designed to be fast (billions of hashes/sec on GPUs), enabling rapid brute-force dictionary attacks. Passwords require slow, memory-hard key derivation functions (Argon2, bcrypt).</li>
+<li><strong>"HTTPS encrypts the domain name in the HTTP request URL from eavesdroppers."</strong> During the initial TLS handshake, the Server Name Indication (SNI) header and DNS lookups reveal the domain name to network observers unless ESNI/ECH and DoH are configured.</li>
+<li><strong>"Sanitizing user input with regex blacklists prevents SQL injection."</strong> Blacklists are notoriously easy to bypass with alternate SQL encodings or union tricks; parameterized prepared statements are the only robust defense against SQL injection.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Cryptographic systems break down when random number generators (RNG) lack physical entropy, producing predictable keys that allow attackers to factor RSA keys or forge session tokens. Furthermore, side-channel attacks (measuring CPU power consumption, electromagnetic emanations, or microsecond cache timing) bypass mathematical proofs of cipher security by attacking physical hardware implementations.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Applied cryptography and security engineering safeguard user passwords across web and mobile platforms (Argon2id in modern auth backends), secure data in transit via TLS 1.3 mutual authentication, protect sensitive secrets in HashiCorp Vault or AWS KMS, and defend REST APIs against JWT signature stripping attacks.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Kerckhoffs's Principle?</p></div><div class="a" hidden><p>A cryptographic system should remain secure even if everything about the system except the key is public knowledge.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the difference between encryption and hashing?</p></div><div class="a" hidden><p>Encryption is a two-way reversible process using a key; hashing is a one-way irreversible transformation into a fixed-size digest.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why is textbook RSA insecure without padding?</p></div><div class="a" hidden><p>It is deterministic and multiplicatively homomorphic, enabling ciphertext comparison and signature forgery; OAEP padding is required.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does Diffie-Hellman negotiate a shared secret?</p></div><div class="a" hidden><p>By exchanging modular powers g^a and g^b mod p; both compute (g^b)^a = (g^a)^b = g^ab mod p without revealing private exponents.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the danger of the JWT 'none' algorithm attack?</p></div><div class="a" hidden><p>If an auth server accepts 'none', attackers can tamper with the payload and strip the signature entirely, forging admin tokens.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is a timing attack on string comparison?</p></div><div class="a" hidden><p>Measuring microsecond differences in comparison latency to deduce secret token bytes one by one based on early loop termination.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can apply the CIA triad and STRIDE threat modeling, compute HMAC signatures in constant time, simulate Diffie-Hellman key exchanges, evaluate RBAC role hierarchies, and securely verify JWT tokens.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Kerckhoffs, A. (1883). La cryptographie militaire. Journal des Sciences Militaires, 9, 5-38.</li>
+<li>Diffie, W., &amp; Hellman, M. (1976). New directions in cryptography. IEEE Transactions on Information Theory, 22(6), 644-654.</li>
+<li>Rescorla, E. (2018). The Transport Layer Security (TLS) Protocol Version 1.3. RFC 8446.</li>
+</ul></section>
+<footer class="pager"><a href="P09.html">&larr; P09 Computer networks</a>
+<a href="P11.html">P11 Databases &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P10", "packages": ["numpy"], "exercises": {"ex1-hmac-sha256-signer": {"starter": "def compute_hmac_hex(key: bytes, message: bytes) -> str:\n    pass\n\ndef constant_time_compare(a: bytes, b: bytes) -> bool:\n    pass\n", "solution": "import hmac\nimport hashlib\n\ndef compute_hmac_hex(key: bytes, message: bytes) -> str:\n    return hmac.new(key, message, hashlib.sha256).hexdigest()\n\ndef constant_time_compare(a: bytes, b: bytes) -> bool:\n    if len(a) != len(b):\n        return False\n    diff = 0\n    for byte_a, byte_b in zip(a, b):\n        diff |= (byte_a ^ byte_b)\n    return diff == 0\n", "tests": "def test_hmac_computation():\n    key = b\"secret_key\"\n    msg = b\"hello_world\"\n    sig = compute_hmac_hex(key, msg)\n    assert len(sig) == 64  # 32 bytes in hex = 64 chars\n    assert sig == compute_hmac_hex(key, msg)\n\ndef test_constant_time_compare():\n    assert constant_time_compare(b\"password\", b\"password\") is True\n    assert constant_time_compare(b\"password\", b\"passwore\") is False\n    assert constant_time_compare(b\"short\", b\"longer_string\") is False\n    assert constant_time_compare(b\"\", b\"\") is True\n\ndef test_hmac_avalanche_effect():\n    sig1 = compute_hmac_hex(b\"key\", b\"message1\")\n    sig2 = compute_hmac_hex(b\"key\", b\"message2\")\n    assert sig1 != sig2\n", "mutants": ["def compute_hmac_hex(key, message): assert False, 'mutant injected'\ndef constant_time_compare(a, b): assert False, 'mutant injected'\n", "def compute_hmac_hex(key, message): return \"0\" * 64\ndef constant_time_compare(a, b): return True  # always returns True!\n"], "hints": ["Use hmac.new(key, message, hashlib.sha256).hexdigest().", "In constant-time compare, accumulate XOR differences across all bytes: diff |= (a ^ b)."], "level": "warmup", "title": "HMAC-SHA256 Signer and Constant-Time Comparator"}, "ex2-diffie-hellman-key-exchange": {"starter": "def diffie_hellman_shared_secret(p: int, g: int, priv_a: int, priv_b: int) -> dict:\n    pass\n", "solution": "def diffie_hellman_shared_secret(p: int, g: int, priv_a: int, priv_b: int) -> dict:\n    # Public keys: A = g^a mod p, B = g^b mod p\n    pub_a = pow(g, priv_a, p)\n    pub_b = pow(g, priv_b, p)\n    \n    # Shared secret: S_alice = B^a mod p, S_bob = A^b mod p\n    secret_alice = pow(pub_b, priv_a, p)\n    secret_bob = pow(pub_a, priv_b, p)\n    \n    if secret_alice != secret_bob:\n        raise ValueError(\"Diffie-Hellman mathematical invariance failure\")\n        \n    return {\n        \"pub_a\": pub_a,\n        \"pub_b\": pub_b,\n        \"shared_secret\": secret_alice\n    }\n", "tests": "def test_dh_exchange_basic():\n    # p = 23, g = 5 (primitive root)\n    # Alice a = 6 -> A = 5^6 mod 23 = 15625 mod 23 = 8\n    # Bob b = 15 -> B = 5^15 mod 23 = 19\n    # Secret = 19^6 mod 23 = 2; 8^15 mod 23 = 2\n    res = diffie_hellman_shared_secret(p=23, g=5, priv_a=6, priv_b=15)\n    assert res[\"pub_a\"] == 8\n    assert res[\"pub_b\"] == 19\n    assert res[\"shared_secret\"] == 2\n\ndef test_dh_exchange_larger_prime():\n    # RFC 3526 1536-bit MODP Group or small test prime\n    p = 7919  # prime\n    g = 7\n    res = diffie_hellman_shared_secret(p=p, g=g, priv_a=1234, priv_b=5678)\n    assert res[\"shared_secret\"] > 0\n    assert res[\"shared_secret\"] < p\n\ndef test_dh_exchange_symmetry():\n    res1 = diffie_hellman_shared_secret(p=97, g=5, priv_a=10, priv_b=20)\n    res2 = diffie_hellman_shared_secret(p=97, g=5, priv_a=20, priv_b=10)\n    assert res1[\"shared_secret\"] == res2[\"shared_secret\"]\n", "mutants": ["def diffie_hellman_shared_secret(p, g, priv_a, priv_b):\n    assert False, 'mutant injected'\n", "def diffie_hellman_shared_secret(p, g, priv_a, priv_b):\n    return {\"pub_a\": 0, \"pub_b\": 0, \"shared_secret\": 0}\n"], "hints": ["Use python's built-in modular exponentiation: pow(base, exp, mod).", "Alice computes pow(pub_b, priv_a, p); Bob computes pow(pub_a, priv_b, p)."], "level": "core", "title": "Diffie-Hellman Key Exchange Simulator"}, "ex3-rbac-permission-evaluator": {"starter": "def evaluate_rbac_access(user_roles: list[str], role_hierarchy: dict, role_permissions: dict, requested_perm: str) -> bool:\n    pass\n", "solution": "def evaluate_rbac_access(user_roles: list[str], role_hierarchy: dict, role_permissions: dict, requested_perm: str) -> bool:\n    # Expand user roles via DFS/BFS along role_hierarchy (parent -> children or child inherits from parent)\n    # role_hierarchy maps role -> list of inherited/parent roles\n    effective_roles = set()\n    queue = list(user_roles)\n    \n    while queue:\n        curr = queue.pop(0)\n        if curr not in effective_roles:\n            effective_roles.add(curr)\n            inherited = role_hierarchy.get(curr, [])\n            for parent in inherited:\n                if parent not in effective_roles:\n                    queue.append(parent)\n                    \n    # Check permissions across all effective roles\n    for role in effective_roles:\n        perms = role_permissions.get(role, [])\n        if requested_perm in perms or \"*\" in perms:\n            return True\n            \n    return False\n", "tests": "def test_rbac_direct_permission():\n    perms = {\"editor\": [\"edit_post\", \"view_post\"], \"viewer\": [\"view_post\"]}\n    hierarchy = {\"editor\": [\"viewer\"]}\n    assert evaluate_rbac_access([\"editor\"], hierarchy, perms, \"edit_post\") is True\n    assert evaluate_rbac_access([\"viewer\"], hierarchy, perms, \"edit_post\") is False\n\ndef test_rbac_inherited_permission():\n    perms = {\"admin\": [\"*\"], \"manager\": [\"approve_invoice\"], \"employee\": [\"submit_expense\"]}\n    hierarchy = {\"admin\": [\"manager\"], \"manager\": [\"employee\"]}\n    # Admin inherits manager and employee\n    assert evaluate_rbac_access([\"admin\"], hierarchy, perms, \"submit_expense\") is True\n    assert evaluate_rbac_access([\"manager\"], hierarchy, perms, \"submit_expense\") is True\n    assert evaluate_rbac_access([\"employee\"], hierarchy, perms, \"approve_invoice\") is False\n\ndef test_rbac_no_roles():\n    assert evaluate_rbac_access([], {}, {}, \"any\") is False\n", "mutants": ["def evaluate_rbac_access(user_roles, role_hierarchy, role_permissions, requested_perm):\n    assert False, 'mutant injected'\n", "def evaluate_rbac_access(user_roles, role_hierarchy, role_permissions, requested_perm):\n    return True  # mutant: bypasses authorization checks!\n"], "hints": ["Traverse inherited roles using a queue or set to find all effective roles.", "Check if requested_perm or '*' is in any effective role's permission list."], "level": "core", "title": "Role-Based Access Control (RBAC) with Role Hierarchy"}, "ex4-jwt-token-verifier": {"starter": "def verify_jwt_token(token: str, secret: str, allowed_algorithms: list[str], current_timestamp: int) -> dict:\n    pass\n", "solution": "import hmac\nimport hashlib\nimport json\nimport base64\n\ndef _b64url_decode(s: str) -> bytes:\n    # Add padding if needed\n    rem = len(s) % 4\n    if rem > 0:\n        s += \"=\" * (4 - rem)\n    return base64.urlsafe_b64decode(s.encode(\"ascii\"))\n\ndef verify_jwt_token(token: str, secret: str, allowed_algorithms: list[str], current_timestamp: int) -> dict:\n    parts = token.split(\".\")\n    if len(parts) != 3:\n        raise ValueError(\"Invalid JWT format: must have 3 parts\")\n        \n    raw_header, raw_payload, raw_sig = parts\n    \n    try:\n        header = json.loads(_b64url_decode(raw_header).decode(\"utf-8\"))\n        payload = json.loads(_b64url_decode(raw_payload).decode(\"utf-8\"))\n    except Exception as e:\n        raise ValueError(f\"Malformed JWT header or payload: {e}\")\n        \n    alg = header.get(\"alg\", \"\").upper()\n    if alg not in [a.upper() for a in allowed_algorithms]:\n        raise ValueError(f\"Disallowed algorithm: {alg}\")\n        \n    if alg == \"NONE\":\n        raise ValueError(\"Algorithm 'none' is explicitly forbidden\")\n        \n    # Verify signature for HS256\n    if alg == \"HS256\":\n        signed_content = f\"{raw_header}.{raw_payload}\".encode(\"ascii\")\n        expected_sig_bytes = hmac.new(secret.encode(\"utf-8\"), signed_content, hashlib.sha256).digest()\n        expected_sig = base64.urlsafe_b64encode(expected_sig_bytes).decode(\"ascii\").rstrip(\"=\")\n        \n        # Constant-time comparison\n        if not hmac.compare_digest(raw_sig.rstrip(\"=\"), expected_sig):\n            raise ValueError(\"JWT signature mismatch\")\n    else:\n        raise ValueError(f\"Unsupported algorithm: {alg}\")\n        \n    # Verify expiration (exp)\n    if \"exp\" in payload and current_timestamp >= payload[\"exp\"]:\n        raise ValueError(\"JWT token has expired\")\n        \n    # Verify not before (nbf)\n    if \"nbf\" in payload and current_timestamp < payload[\"nbf\"]:\n        raise ValueError(\"JWT token not yet valid\")\n        \n    return {\n        \"is_valid\": True,\n        \"header\": header,\n        \"payload\": payload\n    }\n", "tests": "def test_jwt_valid_hs256():\n    import base64, hmac, hashlib\n    # Header: {\"alg\": \"HS256\", \"typ\": \"JWT\"} -> eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9\n    h_b64 = \"eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9\"\n    # Payload: {\"sub\": \"12345\", \"name\": \"Alice\", \"exp\": 2000000000}\n    p_b64 = base64.urlsafe_b64encode(b'{\"sub\": \"12345\", \"name\": \"Alice\", \"exp\": 2000000000}').decode(\"ascii\").rstrip(\"=\")\n    \n    secret = \"my_secret_key\"\n    signed_data = f\"{h_b64}.{p_b64}\".encode(\"ascii\")\n    sig_b64 = base64.urlsafe_b64encode(hmac.new(secret.encode(\"utf-8\"), signed_data, hashlib.sha256).digest()).decode(\"ascii\").rstrip(\"=\")\n    \n    token = f\"{h_b64}.{p_b64}.{sig_b64}\"\n    res = verify_jwt_token(token, secret, allowed_algorithms=[\"HS256\"], current_timestamp=1500000000)\n    assert res[\"is_valid\"] is True\n    assert res[\"payload\"][\"sub\"] == \"12345\"\n\ndef test_jwt_algorithm_none_rejected():\n    h_b64 = \"eyJhbGciOiAibm9uZSIgfQ\"  # {\"alg\": \"none\"}\n    p_b64 = \"eyJzdWIiOiAiYXR0YWNrZXIifQ\"  # {\"sub\": \"attacker\"}\n    token = f\"{h_b64}.{p_b64}.\"\n    try:\n        verify_jwt_token(token, \"secret\", allowed_algorithms=[\"HS256\", \"none\"], current_timestamp=100)\n        assert False, \"Should reject 'none' algorithm\"\n    except ValueError:\n        pass\n\ndef test_jwt_expired():\n    import base64, hmac, hashlib\n    h_b64 = \"eyJhbGciOiAiSFMyNTYiLCAidHlwIjogIkpXVCJ9\"\n    p_b64 = base64.urlsafe_b64encode(b'{\"sub\": \"12345\", \"exp\": 1000}').decode(\"ascii\").rstrip(\"=\")\n    secret = \"secret\"\n    sig_b64 = base64.urlsafe_b64encode(hmac.new(secret.encode(\"utf-8\"), f\"{h_b64}.{p_b64}\".encode(\"ascii\"), hashlib.sha256).digest()).decode(\"ascii\").rstrip(\"=\")\n    token = f\"{h_b64}.{p_b64}.{sig_b64}\"\n    try:\n        verify_jwt_token(token, secret, allowed_algorithms=[\"HS256\"], current_timestamp=1005)\n        assert False, \"Should raise ValueError for expired token\"\n    except ValueError:\n        pass\n", "mutants": ["def verify_jwt_token(token, secret, allowed_algorithms, current_timestamp):\n    assert False, 'mutant injected'\n", "def verify_jwt_token(token, secret, allowed_algorithms, current_timestamp):\n    # Mutant: accepts any token without verifying signature\n    parts = token.split(\".\")\n    import base64, json\n    rem = len(parts[1]) % 4\n    p_str = parts[1] + (\"=\" * (4 - rem) if rem else \"\")\n    return {\"is_valid\": True, \"header\": {}, \"payload\": json.loads(base64.urlsafe_b64decode(p_str))}\n"], "hints": ["Decode header and payload using base64.urlsafe_b64decode with proper '=' padding.", "Compute HMAC-SHA256 over f'{header}.{payload}' and compare using hmac.compare_digest.", "Explicitly forbid 'none' algorithm."], "level": "boss", "title": "Secure JWT Token Verifier and Validator"}}, "demos": {"p10-oracle-hmac-auth": {"code": "import hmac\nimport hashlib\n\ndef generate_hmac(key: bytes, msg: bytes) -> bytes:\n    return hmac.new(key, msg, hashlib.sha256).digest()\n\ndef verify_hmac(key: bytes, msg: bytes, expected_sig: bytes) -> bool:\n    actual_sig = generate_hmac(key, msg)\n    # hmac.compare_digest executes in constant time\n    return hmac.compare_digest(actual_sig, expected_sig)\n\nkey = b\"super_secret_shared_key_12345\"\nmsg = b\"transfer_funds:recipient=alice:amount=500\"\n\nsig = generate_hmac(key, msg)\nassert verify_hmac(key, msg, sig) is True\n\n# Tampered message\ntampered_msg = b\"transfer_funds:recipient=alice:amount=999\"\nassert verify_hmac(key, tampered_msg, sig) is False\n\n# Tampered signature\ncorrupted_sig = bytearray(sig)\ncorrupted_sig[0] ^= 0x01  # flip 1 bit\nassert verify_hmac(key, msg, bytes(corrupted_sig)) is False\n\nprint(\"HMAC authentication, message integrity, and constant-time verification passed.\")\n", "mutants": ["def generate_hmac(key, msg): return b\"valid\"\ndef verify_hmac(key, msg, expected_sig): return True  # ignores signature check\nkey = b\"k\"; sig = generate_hmac(key, b\"m\")\nassert verify_hmac(key, b\"tampered\", sig) is False\n"]}, "p10-exp-birthday-bound": {"code": "import math\n\ndef birthday_threshold(bits: int, target_prob: float = 0.5) -> int:\n    # k approx sqrt(2 * M * ln(1 / (1 - p)))\n    total_states = 1 << bits\n    return int(math.ceil(math.sqrt(2 * total_states * math.log(1.0 / (1.0 - target_prob)))))\n\n# For a 16-bit hash (65536 possible outputs):\nk_16 = birthday_threshold(16, target_prob=0.5)\n# k approx sqrt(2 * 65536 * ln(2)) = sqrt(131072 * 0.69315) = sqrt(90852) = 301.4 -> 302\nassert 300 <= k_16 <= 305\n\n# For an 80-bit hash (insecure SHA-1 collision target):\nk_80 = birthday_threshold(80, target_prob=0.5)\n# In an 80-bit space (2^80 = 1.2e24), only ~2^40 (~1.1 trillion) samples needed\nassert k_80 > 10**11\n\nprint(f\"Birthday collision bound verified: 16-bit space needs only {k_16} items for 50% collision chance.\")\n", "mutants": ["def birthday_threshold(bits, target_prob=0.5): return 65536  # assumes full space\nassert birthday_threshold(16, 0.5) < 1000\n"]}}, "cards": [{"q": "What is Kerckhoffs's Principle?", "a": "A cryptographic system should remain secure even if everything about the system except the key is public knowledge."}, {"q": "What is the difference between encryption and hashing?", "a": "Encryption is a two-way reversible process using a key; hashing is a one-way irreversible transformation into a fixed-size digest."}, {"q": "Why is textbook RSA insecure without padding?", "a": "It is deterministic and multiplicatively homomorphic, enabling ciphertext comparison and signature forgery; OAEP padding is required."}, {"q": "How does Diffie-Hellman negotiate a shared secret?", "a": "By exchanging modular powers g^a and g^b mod p; both compute (g^b)^a = (g^a)^b = g^ab mod p without revealing private exponents."}, {"q": "What is the danger of the JWT 'none' algorithm attack?", "a": "If an auth server accepts 'none', attackers can tamper with the payload and strip the signature entirely, forging admin tokens."}, {"q": "What is a timing attack on string comparison?", "a": "Measuring microsecond differences in comparison latency to deduce secret token bytes one by one based on early loop termination."}], "title": "Security and cryptography"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

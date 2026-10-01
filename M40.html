@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M40 Markov chains, random walks and queues</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M40">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-3 · ~5h20</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M40</p><h1>Markov chains, random walks and queues</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M34.html">M34</a> <a href="M31.html">M31</a></div><div><b>Covers:</b> university stochastic processes, CS2023 PDC</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>the Markov property</li><li>transition matrices</li><li>stationary distributions as eigenvectors</li><li>ergodicity</li><li>random walks and gambler&#x27;s ruin</li><li>PageRank</li><li>Metropolis MCMC idea</li><li>the Poisson process</li><li>the M/M/1 queue</li><li>Little&#x27;s law</li><li>why latency explodes as utilisation approaches 1</li><li>Markov decision processes, value iteration and the Q-learning idea</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Meera's service is healthy. CPU sits at 70%, p99 latency is 180 milliseconds, and the capacity plan says there is 30% headroom.</p>
+<p>Marketing runs a campaign and traffic rises 20%. Utilisation goes to 84% — still under the 90% alert threshold, still "within headroom". The p99 latency goes from 180 ms to 520 ms.</p>
+<p>That is nearly three times worse for a fifth more load. Nobody deployed anything. The code is identical, the machines are identical, and the extra 14 points of CPU bought a latency increase that no linear model predicted.</p>
+<p>The team adds one server. Utilisation falls to 56%, and the p99 drops to 95 milliseconds — better than it was before the campaign, on a load that is still higher.</p>
+<p>Here is what the capacity plan got wrong. Latency does not scale with utilisation; it scales with $\frac{1}{1-\rho}$. At $\rho=0.7$ that factor is 3.3; at $\rho=0.84$ it is 6.3; at $\rho=0.95$ it is 20; and at $\rho=1$ it is infinite. The quantity "percent utilised" feels linear, and the thing it controls is a hyperbola with a vertical wall at 100%. <strong>Headroom is not what is left over — it is the distance from the wall</strong>, and the last few percent of a server are not usable capacity at any price.</p>
+<p>And this closes the question M34 left open. The queue does not change the <em>shape</em> of the latency distribution — for M/M/1 the sojourn time is exactly exponential, whatever the load. What it does is multiply the <strong>scale</strong> by $\frac{1}{1-\rho}$, and then fan-out takes the maximum over many such calls. Those two multipliers, stacked, are where a dashboard's p99 comes from. The mechanism is a Markov chain, and this module is about what you can compute once you recognise one.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A process has the <strong>Markov property</strong> when the future depends on the present and not on how you got here. That one assumption is enough to turn a simulation into linear algebra.</p>
+<p>The dynamics live in a <strong>transition matrix</strong>, the long-run behaviour is its <strong>stationary distribution</strong> — a left eigenvector with eigenvalue 1 — and <strong>ergodicity</strong> is the condition under which that long run exists, is unique, and is reached from anywhere.</p>
+<p><strong>Random walks</strong> are the simplest chains, and <strong>gambler's ruin</strong> gives the surprising closed forms. <strong>PageRank</strong> is a stationary distribution. <strong>MCMC</strong> runs the idea backwards: design a chain whose stationary distribution is the thing you want to sample.</p>
+<p><strong>Queues</strong> are chains on the number of customers, and they explain Meera's wall. <strong>MDPs</strong> add decisions, and <strong>value iteration</strong> and <strong>Q-learning</strong> are how you solve them.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>The Markov property and transition matrices</h2>
+<p>A sequence $X_0,X_1,\dots$ on a finite state space is a <strong>Markov chain</strong> when</p>
+<p>$$P(X_{n+1}=j\mid X_n=i,X_{n-1},\dots,X_0)=P(X_{n+1}=j\mid X_n=i)=P_{ij}$$</p>
+<p>$P$ is <strong>row-stochastic</strong>: $P_{ij}\ge0$ and every row sums to 1. If $\pi^{(n)}$ is the row vector of state probabilities at time $n$,</p>
+<p>$$\pi^{(n)}=\pi^{(0)}P^n, \qquad P(X_{n+m}=j\mid X_n=i)=(P^m)_{ij}$$</p>
+<p>The second is the <strong>Chapman-Kolmogorov</strong> equation, and it is just matrix multiplication (M31).</p>
+<h2>Stationary distributions</h2>
+<p>$\pi$ is <strong>stationary</strong> when $\pi P=\pi$ with $\pi_i\ge0$ and $\sum\pi_i=1$ — a <strong>left eigenvector of $P$ for eigenvalue 1</strong>. Every finite chain has at least one; uniqueness and convergence need more.</p>
+<ul>
+<li><strong>Irreducible:</strong> every state reaches every other. Guarantees a <em>unique</em> $\pi$.</li>
+<li><strong>Aperiodic:</strong> $\gcd\{n:(P^n)_{ii}&gt;0\}=1$. Guarantees convergence rather than oscillation.</li>
+<li><strong>Ergodic</strong> = irreducible + aperiodic $\Rightarrow$ $\pi^{(n)}\to\pi$ from <strong>every</strong> start, and the long-run <em>fraction of time</em> in state $i$ is $\pi_i$.</li>
+</ul>
+<p>The rate of convergence is governed by the <strong>second-largest eigenvalue modulus</strong> $|\lambda_2|$: the error decays like $|\lambda_2|^n$, and $\frac{1}{1-|\lambda_2|}$ is the <strong>mixing time</strong> scale.</p>
+<p>A sufficient (not necessary) condition for stationarity is <strong>detailed balance</strong>, $\pi_iP_{ij}=\pi_jP_{ji}$; a chain satisfying it is <strong>reversible</strong>, and this is exactly what MCMC engineers.</p>
+<h2>Random walks and gambler's ruin</h2>
+<p>A walker on $\{0,1,\dots,N\}$ moves up with probability $p$, down with $q=1-p$, and stops at either end. Starting from $k$, the probability of reaching $N$ before 0 is</p>
+<p>$$P_k=\begin{cases}\dfrac{k}{N} &amp; p=\tfrac12\\[2ex] \dfrac{1-(q/p)^k}{1-(q/p)^N} &amp; p\ne\tfrac12\end{cases}$$</p>
+<p>and for the fair case the expected number of steps is $k(N-k)$ — maximal in the middle, and surprisingly large: from the middle of a 100-step board it is 2500 steps.</p>
+<p>The fair walk is <strong>recurrent</strong> in one and two dimensions (it returns to the origin with probability 1) but <strong>transient</strong> in three or more — Pólya's theorem, memorably stated by Kakutani as "a drunk man will find his way home, but a drunk bird may not."</p>
+<h2>PageRank</h2>
+<p>Model a surfer who follows a random outlink with probability $d$ and teleports to a uniform random page with probability $1-d$:</p>
+<p>$$\pi = \frac{1-d}{N}\mathbf{1} + d\,\pi M$$</p>
+<p>with $M$ the column-normalised link matrix and $d=0.85$. The teleport term is not a hack: it makes the chain <strong>irreducible and aperiodic</strong>, guaranteeing a unique answer reachable by power iteration, and it resolves dangling nodes and rank sinks. PageRank is the stationary distribution of a chain that was deliberately engineered to have one.</p>
+<h2>MCMC and Metropolis</h2>
+<p>To sample from a target $f$ known only up to a constant, build a chain whose stationary distribution <strong>is</strong> $f$. <strong>Metropolis-Hastings</strong>: from $x$ propose $y$ from a symmetric $q$, and accept with</p>
+<p>$$\alpha=\min\left(1,\frac{f(y)}{f(x)}\right)$$</p>
+<p>Detailed balance then holds for $f$, so the chain converges to it. The normalising constant cancels in the ratio — which is the entire point, since that constant is usually the intractable part.</p>
+<h2>The Poisson process and M/M/1</h2>
+<p>A <strong>Poisson process</strong> of rate $\lambda$ has independent exponential interarrival times with mean $\frac1\lambda$, and $N(t)\sim\mathrm{Poisson}(\lambda t)$. Its memorylessness (M34) is what makes the queue Markov.</p>
+<p>An <strong>M/M/1</strong> queue has Poisson arrivals at rate $\lambda$, exponential service at rate $\mu$, one server, infinite buffer. With <strong>utilisation</strong> $\rho=\frac{\lambda}{\mu}$ and $\rho&lt;1$:</p>
+<table>
+<thead>
+<tr>
+<th>Quantity</th>
+<th>Formula</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$P(n\text{ in system})$</td>
+<td>$(1-\rho)\rho^n$</td>
+</tr>
+<tr>
+<td>$L$, number in system</td>
+<td>$\dfrac{\rho}{1-\rho}$</td>
+</tr>
+<tr>
+<td>$W$, time in system</td>
+<td>$\dfrac{1}{\mu-\lambda}$</td>
+</tr>
+<tr>
+<td>$L_q$, number waiting</td>
+<td>$\dfrac{\rho^2}{1-\rho}$</td>
+</tr>
+<tr>
+<td>$W_q$, time waiting</td>
+<td>$\dfrac{\rho}{\mu-\lambda}$</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Little's law</strong>: $L=\lambda W$. It holds for <em>any</em> stable queueing system — any arrival process, any service distribution, any discipline — which makes it one of the most useful facts in the subject.</p>
+<p><strong>Why latency explodes.</strong> Write $W$ in units of service time:</p>
+<p>$$\frac{W}{1/\mu}=\frac{1}{1-\rho}$$</p>
+<table>
+<thead>
+<tr>
+<th>$\rho$</th>
+<th>$\frac{1}{1-\rho}$</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0.5</td>
+<td>2</td>
+</tr>
+<tr>
+<td>0.7</td>
+<td>3.3</td>
+</tr>
+<tr>
+<td>0.84</td>
+<td>6.3</td>
+</tr>
+<tr>
+<td>0.9</td>
+<td>10</td>
+</tr>
+<tr>
+<td>0.95</td>
+<td>20</td>
+</tr>
+<tr>
+<td>0.99</td>
+<td>100</td>
+</tr>
+</tbody>
+</table>
+<p>Meera's 0.70 → 0.84 move multiplied the expected sojourn time by $\frac{6.3}{3.3}=1.9$. That is the "mystery". The last 1% of utilisation costs as much latency as the first 50%.</p>
+<h2>MDPs, value iteration, Q-learning</h2>
+<p>A <strong>Markov decision process</strong> adds actions: $(S,A,P,R,\gamma)$ with $P(s&#x27;\mid s,a)$ and discount $\gamma\in[0,1)$. The <strong>Bellman optimality equation</strong>:</p>
+<p>$$V^\*(s)=\max_a\sum_{s&#x27;}P(s&#x27;\mid s,a)\left[R(s,a,s&#x27;)+\gamma V^\*(s&#x27;)\right]$$</p>
+<p><strong>Value iteration</strong> applies the right-hand side repeatedly. The Bellman operator is a <strong>$\gamma$-contraction in the sup norm</strong>, so by Banach's fixed point theorem it converges geometrically to the unique $V^\*$ from any start.</p>
+<p><strong>Q-learning</strong> learns $Q(s,a)$ without knowing $P$, from samples:</p>
+<p>$$Q(s,a)\leftarrow Q(s,a)+\alpha\left[r+\gamma\max_{a&#x27;}Q(s&#x27;,a&#x27;)-Q(s,a)\right]$$</p>
+<p>It converges to $Q^\*$ given sufficient exploration and the M36 step-size conditions $\sum\alpha=\infty$, $\sum\alpha^2&lt;\infty$.</p>
+<h2>A pinch of history</h2>
+<p>Andrey Markov introduced his chains in 1906 and, in a famous 1913 application, counted vowel-consonant transitions in Pushkin's <em>Eugene Onegin</em> — partly to refute a rival's claim that the law of large numbers required independence. Pólya proved the dimension-dependent recurrence of random walks in 1921.</p>
+<p>Agner Krarup Erlang, working for the Copenhagen telephone company, founded queueing theory in 1909 to size switchboards. John Little proved his law in 1961 after it had been used informally for years. Metropolis and co-authors published their algorithm in 1953 and Hastings generalised it in 1970. Richard Bellman introduced dynamic programming and MDPs in the 1950s — choosing the name, he wrote, because it sounded impressive enough to survive a hostile Secretary of Defense. Page and Brin's PageRank is from 1998, and Chris Watkins' Q-learning from 1989.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: stationarity is an eigenvector problem.</strong> If $\pi P=\pi$ then $\pi P^n=\pi$ for all $n$ by induction, so a chain started in $\pi$ stays in $\pi$ forever. Transposing, $P^T\pi^T=\pi^T$: $\pi^T$ is a right eigenvector of $P^T$ with eigenvalue 1. <strong>Such an eigenvalue always exists</strong>, because $P$ is row-stochastic so $P\mathbf{1}=\mathbf{1}$, giving $\mathbf{1}$ as a right eigenvector of $P$ with eigenvalue 1 — and $P$ and $P^T$ share a spectrum. Existence is free; it is <em>uniqueness</em> that needs irreducibility.</p>
+<p><strong>Result 2: gambler's ruin.</strong> Let $P_k$ be the probability of reaching $N$ before 0 from $k$. Conditioning on the first step:</p>
+<p>$$P_k=pP_{k+1}+qP_{k-1}, \qquad P_0=0,\;P_N=1$$</p>
+<p>With $p=q=\frac12$ this is $P_{k+1}-P_k=P_k-P_{k-1}$: the increments are constant, so $P_k$ is linear, and the boundaries force $P_k=\frac{k}{N}$.</p>
+<p>For $p\ne q$, rearrange to $p(P_{k+1}-P_k)=q(P_k-P_{k-1})$, so the increments form a geometric sequence with ratio $\frac{q}{p}$. Summing from 0 and applying $P_N=1$:</p>
+<p>$$P_k=\frac{1-(q/p)^k}{1-(q/p)^N}$$</p>
+<p><strong>The consequence is brutal.</strong> With $p=0.49$ (a near-fair casino), $N=100$ and $k=50$, $\frac{q}{p}\approx1.0408$ and $P_{50}\approx0.12$. A 1% edge turns a coin flip into a one-in-eight chance.</p>
+<p><strong>Result 3: the M/M/1 distribution, by balance.</strong> In the long run, the rate of transitions from state $n$ up to $n+1$ must equal the rate back down — otherwise probability would accumulate. <strong>Detailed balance</strong> gives</p>
+<p>$$\lambda p_n=\mu p_{n+1}\;\Rightarrow\;p_{n+1}=\rho p_n\;\Rightarrow\;p_n=\rho^np_0$$</p>
+<p>Normalising, $p_0\sum_{n\ge0}\rho^n=1$, and the geometric series converges <strong>only if $\rho&lt;1$</strong> — which is exactly the stability condition. Then $p_0=1-\rho$ and $p_n=(1-\rho)\rho^n$.</p>
+<p><strong>Result 4: where the $\frac{1}{1-\rho}$ comes from.</strong> The mean of the geometric distribution $p_n=(1-\rho)\rho^n$ is</p>
+<p>$$L=\sum_{n\ge0}n(1-\rho)\rho^n=(1-\rho)\rho\sum_{n\ge1}n\rho^{n-1}=(1-\rho)\rho\cdot\frac{1}{(1-\rho)^2}=\frac{\rho}{1-\rho}$$</p>
+<p>Little's law then gives $W=\frac{L}{\lambda}=\frac{\rho}{\lambda(1-\rho)}=\frac{1}{\mu-\lambda}$. <strong>The pole at $\rho=1$ is the pole of $\sum n\rho^{n-1}=\frac{1}{(1-\rho)^2}$</strong> — nothing to do with hardware or software. It is the geometric series losing its convergence, and it is why Meera's headroom evaporated.</p>
+<p><strong>Result 5: value iteration converges.</strong> Let $(TV)(s)=\max_a\sum_{s&#x27;}P(s&#x27;|s,a)[R+\gamma V(s&#x27;)]$. For any $U,V$:</p>
+<p>$$|(TU)(s)-(TV)(s)|\le\max_a\gamma\sum_{s&#x27;}P(s&#x27;|s,a)\,|U(s&#x27;)-V(s&#x27;)|\le\gamma\|U-V\|_\infty$$</p>
+<p>using $|\max_af(a)-\max_ag(a)|\le\max_a|f(a)-g(a)|$ and that the probabilities sum to 1. So $\|TU-TV\|_\infty\le\gamma\|U-V\|_\infty$: $T$ is a contraction with modulus $\gamma$. Banach gives a unique fixed point reached geometrically, so the error after $n$ sweeps is at most $\gamma^n\|V_0-V^\*\|_\infty$. <strong>This is why $\gamma&lt;1$ is required</strong> — at $\gamma=1$ the contraction is lost and convergence is no longer guaranteed.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes each quantity two independent ways.</p>
+<p>Stationary distributions are found by solving $\pi P=\pi$ with exact rational arithmetic (<code>Fraction</code>), and separately by power iteration and by long-run simulation — three routes that must agree. M/M/1 formulas are checked against an event-driven simulation that knows no formula. Little's law is checked as an identity on the simulated trace. Gambler's ruin probabilities are checked against the closed form.</p>
+<p>The mutant normalises the PageRank matrix by <strong>rows</strong> instead of columns, which still produces a plausible-looking ranking but solves the wrong equation.</p>
+<div class="lab demo" data-demo="m40-chains-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Stationary distributions by exact algebra, power iteration and simulation</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from fractions import Fraction
+
+rng = random.Random(1906)
+
+
+def stationary_exact(P):
+    &quot;&quot;&quot;Solve pi P = pi with sum(pi) = 1, in exact rational arithmetic.&quot;&quot;&quot;
+    n = len(P)
+    # (P^T - I) pi^T = 0, with the last row replaced by sum(pi) = 1
+    # limit_denominator recovers 4/5 from the float 0.8. Without it the rows
+    # do not sum to exactly 1 as rationals (0.8 + 0.2 is one ulp over), and
+    # the balance equation we replace is then no longer implied by the rest.
+    A = [[Fraction(P[j][i]).limit_denominator(10 ** 9) - (1 if i == j else 0)
+          for j in range(n)] for i in range(n)]
+    A[-1] = [Fraction(1)] * n
+    b = [Fraction(0)] * n
+    b[-1] = Fraction(1)
+    # Gaussian elimination, exact
+    for col in range(n):
+        piv = next(r for r in range(col, n) if A[r][col] != 0)
+        A[col], A[piv] = A[piv], A[col]
+        b[col], b[piv] = b[piv], b[col]
+        inv = A[col][col]
+        A[col] = [v / inv for v in A[col]]
+        b[col] /= inv
+        for r in range(n):
+            if r != col and A[r][col] != 0:
+                f = A[r][col]
+                A[r] = [a - f * c for a, c in zip(A[r], A[col])]
+                b[r] -= f * b[col]
+    return b
+
+
+def power_iteration(P, steps=4000):
+    n = len(P)
+    pi = [1.0 / n] * n
+    for _ in range(steps):
+        pi = [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]
+    return pi
+
+
+def simulate(P, steps=200000, start=0):
+    n = len(P)
+    counts = [0] * n
+    s = start
+    for _ in range(steps):
+        counts[s] += 1
+        r = rng.random()
+        acc = 0.0
+        for j in range(n):
+            acc += P[s][j]
+            if r &lt; acc:
+                s = j
+                break
+    return [c / steps for c in counts]
+
+
+chains = {
+    &quot;weather&quot;: [[0.8, 0.2], [0.4, 0.6]],
+    &quot;three states&quot;: [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]],
+    &quot;random surfer&quot;: [[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]],
+}
+
+for name, P in chains.items():
+    for row in P:
+        assert abs(sum(row) - 1.0) &lt; 1e-12, f&quot;{name}: rows must be stochastic&quot;
+    exact = stationary_exact(P)
+    power = power_iteration(P)
+    sim = simulate(P)
+    print(f&quot;{name}:&quot;)
+    print(f&quot;  exact (Fractions) : {[str(v) for v in exact]}&quot;)
+    print(f&quot;  power iteration   : {[round(v, 6) for v in power]}&quot;)
+    print(f&quot;  simulation        : {[round(v, 4) for v in sim]}&quot;)
+    for i in range(len(P)):
+        assert abs(float(exact[i]) - power[i]) &lt; 1e-9, (name, i)
+        assert abs(float(exact[i]) - sim[i]) &lt; 0.02, (name, i)
+    assert abs(sum(float(v) for v in exact) - 1.0) &lt; 1e-12
+    # pi P = pi, exactly
+    n = len(P)
+    for j in range(n):
+        lhs = sum(exact[i] * Fraction(P[i][j]).limit_denominator(10 ** 9)
+                  for i in range(n))
+        assert lhs == exact[j], f&quot;{name}: pi P = pi must hold exactly&quot;
+
+# the weather chain has a hand-checkable answer: pi = (2/3, 1/3)
+assert stationary_exact(chains[&quot;weather&quot;]) == [Fraction(2, 3), Fraction(1, 3)]
+print()
+print(&quot;the weather chain&#x27;s stationary distribution is exactly (2/3, 1/3)&quot;)
+
+# --- the long run forgets the start, which is ergodicity ---
+print()
+P = chains[&quot;three states&quot;]
+target = [float(v) for v in stationary_exact(P)]
+print(f&quot;{&#x27;start&#x27;:&gt;7} {&#x27;distribution after 200 steps&#x27;:&gt;34}&quot;)
+for start in range(3):
+    pi = [0.0] * 3
+    pi[start] = 1.0
+    for _ in range(200):
+        pi = [sum(pi[i] * P[i][j] for i in range(3)) for j in range(3)]
+    print(f&quot;{start:&gt;7} {str([round(v, 8) for v in pi]):&gt;34}&quot;)
+    assert max(abs(a - b) for a, b in zip(pi, target)) &lt; 1e-9, start
+print(&quot;every start converges to the same distribution: the chain is ergodic&quot;)
+
+# a PERIODIC chain does not converge, though it still has a stationary vector
+flip = [[0.0, 1.0], [1.0, 0.0]]
+assert stationary_exact(flip) == [Fraction(1, 2), Fraction(1, 2)]
+pi = [1.0, 0.0]
+seen = []
+for _ in range(6):
+    pi = [sum(pi[i] * flip[i][j] for i in range(2)) for j in range(2)]
+    seen.append(round(pi[0], 6))
+print(f&quot;a period-2 chain oscillates forever: {seen}&quot;)
+assert seen == [0.0, 1.0, 0.0, 1.0, 0.0, 1.0], seen
+assert abs(sum(seen) / len(seen) - 0.5) &lt; 1e-9, &quot;the time AVERAGE is still 1/2&quot;
+
+# --- gambler&#x27;s ruin against the closed form ---
+print()
+
+
+def ruin_closed(k, N, p):
+    if abs(p - 0.5) &lt; 1e-12:
+        return k / N
+    r = (1 - p) / p
+    return (1 - r ** k) / (1 - r ** N)
+
+
+def ruin_sim(k, N, p, trials=20000):
+    wins = 0
+    for _ in range(trials):
+        x = k
+        while 0 &lt; x &lt; N:
+            x += 1 if rng.random() &lt; p else -1
+        wins += (x == N)
+    return wins / trials
+
+
+print(f&quot;{&#x27;k&#x27;:&gt;4} {&#x27;N&#x27;:&gt;4} {&#x27;p&#x27;:&gt;6} {&#x27;closed form&#x27;:&gt;13} {&#x27;simulated&#x27;:&gt;11}&quot;)
+for k, N, p in ((5, 10, 0.5), (3, 10, 0.5), (50, 100, 0.49), (5, 10, 0.55)):
+    c, s = ruin_closed(k, N, p), ruin_sim(k, N, p, 4000)
+    print(f&quot;{k:&gt;4} {N:&gt;4} {p:&gt;6} {c:&gt;13.4f} {s:&gt;11.4f}&quot;)
+    assert abs(c - s) &lt; 0.03, (k, N, p, c, s)
+# the fair case is exactly k/N
+assert abs(ruin_closed(37, 100, 0.5) - 0.37) &lt; 1e-12
+# a 1% house edge is devastating over 100 steps
+assert ruin_closed(50, 100, 0.49) &lt; 0.15, &quot;a tiny edge compounds enormously&quot;
+print(f&quot;a 1% edge turns an even-money 50/50 into &quot;
+      f&quot;{ruin_closed(50, 100, 0.49):.3f}&quot;)
+
+# --- PageRank is a stationary distribution ---
+print()
+
+
+def pagerank(links, n, d=0.85, steps=300):
+    &quot;&quot;&quot;links[i] is the list of pages i points to.&quot;&quot;&quot;
+    pi = [1.0 / n] * n
+    for _ in range(steps):
+        nxt = [(1 - d) / n] * n
+        for i in range(n):
+            if links[i]:
+                share = d * pi[i] / len(links[i])   # COLUMN normalisation
+                for j in links[i]:
+                    nxt[j] += share
+            else:
+                for j in range(n):                  # a dangling node teleports
+                    nxt[j] += d * pi[i] / n
+        pi = nxt
+    return pi
+
+
+links = {0: [1, 2], 1: [2], 2: [0], 3: [0, 1, 2]}
+pr = pagerank(links, 4)
+print(f&quot;PageRank: {[round(v, 5) for v in pr]}&quot;)
+assert abs(sum(pr) - 1.0) &lt; 1e-9, &quot;it is a probability distribution&quot;
+assert pr[2] &gt; pr[0] &gt; pr[1] &gt; pr[3], &quot;page 2 is pointed at by everyone&quot;
+# page 3 has no inbound links, so it holds only the teleport mass
+assert abs(pr[3] - (1 - 0.85) / 4) &lt; 1e-9, &quot;no inbound links means teleport only&quot;
+# it really is a fixed point: another sweep changes nothing
+again = pagerank(links, 4, steps=1)
+pi = pr
+nxt = [(1 - 0.85) / 4] * 4
+for i in range(4):
+    for j in links[i]:
+        nxt[j] += 0.85 * pi[i] / len(links[i])
+assert max(abs(a - b) for a, b in zip(nxt, pr)) &lt; 1e-9, &quot;a fixed point&quot;
+print(&quot;  and it is a genuine fixed point of the surfer&#x27;s transition&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Four predictions.</p>
+<p><strong>First, Meera's wall.</strong> Mean sojourn time, in units of service time, should be exactly $\frac{1}{1-\rho}$ — so the jump from $\rho=0.70$ to $\rho=0.84$ should cost roughly a factor of 1.9, and adding a server should pay for itself twice over.</p>
+<p><strong>Second, Little's law holds</strong> on the simulated trace, with no formula consulted.</p>
+<p><strong>Third, the queue stretches rather than reshapes.</strong> The M/M/1 sojourn time should be <em>exactly</em> exponential at every utilisation — so <code>mean/median</code> should sit at $\frac{1}{\ln2}\approx1.443$ throughout — while the p99 in absolute terms explodes. The genuinely bad tail at scale should come from <strong>fan-out</strong>, where $E[\max\text{ of }N]=H_N$.</p>
+<p><strong>Fourth, Metropolis works</strong>: a chain built only from ratios of an unnormalised function should reproduce the normalised target.</p>
+<div class="lab demo" data-demo="m40-the-utilisation-wall">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Why latency explodes, Little&#x27;s law, and MCMC</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import log, exp, sqrt
+
+rng = random.Random(1909)
+
+
+def simulate_mm1(lam, mu, n_customers=40000, warmup=4000):
+    &quot;&quot;&quot;Event-driven M/M/1 by Lindley&#x27;s recursion. No formula is used.&quot;&quot;&quot;
+    wait = 0.0
+    arrival = 0.0
+    waits, sojourns, areas = [], [], []
+    prev_arrival = 0.0
+    for i in range(n_customers):
+        gap = -log(rng.random() or 1e-12) / lam        # Exp(lam)
+        arrival += gap
+        service = -log(rng.random() or 1e-12) / mu     # Exp(mu)
+        wait = max(0.0, wait + prev_service - gap) if i else 0.0
+        prev_service = service
+        if i &gt;= warmup:
+            waits.append(wait)
+            sojourns.append(wait + service)
+            areas.append(arrival)
+    return waits, sojourns, areas
+
+
+# --- 1. the wall ---
+MU = 1.0
+N_CUST, WARMUP = 120000, 12000
+print(&quot;M/M/1: mean sojourn time in units of service time&quot;)
+print(f&quot;{&#x27;rho&#x27;:&gt;6} {&#x27;theory 1/(1-rho)&#x27;:&gt;18} {&#x27;simulated&#x27;:&gt;12} {&#x27;theory L&#x27;:&gt;10} &quot;
+      f&quot;{&#x27;simulated L&#x27;:&gt;13}&quot;)
+results = {}
+for rho in (0.5, 0.7, 0.84, 0.9):
+    lam = rho * MU
+    waits, soj, _ = simulate_mm1(lam, MU, N_CUST, WARMUP)
+    w_sim = sum(soj) / len(soj)
+    w_theory = 1.0 / (1.0 - rho)
+    l_theory = rho / (1 - rho)
+    l_sim = lam * w_sim                      # Little&#x27;s law, applied
+    results[rho] = (w_sim, w_theory)
+    print(f&quot;{rho:&gt;6} {w_theory:&gt;18.3f} {w_sim:&gt;12.3f} {l_theory:&gt;10.3f} &quot;
+          f&quot;{l_sim:&gt;13.3f}&quot;)
+    assert abs(w_sim - w_theory) / w_theory &lt; 0.08, (rho, w_sim, w_theory)
+    assert abs(l_sim - l_theory) / l_theory &lt; 0.08, (rho, l_sim, l_theory)
+
+print()
+print(&quot;predicted: sojourn time is 1/(1-rho), a hyperbola with a wall at rho=1,&quot;)
+print(&quot;           NOT anything proportional to utilisation&quot;)
+ratio = results[0.84][1] / results[0.7][1]
+sim_ratio = results[0.84][0] / results[0.7][0]
+print(f&quot;measured : going from rho=0.70 to rho=0.84 is 20% more traffic;&quot;)
+print(f&quot;           theory says latency x{ratio:.2f}, simulation x{sim_ratio:.2f}&quot;)
+assert ratio &gt; 1.8, &quot;a fifth more load nearly doubles the latency&quot;
+assert abs(sim_ratio - ratio) / ratio &lt; 0.2
+print(f&quot;           dropping to rho=0.50 gives x{results[0.5][1]:.2f} service &quot;
+      f&quot;times, better than before the campaign&quot;)
+assert results[0.5][1] &lt; results[0.7][1], &quot;the extra server more than pays&quot;
+assert (1 / (1 - 0.99) - 1 / (1 - 0.98)) &gt; (1 / (1 - 0.5) - 1 / (1 - 0.0))
+print(&quot;           and the step from 98% to 99% costs more latency than the&quot;)
+print(&quot;           entire step from 0% to 50%&quot;)
+
+# --- 1b. a high-utilisation queue is hard even to MEASURE ---
+print()
+print(&quot;the same experiment at rho = 0.95, run five times independently&quot;)
+print(&quot;(each run is 120000 customers; the theoretical answer is 20.0)&quot;)
+hi, lo_rho = [], []
+for seed in (11, 22, 33, 44, 55):
+    rng.seed(seed)
+    _, soj, _ = simulate_mm1(0.95, MU, N_CUST, WARMUP)
+    hi.append(sum(soj) / len(soj))
+    rng.seed(seed)
+    _, soj2, _ = simulate_mm1(0.5, MU, N_CUST, WARMUP)
+    lo_rho.append(sum(soj2) / len(soj2))
+print(f&quot;  rho = 0.95 : {[round(v, 2) for v in hi]}&quot;)
+print(f&quot;  rho = 0.50 : {[round(v, 3) for v in lo_rho]}  (theory 2.0)&quot;)
+spread_hi = max(hi) / min(hi)
+spread_lo = max(lo_rho) / min(lo_rho)
+print(f&quot;  spread factor: {spread_hi:.3f} at rho=0.95, {spread_lo:.4f} at rho=0.50&quot;)
+print()
+print(&quot;predicted: near the wall the queue has long excursions, so the sample&quot;)
+print(&quot;           mean has a huge variance - the estimate is noisy even with&quot;)
+print(&quot;           120000 customers, while at rho=0.5 it is nailed down&quot;)
+assert spread_hi &gt; 1.2, &quot;the high-utilisation estimate must be visibly unstable&quot;
+assert spread_lo &lt; 1.05, &quot;the low-utilisation one must not be&quot;
+assert all(v &gt; 12.0 for v in hi), &quot;every run still shows the blow-up&quot;
+assert all(abs(v - 2.0) &lt; 0.1 for v in lo_rho), &quot;rho=0.5 is reproducible&quot;
+print(&quot;           This is why a load test at 95% utilisation does not&quot;)
+print(&quot;           reproduce: you are measuring a quantity that barely exists.&quot;)
+rng.seed(1909)
+
+# --- 2. Little&#x27;s law, measured directly ---
+print()
+lam, mu = 0.8, 1.0
+waits, soj, arrivals = simulate_mm1(lam, mu, n_customers=60000, warmup=10000)
+W = sum(soj) / len(soj)
+# L measured as a time average, independently of W
+span = arrivals[-1] - arrivals[0]
+L_timeavg = sum(soj) / span
+print(f&quot;Little&#x27;s law at rho = {lam / mu}&quot;)
+print(f&quot;  W (mean time in system)      = {W:.4f}&quot;)
+print(f&quot;  lambda * W                   = {lam * W:.4f}&quot;)
+print(f&quot;  L measured as a time average = {L_timeavg:.4f}&quot;)
+print(f&quot;  theory rho/(1-rho)           = {lam / mu / (1 - lam / mu):.4f}&quot;)
+assert abs(L_timeavg - lam * W) / (lam * W) &lt; 0.05, &quot;L = lambda W&quot;
+assert abs(L_timeavg - 4.0) / 4.0 &lt; 0.15
+print()
+print(&quot;predicted: L = lambda * W for ANY stable queue, whatever the&quot;)
+print(&quot;           distributions - and the trace confirms it with no formula used&quot;)
+
+# --- 3. the SHAPE is fixed; the SCALE is what explodes ---
+print()
+rng.seed(1909)
+print(&quot;M/M/1 sojourn time is exactly Exp(mu - lambda). The queue multiplies the&quot;)
+print(&quot;SCALE by 1/(1-rho) and leaves the shape completely alone.&quot;)
+print(f&quot;{&#x27;rho&#x27;:&gt;6} {&#x27;mean&#x27;:&gt;9} {&#x27;median&#x27;:&gt;9} {&#x27;p99&#x27;:&gt;9} {&#x27;p99/median&#x27;:&gt;12} &quot;
+      f&quot;{&#x27;mean/median&#x27;:&gt;13}&quot;)
+shape, p99s = [], []
+for rho in (0.5, 0.8, 0.95):
+    _, soj, _ = simulate_mm1(rho * MU, MU, 40000)
+    srt = sorted(soj)
+    med = srt[len(srt) // 2]
+    p99 = srt[int(0.99 * len(srt))]
+    mean = sum(srt) / len(srt)
+    shape.append(mean / med)
+    p99s.append(p99)
+    print(f&quot;{rho:&gt;6} {mean:&gt;9.3f} {med:&gt;9.3f} {p99:&gt;9.3f} {p99 / med:&gt;12.2f} &quot;
+          f&quot;{mean / med:&gt;13.3f}&quot;)
+    # for an exponential the mean is 1/ln(2) times the median, at every scale
+    assert abs(mean / med - 1.0 / log(2)) &lt; 0.12, (rho, mean / med)
+
+print()
+print(f&quot;predicted: for ANY exponential, mean/median = 1/ln(2) = &quot;
+      f&quot;{1 / log(2):.3f} and&quot;)
+print(f&quot;           p99/median = ln(100)/ln(2) = {log(100) / log(2):.3f}, &quot;
+      f&quot;at every utilisation&quot;)
+print(f&quot;measured : mean/median stayed within &quot;
+      f&quot;{max(abs(v - 1 / log(2)) for v in shape):.3f} of it throughout&quot;)
+assert max(shape) / min(shape) &lt; 1.2, &quot;the SHAPE is essentially unchanged&quot;
+# but the p99 in absolute terms blows up with the scale
+print(f&quot;measured : the p99 itself went from {p99s[0]:.1f} to {p99s[-1]:.1f} &quot;
+      f&quot;service times - a factor of {p99s[-1] / p99s[0]:.1f}&quot;)
+assert p99s[-1] / p99s[0] &gt; 4, &quot;the scale explodes even though the shape does not&quot;
+
+# --- 3b. where the tail at scale actually comes from: fan-out ---
+print()
+rng.seed(2013)
+print(&quot;A request that fans out to N backends waits for the SLOWEST of them.&quot;)
+print(&quot;For exponential latencies, E[max of N] = H_N = 1 + 1/2 + ... + 1/N.&quot;)
+print(f&quot;{&#x27;N&#x27;:&gt;6} {&#x27;H_N (theory)&#x27;:&gt;14} {&#x27;simulated&#x27;:&gt;12}&quot;)
+for N in (1, 10, 100):
+    H = sum(1.0 / k for k in range(1, N + 1))
+    trials = [max(-log(rng.random() or 1e-12) for _ in range(N))
+              for _ in range(3000)]
+    got = sum(trials) / len(trials)
+    print(f&quot;{N:&gt;6} {H:&gt;14.3f} {got:&gt;12.3f}&quot;)
+    assert abs(got - H) / H &lt; 0.05, (N, got, H)
+
+print()
+print(&quot;predicted: fan-out multiplies the typical latency by H_N ~ ln(N),&quot;)
+print(&quot;           and it does so ON TOP of the 1/(1-rho) from the queue&quot;)
+h100 = sum(1.0 / k for k in range(1, 101))
+print(f&quot;measured : at rho = 0.95 one call costs about 20 service times;&quot;)
+print(f&quot;           a 100-way fan-out costs about {20 * h100:.0f}&quot;)
+assert h100 &gt; 5.0, &quot;a 100-way fan-out costs over five times the single-call mean&quot;
+
+# --- 4. Metropolis samples from an unnormalised target ---
+print()
+
+
+def metropolis(f, x0, steps=200000, scale=1.0):
+    &quot;&quot;&quot;f need only be proportional to the target: the constant cancels.&quot;&quot;&quot;
+    x = x0
+    out = []
+    accepted = 0
+    for _ in range(steps):
+        y = x + rng.gauss(0, scale)
+        if rng.random() &lt; min(1.0, f(y) / f(x)):
+            x = y
+            accepted += 1
+        out.append(x)
+    return out, accepted / steps
+
+
+# target: a standard normal, given WITHOUT its 1/sqrt(2 pi)
+unnormalised = lambda t: exp(-t * t / 2)
+chain, acc = metropolis(unnormalised, 0.0, steps=120000, scale=2.0)
+burned = chain[20000:]
+m = sum(burned) / len(burned)
+v = sum((t - m) ** 2 for t in burned) / (len(burned) - 1)
+within1 = sum(1 for t in burned if abs(t) &lt;= 1) / len(burned)
+print(f&quot;Metropolis on exp(-x^2/2), which is NOT a normalised density&quot;)
+print(f&quot;  acceptance rate {acc:.3f}&quot;)
+print(f&quot;  mean {m:.4f} (target 0), variance {v:.4f} (target 1)&quot;)
+print(f&quot;  fraction within one sd {within1:.4f} (target 0.683)&quot;)
+assert abs(m) &lt; 0.05, m
+assert abs(v - 1.0) &lt; 0.08, v
+assert abs(within1 - 0.6827) &lt; 0.03, within1
+print()
+print(&quot;predicted: the normalising constant cancels in the ratio f(y)/f(x),&quot;)
+print(&quot;           so the chain finds the right distribution without knowing it&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the first table is Meera's postmortem. Going from $\rho=0.70$ to $\rho=0.84$ — twenty percent more traffic, well inside the "30% headroom" — multiplied the mean sojourn time by about 1.9 in both theory and simulation. The capacity plan treated utilisation as the thing being consumed; the thing actually being consumed is $1-\rho$, and at $\rho=0.7$ there was far less of it left than the dashboard suggested.</p>
+<p>The third table corrects a story that is often told loosely. It is tempting to say
+"the queue makes the latency heavy-tailed", and for M/M/1 that is simply false: the
+sojourn time is <em>exactly</em> exponential at every utilisation, and the measured
+<code>mean/median</code> sat at 1.443 — which is $\frac{1}{\ln2}$, the exponential's value — from
+$\rho=0.5$ all the way to $\rho=0.95$. The shape never moved.</p>
+<p>What moved was the <strong>scale</strong>, by $\frac{1}{1-\rho}$, and that is quite bad enough: the
+p99 went from 9.5 service times to 68. Then fan-out multiplies it again. A request
+touching 100 backends waits for the slowest, and $E[\max]=H_{100}\approx5.19$, so a
+100-way fan-out at $\rho=0.95$ costs around 104 service times where a single call costs
+20. <strong>That</strong> is the tail at scale: not an exotic input distribution, but two ordinary
+multipliers stacked on an ordinary exponential.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m40-ex1-chains" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>The Markov property and transition matrices</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>is_stochastic(P)</code> checking non-negativity and that every row sums to 1. Write <code>step(pi, P)</code> advancing a distribution one step, raising <code>ValueError</code> on a size mismatch. Write <code>n_step(pi, P, n)</code>. Write <code>matrix_power(P, n)</code>. Write <code>reachable(P, start)</code> returning the set of states reachable from a start. Write <code>is_irreducible(P)</code>.</p></div>
+<textarea class="code" spellcheck="false">def is_stochastic(P):
+    &quot;&quot;&quot;True when P is a valid row-stochastic matrix.&quot;&quot;&quot;
+    return False
+
+
+def step(pi, P):
+    &quot;&quot;&quot;Advance a distribution one step.&quot;&quot;&quot;
+    return []
+
+
+def n_step(pi, P, n):
+    &quot;&quot;&quot;Advance a distribution n steps.&quot;&quot;&quot;
+    return []
+
+
+def matrix_power(P, n):
+    &quot;&quot;&quot;The n-step transition matrix.&quot;&quot;&quot;
+    return []
+
+
+def reachable(P, start):
+    &quot;&quot;&quot;States reachable from start.&quot;&quot;&quot;
+    return set()
+
+
+def is_irreducible(P):
+    &quot;&quot;&quot;True when every state reaches every other.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_stochastic_and_stepping():
+    P = [[0.8, 0.2], [0.4, 0.6]]
+    assert is_stochastic(P) is True
+    assert is_stochastic([[0.5, 0.4], [0.4, 0.6]]) is False, &quot;a row misses 1&quot;
+    assert is_stochastic([[1.5, -0.5], [0.4, 0.6]]) is False, &quot;negative entry&quot;
+    assert is_stochastic([[1.0]]) is True
+    assert is_stochastic([]) is False
+    assert is_stochastic([[0.5, 0.5]]) is False, &quot;must be square&quot;
+    # stepping preserves total probability
+    pi = [1.0, 0.0]
+    for _ in range(10):
+        pi = step(pi, P)
+        assert abs(sum(pi) - 1.0) &lt; 1e-12
+        assert all(v &gt;= -1e-12 for v in pi)
+    # one step from a pure state just reads off the row
+    assert step([1.0, 0.0], P) == [0.8, 0.2]
+    assert step([0.0, 1.0], P) == [0.4, 0.6]
+    for bad in (lambda: step([1.0], P), lambda: n_step([1.0, 0.0], P, -1)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_chapman_kolmogorov():
+    P = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]
+    # n_step via repeated stepping must equal a row of P^n
+    for n in (0, 1, 2, 5, 13):
+        Pn = matrix_power(P, n)
+        assert is_stochastic(Pn), n
+        for start in range(3):
+            pi = [0.0] * 3
+            pi[start] = 1.0
+            assert max(abs(a - b) for a, b in zip(n_step(pi, P, n), Pn[start])) &lt; 1e-9
+    # P^0 is the identity
+    assert matrix_power(P, 0) == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]
+    assert matrix_power(P, 1) == P
+    # P^(a+b) = P^a P^b
+    A, B = matrix_power(P, 3), matrix_power(P, 4)
+    prod = [[sum(A[i][k] * B[k][j] for k in range(3)) for j in range(3)]
+            for i in range(3)]
+    seven = matrix_power(P, 7)
+    assert max(abs(prod[i][j] - seven[i][j]) for i in range(3)
+               for j in range(3)) &lt; 1e-9
+
+
+def test_reachability_and_irreducibility():
+    full = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]
+    assert reachable(full, 0) == {0, 1, 2}
+    assert is_irreducible(full) is True
+    # an absorbing state makes the chain reducible
+    absorbing = [[0.5, 0.5, 0.0], [0.0, 0.5, 0.5], [0.0, 0.0, 1.0]]
+    assert reachable(absorbing, 0) == {0, 1, 2}
+    assert reachable(absorbing, 2) == {2}, &quot;state 2 never leaves&quot;
+    assert is_irreducible(absorbing) is False
+    # two disconnected components
+    split = [[0.5, 0.5, 0.0, 0.0], [0.5, 0.5, 0.0, 0.0],
+             [0.0, 0.0, 0.5, 0.5], [0.0, 0.0, 0.5, 0.5]]
+    assert reachable(split, 0) == {0, 1}
+    assert reachable(split, 2) == {2, 3}
+    assert is_irreducible(split) is False
+    # a cycle is irreducible even though it is periodic
+    cycle = [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]
+    assert is_irreducible(cycle) is True
+    try:
+        reachable(full, 9)
+        assert False, &quot;an out-of-range state must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m40-ex2-stationary" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Stationary distributions, ergodicity and mixing</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>stationary_power(P, steps=5000)</code> by power iteration. Write <code>stationary_solve(P)</code> by exact Gaussian elimination on <code>pi P = pi</code> with <code>sum(pi) = 1</code>. Write <code>is_stationary(pi, P, tol=1e-9)</code>. Write <code>period(P, state)</code> returning the gcd of the return times found up to a horizon. Write <code>is_aperiodic(P)</code> and <code>is_ergodic(P)</code>. Write <code>detailed_balance(pi, P)</code> checking reversibility.</p></div>
+<textarea class="code" spellcheck="false">def stationary_power(P, steps=5000):
+    &quot;&quot;&quot;The stationary distribution, by power iteration.&quot;&quot;&quot;
+    return []
+
+
+def stationary_solve(P):
+    &quot;&quot;&quot;The stationary distribution, by solving the linear system.&quot;&quot;&quot;
+    return []
+
+
+def is_stationary(pi, P, tol=1e-9):
+    &quot;&quot;&quot;True when pi P = pi.&quot;&quot;&quot;
+    return False
+
+
+def period(P, state):
+    &quot;&quot;&quot;The period of a state.&quot;&quot;&quot;
+    return 0
+
+
+def is_aperiodic(P):
+    &quot;&quot;&quot;True when every state has period 1.&quot;&quot;&quot;
+    return False
+
+
+def is_ergodic(P):
+    &quot;&quot;&quot;True when the chain is irreducible and aperiodic.&quot;&quot;&quot;
+    return False
+
+
+def detailed_balance(pi, P, tol=1e-9):
+    &quot;&quot;&quot;True when pi_i P_ij = pi_j P_ji for all i, j.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_both_methods_agree():
+    chains = [
+        [[0.8, 0.2], [0.4, 0.6]],
+        [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]],
+        [[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]],
+    ]
+    for P in chains:
+        a = stationary_power(P)
+        b = stationary_solve(P)
+        assert max(abs(x - y) for x, y in zip(a, b)) &lt; 1e-8, P
+        assert abs(sum(b) - 1.0) &lt; 1e-9
+        assert all(v &gt;= -1e-12 for v in b)
+        assert is_stationary(b, P) is True
+    # a hand-checkable answer
+    w = stationary_solve([[0.8, 0.2], [0.4, 0.6]])
+    assert abs(w[0] - 2 / 3) &lt; 1e-9 and abs(w[1] - 1 / 3) &lt; 1e-9
+    # a doubly stochastic chain is uniform
+    u = stationary_solve([[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]])
+    assert all(abs(v - 1 / 3) &lt; 1e-9 for v in u)
+    assert is_stationary([0.5, 0.5], [[0.8, 0.2], [0.4, 0.6]]) is False
+    for bad in (lambda: stationary_power([[0.5, 0.4], [0.4, 0.6]]),
+                lambda: stationary_solve([])):
+        try:
+            bad()
+            assert False, &quot;an invalid matrix must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_periodicity_and_ergodicity():
+    # a two-state flip has period 2
+    flip = [[0.0, 1.0], [1.0, 0.0]]
+    assert period(flip, 0) == 2
+    assert is_aperiodic(flip) is False
+    assert is_ergodic(flip) is False, &quot;irreducible but periodic&quot;
+    # yet it still HAS a stationary distribution
+    assert is_stationary(stationary_solve(flip), flip) is True
+    assert abs(stationary_solve(flip)[0] - 0.5) &lt; 1e-9
+    # a 3-cycle has period 3
+    cyc = [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]
+    assert period(cyc, 0) == 3
+    assert is_ergodic(cyc) is False
+    # any self-loop breaks the periodicity
+    lazy = [[0.5, 0.5], [0.5, 0.5]]
+    assert period(lazy, 0) == 1
+    assert is_aperiodic(lazy) is True
+    assert is_ergodic(lazy) is True
+    # reducible chains are not ergodic even when aperiodic
+    red = [[1.0, 0.0], [0.5, 0.5]]
+    assert is_aperiodic(red) is True
+    assert is_ergodic(red) is False, &quot;state 0 is absorbing&quot;
+    assert is_ergodic([[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]) is True
+
+
+def test_ergodic_chains_forget_their_start():
+    P = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]
+    target = stationary_solve(P)
+    assert is_ergodic(P)
+    for start in range(3):
+        pi = [0.0] * 3
+        pi[start] = 1.0
+        for _ in range(300):
+            pi = [sum(pi[i] * P[i][j] for i in range(3)) for j in range(3)]
+        assert max(abs(a - b) for a, b in zip(pi, target)) &lt; 1e-9, start
+    # a PERIODIC chain never converges, however long you wait
+    flip = [[0.0, 1.0], [1.0, 0.0]]
+    pi = [1.0, 0.0]
+    for _ in range(1000):
+        pi = [sum(pi[i] * flip[i][j] for i in range(2)) for j in range(2)]
+    assert abs(pi[0] - 1.0) &lt; 1e-12, &quot;it is exactly back where it started&quot;
+    assert max(abs(a - b) for a, b in zip(pi, [0.5, 0.5])) &gt; 0.4
+    # detailed balance: the weather chain is reversible, a 3-cycle is not
+    w = [[0.8, 0.2], [0.4, 0.6]]
+    assert detailed_balance(stationary_solve(w), w) is True
+    cyc = [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]
+    assert detailed_balance([1 / 3] * 3, cyc) is False, &quot;a cycle is not reversible&quot;
+    # but detailed balance is only SUFFICIENT: the cycle is still stationary
+    assert is_stationary([1 / 3] * 3, cyc) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m40-ex3-walks" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Random walks, gambler&#x27;s ruin and hitting times</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>ruin_probability(k, N, p)</code> returning the probability of reaching <code>N</code> before 0, raising <code>ValueError</code> unless <code>0 &lt;= k &lt;= N</code> and <code>0 &lt; p &lt; 1</code>. Write <code>expected_duration(k, N, p)</code> returning the expected number of steps. Write <code>walk_once(k, N, p, randfunc)</code> returning the final state. Write <code>hitting_times(P, target)</code> solving the linear system for expected steps to reach a target state. Write <code>return_probability_1d(steps)</code> estimating the chance a fair walk is back at the origin after an even number of steps.</p></div>
+<textarea class="code" spellcheck="false">def ruin_probability(k, N, p):
+    &quot;&quot;&quot;P(reach N before 0 | start at k).&quot;&quot;&quot;
+    return 0.0
+
+
+def expected_duration(k, N, p):
+    &quot;&quot;&quot;Expected number of steps until absorption.&quot;&quot;&quot;
+    return 0.0
+
+
+def walk_once(k, N, p, randfunc):
+    &quot;&quot;&quot;Simulate one walk to absorption.&quot;&quot;&quot;
+    return 0
+
+
+def hitting_times(P, target):
+    &quot;&quot;&quot;Expected steps to reach the target from each state.&quot;&quot;&quot;
+    return []
+
+
+def return_probability_1d(steps):
+    &quot;&quot;&quot;P(a fair walk is at the origin after `steps` steps).&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_ruin_probabilities():
+    # the fair case is exactly k/N
+    for N in (10, 100, 37):
+        for k in range(N + 1):
+            assert abs(ruin_probability(k, N, 0.5) - k / N) &lt; 1e-12, (k, N)
+    # the boundaries are absorbing
+    assert ruin_probability(0, 10, 0.7) == 0.0
+    assert ruin_probability(10, 10, 0.3) == 1.0
+    # a favourable walk does better than fair, an unfavourable one worse
+    assert ruin_probability(5, 10, 0.55) &gt; 0.5
+    assert ruin_probability(5, 10, 0.45) &lt; 0.5
+    assert abs(ruin_probability(5, 10, 0.55)
+               + ruin_probability(5, 10, 0.45) - 1.0) &lt; 1e-12, &quot;symmetry&quot;
+    # a 1% house edge is devastating over 100 steps
+    assert ruin_probability(50, 100, 0.49) &lt; 0.15
+    assert ruin_probability(50, 100, 0.499) &lt; 0.46
+    # monotone in the starting stake
+    vals = [ruin_probability(k, 20, 0.48) for k in range(21)]
+    assert all(a &lt; b for a, b in zip(vals, vals[1:]))
+    for bad in (lambda: ruin_probability(11, 10, 0.5),
+                lambda: ruin_probability(5, 10, 0.0),
+                lambda: ruin_probability(-1, 10, 0.5)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_durations_and_simulation():
+    import random
+    rng = random.Random(1921)
+    # the fair case is exactly k(N-k)
+    assert abs(expected_duration(5, 10, 0.5) - 25.0) &lt; 1e-9
+    assert abs(expected_duration(50, 100, 0.5) - 2500.0) &lt; 1e-9
+    assert expected_duration(0, 10, 0.5) == 0.0
+    assert expected_duration(10, 10, 0.5) == 0.0
+    # it is maximal in the middle
+    d = [expected_duration(k, 20, 0.5) for k in range(21)]
+    assert d.index(max(d)) == 10
+    # simulation agrees with the closed forms
+    for k, N, p in ((5, 10, 0.5), (3, 8, 0.6), (7, 12, 0.45)):
+        wins = sum(walk_once(k, N, p, rng.random) == N for _ in range(4000))
+        assert abs(wins / 4000 - ruin_probability(k, N, p)) &lt; 0.03, (k, N, p)
+    # a biased walk absorbs faster than a fair one from the same start
+    assert expected_duration(5, 10, 0.5) &gt; expected_duration(5, 10, 0.8)
+
+
+def test_hitting_times_and_recurrence():
+    # a two-state chain: from state 0 the expected steps to reach 1 is 1/P01
+    P = [[0.8, 0.2], [0.4, 0.6]]
+    h = hitting_times(P, 1)
+    assert abs(h[1]) &lt; 1e-12
+    assert abs(h[0] - 5.0) &lt; 1e-9, &quot;a geometric wait with p = 0.2&quot;
+    # a three-state chain, checked against simulation
+    import random
+    rng = random.Random(1906)
+    Q = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]
+    h = hitting_times(Q, 2)
+    for start in (0, 1):
+        total = 0
+        for _ in range(3000):
+            s, n = start, 0
+            while s != 2:
+                r, acc = rng.random(), 0.0
+                for j in range(3):
+                    acc += Q[s][j]
+                    if r &lt; acc:
+                        s = j
+                        break
+                n += 1
+            total += n
+        assert abs(total / 3000 - h[start]) / h[start] &lt; 0.08, start
+    # the 1-D return probability decays like 1/sqrt(pi n)
+    from math import pi, sqrt
+    assert return_probability_1d(1) == 0.0, &quot;odd steps can never return&quot;
+    assert abs(return_probability_1d(0) - 1.0) &lt; 1e-12
+    assert abs(return_probability_1d(2) - 0.5) &lt; 1e-12
+    for n in (100, 1000, 10000):
+        approx = 1.0 / sqrt(pi * (n / 2))
+        assert abs(return_probability_1d(n) - approx) / approx &lt; 0.02, n
+    # the sum of return probabilities diverges, which is why the 1-D walk is
+    # recurrent: it returns with probability 1
+    # comb(7998, 3999) is a 2400-digit integer; 500 terms make the point and
+    # cost a thousandth of the time
+    assert sum(return_probability_1d(2 * m) for m in range(1, 500)) &gt; 20
+    try:
+        hitting_times([[1.0, 0.0], [0.0, 1.0]], 1)
+        assert False, &quot;an unreachable target must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m40-ex4-pagerank" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>PageRank and Metropolis MCMC</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>out_degree(links, n)</code>. Write <code>pagerank(links, n, d=0.85, steps=200)</code> handling dangling nodes by teleporting their mass uniformly. Write <code>pagerank_is_fixed_point(pr, links, n, d=0.85)</code>. Write <code>metropolis_step(x, f, propose, randfunc)</code> returning the next state. Write <code>metropolis_chain(f, x0, propose, randfunc, steps)</code>. Write <code>acceptance_probability(fx, fy)</code> returning <code>min(1, fy/fx)</code>, raising <code>ValueError</code> for a non-positive <code>fx</code>.</p></div>
+<textarea class="code" spellcheck="false">def out_degree(links, n):
+    &quot;&quot;&quot;The number of outbound links from each page.&quot;&quot;&quot;
+    return []
+
+
+def pagerank(links, n, d=0.85, steps=200):
+    &quot;&quot;&quot;The PageRank vector.&quot;&quot;&quot;
+    return []
+
+
+def pagerank_is_fixed_point(pr, links, n, d=0.85, tol=1e-6):
+    &quot;&quot;&quot;True when one more sweep changes nothing.&quot;&quot;&quot;
+    return False
+
+
+def acceptance_probability(fx, fy):
+    &quot;&quot;&quot;min(1, fy/fx).&quot;&quot;&quot;
+    return 0.0
+
+
+def metropolis_step(x, f, propose, randfunc):
+    &quot;&quot;&quot;One Metropolis step.&quot;&quot;&quot;
+    return 0.0
+
+
+def metropolis_chain(f, x0, propose, randfunc, steps):
+    &quot;&quot;&quot;A whole Metropolis chain.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pagerank_basics():
+    links = {0: [1, 2], 1: [2], 2: [0], 3: [0, 1, 2]}
+    assert out_degree(links, 4) == [2, 1, 1, 3]
+    assert out_degree({}, 3) == [0, 0, 0]
+    pr = pagerank(links, 4)
+    assert abs(sum(pr) - 1.0) &lt; 1e-9, &quot;it is a probability distribution&quot;
+    assert all(v &gt; 0 for v in pr), &quot;teleporting gives every page some mass&quot;
+    assert pagerank_is_fixed_point(pr, links, 4) is True
+    # page 3 has no inbound links, so it holds exactly the teleport share
+    assert abs(pr[3] - (1 - 0.85) / 4) &lt; 1e-6
+    # page 2 is pointed to by everyone and ranks highest
+    assert pr[2] == max(pr)
+    # a symmetric graph gives a uniform ranking
+    ring = {0: [1], 1: [2], 2: [0]}
+    assert all(abs(v - 1 / 3) &lt; 1e-6 for v in pagerank(ring, 3))
+    for bad in (lambda: pagerank({0: [9]}, 2), lambda: pagerank({}, 0),
+                lambda: pagerank({0: [1]}, 2, d=1.5)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_pagerank_handles_dangling_nodes_and_damping():
+    # a page with no outlinks must not swallow all the probability
+    dangling = {0: [1], 1: []}
+    pr = pagerank(dangling, 2)
+    assert abs(sum(pr) - 1.0) &lt; 1e-9, &quot;no mass may leak away&quot;
+    assert all(v &gt; 0.1 for v in pr)
+    assert pagerank_is_fixed_point(pr, dangling, 2) is True
+    # a rank sink: a 2-cycle that the rest of the graph feeds
+    sink = {0: [2], 1: [2], 2: [3], 3: [2]}
+    pr = pagerank(sink, 4)
+    assert abs(sum(pr) - 1.0) &lt; 1e-9
+    assert pr[2] &gt; pr[0] and pr[3] &gt; pr[0]
+    assert pr[0] &gt; 0, &quot;damping stops the sink taking everything&quot;
+    # less damping flattens the ranking towards uniform
+    links = {0: [1, 2], 1: [2], 2: [0], 3: [0, 1, 2]}
+    flat = pagerank(links, 4, d=0.1)
+    sharp = pagerank(links, 4, d=0.95)
+    spread = lambda v: max(v) - min(v)
+    assert spread(flat) &lt; spread(sharp), &quot;more damping means more spread&quot;
+    assert all(abs(v - 0.25) &lt; 0.1 for v in flat)
+
+
+def test_metropolis_samples_an_unnormalised_target():
+    import random
+    from math import exp, sqrt
+    rng = random.Random(1953)
+    assert abs(acceptance_probability(1.0, 0.5) - 0.5) &lt; 1e-12
+    assert acceptance_probability(0.5, 1.0) == 1.0, &quot;always accept an uphill move&quot;
+    assert acceptance_probability(1.0, 1.0) == 1.0
+    try:
+        acceptance_probability(0.0, 1.0)
+        assert False, &quot;a zero current density must raise ValueError&quot;
+    except ValueError:
+        pass
+    # sample from exp(-x^2/2), deliberately NOT normalised
+    f = lambda t: exp(-t * t / 2)
+    propose = lambda t: t + rng.gauss(0, 2.0)
+    chain = metropolis_chain(f, 0.0, propose, rng.random, 60000)
+    burned = chain[10000:]
+    m = sum(burned) / len(burned)
+    v = sum((t - m) ** 2 for t in burned) / (len(burned) - 1)
+    assert abs(m) &lt; 0.06, m
+    assert abs(v - 1.0) &lt; 0.1, v
+    within1 = sum(1 for t in burned if abs(t) &lt;= 1) / len(burned)
+    assert abs(within1 - 0.6827) &lt; 0.04, within1
+    # scaling the target by any constant changes nothing: the ratio cancels
+    g = lambda t: 1234.5 * exp(-t * t / 2)
+    rng2 = random.Random(1953)
+    propose2 = lambda t: t + rng2.gauss(0, 2.0)
+    chain2 = metropolis_chain(g, 0.0, propose2, rng2.random, 60000)
+    assert max(abs(a - b) for a, b in zip(chain, chain2)) &lt; 1e-12, \
+        &quot;an unnormalised target gives an identical chain&quot;
+    try:
+        metropolis_chain(f, 0.0, propose, rng.random, 0)
+        assert False, &quot;zero steps must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m40-ex5-queues" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>The Poisson process, M/M/1, Little&#x27;s law and value iteration</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>poisson_pmf(lam, t, k)</code> for the count in a window. Write <code>exponential_interarrival(lam, u)</code> by inverse CDF. Write <code>mm1_metrics(lam, mu)</code> returning a dict with <code>rho</code>, <code>L</code>, <code>W</code>, <code>Lq</code>, <code>Wq</code>, <code>p0</code>, raising <code>ValueError</code> unless the queue is stable. Write <code>mm1_state_probability(lam, mu, n)</code>. Write <code>littles_law(lam, W)</code> returning <code>lam*W</code>. Write <code>latency_multiplier(rho)</code> returning <code>1/(1-rho)</code>. Write <code>value_iteration(P, R, gamma, iters)</code> for an MDP given <code>P[s][a]</code> as a list of <code>(prob, next_state, reward)</code> triples.</p></div>
+<textarea class="code" spellcheck="false">def poisson_pmf(lam, t, k):
+    &quot;&quot;&quot;P(k arrivals in a window of length t).&quot;&quot;&quot;
+    return 0.0
+
+
+def exponential_interarrival(lam, u):
+    &quot;&quot;&quot;One interarrival time from a uniform u.&quot;&quot;&quot;
+    return 0.0
+
+
+def mm1_metrics(lam, mu):
+    &quot;&quot;&quot;The standard M/M/1 quantities.&quot;&quot;&quot;
+    return {}
+
+
+def mm1_state_probability(lam, mu, n):
+    &quot;&quot;&quot;P(n customers in the system).&quot;&quot;&quot;
+    return 0.0
+
+
+def littles_law(lam, W):
+    &quot;&quot;&quot;L = lambda * W.&quot;&quot;&quot;
+    return 0.0
+
+
+def latency_multiplier(rho):
+    &quot;&quot;&quot;Sojourn time in units of service time.&quot;&quot;&quot;
+    return 0.0
+
+
+def value_iteration(P, R, gamma, iters=500):
+    &quot;&quot;&quot;Optimal values and policy for an MDP.&quot;&quot;&quot;
+    return ([], [])
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_poisson_process_pieces():
+    from math import exp
+    # the pmf sums to 1 over all counts
+    assert abs(sum(poisson_pmf(2.0, 3.0, k) for k in range(80)) - 1.0) &lt; 1e-9
+    # mean is lam*t
+    m = sum(k * poisson_pmf(2.0, 3.0, k) for k in range(80))
+    assert abs(m - 6.0) &lt; 1e-6
+    assert abs(poisson_pmf(1.0, 1.0, 0) - exp(-1.0)) &lt; 1e-12
+    assert abs(poisson_pmf(5.0, 0.0, 0) - 1.0) &lt; 1e-12, &quot;no time, no arrivals&quot;
+    # interarrivals: inverse CDF, with mean 1/lam
+    import random
+    rng = random.Random(1909)
+    lam = 2.5
+    gaps = [exponential_interarrival(lam, rng.random()) for _ in range(100000)]
+    assert abs(sum(gaps) / len(gaps) - 1 / lam) &lt; 0.01
+    assert all(g &gt;= 0 for g in gaps)
+    # the counts really are Poisson: simulate a window and compare
+    counts = []
+    for _ in range(20000):
+        t, k = 0.0, 0
+        while True:
+            t += exponential_interarrival(lam, rng.random())
+            if t &gt; 2.0:
+                break
+            k += 1
+        counts.append(k)
+    for k in range(0, 12):
+        emp = sum(1 for c in counts if c == k) / len(counts)
+        assert abs(emp - poisson_pmf(lam, 2.0, k)) &lt; 0.012, k
+    for bad in (lambda: poisson_pmf(-1.0, 1.0, 1),
+                lambda: exponential_interarrival(1.0, 1.0)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_mm1_and_the_utilisation_wall():
+    m = mm1_metrics(0.5, 1.0)
+    assert abs(m[&quot;rho&quot;] - 0.5) &lt; 1e-12
+    assert abs(m[&quot;L&quot;] - 1.0) &lt; 1e-12
+    assert abs(m[&quot;W&quot;] - 2.0) &lt; 1e-12
+    assert abs(m[&quot;Lq&quot;] - 0.5) &lt; 1e-12
+    assert abs(m[&quot;Wq&quot;] - 1.0) &lt; 1e-12
+    assert abs(m[&quot;p0&quot;] - 0.5) &lt; 1e-12
+    # the state distribution is geometric and sums to 1
+    assert abs(sum(mm1_state_probability(0.8, 1.0, n) for n in range(400))
+               - 1.0) &lt; 1e-6
+    assert abs(mm1_state_probability(0.8, 1.0, 0) - 0.2) &lt; 1e-12
+    # Little&#x27;s law ties L and W together
+    for lam in (0.3, 0.5, 0.9, 0.99):
+        mm = mm1_metrics(lam, 1.0)
+        assert abs(littles_law(lam, mm[&quot;W&quot;]) - mm[&quot;L&quot;]) &lt; 1e-9, lam
+        assert abs(littles_law(lam, mm[&quot;Wq&quot;]) - mm[&quot;Lq&quot;]) &lt; 1e-9, lam
+        assert abs(mm[&quot;W&quot;] - mm[&quot;Wq&quot;] - 1.0) &lt; 1e-9, &quot;W = Wq + service time&quot;
+    # the wall
+    assert abs(latency_multiplier(0.0) - 1.0) &lt; 1e-12
+    assert abs(latency_multiplier(0.5) - 2.0) &lt; 1e-12
+    assert abs(latency_multiplier(0.9) - 10.0) &lt; 1e-12
+    assert abs(latency_multiplier(0.99) - 100.0) &lt; 1e-12
+    # Meera&#x27;s campaign: 20% more traffic at rho = 0.7
+    jump = latency_multiplier(0.84) / latency_multiplier(0.70)
+    assert jump &gt; 1.8, jump
+    # the last 1% costs more than the first 50%
+    assert (latency_multiplier(0.99) - latency_multiplier(0.98)) &gt; \
+           (latency_multiplier(0.5) - latency_multiplier(0.0))
+    for bad in (lambda: mm1_metrics(1.0, 1.0), lambda: mm1_metrics(2.0, 1.0),
+                lambda: latency_multiplier(1.0)):
+        try:
+            bad()
+            assert False, &quot;an unstable queue must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_value_iteration_converges_to_the_optimum():
+    # Two states. In state 0, action 0 stays (reward 0) and action 1 moves to
+    # the paying state 1 (reward 0). State 1 pays 1 per step and stays.
+    P = [
+        [[(1.0, 0, 0.0)], [(1.0, 1, 0.0)]],
+        [[(1.0, 1, 1.0)]],
+    ]
+    gamma = 0.9
+    V, policy = value_iteration(P, None, gamma)
+    # V[1] = 1 + gamma V[1] = 1/(1-gamma) = 10
+    assert abs(V[1] - 1 / (1 - gamma)) &lt; 1e-6, V
+    # V[0] = gamma * V[1] = 9
+    assert abs(V[0] - gamma * V[1]) &lt; 1e-6, V
+    assert policy[0] == 1, &quot;it must choose to move to the paying state&quot;
+    # the Bellman equation holds at the fixed point
+    for s in range(2):
+        best = max(sum(p * (r + gamma * V[sp]) for p, sp, r in P[s][a])
+                   for a in range(len(P[s])))
+        assert abs(V[s] - best) &lt; 1e-6, s
+    # a smaller discount values the future less
+    V2, _ = value_iteration(P, None, 0.5)
+    assert V2[1] &lt; V[1] and abs(V2[1] - 2.0) &lt; 1e-6
+    # convergence is geometric: the error falls by gamma each sweep
+    # the error falls like gamma^n, so reaching 1e-6 from V* = 10 needs about
+    # log(1e-7)/log(0.9) = 153 sweeps - 40 is nowhere near enough
+    errs = []
+    for it in (5, 20, 80, 250):
+        Vi, _ = value_iteration(P, None, gamma, iters=it)
+        errs.append(abs(Vi[1] - 10.0))
+    assert all(a &gt; b for a, b in zip(errs, errs[1:])), errs
+    assert abs(errs[0] - 10 * gamma ** 5) &lt; 1e-6, &quot;geometric decay at rate gamma&quot;
+    assert errs[-1] &lt; 1e-6, errs
+    # a stochastic action is handled correctly
+    Q = [[[(0.5, 0, 0.0), (0.5, 1, 2.0)]], [[(1.0, 1, 0.0)]]]
+    Vq, _ = value_iteration(Q, None, 0.0)
+    assert abs(Vq[0] - 1.0) &lt; 1e-9, &quot;with gamma 0 it is the expected reward&quot;
+    try:
+        value_iteration(P, None, 1.0)
+        assert False, &quot;gamma = 1 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"70% utilisation means 30% headroom."</strong> The quantity that matters is $1-\rho$, and latency goes as $\frac{1}{1-\rho}$. At $\rho=0.7$ you are already paying 3.3× service time, and the remaining 30% buys far less than it looks.</li>
+<li><strong>"Latency grows smoothly with load."</strong> It grows hyperbolically, with a vertical wall at $\rho=1$. The last 1% of a server costs more latency than the first 50%.</li>
+<li><strong>"A queue at $\rho=1$ is perfectly efficient."</strong> It is unstable: the queue grows without bound. You need $\rho&lt;1$ strictly, and in practice well below.</li>
+<li><strong>"The queue makes the latency distribution heavy-tailed."</strong> For M/M/1 it does not: the sojourn time is <em>exactly</em> exponential at every utilisation, with <code>mean/median</code> pinned at $\frac{1}{\ln2}$. What the queue multiplies is the <strong>scale</strong>, by $\frac{1}{1-\rho}$. A genuinely worse <em>shape</em> needs non-exponential service (M/G/1, where Pollaczek-Khinchine makes the wait grow with the service-time variance) or fan-out, where you wait for the maximum of $N$.</li>
+<li><strong>"A stationary distribution means the chain settles down."</strong> It means the <em>distribution</em> is unchanged, not the state. The chain keeps moving forever; only the long-run proportions are fixed.</li>
+<li><strong>"Every chain converges to its stationary distribution."</strong> Only ergodic ones. A periodic chain oscillates forever, though its <em>time average</em> still equals $\pi$.</li>
+<li><strong>"Detailed balance is required for stationarity."</strong> It is sufficient, not necessary. A directed cycle has a stationary distribution and is not reversible.</li>
+<li><strong>"PageRank's damping factor is a hack."</strong> It is what makes the chain irreducible and aperiodic, which is what guarantees a unique answer at all. Without it the limit may not exist.</li>
+<li><strong>"A longer MCMC run is always better."</strong> Only after mixing. Samples before convergence are from the wrong distribution, and consecutive samples are correlated, so the effective sample size is far below the chain length.</li>
+<li><strong>"The Markov property means the past does not matter."</strong> It means the past does not matter <em>given the present</em>. Choosing a state that captures enough history is the modelling work.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>M/M/1 assumes Poisson arrivals and exponential service, and real traffic is neither. Arrivals are bursty and correlated, service times are often heavy-tailed, and both make things <strong>worse</strong> than the formulas predict. The Pollaczek-Khinchine formula for M/G/1 shows waiting time growing with the <em>variance</em> of service time, so two systems with identical means and utilisations can have wildly different latencies.</p>
+<p>The Markov property itself is the strongest assumption. Real systems have memory: a retry storm depends on what happened thirty seconds ago, and a cache's hit rate depends on the whole access history. Expanding the state to restore the Markov property is possible in principle and usually explodes combinatorially.</p>
+<p>Little's law is remarkably robust but needs a <strong>stable</strong> system observed over a long enough window. Applied to a transient overload or a short sample it gives nonsense.</p>
+<p>For MDPs, value iteration costs $O(|S|^2|A|)$ per sweep, which is hopeless for large state spaces — hence function approximation, and with it the loss of the convergence guarantee that made the method attractive. Q-learning's convergence proof needs every state-action pair visited infinitely often, which no real exploration schedule satisfies.</p>
+<p>And MCMC has no reliable stopping rule. Convergence diagnostics can detect some failures but <strong>cannot prove</strong> a chain has mixed; a chain stuck in one mode of a multimodal target looks perfectly converged by every standard test.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Capacity planning is this module. Target utilisation of 60-70% for latency-sensitive services is not conservatism; it is $\frac{1}{1-\rho}$ priced in. Autoscaling thresholds, the "queue depth" alarms that fire before CPU alarms, and the practice of adding capacity at 70% rather than 90% all come from the same hyperbola.</p>
+<p>Little's law is the quickest back-of-envelope tool in systems work: with 1000 requests per second and a 200 ms mean latency, there are 200 requests in flight — which sizes your connection pool and your thread count immediately, with no further modelling.</p>
+<p>Tail latency is the daily consequence. Jeff Dean's "The Tail at Scale" observes that a request fanning out to 100 servers waits for the slowest, so a p99 becomes a near-certainty. Hedged requests, tied requests and load shedding are all responses to queueing, and knowing where the tail comes from is what makes them make sense.</p>
+<p>Elsewhere, MCMC is the engine of Bayesian inference (Stan, PyMC) and of the diffusion models behind image generation. MDPs and Q-learning are reinforcement learning, including RLHF. PageRank variants rank in recommendation and fraud graphs. Hidden Markov models still do speech and bioinformatics sequence alignment. And rate limiters, retry budgets and circuit breakers are all queue-management devices whose purpose is to keep $\rho$ off the wall.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the Markov property?</p></div><div class="a" hidden><p>The next state depends only on the current state, not on the path taken to reach it. It is what turns a simulation into linear algebra.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is a stationary distribution, algebraically?</p></div><div class="a" hidden><p>A probability vector pi with pi P = pi — a LEFT eigenvector of P for eigenvalue 1. Existence is guaranteed; uniqueness needs irreducibility.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does ergodic mean and what does it buy?</p></div><div class="a" hidden><p>Irreducible plus aperiodic. It guarantees a unique stationary distribution, reached from every starting state, equal to the long-run fraction of time in each state.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Give the gambler's ruin probability for a fair walk and for a biased one.</p></div><div class="a" hidden><p>Fair: k/N. Biased: (1 - r^k)/(1 - r^N) with r = q/p. A 1% edge turns a 50/50 start on a 100-step board into about 0.12.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why does PageRank need a damping factor?</p></div><div class="a" hidden><p>The teleport makes the chain irreducible and aperiodic, so a unique stationary distribution exists and power iteration converges. It also fixes dangling nodes and rank sinks.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the key idea of Metropolis-Hastings?</p></div><div class="a" hidden><p>Build a chain whose stationary distribution IS the target, accepting with min(1, f(y)/f(x)). The unknown normalising constant cancels in the ratio.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Give L, W and the stability condition for an M/M/1 queue.</p></div><div class="a" hidden><p>rho = lambda/mu must be &lt; 1. L = rho/(1-rho), W = 1/(mu - lambda). The state distribution is geometric: p_n = (1-rho) rho^n.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>State Little's law and say how general it is.</p></div><div class="a" hidden><p>L = lambda * W. It holds for ANY stable queueing system — any arrival process, service distribution or scheduling discipline.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Why does latency explode as utilisation approaches 1?</p></div><div class="a" hidden><p>Sojourn time in units of service time is 1/(1-rho), which is the pole of the geometric series sum n rho^(n-1) = 1/(1-rho)^2. It is a hyperbola, not a line.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>Does an M/M/1 queue make latency heavy-tailed?</p></div><div class="a" hidden><p>No. Its sojourn time is exactly exponential at every utilisation — mean/median stays at 1/ln(2). The queue multiplies the SCALE by 1/(1-rho). A worse SHAPE comes from non-exponential service or from fan-out, where you wait for the max of N.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="10"><div class="q"><p>Why does value iteration converge?</p></div><div class="a" hidden><p>The Bellman operator is a gamma-contraction in the sup norm, so Banach's fixed point theorem gives a unique fixed point reached geometrically. This needs gamma &lt; 1.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="11"><div class="q"><p>What does Q-learning learn, and what does it not need?</p></div><div class="a" hidden><p>It learns Q(s,a) from sampled transitions and does NOT need the transition model P. It needs sufficient exploration and a decreasing step size.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to Meera's team why 70% utilisation is not 30% headroom, you can derive $p_n=(1-\rho)\rho^n$ from balance and get $\frac{\rho}{1-\rho}$ out of it, you can state Little's law and use it on the spot to size a thread pool, you can say what a queue does and does not do to the shape of a latency distribution, you can write $\pi P=\pi$ and say what irreducibility and aperiodicity each buy, you can explain why PageRank's damping factor is load-bearing rather than cosmetic, you can say why the normalising constant cancels in Metropolis, you can prove value iteration converges and say what breaks at $\gamma=1$, and you pass the boss exercise without hints.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Sheldon Ross, <em>Introduction to Probability Models</em>, 12th edition, Academic Press.</li>
+<li>James R. Norris, <em>Markov Chains</em>, Cambridge University Press, 1997.</li>
+<li>Leonard Kleinrock, <em>Queueing Systems, Volume 1: Theory</em>, Wiley, 1975.</li>
+<li>Richard S. Sutton and Andrew G. Barto, <em>Reinforcement Learning: An Introduction</em>, 2nd edition, MIT Press, 2018.</li>
+<li>Lawrence Page, Sergey Brin, Rajeev Motwani and Terry Winograd, "The PageRank Citation Ranking: Bringing Order to the Web", Stanford technical report, 1998.</li>
+<li>Jeffrey Dean and Luiz André Barroso, "The Tail at Scale", <em>Communications of the ACM</em>, 2013.</li>
+</ul></section>
+<footer class="pager"><a href="M39.html">&larr; M39 Fourier analysis and signals</a>
+<a href="V16.html">V16 Automated reasoning: SAT, SMT and model checking &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M40", "packages": [], "exercises": {"m40-ex1-chains": {"starter": "def is_stochastic(P):\n    \"\"\"True when P is a valid row-stochastic matrix.\"\"\"\n    return False\n\n\ndef step(pi, P):\n    \"\"\"Advance a distribution one step.\"\"\"\n    return []\n\n\ndef n_step(pi, P, n):\n    \"\"\"Advance a distribution n steps.\"\"\"\n    return []\n\n\ndef matrix_power(P, n):\n    \"\"\"The n-step transition matrix.\"\"\"\n    return []\n\n\ndef reachable(P, start):\n    \"\"\"States reachable from start.\"\"\"\n    return set()\n\n\ndef is_irreducible(P):\n    \"\"\"True when every state reaches every other.\"\"\"\n    return False\n", "solution": "def is_stochastic(P):\n    \"\"\"True when P is a valid row-stochastic matrix.\"\"\"\n    if not P or any(len(row) != len(P) for row in P):\n        return False\n    if any(v < -1e-12 for row in P for v in row):\n        return False\n    return all(abs(sum(row) - 1.0) < 1e-9 for row in P)\n\n\ndef step(pi, P):\n    \"\"\"Advance a distribution one step: pi <- pi P.\"\"\"\n    if len(pi) != len(P):\n        raise ValueError(\"the distribution must match the matrix size\")\n    if not is_stochastic(P):\n        raise ValueError(\"P must be row-stochastic\")\n    n = len(P)\n    return [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n\n\ndef n_step(pi, P, n):\n    \"\"\"Advance a distribution n steps.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    out = list(pi)\n    for _ in range(n):\n        out = step(out, P)\n    return out\n\n\ndef matrix_power(P, n):\n    \"\"\"The n-step transition matrix, by repeated squaring.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    size = len(P)\n    result = [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]\n    base = [row[:] for row in P]\n    while n:\n        if n & 1:\n            result = [[sum(result[i][k] * base[k][j] for k in range(size))\n                       for j in range(size)] for i in range(size)]\n        base = [[sum(base[i][k] * base[k][j] for k in range(size))\n                 for j in range(size)] for i in range(size)]\n        n >>= 1\n    return result\n\n\ndef reachable(P, start):\n    \"\"\"States reachable from start, by breadth-first search.\"\"\"\n    if not 0 <= start < len(P):\n        raise ValueError(\"the start state must be in range\")\n    seen = {start}\n    frontier = [start]\n    while frontier:\n        i = frontier.pop()\n        for j in range(len(P)):\n            if P[i][j] > 0 and j not in seen:\n                seen.add(j)\n                frontier.append(j)\n    return seen\n\n\ndef is_irreducible(P):\n    \"\"\"True when every state reaches every other.\"\"\"\n    n = len(P)\n    return all(len(reachable(P, i)) == n for i in range(n))\n", "tests": "def test_stochastic_and_stepping():\n    P = [[0.8, 0.2], [0.4, 0.6]]\n    assert is_stochastic(P) is True\n    assert is_stochastic([[0.5, 0.4], [0.4, 0.6]]) is False, \"a row misses 1\"\n    assert is_stochastic([[1.5, -0.5], [0.4, 0.6]]) is False, \"negative entry\"\n    assert is_stochastic([[1.0]]) is True\n    assert is_stochastic([]) is False\n    assert is_stochastic([[0.5, 0.5]]) is False, \"must be square\"\n    # stepping preserves total probability\n    pi = [1.0, 0.0]\n    for _ in range(10):\n        pi = step(pi, P)\n        assert abs(sum(pi) - 1.0) < 1e-12\n        assert all(v >= -1e-12 for v in pi)\n    # one step from a pure state just reads off the row\n    assert step([1.0, 0.0], P) == [0.8, 0.2]\n    assert step([0.0, 1.0], P) == [0.4, 0.6]\n    for bad in (lambda: step([1.0], P), lambda: n_step([1.0, 0.0], P, -1)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_chapman_kolmogorov():\n    P = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]\n    # n_step via repeated stepping must equal a row of P^n\n    for n in (0, 1, 2, 5, 13):\n        Pn = matrix_power(P, n)\n        assert is_stochastic(Pn), n\n        for start in range(3):\n            pi = [0.0] * 3\n            pi[start] = 1.0\n            assert max(abs(a - b) for a, b in zip(n_step(pi, P, n), Pn[start])) < 1e-9\n    # P^0 is the identity\n    assert matrix_power(P, 0) == [[1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]]\n    assert matrix_power(P, 1) == P\n    # P^(a+b) = P^a P^b\n    A, B = matrix_power(P, 3), matrix_power(P, 4)\n    prod = [[sum(A[i][k] * B[k][j] for k in range(3)) for j in range(3)]\n            for i in range(3)]\n    seven = matrix_power(P, 7)\n    assert max(abs(prod[i][j] - seven[i][j]) for i in range(3)\n               for j in range(3)) < 1e-9\n\n\ndef test_reachability_and_irreducibility():\n    full = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]\n    assert reachable(full, 0) == {0, 1, 2}\n    assert is_irreducible(full) is True\n    # an absorbing state makes the chain reducible\n    absorbing = [[0.5, 0.5, 0.0], [0.0, 0.5, 0.5], [0.0, 0.0, 1.0]]\n    assert reachable(absorbing, 0) == {0, 1, 2}\n    assert reachable(absorbing, 2) == {2}, \"state 2 never leaves\"\n    assert is_irreducible(absorbing) is False\n    # two disconnected components\n    split = [[0.5, 0.5, 0.0, 0.0], [0.5, 0.5, 0.0, 0.0],\n             [0.0, 0.0, 0.5, 0.5], [0.0, 0.0, 0.5, 0.5]]\n    assert reachable(split, 0) == {0, 1}\n    assert reachable(split, 2) == {2, 3}\n    assert is_irreducible(split) is False\n    # a cycle is irreducible even though it is periodic\n    cycle = [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]\n    assert is_irreducible(cycle) is True\n    try:\n        reachable(full, 9)\n        assert False, \"an out-of-range state must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def is_stochastic(P):\n    \"\"\"Bug: checks only that the entries are non-negative, not that the rows\n    sum to 1, so a sub-stochastic matrix leaks probability unnoticed.\"\"\"\n    if not P or any(len(row) != len(P) for row in P):\n        return False\n    return all(v >= -1e-12 for row in P for v in row)\n\n\ndef step(pi, P):\n    if len(pi) != len(P):\n        raise ValueError(\"the distribution must match the matrix size\")\n    if not is_stochastic(P):\n        raise ValueError(\"P must be row-stochastic\")\n    n = len(P)\n    return [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n\n\ndef n_step(pi, P, n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    out = list(pi)\n    for _ in range(n):\n        out = step(out, P)\n    return out\n\n\ndef matrix_power(P, n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    size = len(P)\n    result = [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]\n    base = [row[:] for row in P]\n    while n:\n        if n & 1:\n            result = [[sum(result[i][k] * base[k][j] for k in range(size))\n                       for j in range(size)] for i in range(size)]\n        base = [[sum(base[i][k] * base[k][j] for k in range(size))\n                 for j in range(size)] for i in range(size)]\n        n >>= 1\n    return result\n\n\ndef reachable(P, start):\n    if not 0 <= start < len(P):\n        raise ValueError(\"the start state must be in range\")\n    seen = {start}\n    frontier = [start]\n    while frontier:\n        i = frontier.pop()\n        for j in range(len(P)):\n            if P[i][j] > 0 and j not in seen:\n                seen.add(j)\n                frontier.append(j)\n    return seen\n\n\ndef is_irreducible(P):\n    return all(len(reachable(P, i)) == len(P) for i in range(len(P)))\n", "def is_stochastic(P):\n    if not P or any(len(row) != len(P) for row in P):\n        return False\n    if any(v < -1e-12 for row in P for v in row):\n        return False\n    return all(abs(sum(row) - 1.0) < 1e-9 for row in P)\n\n\ndef step(pi, P):\n    \"\"\"Bug: multiplies on the wrong side, computing P pi^T rather than pi P.\n    It still returns a vector summing to 1 for a doubly stochastic P.\"\"\"\n    if len(pi) != len(P):\n        raise ValueError(\"the distribution must match the matrix size\")\n    if not is_stochastic(P):\n        raise ValueError(\"P must be row-stochastic\")\n    n = len(P)\n    return [sum(P[i][j] * pi[j] for j in range(n)) for i in range(n)]\n\n\ndef n_step(pi, P, n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    out = list(pi)\n    for _ in range(n):\n        out = step(out, P)\n    return out\n\n\ndef matrix_power(P, n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    size = len(P)\n    result = [[1.0 if i == j else 0.0 for j in range(size)] for i in range(size)]\n    base = [row[:] for row in P]\n    while n:\n        if n & 1:\n            result = [[sum(result[i][k] * base[k][j] for k in range(size))\n                       for j in range(size)] for i in range(size)]\n        base = [[sum(base[i][k] * base[k][j] for k in range(size))\n                 for j in range(size)] for i in range(size)]\n        n >>= 1\n    return result\n\n\ndef reachable(P, start):\n    \"\"\"Bug: looks only one step ahead instead of taking the transitive\n    closure, so multi-hop reachability is missed.\"\"\"\n    if not 0 <= start < len(P):\n        raise ValueError(\"the start state must be in range\")\n    return {start} | {j for j in range(len(P)) if P[start][j] > 0}\n\n\ndef is_irreducible(P):\n    return all(len(reachable(P, i)) == len(P) for i in range(len(P)))\n"], "hints": ["`pi P` sums over the FIRST index: `sum(pi[i] * P[i][j] for i)`. The other order is a different computation.", "Reachability is transitive \u2014 you must follow chains of transitions, not just single steps."], "level": "warmup", "title": "The Markov property and transition matrices"}, "m40-ex2-stationary": {"starter": "def stationary_power(P, steps=5000):\n    \"\"\"The stationary distribution, by power iteration.\"\"\"\n    return []\n\n\ndef stationary_solve(P):\n    \"\"\"The stationary distribution, by solving the linear system.\"\"\"\n    return []\n\n\ndef is_stationary(pi, P, tol=1e-9):\n    \"\"\"True when pi P = pi.\"\"\"\n    return False\n\n\ndef period(P, state):\n    \"\"\"The period of a state.\"\"\"\n    return 0\n\n\ndef is_aperiodic(P):\n    \"\"\"True when every state has period 1.\"\"\"\n    return False\n\n\ndef is_ergodic(P):\n    \"\"\"True when the chain is irreducible and aperiodic.\"\"\"\n    return False\n\n\ndef detailed_balance(pi, P, tol=1e-9):\n    \"\"\"True when pi_i P_ij = pi_j P_ji for all i, j.\"\"\"\n    return False\n", "solution": "from fractions import Fraction\nfrom math import gcd\n\n\ndef _check(P):\n    if not P or any(len(r) != len(P) for r in P):\n        raise ValueError(\"P must be square and non-empty\")\n    if any(v < -1e-12 for r in P for v in r):\n        raise ValueError(\"P must be non-negative\")\n    if any(abs(sum(r) - 1.0) > 1e-9 for r in P):\n        raise ValueError(\"every row must sum to 1\")\n\n\ndef stationary_power(P, steps=5000):\n    \"\"\"The stationary distribution, by power iteration.\"\"\"\n    _check(P)\n    n = len(P)\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        pi = [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n    total = sum(pi)\n    return [v / total for v in pi]\n\n\ndef stationary_solve(P):\n    \"\"\"The stationary distribution, by exact elimination on pi P = pi.\"\"\"\n    _check(P)\n    n = len(P)\n    # (P^T - I) pi = 0, last equation replaced by sum(pi) = 1\n    A = [[Fraction(P[j][i]).limit_denominator(10 ** 9) - (1 if i == j else 0)\n          for j in range(n)] for i in range(n)]\n    A[-1] = [Fraction(1)] * n\n    b = [Fraction(0)] * n\n    b[-1] = Fraction(1)\n    for col in range(n):\n        piv = next((r for r in range(col, n) if A[r][col] != 0), None)\n        if piv is None:\n            raise ValueError(\"the system is singular; is the chain irreducible?\")\n        A[col], A[piv] = A[piv], A[col]\n        b[col], b[piv] = b[piv], b[col]\n        inv = A[col][col]\n        A[col] = [v / inv for v in A[col]]\n        b[col] /= inv\n        for r in range(n):\n            if r != col and A[r][col] != 0:\n                f = A[r][col]\n                A[r] = [a - f * c for a, c in zip(A[r], A[col])]\n                b[r] -= f * b[col]\n    return [float(v) for v in b]\n\n\ndef is_stationary(pi, P, tol=1e-9):\n    \"\"\"True when pi P = pi.\"\"\"\n    if len(pi) != len(P):\n        raise ValueError(\"size mismatch\")\n    n = len(P)\n    nxt = [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n    return all(abs(a - b) < tol for a, b in zip(nxt, pi))\n\n\ndef period(P, state, horizon=60):\n    \"\"\"The period of a state: the gcd of its possible return times.\"\"\"\n    _check(P)\n    if not 0 <= state < len(P):\n        raise ValueError(\"the state must be in range\")\n    n = len(P)\n    reach = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n    g = 0\n    for k in range(1, horizon + 1):\n        reach = [[sum(reach[i][m] * P[m][j] for m in range(n)) for j in range(n)]\n                 for i in range(n)]\n        if reach[state][state] > 1e-12:\n            g = gcd(g, k)\n            if g == 1:\n                return 1\n    return g if g else 0\n\n\ndef is_aperiodic(P):\n    \"\"\"True when every state has period 1.\"\"\"\n    return all(period(P, i) == 1 for i in range(len(P)))\n\n\ndef is_ergodic(P):\n    \"\"\"True when the chain is irreducible and aperiodic.\"\"\"\n    _check(P)\n    n = len(P)\n    seen_all = True\n    for start in range(n):\n        seen = {start}\n        frontier = [start]\n        while frontier:\n            i = frontier.pop()\n            for j in range(n):\n                if P[i][j] > 0 and j not in seen:\n                    seen.add(j)\n                    frontier.append(j)\n        if len(seen) != n:\n            seen_all = False\n    return seen_all and is_aperiodic(P)\n\n\ndef detailed_balance(pi, P, tol=1e-9):\n    \"\"\"True when pi_i P_ij = pi_j P_ji for all i, j - the reversibility test.\"\"\"\n    n = len(P)\n    if len(pi) != n:\n        raise ValueError(\"size mismatch\")\n    return all(abs(pi[i] * P[i][j] - pi[j] * P[j][i]) < tol\n               for i in range(n) for j in range(n))\n", "tests": "def test_both_methods_agree():\n    chains = [\n        [[0.8, 0.2], [0.4, 0.6]],\n        [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]],\n        [[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]],\n    ]\n    for P in chains:\n        a = stationary_power(P)\n        b = stationary_solve(P)\n        assert max(abs(x - y) for x, y in zip(a, b)) < 1e-8, P\n        assert abs(sum(b) - 1.0) < 1e-9\n        assert all(v >= -1e-12 for v in b)\n        assert is_stationary(b, P) is True\n    # a hand-checkable answer\n    w = stationary_solve([[0.8, 0.2], [0.4, 0.6]])\n    assert abs(w[0] - 2 / 3) < 1e-9 and abs(w[1] - 1 / 3) < 1e-9\n    # a doubly stochastic chain is uniform\n    u = stationary_solve([[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]])\n    assert all(abs(v - 1 / 3) < 1e-9 for v in u)\n    assert is_stationary([0.5, 0.5], [[0.8, 0.2], [0.4, 0.6]]) is False\n    for bad in (lambda: stationary_power([[0.5, 0.4], [0.4, 0.6]]),\n                lambda: stationary_solve([])):\n        try:\n            bad()\n            assert False, \"an invalid matrix must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_periodicity_and_ergodicity():\n    # a two-state flip has period 2\n    flip = [[0.0, 1.0], [1.0, 0.0]]\n    assert period(flip, 0) == 2\n    assert is_aperiodic(flip) is False\n    assert is_ergodic(flip) is False, \"irreducible but periodic\"\n    # yet it still HAS a stationary distribution\n    assert is_stationary(stationary_solve(flip), flip) is True\n    assert abs(stationary_solve(flip)[0] - 0.5) < 1e-9\n    # a 3-cycle has period 3\n    cyc = [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]\n    assert period(cyc, 0) == 3\n    assert is_ergodic(cyc) is False\n    # any self-loop breaks the periodicity\n    lazy = [[0.5, 0.5], [0.5, 0.5]]\n    assert period(lazy, 0) == 1\n    assert is_aperiodic(lazy) is True\n    assert is_ergodic(lazy) is True\n    # reducible chains are not ergodic even when aperiodic\n    red = [[1.0, 0.0], [0.5, 0.5]]\n    assert is_aperiodic(red) is True\n    assert is_ergodic(red) is False, \"state 0 is absorbing\"\n    assert is_ergodic([[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]) is True\n\n\ndef test_ergodic_chains_forget_their_start():\n    P = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]\n    target = stationary_solve(P)\n    assert is_ergodic(P)\n    for start in range(3):\n        pi = [0.0] * 3\n        pi[start] = 1.0\n        for _ in range(300):\n            pi = [sum(pi[i] * P[i][j] for i in range(3)) for j in range(3)]\n        assert max(abs(a - b) for a, b in zip(pi, target)) < 1e-9, start\n    # a PERIODIC chain never converges, however long you wait\n    flip = [[0.0, 1.0], [1.0, 0.0]]\n    pi = [1.0, 0.0]\n    for _ in range(1000):\n        pi = [sum(pi[i] * flip[i][j] for i in range(2)) for j in range(2)]\n    assert abs(pi[0] - 1.0) < 1e-12, \"it is exactly back where it started\"\n    assert max(abs(a - b) for a, b in zip(pi, [0.5, 0.5])) > 0.4\n    # detailed balance: the weather chain is reversible, a 3-cycle is not\n    w = [[0.8, 0.2], [0.4, 0.6]]\n    assert detailed_balance(stationary_solve(w), w) is True\n    cyc = [[0.0, 1.0, 0.0], [0.0, 0.0, 1.0], [1.0, 0.0, 0.0]]\n    assert detailed_balance([1 / 3] * 3, cyc) is False, \"a cycle is not reversible\"\n    # but detailed balance is only SUFFICIENT: the cycle is still stationary\n    assert is_stationary([1 / 3] * 3, cyc) is True\n", "mutants": ["from fractions import Fraction\nfrom math import gcd\n\n\ndef _check(P):\n    if not P or any(len(r) != len(P) for r in P):\n        raise ValueError(\"P must be square and non-empty\")\n    if any(v < -1e-12 for r in P for v in r):\n        raise ValueError(\"P must be non-negative\")\n    if any(abs(sum(r) - 1.0) > 1e-9 for r in P):\n        raise ValueError(\"every row must sum to 1\")\n\n\ndef stationary_power(P, steps=5000):\n    \"\"\"Bug: iterates P pi instead of pi P, computing a right eigenvector.\n    For a doubly stochastic chain the two agree, so it often looks fine.\"\"\"\n    _check(P)\n    n = len(P)\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        pi = [sum(P[i][j] * pi[j] for j in range(n)) for i in range(n)]\n    total = sum(pi)\n    return [v / total for v in pi]\n\n\ndef stationary_solve(P):\n    _check(P)\n    n = len(P)\n    A = [[Fraction(P[j][i]).limit_denominator(10 ** 9) - (1 if i == j else 0)\n          for j in range(n)] for i in range(n)]\n    A[-1] = [Fraction(1)] * n\n    b = [Fraction(0)] * n\n    b[-1] = Fraction(1)\n    for col in range(n):\n        piv = next((r for r in range(col, n) if A[r][col] != 0), None)\n        if piv is None:\n            raise ValueError(\"the system is singular; is the chain irreducible?\")\n        A[col], A[piv] = A[piv], A[col]\n        b[col], b[piv] = b[piv], b[col]\n        inv = A[col][col]\n        A[col] = [v / inv for v in A[col]]\n        b[col] /= inv\n        for r in range(n):\n            if r != col and A[r][col] != 0:\n                f = A[r][col]\n                A[r] = [a - f * c for a, c in zip(A[r], A[col])]\n                b[r] -= f * b[col]\n    return [float(v) for v in b]\n\n\ndef is_stationary(pi, P, tol=1e-9):\n    if len(pi) != len(P):\n        raise ValueError(\"size mismatch\")\n    n = len(P)\n    nxt = [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n    return all(abs(a - b) < tol for a, b in zip(nxt, pi))\n\n\ndef period(P, state, horizon=60):\n    _check(P)\n    if not 0 <= state < len(P):\n        raise ValueError(\"the state must be in range\")\n    n = len(P)\n    reach = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n    g = 0\n    for k in range(1, horizon + 1):\n        reach = [[sum(reach[i][m] * P[m][j] for m in range(n)) for j in range(n)]\n                 for i in range(n)]\n        if reach[state][state] > 1e-12:\n            g = gcd(g, k)\n            if g == 1:\n                return 1\n    return g if g else 0\n\n\ndef is_aperiodic(P):\n    return all(period(P, i) == 1 for i in range(len(P)))\n\n\ndef is_ergodic(P):\n    _check(P)\n    n = len(P)\n    seen_all = True\n    for start in range(n):\n        seen = {start}\n        frontier = [start]\n        while frontier:\n            i = frontier.pop()\n            for j in range(n):\n                if P[i][j] > 0 and j not in seen:\n                    seen.add(j)\n                    frontier.append(j)\n        if len(seen) != n:\n            seen_all = False\n    return seen_all and is_aperiodic(P)\n\n\ndef detailed_balance(pi, P, tol=1e-9):\n    n = len(P)\n    if len(pi) != n:\n        raise ValueError(\"size mismatch\")\n    return all(abs(pi[i] * P[i][j] - pi[j] * P[j][i]) < tol\n               for i in range(n) for j in range(n))\n", "from fractions import Fraction\nfrom math import gcd\n\n\ndef _check(P):\n    if not P or any(len(r) != len(P) for r in P):\n        raise ValueError(\"P must be square and non-empty\")\n    if any(v < -1e-12 for r in P for v in r):\n        raise ValueError(\"P must be non-negative\")\n    if any(abs(sum(r) - 1.0) > 1e-9 for r in P):\n        raise ValueError(\"every row must sum to 1\")\n\n\ndef stationary_power(P, steps=5000):\n    _check(P)\n    n = len(P)\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        pi = [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n    total = sum(pi)\n    return [v / total for v in pi]\n\n\ndef stationary_solve(P):\n    _check(P)\n    n = len(P)\n    A = [[Fraction(P[j][i]).limit_denominator(10 ** 9) - (1 if i == j else 0)\n          for j in range(n)] for i in range(n)]\n    A[-1] = [Fraction(1)] * n\n    b = [Fraction(0)] * n\n    b[-1] = Fraction(1)\n    for col in range(n):\n        piv = next((r for r in range(col, n) if A[r][col] != 0), None)\n        if piv is None:\n            raise ValueError(\"the system is singular; is the chain irreducible?\")\n        A[col], A[piv] = A[piv], A[col]\n        b[col], b[piv] = b[piv], b[col]\n        inv = A[col][col]\n        A[col] = [v / inv for v in A[col]]\n        b[col] /= inv\n        for r in range(n):\n            if r != col and A[r][col] != 0:\n                f = A[r][col]\n                A[r] = [a - f * c for a, c in zip(A[r], A[col])]\n                b[r] -= f * b[col]\n    return [float(v) for v in b]\n\n\ndef is_stationary(pi, P, tol=1e-9):\n    if len(pi) != len(P):\n        raise ValueError(\"size mismatch\")\n    n = len(P)\n    nxt = [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n    return all(abs(a - b) < tol for a, b in zip(nxt, pi))\n\n\ndef period(P, state, horizon=60):\n    \"\"\"Bug: returns the FIRST return time rather than the gcd of all of them,\n    which is wrong whenever several return lengths are possible.\"\"\"\n    _check(P)\n    if not 0 <= state < len(P):\n        raise ValueError(\"the state must be in range\")\n    n = len(P)\n    reach = [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n    for k in range(1, horizon + 1):\n        reach = [[sum(reach[i][m] * P[m][j] for m in range(n)) for j in range(n)]\n                 for i in range(n)]\n        if reach[state][state] > 1e-12:\n            return k\n    return 0\n\n\ndef is_aperiodic(P):\n    return all(period(P, i) == 1 for i in range(len(P)))\n\n\ndef is_ergodic(P):\n    \"\"\"Bug: drops the irreducibility requirement, so a reducible but aperiodic\n    chain - one with an absorbing state - is called ergodic.\"\"\"\n    return is_aperiodic(P)\n\n\ndef detailed_balance(pi, P, tol=1e-9):\n    n = len(P)\n    if len(pi) != n:\n        raise ValueError(\"size mismatch\")\n    return all(abs(pi[i] * P[i][j] - pi[j] * P[j][i]) < tol\n               for i in range(n) for j in range(n))\n"], "hints": ["The stationary distribution is a LEFT eigenvector: `pi P = pi`, so sum over the first index.", "Ergodic means irreducible AND aperiodic. Either one alone is not enough."], "level": "core", "title": "Stationary distributions, ergodicity and mixing"}, "m40-ex3-walks": {"starter": "def ruin_probability(k, N, p):\n    \"\"\"P(reach N before 0 | start at k).\"\"\"\n    return 0.0\n\n\ndef expected_duration(k, N, p):\n    \"\"\"Expected number of steps until absorption.\"\"\"\n    return 0.0\n\n\ndef walk_once(k, N, p, randfunc):\n    \"\"\"Simulate one walk to absorption.\"\"\"\n    return 0\n\n\ndef hitting_times(P, target):\n    \"\"\"Expected steps to reach the target from each state.\"\"\"\n    return []\n\n\ndef return_probability_1d(steps):\n    \"\"\"P(a fair walk is at the origin after `steps` steps).\"\"\"\n    return 0.0\n", "solution": "from math import comb\n\n\ndef _check(k, N, p):\n    if not isinstance(N, int) or N < 1:\n        raise ValueError(\"N must be a positive integer\")\n    if not isinstance(k, int) or not 0 <= k <= N:\n        raise ValueError(\"k must lie between 0 and N\")\n    if not 0 < p < 1:\n        raise ValueError(\"p must lie strictly between 0 and 1\")\n\n\ndef ruin_probability(k, N, p):\n    \"\"\"P(reach N before 0 | start at k).\n\n    Conditioning on the first step gives P_k = p P_(k+1) + q P_(k-1). For a\n    fair walk the increments are constant, so P_k is linear in k.\n    \"\"\"\n    _check(k, N, p)\n    if k == 0:\n        return 0.0\n    if k == N:\n        return 1.0\n    if abs(p - 0.5) < 1e-15:\n        return k / N\n    r = (1 - p) / p\n    return (1 - r ** k) / (1 - r ** N)\n\n\ndef expected_duration(k, N, p):\n    \"\"\"Expected number of steps until absorption.\"\"\"\n    _check(k, N, p)\n    if k in (0, N):\n        return 0.0\n    if abs(p - 0.5) < 1e-15:\n        return float(k * (N - k))\n    q = 1 - p\n    r = q / p\n    return (k / (q - p)) - (N / (q - p)) * (1 - r ** k) / (1 - r ** N)\n\n\ndef walk_once(k, N, p, randfunc):\n    \"\"\"Simulate one walk to absorption.\"\"\"\n    _check(k, N, p)\n    x = k\n    steps = 0\n    while 0 < x < N:\n        x += 1 if randfunc() < p else -1\n        steps += 1\n        if steps > 10 ** 7:\n            raise ValueError(\"the walk did not absorb\")\n    return x\n\n\ndef hitting_times(P, target):\n    \"\"\"Expected steps to reach the target from each state.\n\n    h[target] = 0 and h[i] = 1 + sum_j P[i][j] h[j] otherwise. That is a\n    linear system, solved here by Gaussian elimination.\n    \"\"\"\n    n = len(P)\n    if not 0 <= target < n:\n        raise ValueError(\"the target must be a state\")\n    A = [[0.0] * n for _ in range(n)]\n    b = [0.0] * n\n    for i in range(n):\n        if i == target:\n            A[i][i] = 1.0\n            b[i] = 0.0\n        else:\n            A[i][i] = 1.0\n            for j in range(n):\n                A[i][j] -= P[i][j]\n            b[i] = 1.0\n    for col in range(n):\n        piv = max(range(col, n), key=lambda r: abs(A[r][col]))\n        if abs(A[piv][col]) < 1e-12:\n            raise ValueError(\"the target is unreachable from some state\")\n        A[col], A[piv] = A[piv], A[col]\n        b[col], b[piv] = b[piv], b[col]\n        d = A[col][col]\n        A[col] = [v / d for v in A[col]]\n        b[col] /= d\n        for r in range(n):\n            if r != col and abs(A[r][col]) > 1e-15:\n                f = A[r][col]\n                A[r] = [a - f * c for a, c in zip(A[r], A[col])]\n                b[r] -= f * b[col]\n    return b\n\n\ndef return_probability_1d(steps):\n    \"\"\"P(a fair walk is at the origin after `steps` steps).\"\"\"\n    if not isinstance(steps, int) or steps < 0:\n        raise ValueError(\"steps must be a non-negative integer\")\n    if steps % 2:\n        return 0.0\n    m = steps // 2\n    # An INTEGER power: 2.0 ** 8000 overflows a float, while Python's exact\n    # integer division of two big integers rounds correctly to a float.\n    return comb(steps, m) / (2 ** steps)\n", "tests": "def test_ruin_probabilities():\n    # the fair case is exactly k/N\n    for N in (10, 100, 37):\n        for k in range(N + 1):\n            assert abs(ruin_probability(k, N, 0.5) - k / N) < 1e-12, (k, N)\n    # the boundaries are absorbing\n    assert ruin_probability(0, 10, 0.7) == 0.0\n    assert ruin_probability(10, 10, 0.3) == 1.0\n    # a favourable walk does better than fair, an unfavourable one worse\n    assert ruin_probability(5, 10, 0.55) > 0.5\n    assert ruin_probability(5, 10, 0.45) < 0.5\n    assert abs(ruin_probability(5, 10, 0.55)\n               + ruin_probability(5, 10, 0.45) - 1.0) < 1e-12, \"symmetry\"\n    # a 1% house edge is devastating over 100 steps\n    assert ruin_probability(50, 100, 0.49) < 0.15\n    assert ruin_probability(50, 100, 0.499) < 0.46\n    # monotone in the starting stake\n    vals = [ruin_probability(k, 20, 0.48) for k in range(21)]\n    assert all(a < b for a, b in zip(vals, vals[1:]))\n    for bad in (lambda: ruin_probability(11, 10, 0.5),\n                lambda: ruin_probability(5, 10, 0.0),\n                lambda: ruin_probability(-1, 10, 0.5)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_durations_and_simulation():\n    import random\n    rng = random.Random(1921)\n    # the fair case is exactly k(N-k)\n    assert abs(expected_duration(5, 10, 0.5) - 25.0) < 1e-9\n    assert abs(expected_duration(50, 100, 0.5) - 2500.0) < 1e-9\n    assert expected_duration(0, 10, 0.5) == 0.0\n    assert expected_duration(10, 10, 0.5) == 0.0\n    # it is maximal in the middle\n    d = [expected_duration(k, 20, 0.5) for k in range(21)]\n    assert d.index(max(d)) == 10\n    # simulation agrees with the closed forms\n    for k, N, p in ((5, 10, 0.5), (3, 8, 0.6), (7, 12, 0.45)):\n        wins = sum(walk_once(k, N, p, rng.random) == N for _ in range(4000))\n        assert abs(wins / 4000 - ruin_probability(k, N, p)) < 0.03, (k, N, p)\n    # a biased walk absorbs faster than a fair one from the same start\n    assert expected_duration(5, 10, 0.5) > expected_duration(5, 10, 0.8)\n\n\ndef test_hitting_times_and_recurrence():\n    # a two-state chain: from state 0 the expected steps to reach 1 is 1/P01\n    P = [[0.8, 0.2], [0.4, 0.6]]\n    h = hitting_times(P, 1)\n    assert abs(h[1]) < 1e-12\n    assert abs(h[0] - 5.0) < 1e-9, \"a geometric wait with p = 0.2\"\n    # a three-state chain, checked against simulation\n    import random\n    rng = random.Random(1906)\n    Q = [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]]\n    h = hitting_times(Q, 2)\n    for start in (0, 1):\n        total = 0\n        for _ in range(3000):\n            s, n = start, 0\n            while s != 2:\n                r, acc = rng.random(), 0.0\n                for j in range(3):\n                    acc += Q[s][j]\n                    if r < acc:\n                        s = j\n                        break\n                n += 1\n            total += n\n        assert abs(total / 3000 - h[start]) / h[start] < 0.08, start\n    # the 1-D return probability decays like 1/sqrt(pi n)\n    from math import pi, sqrt\n    assert return_probability_1d(1) == 0.0, \"odd steps can never return\"\n    assert abs(return_probability_1d(0) - 1.0) < 1e-12\n    assert abs(return_probability_1d(2) - 0.5) < 1e-12\n    for n in (100, 1000, 10000):\n        approx = 1.0 / sqrt(pi * (n / 2))\n        assert abs(return_probability_1d(n) - approx) / approx < 0.02, n\n    # the sum of return probabilities diverges, which is why the 1-D walk is\n    # recurrent: it returns with probability 1\n    # comb(7998, 3999) is a 2400-digit integer; 500 terms make the point and\n    # cost a thousandth of the time\n    assert sum(return_probability_1d(2 * m) for m in range(1, 500)) > 20\n    try:\n        hitting_times([[1.0, 0.0], [0.0, 1.0]], 1)\n        assert False, \"an unreachable target must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import comb\n\n\ndef _check(k, N, p):\n    if not isinstance(N, int) or N < 1:\n        raise ValueError(\"N must be a positive integer\")\n    if not isinstance(k, int) or not 0 <= k <= N:\n        raise ValueError(\"k must lie between 0 and N\")\n    if not 0 < p < 1:\n        raise ValueError(\"p must lie strictly between 0 and 1\")\n\n\ndef ruin_probability(k, N, p):\n    \"\"\"Bug: uses r = p/q instead of q/p, which inverts the effect of the bias\n    so an unfavourable game looks favourable.\"\"\"\n    _check(k, N, p)\n    if k == 0:\n        return 0.0\n    if k == N:\n        return 1.0\n    if abs(p - 0.5) < 1e-15:\n        return k / N\n    r = p / (1 - p)\n    return (1 - r ** k) / (1 - r ** N)\n\n\ndef expected_duration(k, N, p):\n    _check(k, N, p)\n    if k in (0, N):\n        return 0.0\n    if abs(p - 0.5) < 1e-15:\n        return float(k * (N - k))\n    q = 1 - p\n    r = q / p\n    return (k / (q - p)) - (N / (q - p)) * (1 - r ** k) / (1 - r ** N)\n\n\ndef walk_once(k, N, p, randfunc):\n    _check(k, N, p)\n    x = k\n    steps = 0\n    while 0 < x < N:\n        x += 1 if randfunc() < p else -1\n        steps += 1\n        if steps > 10 ** 7:\n            raise ValueError(\"the walk did not absorb\")\n    return x\n\n\ndef hitting_times(P, target):\n    n = len(P)\n    if not 0 <= target < n:\n        raise ValueError(\"the target must be a state\")\n    A = [[0.0] * n for _ in range(n)]\n    b = [0.0] * n\n    for i in range(n):\n        if i == target:\n            A[i][i] = 1.0\n            b[i] = 0.0\n        else:\n            A[i][i] = 1.0\n            for j in range(n):\n                A[i][j] -= P[i][j]\n            b[i] = 1.0\n    for col in range(n):\n        piv = max(range(col, n), key=lambda r: abs(A[r][col]))\n        if abs(A[piv][col]) < 1e-12:\n            raise ValueError(\"the target is unreachable from some state\")\n        A[col], A[piv] = A[piv], A[col]\n        b[col], b[piv] = b[piv], b[col]\n        d = A[col][col]\n        A[col] = [v / d for v in A[col]]\n        b[col] /= d\n        for r in range(n):\n            if r != col and abs(A[r][col]) > 1e-15:\n                f = A[r][col]\n                A[r] = [a - f * c for a, c in zip(A[r], A[col])]\n                b[r] -= f * b[col]\n    return b\n\n\ndef return_probability_1d(steps):\n    if not isinstance(steps, int) or steps < 0:\n        raise ValueError(\"steps must be a non-negative integer\")\n    if steps % 2:\n        return 0.0\n    m = steps // 2\n    # An INTEGER power: 2.0 ** 8000 overflows a float, while Python's exact\n    # integer division of two big integers rounds correctly to a float.\n    return comb(steps, m) / (2 ** steps)\n", "from math import comb\n\n\ndef _check(k, N, p):\n    if not isinstance(N, int) or N < 1:\n        raise ValueError(\"N must be a positive integer\")\n    if not isinstance(k, int) or not 0 <= k <= N:\n        raise ValueError(\"k must lie between 0 and N\")\n    if not 0 < p < 1:\n        raise ValueError(\"p must lie strictly between 0 and 1\")\n\n\ndef ruin_probability(k, N, p):\n    _check(k, N, p)\n    if k == 0:\n        return 0.0\n    if k == N:\n        return 1.0\n    if abs(p - 0.5) < 1e-15:\n        return k / N\n    r = (1 - p) / p\n    return (1 - r ** k) / (1 - r ** N)\n\n\ndef expected_duration(k, N, p):\n    \"\"\"Bug: uses k*N rather than k*(N-k) for the fair case, so the duration is\n    not maximal in the middle and is badly wrong near the far boundary.\"\"\"\n    _check(k, N, p)\n    if k in (0, N):\n        return 0.0\n    if abs(p - 0.5) < 1e-15:\n        return float(k * N)\n    q = 1 - p\n    r = q / p\n    return (k / (q - p)) - (N / (q - p)) * (1 - r ** k) / (1 - r ** N)\n\n\ndef walk_once(k, N, p, randfunc):\n    \"\"\"Bug: compares against 1-p rather than p, reversing the bias.\"\"\"\n    _check(k, N, p)\n    x = k\n    steps = 0\n    while 0 < x < N:\n        x += 1 if randfunc() < 1 - p else -1\n        steps += 1\n        if steps > 10 ** 7:\n            raise ValueError(\"the walk did not absorb\")\n    return x\n\n\ndef hitting_times(P, target):\n    \"\"\"Bug: omits the +1 for the step just taken, so every hitting time\n    collapses to zero.\"\"\"\n    n = len(P)\n    if not 0 <= target < n:\n        raise ValueError(\"the target must be a state\")\n    A = [[0.0] * n for _ in range(n)]\n    b = [0.0] * n\n    for i in range(n):\n        if i == target:\n            A[i][i] = 1.0\n        else:\n            A[i][i] = 1.0\n            for j in range(n):\n                A[i][j] -= P[i][j]\n        b[i] = 0.0\n    for col in range(n):\n        piv = max(range(col, n), key=lambda r: abs(A[r][col]))\n        if abs(A[piv][col]) < 1e-12:\n            raise ValueError(\"the target is unreachable from some state\")\n        A[col], A[piv] = A[piv], A[col]\n        b[col], b[piv] = b[piv], b[col]\n        d = A[col][col]\n        A[col] = [v / d for v in A[col]]\n        b[col] /= d\n        for r in range(n):\n            if r != col and abs(A[r][col]) > 1e-15:\n                f = A[r][col]\n                A[r] = [a - f * c for a, c in zip(A[r], A[col])]\n                b[r] -= f * b[col]\n    return b\n\n\ndef return_probability_1d(steps):\n    if not isinstance(steps, int) or steps < 0:\n        raise ValueError(\"steps must be a non-negative integer\")\n    if steps % 2:\n        return 0.0\n    m = steps // 2\n    # An INTEGER power: 2.0 ** 8000 overflows a float, while Python's exact\n    # integer division of two big integers rounds correctly to a float.\n    return comb(steps, m) / (2 ** steps)\n"], "hints": ["The ruin formula uses `r = q/p`, the ratio of the LOSING to the winning probability.", "The fair-walk duration is `k(N-k)`, which is maximal in the middle and zero at both ends."], "level": "core", "title": "Random walks, gambler's ruin and hitting times"}, "m40-ex4-pagerank": {"starter": "def out_degree(links, n):\n    \"\"\"The number of outbound links from each page.\"\"\"\n    return []\n\n\ndef pagerank(links, n, d=0.85, steps=200):\n    \"\"\"The PageRank vector.\"\"\"\n    return []\n\n\ndef pagerank_is_fixed_point(pr, links, n, d=0.85, tol=1e-6):\n    \"\"\"True when one more sweep changes nothing.\"\"\"\n    return False\n\n\ndef acceptance_probability(fx, fy):\n    \"\"\"min(1, fy/fx).\"\"\"\n    return 0.0\n\n\ndef metropolis_step(x, f, propose, randfunc):\n    \"\"\"One Metropolis step.\"\"\"\n    return 0.0\n\n\ndef metropolis_chain(f, x0, propose, randfunc, steps):\n    \"\"\"A whole Metropolis chain.\"\"\"\n    return []\n", "solution": "def out_degree(links, n):\n    \"\"\"The number of outbound links from each page.\"\"\"\n    if n < 1:\n        raise ValueError(\"there must be at least one page\")\n    return [len(links.get(i, [])) for i in range(n)]\n\n\ndef _sweep(pi, links, n, d):\n    \"\"\"One step of the random surfer.\"\"\"\n    nxt = [(1 - d) / n] * n\n    for i in range(n):\n        targets = links.get(i, [])\n        if targets:\n            share = d * pi[i] / len(targets)\n            for j in targets:\n                nxt[j] += share\n        else:\n            # a dangling node teleports its whole mass\n            for j in range(n):\n                nxt[j] += d * pi[i] / n\n    return nxt\n\n\ndef pagerank(links, n, d=0.85, steps=200):\n    \"\"\"The PageRank vector: the stationary distribution of the surfer chain.\n\n    The teleport term is what makes the chain irreducible and aperiodic, so a\n    unique answer exists and power iteration reaches it.\n    \"\"\"\n    if n < 1:\n        raise ValueError(\"there must be at least one page\")\n    if not 0 < d < 1:\n        raise ValueError(\"the damping factor must lie in (0, 1)\")\n    for i, targets in links.items():\n        if not 0 <= i < n or any(not 0 <= j < n for j in targets):\n            raise ValueError(\"every link must point at a real page\")\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        pi = _sweep(pi, links, n, d)\n    total = sum(pi)\n    return [v / total for v in pi]\n\n\ndef pagerank_is_fixed_point(pr, links, n, d=0.85, tol=1e-6):\n    \"\"\"True when one more sweep changes nothing.\"\"\"\n    nxt = _sweep(pr, links, n, d)\n    return all(abs(a - b) < tol for a, b in zip(nxt, pr))\n\n\ndef acceptance_probability(fx, fy):\n    \"\"\"min(1, fy/fx) - the normalising constant cancels in the ratio.\"\"\"\n    if fx <= 0:\n        raise ValueError(\"the current density must be positive\")\n    if fy < 0:\n        raise ValueError(\"a density cannot be negative\")\n    return min(1.0, fy / fx)\n\n\ndef metropolis_step(x, f, propose, randfunc):\n    \"\"\"One Metropolis step: propose, then accept with the ratio.\"\"\"\n    y = propose(x)\n    if randfunc() < acceptance_probability(f(x), f(y)):\n        return y\n    return x\n\n\ndef metropolis_chain(f, x0, propose, randfunc, steps):\n    \"\"\"A whole Metropolis chain.\"\"\"\n    if steps < 1:\n        raise ValueError(\"steps must be positive\")\n    x = x0\n    out = []\n    for _ in range(steps):\n        x = metropolis_step(x, f, propose, randfunc)\n        out.append(x)\n    return out\n", "tests": "def test_pagerank_basics():\n    links = {0: [1, 2], 1: [2], 2: [0], 3: [0, 1, 2]}\n    assert out_degree(links, 4) == [2, 1, 1, 3]\n    assert out_degree({}, 3) == [0, 0, 0]\n    pr = pagerank(links, 4)\n    assert abs(sum(pr) - 1.0) < 1e-9, \"it is a probability distribution\"\n    assert all(v > 0 for v in pr), \"teleporting gives every page some mass\"\n    assert pagerank_is_fixed_point(pr, links, 4) is True\n    # page 3 has no inbound links, so it holds exactly the teleport share\n    assert abs(pr[3] - (1 - 0.85) / 4) < 1e-6\n    # page 2 is pointed to by everyone and ranks highest\n    assert pr[2] == max(pr)\n    # a symmetric graph gives a uniform ranking\n    ring = {0: [1], 1: [2], 2: [0]}\n    assert all(abs(v - 1 / 3) < 1e-6 for v in pagerank(ring, 3))\n    for bad in (lambda: pagerank({0: [9]}, 2), lambda: pagerank({}, 0),\n                lambda: pagerank({0: [1]}, 2, d=1.5)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_pagerank_handles_dangling_nodes_and_damping():\n    # a page with no outlinks must not swallow all the probability\n    dangling = {0: [1], 1: []}\n    pr = pagerank(dangling, 2)\n    assert abs(sum(pr) - 1.0) < 1e-9, \"no mass may leak away\"\n    assert all(v > 0.1 for v in pr)\n    assert pagerank_is_fixed_point(pr, dangling, 2) is True\n    # a rank sink: a 2-cycle that the rest of the graph feeds\n    sink = {0: [2], 1: [2], 2: [3], 3: [2]}\n    pr = pagerank(sink, 4)\n    assert abs(sum(pr) - 1.0) < 1e-9\n    assert pr[2] > pr[0] and pr[3] > pr[0]\n    assert pr[0] > 0, \"damping stops the sink taking everything\"\n    # less damping flattens the ranking towards uniform\n    links = {0: [1, 2], 1: [2], 2: [0], 3: [0, 1, 2]}\n    flat = pagerank(links, 4, d=0.1)\n    sharp = pagerank(links, 4, d=0.95)\n    spread = lambda v: max(v) - min(v)\n    assert spread(flat) < spread(sharp), \"more damping means more spread\"\n    assert all(abs(v - 0.25) < 0.1 for v in flat)\n\n\ndef test_metropolis_samples_an_unnormalised_target():\n    import random\n    from math import exp, sqrt\n    rng = random.Random(1953)\n    assert abs(acceptance_probability(1.0, 0.5) - 0.5) < 1e-12\n    assert acceptance_probability(0.5, 1.0) == 1.0, \"always accept an uphill move\"\n    assert acceptance_probability(1.0, 1.0) == 1.0\n    try:\n        acceptance_probability(0.0, 1.0)\n        assert False, \"a zero current density must raise ValueError\"\n    except ValueError:\n        pass\n    # sample from exp(-x^2/2), deliberately NOT normalised\n    f = lambda t: exp(-t * t / 2)\n    propose = lambda t: t + rng.gauss(0, 2.0)\n    chain = metropolis_chain(f, 0.0, propose, rng.random, 60000)\n    burned = chain[10000:]\n    m = sum(burned) / len(burned)\n    v = sum((t - m) ** 2 for t in burned) / (len(burned) - 1)\n    assert abs(m) < 0.06, m\n    assert abs(v - 1.0) < 0.1, v\n    within1 = sum(1 for t in burned if abs(t) <= 1) / len(burned)\n    assert abs(within1 - 0.6827) < 0.04, within1\n    # scaling the target by any constant changes nothing: the ratio cancels\n    g = lambda t: 1234.5 * exp(-t * t / 2)\n    rng2 = random.Random(1953)\n    propose2 = lambda t: t + rng2.gauss(0, 2.0)\n    chain2 = metropolis_chain(g, 0.0, propose2, rng2.random, 60000)\n    assert max(abs(a - b) for a, b in zip(chain, chain2)) < 1e-12, \\\n        \"an unnormalised target gives an identical chain\"\n    try:\n        metropolis_chain(f, 0.0, propose, rng.random, 0)\n        assert False, \"zero steps must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def out_degree(links, n):\n    if n < 1:\n        raise ValueError(\"there must be at least one page\")\n    return [len(links.get(i, [])) for i in range(n)]\n\n\ndef _sweep(pi, links, n, d):\n    \"\"\"Bug: a dangling node's mass is simply dropped rather than teleported,\n    so probability leaks away and the vector no longer sums to 1.\"\"\"\n    nxt = [(1 - d) / n] * n\n    for i in range(n):\n        targets = links.get(i, [])\n        if targets:\n            share = d * pi[i] / len(targets)\n            for j in targets:\n                nxt[j] += share\n    return nxt\n\n\ndef pagerank(links, n, d=0.85, steps=200):\n    if n < 1:\n        raise ValueError(\"there must be at least one page\")\n    if not 0 < d < 1:\n        raise ValueError(\"the damping factor must lie in (0, 1)\")\n    for i, targets in links.items():\n        if not 0 <= i < n or any(not 0 <= j < n for j in targets):\n            raise ValueError(\"every link must point at a real page\")\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        pi = _sweep(pi, links, n, d)\n    total = sum(pi)\n    return [v / total for v in pi]\n\n\ndef pagerank_is_fixed_point(pr, links, n, d=0.85, tol=1e-6):\n    nxt = _sweep(pr, links, n, d)\n    return all(abs(a - b) < tol for a, b in zip(nxt, pr))\n\n\ndef acceptance_probability(fx, fy):\n    if fx <= 0:\n        raise ValueError(\"the current density must be positive\")\n    if fy < 0:\n        raise ValueError(\"a density cannot be negative\")\n    return min(1.0, fy / fx)\n\n\ndef metropolis_step(x, f, propose, randfunc):\n    y = propose(x)\n    if randfunc() < acceptance_probability(f(x), f(y)):\n        return y\n    return x\n\n\ndef metropolis_chain(f, x0, propose, randfunc, steps):\n    if steps < 1:\n        raise ValueError(\"steps must be positive\")\n    x = x0\n    out = []\n    for _ in range(steps):\n        x = metropolis_step(x, f, propose, randfunc)\n        out.append(x)\n    return out\n", "def out_degree(links, n):\n    if n < 1:\n        raise ValueError(\"there must be at least one page\")\n    return [len(links.get(i, [])) for i in range(n)]\n\n\ndef _sweep(pi, links, n, d):\n    nxt = [(1 - d) / n] * n\n    for i in range(n):\n        targets = links.get(i, [])\n        if targets:\n            share = d * pi[i] / len(targets)\n            for j in targets:\n                nxt[j] += share\n        else:\n            for j in range(n):\n                nxt[j] += d * pi[i] / n\n    return nxt\n\n\ndef pagerank(links, n, d=0.85, steps=200):\n    if n < 1:\n        raise ValueError(\"there must be at least one page\")\n    if not 0 < d < 1:\n        raise ValueError(\"the damping factor must lie in (0, 1)\")\n    for i, targets in links.items():\n        if not 0 <= i < n or any(not 0 <= j < n for j in targets):\n            raise ValueError(\"every link must point at a real page\")\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        pi = _sweep(pi, links, n, d)\n    total = sum(pi)\n    return [v / total for v in pi]\n\n\ndef pagerank_is_fixed_point(pr, links, n, d=0.85, tol=1e-6):\n    pr_next = _sweep(pr, links, n, d)\n    return all(abs(a - b) < tol for a, b in zip(pr_next, pr))\n\n\ndef acceptance_probability(fx, fy):\n    \"\"\"Bug: inverts the ratio, so the chain walks DOWNHILL and concentrates\n    where the target density is smallest.\"\"\"\n    if fx <= 0:\n        raise ValueError(\"the current density must be positive\")\n    if fy < 0:\n        raise ValueError(\"a density cannot be negative\")\n    return min(1.0, fx / fy) if fy > 0 else 0.0\n\n\ndef metropolis_step(x, f, propose, randfunc):\n    \"\"\"Bug: accepts unconditionally, which samples the PROPOSAL distribution -\n    here a random walk - rather than the target.\"\"\"\n    return propose(x)\n\n\ndef metropolis_chain(f, x0, propose, randfunc, steps):\n    if steps < 1:\n        raise ValueError(\"steps must be positive\")\n    x = x0\n    out = []\n    for _ in range(steps):\n        x = metropolis_step(x, f, propose, randfunc)\n        out.append(x)\n    return out\n"], "hints": ["A dangling node's probability must go somewhere, or the vector stops summing to 1.", "Metropolis accepts with `min(1, f(y)/f(x))` \u2014 the PROPOSED density over the current one."], "level": "core", "title": "PageRank and Metropolis MCMC"}, "m40-ex5-queues": {"starter": "def poisson_pmf(lam, t, k):\n    \"\"\"P(k arrivals in a window of length t).\"\"\"\n    return 0.0\n\n\ndef exponential_interarrival(lam, u):\n    \"\"\"One interarrival time from a uniform u.\"\"\"\n    return 0.0\n\n\ndef mm1_metrics(lam, mu):\n    \"\"\"The standard M/M/1 quantities.\"\"\"\n    return {}\n\n\ndef mm1_state_probability(lam, mu, n):\n    \"\"\"P(n customers in the system).\"\"\"\n    return 0.0\n\n\ndef littles_law(lam, W):\n    \"\"\"L = lambda * W.\"\"\"\n    return 0.0\n\n\ndef latency_multiplier(rho):\n    \"\"\"Sojourn time in units of service time.\"\"\"\n    return 0.0\n\n\ndef value_iteration(P, R, gamma, iters=500):\n    \"\"\"Optimal values and policy for an MDP.\"\"\"\n    return ([], [])\n", "solution": "from math import exp, log, factorial\n\n\ndef poisson_pmf(lam, t, k):\n    \"\"\"P(k arrivals in a window of length t) for a Poisson process.\"\"\"\n    if lam <= 0 or t < 0:\n        raise ValueError(\"lam must be positive and t non-negative\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    m = lam * t\n    return exp(-m) * m ** k / factorial(k)\n\n\ndef exponential_interarrival(lam, u):\n    \"\"\"One interarrival time from a uniform u, by inverse CDF.\"\"\"\n    if lam <= 0:\n        raise ValueError(\"lam must be positive\")\n    if not 0 <= u < 1:\n        raise ValueError(\"u must lie in [0, 1)\")\n    return -log(1 - u) / lam\n\n\ndef mm1_metrics(lam, mu):\n    \"\"\"The standard M/M/1 quantities.\n\n    Everything follows from p_n = (1-rho) rho^n, whose geometric sum converges\n    only when rho < 1 - which IS the stability condition.\n    \"\"\"\n    if lam <= 0 or mu <= 0:\n        raise ValueError(\"rates must be positive\")\n    rho = lam / mu\n    if rho >= 1:\n        raise ValueError(\"the queue is unstable: arrivals outpace service\")\n    return {\n        \"rho\": rho,\n        \"p0\": 1 - rho,\n        \"L\": rho / (1 - rho),\n        \"W\": 1.0 / (mu - lam),\n        \"Lq\": rho * rho / (1 - rho),\n        \"Wq\": rho / (mu - lam),\n    }\n\n\ndef mm1_state_probability(lam, mu, n):\n    \"\"\"P(n customers in the system) = (1-rho) rho^n.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    rho = mm1_metrics(lam, mu)[\"rho\"]\n    return (1 - rho) * rho ** n\n\n\ndef littles_law(lam, W):\n    \"\"\"L = lambda * W, true for ANY stable queueing system.\"\"\"\n    if lam < 0 or W < 0:\n        raise ValueError(\"both arguments must be non-negative\")\n    return lam * W\n\n\ndef latency_multiplier(rho):\n    \"\"\"Sojourn time in units of service time: 1/(1-rho).\"\"\"\n    if not 0 <= rho < 1:\n        raise ValueError(\"utilisation must lie in [0, 1)\")\n    return 1.0 / (1.0 - rho)\n\n\ndef value_iteration(P, R, gamma, iters=500):\n    \"\"\"Optimal values and policy for an MDP.\n\n    The Bellman operator is a gamma-contraction in the sup norm, so this\n    converges geometrically to the unique fixed point from any start.\n    \"\"\"\n    if not 0 <= gamma < 1:\n        raise ValueError(\"gamma must lie in [0, 1)\")\n    n = len(P)\n    V = [0.0] * n\n    for _ in range(iters):\n        new = []\n        for s in range(n):\n            if not P[s]:\n                new.append(0.0)\n                continue\n            best = max(sum(p * (r + gamma * V[sp]) for p, sp, r in P[s][a])\n                       for a in range(len(P[s])))\n            new.append(best)\n        V = new\n    policy = []\n    for s in range(n):\n        if not P[s]:\n            policy.append(None)\n            continue\n        policy.append(max(range(len(P[s])),\n                          key=lambda a: sum(p * (r + gamma * V[sp])\n                                            for p, sp, r in P[s][a])))\n    return V, policy\n", "tests": "def test_poisson_process_pieces():\n    from math import exp\n    # the pmf sums to 1 over all counts\n    assert abs(sum(poisson_pmf(2.0, 3.0, k) for k in range(80)) - 1.0) < 1e-9\n    # mean is lam*t\n    m = sum(k * poisson_pmf(2.0, 3.0, k) for k in range(80))\n    assert abs(m - 6.0) < 1e-6\n    assert abs(poisson_pmf(1.0, 1.0, 0) - exp(-1.0)) < 1e-12\n    assert abs(poisson_pmf(5.0, 0.0, 0) - 1.0) < 1e-12, \"no time, no arrivals\"\n    # interarrivals: inverse CDF, with mean 1/lam\n    import random\n    rng = random.Random(1909)\n    lam = 2.5\n    gaps = [exponential_interarrival(lam, rng.random()) for _ in range(100000)]\n    assert abs(sum(gaps) / len(gaps) - 1 / lam) < 0.01\n    assert all(g >= 0 for g in gaps)\n    # the counts really are Poisson: simulate a window and compare\n    counts = []\n    for _ in range(20000):\n        t, k = 0.0, 0\n        while True:\n            t += exponential_interarrival(lam, rng.random())\n            if t > 2.0:\n                break\n            k += 1\n        counts.append(k)\n    for k in range(0, 12):\n        emp = sum(1 for c in counts if c == k) / len(counts)\n        assert abs(emp - poisson_pmf(lam, 2.0, k)) < 0.012, k\n    for bad in (lambda: poisson_pmf(-1.0, 1.0, 1),\n                lambda: exponential_interarrival(1.0, 1.0)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_mm1_and_the_utilisation_wall():\n    m = mm1_metrics(0.5, 1.0)\n    assert abs(m[\"rho\"] - 0.5) < 1e-12\n    assert abs(m[\"L\"] - 1.0) < 1e-12\n    assert abs(m[\"W\"] - 2.0) < 1e-12\n    assert abs(m[\"Lq\"] - 0.5) < 1e-12\n    assert abs(m[\"Wq\"] - 1.0) < 1e-12\n    assert abs(m[\"p0\"] - 0.5) < 1e-12\n    # the state distribution is geometric and sums to 1\n    assert abs(sum(mm1_state_probability(0.8, 1.0, n) for n in range(400))\n               - 1.0) < 1e-6\n    assert abs(mm1_state_probability(0.8, 1.0, 0) - 0.2) < 1e-12\n    # Little's law ties L and W together\n    for lam in (0.3, 0.5, 0.9, 0.99):\n        mm = mm1_metrics(lam, 1.0)\n        assert abs(littles_law(lam, mm[\"W\"]) - mm[\"L\"]) < 1e-9, lam\n        assert abs(littles_law(lam, mm[\"Wq\"]) - mm[\"Lq\"]) < 1e-9, lam\n        assert abs(mm[\"W\"] - mm[\"Wq\"] - 1.0) < 1e-9, \"W = Wq + service time\"\n    # the wall\n    assert abs(latency_multiplier(0.0) - 1.0) < 1e-12\n    assert abs(latency_multiplier(0.5) - 2.0) < 1e-12\n    assert abs(latency_multiplier(0.9) - 10.0) < 1e-12\n    assert abs(latency_multiplier(0.99) - 100.0) < 1e-12\n    # Meera's campaign: 20% more traffic at rho = 0.7\n    jump = latency_multiplier(0.84) / latency_multiplier(0.70)\n    assert jump > 1.8, jump\n    # the last 1% costs more than the first 50%\n    assert (latency_multiplier(0.99) - latency_multiplier(0.98)) > \\\n           (latency_multiplier(0.5) - latency_multiplier(0.0))\n    for bad in (lambda: mm1_metrics(1.0, 1.0), lambda: mm1_metrics(2.0, 1.0),\n                lambda: latency_multiplier(1.0)):\n        try:\n            bad()\n            assert False, \"an unstable queue must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_value_iteration_converges_to_the_optimum():\n    # Two states. In state 0, action 0 stays (reward 0) and action 1 moves to\n    # the paying state 1 (reward 0). State 1 pays 1 per step and stays.\n    P = [\n        [[(1.0, 0, 0.0)], [(1.0, 1, 0.0)]],\n        [[(1.0, 1, 1.0)]],\n    ]\n    gamma = 0.9\n    V, policy = value_iteration(P, None, gamma)\n    # V[1] = 1 + gamma V[1] = 1/(1-gamma) = 10\n    assert abs(V[1] - 1 / (1 - gamma)) < 1e-6, V\n    # V[0] = gamma * V[1] = 9\n    assert abs(V[0] - gamma * V[1]) < 1e-6, V\n    assert policy[0] == 1, \"it must choose to move to the paying state\"\n    # the Bellman equation holds at the fixed point\n    for s in range(2):\n        best = max(sum(p * (r + gamma * V[sp]) for p, sp, r in P[s][a])\n                   for a in range(len(P[s])))\n        assert abs(V[s] - best) < 1e-6, s\n    # a smaller discount values the future less\n    V2, _ = value_iteration(P, None, 0.5)\n    assert V2[1] < V[1] and abs(V2[1] - 2.0) < 1e-6\n    # convergence is geometric: the error falls by gamma each sweep\n    # the error falls like gamma^n, so reaching 1e-6 from V* = 10 needs about\n    # log(1e-7)/log(0.9) = 153 sweeps - 40 is nowhere near enough\n    errs = []\n    for it in (5, 20, 80, 250):\n        Vi, _ = value_iteration(P, None, gamma, iters=it)\n        errs.append(abs(Vi[1] - 10.0))\n    assert all(a > b for a, b in zip(errs, errs[1:])), errs\n    assert abs(errs[0] - 10 * gamma ** 5) < 1e-6, \"geometric decay at rate gamma\"\n    assert errs[-1] < 1e-6, errs\n    # a stochastic action is handled correctly\n    Q = [[[(0.5, 0, 0.0), (0.5, 1, 2.0)]], [[(1.0, 1, 0.0)]]]\n    Vq, _ = value_iteration(Q, None, 0.0)\n    assert abs(Vq[0] - 1.0) < 1e-9, \"with gamma 0 it is the expected reward\"\n    try:\n        value_iteration(P, None, 1.0)\n        assert False, \"gamma = 1 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import exp, log, factorial\n\n\ndef poisson_pmf(lam, t, k):\n    if lam <= 0 or t < 0:\n        raise ValueError(\"lam must be positive and t non-negative\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    m = lam * t\n    return exp(-m) * m ** k / factorial(k)\n\n\ndef exponential_interarrival(lam, u):\n    if lam <= 0:\n        raise ValueError(\"lam must be positive\")\n    if not 0 <= u < 1:\n        raise ValueError(\"u must lie in [0, 1)\")\n    return -log(1 - u) / lam\n\n\ndef mm1_metrics(lam, mu):\n    \"\"\"Bug: W uses 1/mu rather than 1/(mu-lam), so it reports only the service\n    time and misses the queueing entirely - latency looks flat in load.\"\"\"\n    if lam <= 0 or mu <= 0:\n        raise ValueError(\"rates must be positive\")\n    rho = lam / mu\n    if rho >= 1:\n        raise ValueError(\"the queue is unstable: arrivals outpace service\")\n    return {\n        \"rho\": rho,\n        \"p0\": 1 - rho,\n        \"L\": rho / (1 - rho),\n        \"W\": 1.0 / mu,\n        \"Lq\": rho * rho / (1 - rho),\n        \"Wq\": rho / (mu - lam),\n    }\n\n\ndef mm1_state_probability(lam, mu, n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    rho = mm1_metrics(lam, mu)[\"rho\"]\n    return (1 - rho) * rho ** n\n\n\ndef littles_law(lam, W):\n    if lam < 0 or W < 0:\n        raise ValueError(\"both arguments must be non-negative\")\n    return lam * W\n\n\ndef latency_multiplier(rho):\n    if not 0 <= rho < 1:\n        raise ValueError(\"utilisation must lie in [0, 1)\")\n    return 1.0 / (1.0 - rho)\n\n\ndef value_iteration(P, R, gamma, iters=500):\n    if not 0 <= gamma < 1:\n        raise ValueError(\"gamma must lie in [0, 1)\")\n    n = len(P)\n    V = [0.0] * n\n    for _ in range(iters):\n        new = []\n        for s in range(n):\n            if not P[s]:\n                new.append(0.0)\n                continue\n            best = max(sum(p * (r + gamma * V[sp]) for p, sp, r in P[s][a])\n                       for a in range(len(P[s])))\n            new.append(best)\n        V = new\n    policy = []\n    for s in range(n):\n        if not P[s]:\n            policy.append(None)\n            continue\n        policy.append(max(range(len(P[s])),\n                          key=lambda a: sum(p * (r + gamma * V[sp])\n                                            for p, sp, r in P[s][a])))\n    return V, policy\n", "from math import exp, log, factorial\n\n\ndef poisson_pmf(lam, t, k):\n    \"\"\"Bug: uses lam rather than lam*t as the mean, so the window length is\n    ignored and only t = 1 comes out right.\"\"\"\n    if lam <= 0 or t < 0:\n        raise ValueError(\"lam must be positive and t non-negative\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    return exp(-lam) * lam ** k / factorial(k)\n\n\ndef exponential_interarrival(lam, u):\n    if lam <= 0:\n        raise ValueError(\"lam must be positive\")\n    if not 0 <= u < 1:\n        raise ValueError(\"u must lie in [0, 1)\")\n    return -log(1 - u) / lam\n\n\ndef mm1_metrics(lam, mu):\n    if lam <= 0 or mu <= 0:\n        raise ValueError(\"rates must be positive\")\n    rho = lam / mu\n    if rho >= 1:\n        raise ValueError(\"the queue is unstable: arrivals outpace service\")\n    return {\n        \"rho\": rho,\n        \"p0\": 1 - rho,\n        \"L\": rho / (1 - rho),\n        \"W\": 1.0 / (mu - lam),\n        \"Lq\": rho * rho / (1 - rho),\n        \"Wq\": rho / (mu - lam),\n    }\n\n\ndef mm1_state_probability(lam, mu, n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    rho = mm1_metrics(lam, mu)[\"rho\"]\n    return (1 - rho) * rho ** n\n\n\ndef littles_law(lam, W):\n    if lam < 0 or W < 0:\n        raise ValueError(\"both arguments must be non-negative\")\n    return lam * W\n\n\ndef latency_multiplier(rho):\n    \"\"\"Bug: linear in utilisation rather than hyperbolic. This is exactly the\n    mental model that makes capacity planning fail.\"\"\"\n    if not 0 <= rho < 1:\n        raise ValueError(\"utilisation must lie in [0, 1)\")\n    return 1.0 + rho\n\n\ndef value_iteration(P, R, gamma, iters=500):\n    \"\"\"Bug: takes the mean over actions instead of the maximum, which\n    evaluates a uniform random policy rather than the optimal one.\"\"\"\n    if not 0 <= gamma < 1:\n        raise ValueError(\"gamma must lie in [0, 1)\")\n    n = len(P)\n    V = [0.0] * n\n    for _ in range(iters):\n        new = []\n        for s in range(n):\n            if not P[s]:\n                new.append(0.0)\n                continue\n            vals = [sum(p * (r + gamma * V[sp]) for p, sp, r in P[s][a])\n                    for a in range(len(P[s]))]\n            new.append(sum(vals) / len(vals))\n        V = new\n    policy = []\n    for s in range(n):\n        if not P[s]:\n            policy.append(None)\n            continue\n        policy.append(max(range(len(P[s])),\n                          key=lambda a: sum(p * (r + gamma * V[sp])\n                                            for p, sp, r in P[s][a])))\n    return V, policy\n"], "hints": ["`W = 1/(mu - lam)`, not `1/mu`. The difference is the entire queueing effect.", "Latency scales as `1/(1-rho)`, a hyperbola. Anything linear in utilisation is the wrong mental model."], "level": "boss", "title": "The Poisson process, M/M/1, Little's law and value iteration"}}, "demos": {"m40-chains-two-ways": {"code": "import random\nfrom fractions import Fraction\n\nrng = random.Random(1906)\n\n\ndef stationary_exact(P):\n    \"\"\"Solve pi P = pi with sum(pi) = 1, in exact rational arithmetic.\"\"\"\n    n = len(P)\n    # (P^T - I) pi^T = 0, with the last row replaced by sum(pi) = 1\n    # limit_denominator recovers 4/5 from the float 0.8. Without it the rows\n    # do not sum to exactly 1 as rationals (0.8 + 0.2 is one ulp over), and\n    # the balance equation we replace is then no longer implied by the rest.\n    A = [[Fraction(P[j][i]).limit_denominator(10 ** 9) - (1 if i == j else 0)\n          for j in range(n)] for i in range(n)]\n    A[-1] = [Fraction(1)] * n\n    b = [Fraction(0)] * n\n    b[-1] = Fraction(1)\n    # Gaussian elimination, exact\n    for col in range(n):\n        piv = next(r for r in range(col, n) if A[r][col] != 0)\n        A[col], A[piv] = A[piv], A[col]\n        b[col], b[piv] = b[piv], b[col]\n        inv = A[col][col]\n        A[col] = [v / inv for v in A[col]]\n        b[col] /= inv\n        for r in range(n):\n            if r != col and A[r][col] != 0:\n                f = A[r][col]\n                A[r] = [a - f * c for a, c in zip(A[r], A[col])]\n                b[r] -= f * b[col]\n    return b\n\n\ndef power_iteration(P, steps=4000):\n    n = len(P)\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        pi = [sum(pi[i] * P[i][j] for i in range(n)) for j in range(n)]\n    return pi\n\n\ndef simulate(P, steps=200000, start=0):\n    n = len(P)\n    counts = [0] * n\n    s = start\n    for _ in range(steps):\n        counts[s] += 1\n        r = rng.random()\n        acc = 0.0\n        for j in range(n):\n            acc += P[s][j]\n            if r < acc:\n                s = j\n                break\n    return [c / steps for c in counts]\n\n\nchains = {\n    \"weather\": [[0.8, 0.2], [0.4, 0.6]],\n    \"three states\": [[0.5, 0.3, 0.2], [0.1, 0.7, 0.2], [0.3, 0.3, 0.4]],\n    \"random surfer\": [[0.0, 0.5, 0.5], [0.5, 0.0, 0.5], [0.5, 0.5, 0.0]],\n}\n\nfor name, P in chains.items():\n    for row in P:\n        assert abs(sum(row) - 1.0) < 1e-12, f\"{name}: rows must be stochastic\"\n    exact = stationary_exact(P)\n    power = power_iteration(P)\n    sim = simulate(P)\n    print(f\"{name}:\")\n    print(f\"  exact (Fractions) : {[str(v) for v in exact]}\")\n    print(f\"  power iteration   : {[round(v, 6) for v in power]}\")\n    print(f\"  simulation        : {[round(v, 4) for v in sim]}\")\n    for i in range(len(P)):\n        assert abs(float(exact[i]) - power[i]) < 1e-9, (name, i)\n        assert abs(float(exact[i]) - sim[i]) < 0.02, (name, i)\n    assert abs(sum(float(v) for v in exact) - 1.0) < 1e-12\n    # pi P = pi, exactly\n    n = len(P)\n    for j in range(n):\n        lhs = sum(exact[i] * Fraction(P[i][j]).limit_denominator(10 ** 9)\n                  for i in range(n))\n        assert lhs == exact[j], f\"{name}: pi P = pi must hold exactly\"\n\n# the weather chain has a hand-checkable answer: pi = (2/3, 1/3)\nassert stationary_exact(chains[\"weather\"]) == [Fraction(2, 3), Fraction(1, 3)]\nprint()\nprint(\"the weather chain's stationary distribution is exactly (2/3, 1/3)\")\n\n# --- the long run forgets the start, which is ergodicity ---\nprint()\nP = chains[\"three states\"]\ntarget = [float(v) for v in stationary_exact(P)]\nprint(f\"{'start':>7} {'distribution after 200 steps':>34}\")\nfor start in range(3):\n    pi = [0.0] * 3\n    pi[start] = 1.0\n    for _ in range(200):\n        pi = [sum(pi[i] * P[i][j] for i in range(3)) for j in range(3)]\n    print(f\"{start:>7} {str([round(v, 8) for v in pi]):>34}\")\n    assert max(abs(a - b) for a, b in zip(pi, target)) < 1e-9, start\nprint(\"every start converges to the same distribution: the chain is ergodic\")\n\n# a PERIODIC chain does not converge, though it still has a stationary vector\nflip = [[0.0, 1.0], [1.0, 0.0]]\nassert stationary_exact(flip) == [Fraction(1, 2), Fraction(1, 2)]\npi = [1.0, 0.0]\nseen = []\nfor _ in range(6):\n    pi = [sum(pi[i] * flip[i][j] for i in range(2)) for j in range(2)]\n    seen.append(round(pi[0], 6))\nprint(f\"a period-2 chain oscillates forever: {seen}\")\nassert seen == [0.0, 1.0, 0.0, 1.0, 0.0, 1.0], seen\nassert abs(sum(seen) / len(seen) - 0.5) < 1e-9, \"the time AVERAGE is still 1/2\"\n\n# --- gambler's ruin against the closed form ---\nprint()\n\n\ndef ruin_closed(k, N, p):\n    if abs(p - 0.5) < 1e-12:\n        return k / N\n    r = (1 - p) / p\n    return (1 - r ** k) / (1 - r ** N)\n\n\ndef ruin_sim(k, N, p, trials=20000):\n    wins = 0\n    for _ in range(trials):\n        x = k\n        while 0 < x < N:\n            x += 1 if rng.random() < p else -1\n        wins += (x == N)\n    return wins / trials\n\n\nprint(f\"{'k':>4} {'N':>4} {'p':>6} {'closed form':>13} {'simulated':>11}\")\nfor k, N, p in ((5, 10, 0.5), (3, 10, 0.5), (50, 100, 0.49), (5, 10, 0.55)):\n    c, s = ruin_closed(k, N, p), ruin_sim(k, N, p, 4000)\n    print(f\"{k:>4} {N:>4} {p:>6} {c:>13.4f} {s:>11.4f}\")\n    assert abs(c - s) < 0.03, (k, N, p, c, s)\n# the fair case is exactly k/N\nassert abs(ruin_closed(37, 100, 0.5) - 0.37) < 1e-12\n# a 1% house edge is devastating over 100 steps\nassert ruin_closed(50, 100, 0.49) < 0.15, \"a tiny edge compounds enormously\"\nprint(f\"a 1% edge turns an even-money 50/50 into \"\n      f\"{ruin_closed(50, 100, 0.49):.3f}\")\n\n# --- PageRank is a stationary distribution ---\nprint()\n\n\ndef pagerank(links, n, d=0.85, steps=300):\n    \"\"\"links[i] is the list of pages i points to.\"\"\"\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        nxt = [(1 - d) / n] * n\n        for i in range(n):\n            if links[i]:\n                share = d * pi[i] / len(links[i])   # COLUMN normalisation\n                for j in links[i]:\n                    nxt[j] += share\n            else:\n                for j in range(n):                  # a dangling node teleports\n                    nxt[j] += d * pi[i] / n\n        pi = nxt\n    return pi\n\n\nlinks = {0: [1, 2], 1: [2], 2: [0], 3: [0, 1, 2]}\npr = pagerank(links, 4)\nprint(f\"PageRank: {[round(v, 5) for v in pr]}\")\nassert abs(sum(pr) - 1.0) < 1e-9, \"it is a probability distribution\"\nassert pr[2] > pr[0] > pr[1] > pr[3], \"page 2 is pointed at by everyone\"\n# page 3 has no inbound links, so it holds only the teleport mass\nassert abs(pr[3] - (1 - 0.85) / 4) < 1e-9, \"no inbound links means teleport only\"\n# it really is a fixed point: another sweep changes nothing\nagain = pagerank(links, 4, steps=1)\npi = pr\nnxt = [(1 - 0.85) / 4] * 4\nfor i in range(4):\n    for j in links[i]:\n        nxt[j] += 0.85 * pi[i] / len(links[i])\nassert max(abs(a - b) for a, b in zip(nxt, pr)) < 1e-9, \"a fixed point\"\nprint(\"  and it is a genuine fixed point of the surfer's transition\")\n", "mutants": ["def pagerank(links, n, d=0.85, steps=300):\n    \"\"\"Bug: normalises by the number of INBOUND links of the target rather\n    than the outbound links of the source. The result still sums to roughly 1\n    and still looks like a ranking, but it solves the wrong equation.\"\"\"\n    inbound = [sum(1 for i in range(n) if j in links.get(i, [])) for j in range(n)]\n    pi = [1.0 / n] * n\n    for _ in range(steps):\n        nxt = [(1 - d) / n] * n\n        for i in range(n):\n            for j in links.get(i, []):\n                nxt[j] += d * pi[i] / max(1, inbound[j])\n        pi = nxt\n    return pi\n\n\nlinks = {0: [1, 2], 1: [2], 2: [0], 3: [0, 1, 2]}\npr = pagerank(links, 4)\nprint(f\"PageRank: {[round(v, 5) for v in pr]}\")\nassert abs(sum(pr) - 1.0) < 1e-9, \"it must be a probability distribution\"\nassert pr[2] > pr[0] > pr[1] > pr[3], \"page 2 is pointed at by everyone\"\n"]}, "m40-the-utilisation-wall": {"code": "import random\nfrom math import log, exp, sqrt\n\nrng = random.Random(1909)\n\n\ndef simulate_mm1(lam, mu, n_customers=40000, warmup=4000):\n    \"\"\"Event-driven M/M/1 by Lindley's recursion. No formula is used.\"\"\"\n    wait = 0.0\n    arrival = 0.0\n    waits, sojourns, areas = [], [], []\n    prev_arrival = 0.0\n    for i in range(n_customers):\n        gap = -log(rng.random() or 1e-12) / lam        # Exp(lam)\n        arrival += gap\n        service = -log(rng.random() or 1e-12) / mu     # Exp(mu)\n        wait = max(0.0, wait + prev_service - gap) if i else 0.0\n        prev_service = service\n        if i >= warmup:\n            waits.append(wait)\n            sojourns.append(wait + service)\n            areas.append(arrival)\n    return waits, sojourns, areas\n\n\n# --- 1. the wall ---\nMU = 1.0\nN_CUST, WARMUP = 120000, 12000\nprint(\"M/M/1: mean sojourn time in units of service time\")\nprint(f\"{'rho':>6} {'theory 1/(1-rho)':>18} {'simulated':>12} {'theory L':>10} \"\n      f\"{'simulated L':>13}\")\nresults = {}\nfor rho in (0.5, 0.7, 0.84, 0.9):\n    lam = rho * MU\n    waits, soj, _ = simulate_mm1(lam, MU, N_CUST, WARMUP)\n    w_sim = sum(soj) / len(soj)\n    w_theory = 1.0 / (1.0 - rho)\n    l_theory = rho / (1 - rho)\n    l_sim = lam * w_sim                      # Little's law, applied\n    results[rho] = (w_sim, w_theory)\n    print(f\"{rho:>6} {w_theory:>18.3f} {w_sim:>12.3f} {l_theory:>10.3f} \"\n          f\"{l_sim:>13.3f}\")\n    assert abs(w_sim - w_theory) / w_theory < 0.08, (rho, w_sim, w_theory)\n    assert abs(l_sim - l_theory) / l_theory < 0.08, (rho, l_sim, l_theory)\n\nprint()\nprint(\"predicted: sojourn time is 1/(1-rho), a hyperbola with a wall at rho=1,\")\nprint(\"           NOT anything proportional to utilisation\")\nratio = results[0.84][1] / results[0.7][1]\nsim_ratio = results[0.84][0] / results[0.7][0]\nprint(f\"measured : going from rho=0.70 to rho=0.84 is 20% more traffic;\")\nprint(f\"           theory says latency x{ratio:.2f}, simulation x{sim_ratio:.2f}\")\nassert ratio > 1.8, \"a fifth more load nearly doubles the latency\"\nassert abs(sim_ratio - ratio) / ratio < 0.2\nprint(f\"           dropping to rho=0.50 gives x{results[0.5][1]:.2f} service \"\n      f\"times, better than before the campaign\")\nassert results[0.5][1] < results[0.7][1], \"the extra server more than pays\"\nassert (1 / (1 - 0.99) - 1 / (1 - 0.98)) > (1 / (1 - 0.5) - 1 / (1 - 0.0))\nprint(\"           and the step from 98% to 99% costs more latency than the\")\nprint(\"           entire step from 0% to 50%\")\n\n# --- 1b. a high-utilisation queue is hard even to MEASURE ---\nprint()\nprint(\"the same experiment at rho = 0.95, run five times independently\")\nprint(\"(each run is 120000 customers; the theoretical answer is 20.0)\")\nhi, lo_rho = [], []\nfor seed in (11, 22, 33, 44, 55):\n    rng.seed(seed)\n    _, soj, _ = simulate_mm1(0.95, MU, N_CUST, WARMUP)\n    hi.append(sum(soj) / len(soj))\n    rng.seed(seed)\n    _, soj2, _ = simulate_mm1(0.5, MU, N_CUST, WARMUP)\n    lo_rho.append(sum(soj2) / len(soj2))\nprint(f\"  rho = 0.95 : {[round(v, 2) for v in hi]}\")\nprint(f\"  rho = 0.50 : {[round(v, 3) for v in lo_rho]}  (theory 2.0)\")\nspread_hi = max(hi) / min(hi)\nspread_lo = max(lo_rho) / min(lo_rho)\nprint(f\"  spread factor: {spread_hi:.3f} at rho=0.95, {spread_lo:.4f} at rho=0.50\")\nprint()\nprint(\"predicted: near the wall the queue has long excursions, so the sample\")\nprint(\"           mean has a huge variance - the estimate is noisy even with\")\nprint(\"           120000 customers, while at rho=0.5 it is nailed down\")\nassert spread_hi > 1.2, \"the high-utilisation estimate must be visibly unstable\"\nassert spread_lo < 1.05, \"the low-utilisation one must not be\"\nassert all(v > 12.0 for v in hi), \"every run still shows the blow-up\"\nassert all(abs(v - 2.0) < 0.1 for v in lo_rho), \"rho=0.5 is reproducible\"\nprint(\"           This is why a load test at 95% utilisation does not\")\nprint(\"           reproduce: you are measuring a quantity that barely exists.\")\nrng.seed(1909)\n\n# --- 2. Little's law, measured directly ---\nprint()\nlam, mu = 0.8, 1.0\nwaits, soj, arrivals = simulate_mm1(lam, mu, n_customers=60000, warmup=10000)\nW = sum(soj) / len(soj)\n# L measured as a time average, independently of W\nspan = arrivals[-1] - arrivals[0]\nL_timeavg = sum(soj) / span\nprint(f\"Little's law at rho = {lam / mu}\")\nprint(f\"  W (mean time in system)      = {W:.4f}\")\nprint(f\"  lambda * W                   = {lam * W:.4f}\")\nprint(f\"  L measured as a time average = {L_timeavg:.4f}\")\nprint(f\"  theory rho/(1-rho)           = {lam / mu / (1 - lam / mu):.4f}\")\nassert abs(L_timeavg - lam * W) / (lam * W) < 0.05, \"L = lambda W\"\nassert abs(L_timeavg - 4.0) / 4.0 < 0.15\nprint()\nprint(\"predicted: L = lambda * W for ANY stable queue, whatever the\")\nprint(\"           distributions - and the trace confirms it with no formula used\")\n\n# --- 3. the SHAPE is fixed; the SCALE is what explodes ---\nprint()\nrng.seed(1909)\nprint(\"M/M/1 sojourn time is exactly Exp(mu - lambda). The queue multiplies the\")\nprint(\"SCALE by 1/(1-rho) and leaves the shape completely alone.\")\nprint(f\"{'rho':>6} {'mean':>9} {'median':>9} {'p99':>9} {'p99/median':>12} \"\n      f\"{'mean/median':>13}\")\nshape, p99s = [], []\nfor rho in (0.5, 0.8, 0.95):\n    _, soj, _ = simulate_mm1(rho * MU, MU, 40000)\n    srt = sorted(soj)\n    med = srt[len(srt) // 2]\n    p99 = srt[int(0.99 * len(srt))]\n    mean = sum(srt) / len(srt)\n    shape.append(mean / med)\n    p99s.append(p99)\n    print(f\"{rho:>6} {mean:>9.3f} {med:>9.3f} {p99:>9.3f} {p99 / med:>12.2f} \"\n          f\"{mean / med:>13.3f}\")\n    # for an exponential the mean is 1/ln(2) times the median, at every scale\n    assert abs(mean / med - 1.0 / log(2)) < 0.12, (rho, mean / med)\n\nprint()\nprint(f\"predicted: for ANY exponential, mean/median = 1/ln(2) = \"\n      f\"{1 / log(2):.3f} and\")\nprint(f\"           p99/median = ln(100)/ln(2) = {log(100) / log(2):.3f}, \"\n      f\"at every utilisation\")\nprint(f\"measured : mean/median stayed within \"\n      f\"{max(abs(v - 1 / log(2)) for v in shape):.3f} of it throughout\")\nassert max(shape) / min(shape) < 1.2, \"the SHAPE is essentially unchanged\"\n# but the p99 in absolute terms blows up with the scale\nprint(f\"measured : the p99 itself went from {p99s[0]:.1f} to {p99s[-1]:.1f} \"\n      f\"service times - a factor of {p99s[-1] / p99s[0]:.1f}\")\nassert p99s[-1] / p99s[0] > 4, \"the scale explodes even though the shape does not\"\n\n# --- 3b. where the tail at scale actually comes from: fan-out ---\nprint()\nrng.seed(2013)\nprint(\"A request that fans out to N backends waits for the SLOWEST of them.\")\nprint(\"For exponential latencies, E[max of N] = H_N = 1 + 1/2 + ... + 1/N.\")\nprint(f\"{'N':>6} {'H_N (theory)':>14} {'simulated':>12}\")\nfor N in (1, 10, 100):\n    H = sum(1.0 / k for k in range(1, N + 1))\n    trials = [max(-log(rng.random() or 1e-12) for _ in range(N))\n              for _ in range(3000)]\n    got = sum(trials) / len(trials)\n    print(f\"{N:>6} {H:>14.3f} {got:>12.3f}\")\n    assert abs(got - H) / H < 0.05, (N, got, H)\n\nprint()\nprint(\"predicted: fan-out multiplies the typical latency by H_N ~ ln(N),\")\nprint(\"           and it does so ON TOP of the 1/(1-rho) from the queue\")\nh100 = sum(1.0 / k for k in range(1, 101))\nprint(f\"measured : at rho = 0.95 one call costs about 20 service times;\")\nprint(f\"           a 100-way fan-out costs about {20 * h100:.0f}\")\nassert h100 > 5.0, \"a 100-way fan-out costs over five times the single-call mean\"\n\n# --- 4. Metropolis samples from an unnormalised target ---\nprint()\n\n\ndef metropolis(f, x0, steps=200000, scale=1.0):\n    \"\"\"f need only be proportional to the target: the constant cancels.\"\"\"\n    x = x0\n    out = []\n    accepted = 0\n    for _ in range(steps):\n        y = x + rng.gauss(0, scale)\n        if rng.random() < min(1.0, f(y) / f(x)):\n            x = y\n            accepted += 1\n        out.append(x)\n    return out, accepted / steps\n\n\n# target: a standard normal, given WITHOUT its 1/sqrt(2 pi)\nunnormalised = lambda t: exp(-t * t / 2)\nchain, acc = metropolis(unnormalised, 0.0, steps=120000, scale=2.0)\nburned = chain[20000:]\nm = sum(burned) / len(burned)\nv = sum((t - m) ** 2 for t in burned) / (len(burned) - 1)\nwithin1 = sum(1 for t in burned if abs(t) <= 1) / len(burned)\nprint(f\"Metropolis on exp(-x^2/2), which is NOT a normalised density\")\nprint(f\"  acceptance rate {acc:.3f}\")\nprint(f\"  mean {m:.4f} (target 0), variance {v:.4f} (target 1)\")\nprint(f\"  fraction within one sd {within1:.4f} (target 0.683)\")\nassert abs(m) < 0.05, m\nassert abs(v - 1.0) < 0.08, v\nassert abs(within1 - 0.6827) < 0.03, within1\nprint()\nprint(\"predicted: the normalising constant cancels in the ratio f(y)/f(x),\")\nprint(\"           so the chain finds the right distribution without knowing it\")\n", "mutants": ["import random\nfrom math import log\n\nrng = random.Random(1909)\n\n# Wrong theory: \"latency grows in proportion to utilisation, so 20% more\n# traffic means about 20% more latency.\"\n\n\ndef simulate_mm1(lam, mu, n_customers=40000, warmup=4000):\n    wait = 0.0\n    arrival = 0.0\n    sojourns = []\n    for i in range(n_customers):\n        gap = -log(rng.random() or 1e-12) / lam\n        arrival += gap\n        service = -log(rng.random() or 1e-12) / mu\n        wait = max(0.0, wait + prev_service - gap) if i else 0.0\n        prev_service = service\n        if i >= warmup:\n            sojourns.append(wait + service)\n    return sojourns\n\n\na = simulate_mm1(0.70, 1.0)\nb = simulate_mm1(0.84, 1.0)\nwa = sum(a) / len(a)\nwb = sum(b) / len(b)\nprint(f\"mean sojourn at rho=0.70: {wa:.3f}\")\nprint(f\"mean sojourn at rho=0.84: {wb:.3f}\")\nprint(f\"ratio: {wb / wa:.3f}\")\nassert wb / wa < 1.3, \"20% more load should mean roughly 20% more latency\"\n"]}}, "cards": [{"q": "What is the Markov property?", "a": "The next state depends only on the current state, not on the path taken to reach it. It is what turns a simulation into linear algebra."}, {"q": "What is a stationary distribution, algebraically?", "a": "A probability vector pi with pi P = pi \u2014 a LEFT eigenvector of P for eigenvalue 1. Existence is guaranteed; uniqueness needs irreducibility."}, {"q": "What does ergodic mean and what does it buy?", "a": "Irreducible plus aperiodic. It guarantees a unique stationary distribution, reached from every starting state, equal to the long-run fraction of time in each state."}, {"q": "Give the gambler's ruin probability for a fair walk and for a biased one.", "a": "Fair: k/N. Biased: (1 - r^k)/(1 - r^N) with r = q/p. A 1% edge turns a 50/50 start on a 100-step board into about 0.12."}, {"q": "Why does PageRank need a damping factor?", "a": "The teleport makes the chain irreducible and aperiodic, so a unique stationary distribution exists and power iteration converges. It also fixes dangling nodes and rank sinks."}, {"q": "What is the key idea of Metropolis-Hastings?", "a": "Build a chain whose stationary distribution IS the target, accepting with min(1, f(y)/f(x)). The unknown normalising constant cancels in the ratio."}, {"q": "Give L, W and the stability condition for an M/M/1 queue.", "a": "rho = lambda/mu must be < 1. L = rho/(1-rho), W = 1/(mu - lambda). The state distribution is geometric: p_n = (1-rho) rho^n."}, {"q": "State Little's law and say how general it is.", "a": "L = lambda * W. It holds for ANY stable queueing system \u2014 any arrival process, service distribution or scheduling discipline."}, {"q": "Why does latency explode as utilisation approaches 1?", "a": "Sojourn time in units of service time is 1/(1-rho), which is the pole of the geometric series sum n rho^(n-1) = 1/(1-rho)^2. It is a hyperbola, not a line."}, {"q": "Does an M/M/1 queue make latency heavy-tailed?", "a": "No. Its sojourn time is exactly exponential at every utilisation \u2014 mean/median stays at 1/ln(2). The queue multiplies the SCALE by 1/(1-rho). A worse SHAPE comes from non-exponential service or from fan-out, where you wait for the max of N."}, {"q": "Why does value iteration converge?", "a": "The Bellman operator is a gamma-contraction in the sup norm, so Banach's fixed point theorem gives a unique fixed point reached geometrically. This needs gamma < 1."}, {"q": "What does Q-learning learn, and what does it not need?", "a": "It learns Q(s,a) from sampled transitions and does NOT need the transition model P. It needs sufficient exploration and a decreasing step size."}], "title": "Markov chains, random walks and queues"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

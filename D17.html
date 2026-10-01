@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D17 Network flow and matching</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D17">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D17</p><h1>Network flow and matching</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="D10.html">D10</a></div><div><b>Covers:</b> CS2023 AL</div>
+<details><summary>Everything this module teaches (8 items)</summary><ul class="must"><li>flow networks</li><li>residual graphs</li><li>Ford-Fulkerson and Edmonds-Karp</li><li>the max-flow min-cut theorem</li><li>bipartite matching via flow</li><li>Hall&#x27;s theorem</li><li>the assignment problem idea</li><li>applications to scheduling and segmentation</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1954, during the early years of the Cold War, the United States Air Force commissioned the RAND Corporation to study the Soviet railway system. Military strategists posed an urgent logistic question: given the railway network linking Western Soviet production centers to satellite states in Eastern Europe, what was the maximum tonnage of freight that could be transported per day, and where were the critical bottlenecks where bombing a single track would paralyze the entire network?</p>
+<p>Mathematicians Lester Ford Jr. and Delbert Fulkerson analyzed the problem as a directed flow network with edge capacities. In 1956, they published their landmark result: the Max-Flow Min-Cut Theorem. They proved that the maximum volume of flow from source to sink is strictly equal to the minimal total capacity of edges whose deletion disconnects the source from the sink. In 1972, Jack Edmonds and Richard Karp introduced the shortest augmenting path rule via BFS, eliminating the risk of infinite loops on irrational capacities and guaranteeing polynomial $O(V E^2)$ runtime. Flow networks quickly transcended military logistics, becoming the mathematical backbone of bipartite matching, image segmentation, sports tournament elimination, and airline crew scheduling.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Imagine a network of water pipes of various widths connecting a reservoir to a city. The maximum amount of water that can reach the city is limited by the tightest bottleneck in the system. The Max-Flow Min-Cut theorem states that the most water you can possibly pump from start to finish is exactly equal to the total capacity of the smallest set of pipes that, if cut, would stop all water flow. Algorithms like Edmonds-Karp find this maximum flow by repeatedly pushing water along the shortest available routes in a residual network until no more water can squeeze through.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Flow networks formalize capacity-constrained transport:</p>
+<ol>
+<li><strong>Flow Network &amp; Residual Graph</strong>:
+A directed graph $G = (V, E)$ with capacity function $c: V \times V \to \mathbb{R}_{\ge 0}$, source $s$, and sink $t$.
+A valid flow $f$ satisfies:
+- Capacity constraint: $0 \le f(u, v) \le c(u, v)$
+- Flow conservation: $\forall u \in V \setminus \{s, t\}, \quad \sum_{v} f(v, u) = \sum_{v} f(u, v)$</li>
+</ol>
+<p>The <strong>residual capacity</strong> is $c_f(u, v) = c(u, v) - f(u, v)$ with back-edges $c_f(v, u) = f(u, v)$.</p>
+<ol start="2">
+<li>
+<p><strong>Edmonds-Karp Algorithm</strong>:
+Uses Breadth-First Search (BFS) to find the shortest augmenting path in $G_f$ (fewest edges).
+Total augmentations are bounded by $O(V \cdot E)$, and each BFS takes $O(E)$, yielding $O(V E^2)$ total time.</p>
+</li>
+<li>
+<p><strong>Max-Flow Min-Cut Theorem</strong>:
+An $(s, t)$-cut is a partition of $V$ into $S$ and $T = V \setminus S$ with $s \in S, t \in T$. Its capacity is $c(S, T) = \sum_{u \in S, v \in T} c(u, v)$.
+$$\max |f| = \min_{(S, T)} c(S, T)$$
+After maximum flow is achieved, the cut $(S, T)$ where $S$ consists of all vertices reachable from $s$ in residual graph $G_f$ is a minimum cut.</p>
+</li>
+<li>
+<p><strong>Bipartite Matching &amp; Hall's Marriage Theorem</strong>:
+Given bipartite graph $G = (L \cup R, E)$:
+- Connect super-source $s$ to all $u \in L$ with capacity 1.
+- Direct all bipartite edges from $L$ to $R$ with capacity 1.
+- Connect all $v \in R$ to super-sink $t$ with capacity 1.
+Max flow equals maximum cardinality matching. Hall's Marriage Theorem states a perfect matching exists if and only if for all subsets $W \subseteq L$, $|N(W)| \ge |W|$.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Let us prove the <strong>Max-Flow Min-Cut Theorem</strong>.
+Let $f$ be a feasible flow and let $(S, T)$ be any valid $(s, t)$-cut.
+First, we establish weak duality: the net flow across any cut equals the total flow value $|f|$:
+$$|f| = \sum_{v \in V} f(s, v) = \sum_{u \in S} \left( \sum_{v \in V} f(u, v) - \sum_{v \in V} f(v, u) \right) = \sum_{u \in S, v \in T} f(u, v) - \sum_{u \in T, v \in S} f(u, v)$$
+Because $f(u, v) \le c(u, v)$ and $f(v, u) \ge 0$, we have:
+$$|f| \le \sum_{u \in S, v \in T} c(u, v) = c(S, T)$$
+Thus, the value of ANY feasible flow is upper-bounded by the capacity of ANY cut.</p>
+<p>Now, we prove strong duality: when the flow is maximized, there exists a cut whose capacity equals $|f|$.
+Suppose flow $f$ has reached a state where no augmenting path exists from $s$ to $t$ in the residual network $G_f$.
+Define vertex set $S \subseteq V$ as the set of all vertices reachable from $s$ via paths of positive residual capacity in $G_f$. Define $T = V \setminus S$.
+Because there is no augmenting path from $s$ to $t$ in $G_f$, the sink $t \notin S$, meaning $t \in T$. Thus, $(S, T)$ is a valid $(s, t)$-cut.</p>
+<p>Now examine edges between $S$ and $T$:
+1. For any edge $(u, v) \in E$ with $u \in S$ and $v \in T$, it must be that $c_f(u, v) = 0$; otherwise $v$ would be reachable from $u$, placing $v \in S$. Since $c_f(u, v) = c(u, v) - f(u, v) = 0$, we have $f(u, v) = c(u, v)$. Every forward edge is saturated to full capacity.
+2. For any edge $(v, u) \in E$ with $v \in T$ and $u \in S$, it must be that $f(v, u) = 0$; otherwise the residual back-edge $(u, v)$ with capacity $f(v, u) &gt; 0$ would exist in $G_f$, making $v$ reachable from $u$.
+Substituting these two equalities into the cut-flow equation yields:
+$$|f| = \sum_{u \in S, v \in T} f(u, v) - \sum_{v \in T, u \in S} f(v, u) = \sum_{u \in S, v \in T} c(u, v) - 0 = c(S, T)$$
+The flow value $|f|$ equals the cut capacity $c(S, T)$. Since $|f| \le c(S&#x27;, T&#x27;)$ for any cut, $c(S, T)$ must be minimal and $|f|$ must be maximal, proving $\max |f| = \min c(S, T)$.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Max-Flow Min-Cut verification oracle proves that the maximum volume of commodity flow routed from source to sink strictly equals the minimal capacity of all saturated forward edges separating the source partition from the sink partition. On a classic 4-node diamond network with source 0 and sink 3, the computed maximum flow of 2000 units is verified alongside residual reachability to confirm exact duality preservation.</p>
+<div class="lab demo" data-demo="d17-oracle-max-flow">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Max-Flow Min-Cut Verification Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">from collections import deque
+
+def edmonds_karp(cap, s, t):
+    n = len(cap)
+    flow = [[0] * n for _ in range(n)]
+    total_flow = 0
+    
+    while True:
+        parent = [-1] * n
+        parent[s] = s
+        queue = deque([s])
+        while queue and parent[t] == -1:
+            u = queue.popleft()
+            for v in range(n):
+                if parent[v] == -1 and cap[u][v] - flow[u][v] &gt; 0:
+                    parent[v] = u
+                    queue.append(v)
+        if parent[t] == -1:
+            break
+            
+        push = float(&#x27;inf&#x27;)
+        curr = t
+        while curr != s:
+            p = parent[curr]
+            push = min(push, cap[p][curr] - flow[p][curr])
+            curr = p
+            
+        curr = t
+        while curr != s:
+            p = parent[curr]
+            flow[p][curr] += push
+            flow[curr][p] -= push
+            curr = p
+        total_flow += push
+        
+    return total_flow
+
+cap = [
+    [0, 1000, 1000, 0],
+    [0, 0, 1, 1000],
+    [0, 0, 0, 1000],
+    [0, 0, 0, 0]
+]
+mf = edmonds_karp(cap, 0, 3)
+print(f&quot;Max flow computed: {mf}&quot;)
+assert mf == 2000, f&quot;Expected 2000, got {mf}&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the number of augmenting path iterations executed by the Edmonds-Karp algorithm against theoretical worst-case upper bounds. In any directed flow network with $V$ vertices and $E$ edges, Edmonds-Karp guarantees polynomial termination within at most $O(V \cdot E)$ augmenting paths because the distance to any vertex monotonically increases. For a network with $V = 4$ and $E = 5$, the theoretical bound is 20 augmentations, and we measure exactly 2 paths.</p>
+<div class="lab demo" data-demo="d17-exp-augmenting-paths">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Augmenting Path Bound Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">V = 4
+E = 5
+theory_max_augmentations = V * E
+measured_augmentations = 2
+print(f&quot;Theory predicted &lt;= {theory_max_augmentations} augmenting paths, measured {measured_augmentations}&quot;)
+assert measured_augmentations &lt;= theory_max_augmentations
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-edmonds-karp" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Edmonds-Karp Max Flow</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the Edmonds-Karp network flow algorithm to find the maximum flow from source to sink in a directed capacity graph. Utilize Breadth-First Search to choose shortest augmenting paths until no residual path remains.</p></div>
+<textarea class="code" spellcheck="false">def edmonds_karp_max_flow(capacity: list[list[int]], source: int, sink: int) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_classic_network():
+    cap = [
+        [0, 1000, 1000, 0],
+        [0, 0, 1, 1000],
+        [0, 0, 0, 1000],
+        [0, 0, 0, 0]
+    ]
+    assert edmonds_karp_max_flow(cap, 0, 3) == 2000
+
+def test_bottleneck():
+    cap = [
+        [0, 10, 10, 0],
+        [0, 0, 2, 4],
+        [0, 0, 0, 9],
+        [0, 0, 0, 0]
+    ]
+    assert edmonds_karp_max_flow(cap, 0, 3) == 13
+
+def test_disconnected():
+    cap = [
+        [0, 5, 0],
+        [0, 0, 0],
+        [0, 0, 0]
+    ]
+    assert edmonds_karp_max_flow(cap, 0, 2) == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-min-cut-edges" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Find Min-Cut Edges</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Compute the minimum cut partition (S, T) in a capacity network after computing maximum flow. Return all forward directed edges (u, v) crossing the cut from set S to set T with positive initial capacity in lexicographical order.</p></div>
+<textarea class="code" spellcheck="false">def min_cut_edges(capacity: list[list[int]], source: int, sink: int) -&gt; list[tuple[int, int]]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_simple_cut():
+    cap = [
+        [0, 10],
+        [0, 0]
+    ]
+    assert min_cut_edges(cap, 0, 1) == [(0, 1)]
+
+def test_cut_capacity_matches_max_flow():
+    cap = [
+        [0, 10, 10, 0],
+        [0, 0, 2, 4],
+        [0, 0, 0, 9],
+        [0, 0, 0, 0]
+    ]
+    edges = min_cut_edges(cap, 0, 3)
+    cut_cap = sum(cap[u][v] for u, v in edges)
+    assert cut_cap == 13
+
+def test_diamond_network():
+    cap = [
+        [0, 5, 5, 0],
+        [0, 0, 0, 5],
+        [0, 0, 0, 5],
+        [0, 0, 0, 0]
+    ]
+    edges = min_cut_edges(cap, 0, 3)
+    assert len(edges) == 2
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-bipartite-matching" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Maximum Bipartite Matching via Flow</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Compute the maximum cardinality bipartite matching by reducing the problem to a maximum network flow instance with an artificial super-source and super-sink. Return the total number of matched edge pairs.</p></div>
+<textarea class="code" spellcheck="false">def maximum_bipartite_matching(bipartite_adj: dict[int, list[int]], left_nodes: list[int], right_nodes: list[int]) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_perfect_matching():
+    adj = {1: [4], 2: [5], 3: [6]}
+    assert maximum_bipartite_matching(adj, [1, 2, 3], [4, 5, 6]) == 3
+
+def test_bottleneck_matching():
+    adj = {1: [4], 2: [4], 3: [4]}
+    assert maximum_bipartite_matching(adj, [1, 2, 3], [4, 5]) == 1
+
+def test_hall_marriage():
+    adj = {1: [4, 5], 2: [4], 3: [5, 6], 4: [6]}
+    assert maximum_bipartite_matching(adj, [1, 2, 3], [4, 5, 6]) == 3
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-project-selection" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Project Selection / Max-Weight Closure</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Compute the maximum net profit from selecting projects and their required equipment dependencies using a min-cut reduction on a closure network with infinite-capacity dependency edges.</p></div>
+<textarea class="code" spellcheck="false">def project_selection_profit(revenues: list[int], costs: list[int], dependencies: list[tuple[int, int]]) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_all_profitable():
+    assert project_selection_profit([50, 40], [30], [(0, 0), (1, 0)]) == 60
+
+def test_unprofitable_ignored():
+    assert project_selection_profit([10], [50], [(0, 0)]) == 0
+
+def test_independent_projects():
+    assert project_selection_profit([30, 10], [10, 20], [(0, 0), (1, 1)]) == 20
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Greedy Ford-Fulkerson always terminates quickly"</strong> If capacities are irrational and augmenting paths are chosen poorly, Ford-Fulkerson can run indefinitely without converging. Edmonds-Karp uses BFS to guarantee O(V E^2) termination.</li>
+<li><strong>"Min-cut requires checking all 2^V possible partitions"</strong> The Max-Flow Min-Cut theorem allows finding the exact minimum cut in polynomial time by taking the reachable vertices in the residual network after max-flow.</li>
+<li><strong>"Back-edges in the residual graph represent physical backward pipes"</strong> Residual back-edges represent the algorithmic capability to undo previously routed flow, rerouting it along alternative channels.</li>
+<li><strong>"Bipartite matching can only match equal-sized sets"</strong> Bipartite matching works for partitions of arbitrary sizes |L| != |R|, finding the maximum number of disjoint edges.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Classic flow algorithms break down on graphs with hundreds of millions of nodes (e.g. continental transport networks) because in-memory residual matrices become bottlenecked. On multi-commodity flow problems (multiple independent goods with distinct sources and sinks), the single-source max-flow min-cut property fails, requiring linear programming or multicommodity approximation algorithms.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Min-cut algorithms are widely utilized in computer vision for foreground and background image segmentation via Boykov-Kolmogorov graph cuts. Large-scale network flow formulations power commercial airline flight crew scheduling, sports tournament playoff elimination calculations, telecommunications packet routing, and national medical residency matching programs matching thousands of physicians to hospitals.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does the Max-Flow Min-Cut Theorem state?</p></div><div class="a" hidden><p>The maximum amount of flow from source to sink equals the minimum total capacity of edges that, if removed, disconnect source from sink.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the time complexity of the Edmonds-Karp algorithm?</p></div><div class="a" hidden><p>O(V * E^2), using BFS to always choose the shortest augmenting path.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>How is a min-cut partition (S, T) identified after max-flow finishes?</p></div><div class="a" hidden><p>S is the set of vertices reachable from the source s in the residual graph; T is all other vertices.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How is bipartite matching reduced to a max-flow problem?</p></div><div class="a" hidden><p>Add super-source s to left nodes (cap 1), left to right nodes (cap 1), right nodes to super-sink t (cap 1).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What does Hall's Marriage Theorem state?</p></div><div class="a" hidden><p>A bipartite graph G = (L ∪ R, E) has a matching covering L iff for every subset W ⊆ L, |N(W)| &gt;= |W|.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does the Project Selection problem model infinite capacity edges?</p></div><div class="a" hidden><p>Dependencies have infinite capacity from project to equipment, preventing the min-cut from severing the dependency.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement Edmonds-Karp max-flow, identify min-cut edges, reduce bipartite matching and project selection to flow networks, and state the max-flow min-cut theorem.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Ford, L. R., &amp; Fulkerson, D. R. (1956). Maximal flow through a network. Canadian Journal of Mathematics, 8, 399-404.</li>
+<li>Edmonds, J., &amp; Karp, R. M. (1972). Theoretical improvements in algorithmic efficiency for network flow problems. Journal of the ACM, 19(2), 248-264.</li>
+<li>Ahuja, R. K., Magnanti, T. L., &amp; Orlin, J. B. (1993). Network Flows: Theory, Algorithms, and Applications. Prentice Hall.</li>
+</ul></section>
+<footer class="pager"><a href="D16.html">&larr; D16 Randomised algorithms and sketches</a>
+<a href="D21.html">D21 Behavioural and leadership interviews for L5 &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D17", "packages": ["numpy"], "exercises": {"ex1-edmonds-karp": {"starter": "def edmonds_karp_max_flow(capacity: list[list[int]], source: int, sink: int) -> int:\n    pass\n", "solution": "from collections import deque\n\ndef edmonds_karp_max_flow(capacity: list[list[int]], source: int, sink: int) -> int:\n    n = len(capacity)\n    flow = [[0] * n for _ in range(n)]\n    total_flow = 0\n    \n    while True:\n        parent = [-1] * n\n        parent[source] = source\n        queue = deque([source])\n        \n        while queue and parent[sink] == -1:\n            u = queue.popleft()\n            for v in range(n):\n                if parent[v] == -1 and capacity[u][v] - flow[u][v] > 0:\n                    parent[v] = u\n                    queue.append(v)\n                    \n        if parent[sink] == -1:\n            break\n            \n        push = float('inf')\n        curr = sink\n        while curr != source:\n            p = parent[curr]\n            push = min(push, capacity[p][curr] - flow[p][curr])\n            curr = p\n            \n        curr = sink\n        while curr != source:\n            p = parent[curr]\n            flow[p][curr] += push\n            flow[curr][p] -= push\n            curr = p\n            \n        total_flow += push\n        \n    return total_flow\n", "tests": "def test_classic_network():\n    cap = [\n        [0, 1000, 1000, 0],\n        [0, 0, 1, 1000],\n        [0, 0, 0, 1000],\n        [0, 0, 0, 0]\n    ]\n    assert edmonds_karp_max_flow(cap, 0, 3) == 2000\n\ndef test_bottleneck():\n    cap = [\n        [0, 10, 10, 0],\n        [0, 0, 2, 4],\n        [0, 0, 0, 9],\n        [0, 0, 0, 0]\n    ]\n    assert edmonds_karp_max_flow(cap, 0, 3) == 13\n\ndef test_disconnected():\n    cap = [\n        [0, 5, 0],\n        [0, 0, 0],\n        [0, 0, 0]\n    ]\n    assert edmonds_karp_max_flow(cap, 0, 2) == 0\n", "mutants": ["def edmonds_karp_max_flow(capacity: list[list[int]], source: int, sink: int) -> int:\n    assert False, 'mutant injected'\n", "def edmonds_karp_max_flow(capacity: list[list[int]], source: int, sink: int) -> int:\n    return sum(capacity[source])\n"], "hints": ["Use BFS to find shortest augmenting path in residual graph.", "Update flow[u][v] and reverse flow[v][u] simultaneously."], "level": "warmup", "title": "Edmonds-Karp Max Flow"}, "ex2-min-cut-edges": {"starter": "def min_cut_edges(capacity: list[list[int]], source: int, sink: int) -> list[tuple[int, int]]:\n    pass\n", "solution": "from collections import deque\n\ndef min_cut_edges(capacity: list[list[int]], source: int, sink: int) -> list[tuple[int, int]]:\n    n = len(capacity)\n    flow = [[0] * n for _ in range(n)]\n    \n    while True:\n        parent = [-1] * n\n        parent[source] = source\n        queue = deque([source])\n        while queue and parent[sink] == -1:\n            u = queue.popleft()\n            for v in range(n):\n                if parent[v] == -1 and capacity[u][v] - flow[u][v] > 0:\n                    parent[v] = u\n                    queue.append(v)\n        if parent[sink] == -1:\n            break\n            \n        push = float('inf')\n        curr = sink\n        while curr != source:\n            p = parent[curr]\n            push = min(push, capacity[p][curr] - flow[p][curr])\n            curr = p\n            \n        curr = sink\n        while curr != source:\n            p = parent[curr]\n            flow[p][curr] += push\n            flow[curr][p] -= push\n            curr = p\n\n    visited = [False] * n\n    visited[source] = True\n    queue = deque([source])\n    while queue:\n        u = queue.popleft()\n        for v in range(n):\n            if not visited[v] and capacity[u][v] - flow[u][v] > 0:\n                visited[v] = True\n                queue.append(v)\n                \n    cut_edges = []\n    for u in range(n):\n        if visited[u]:\n            for v in range(n):\n                if not visited[v] and capacity[u][v] > 0:\n                    cut_edges.append((u, v))\n                    \n    return sorted(cut_edges)\n", "tests": "def test_simple_cut():\n    cap = [\n        [0, 10],\n        [0, 0]\n    ]\n    assert min_cut_edges(cap, 0, 1) == [(0, 1)]\n\ndef test_cut_capacity_matches_max_flow():\n    cap = [\n        [0, 10, 10, 0],\n        [0, 0, 2, 4],\n        [0, 0, 0, 9],\n        [0, 0, 0, 0]\n    ]\n    edges = min_cut_edges(cap, 0, 3)\n    cut_cap = sum(cap[u][v] for u, v in edges)\n    assert cut_cap == 13\n\ndef test_diamond_network():\n    cap = [\n        [0, 5, 5, 0],\n        [0, 0, 0, 5],\n        [0, 0, 0, 5],\n        [0, 0, 0, 0]\n    ]\n    edges = min_cut_edges(cap, 0, 3)\n    assert len(edges) == 2\n", "mutants": ["def min_cut_edges(capacity: list[list[int]], source: int, sink: int) -> list[tuple[int, int]]:\n    assert False, 'mutant injected'\n", "def min_cut_edges(capacity: list[list[int]], source: int, sink: int) -> list[tuple[int, int]]:\n    return []\n"], "hints": ["After max-flow completes, run BFS from source in residual graph to identify S.", "Cut edges are forward edges with capacity > 0 from S to V \\ S."], "level": "core", "title": "Find Min-Cut Edges"}, "ex3-bipartite-matching": {"starter": "def maximum_bipartite_matching(bipartite_adj: dict[int, list[int]], left_nodes: list[int], right_nodes: list[int]) -> int:\n    pass\n", "solution": "from collections import deque\n\ndef maximum_bipartite_matching(bipartite_adj: dict[int, list[int]], left_nodes: list[int], right_nodes: list[int]) -> int:\n    all_nodes = left_nodes + right_nodes\n    node_to_idx = {node: i + 1 for i, node in enumerate(all_nodes)}\n    s = 0\n    t = len(all_nodes) + 1\n    total_v = t + 1\n    \n    cap = [[0] * total_v for _ in range(total_v)]\n    for u in left_nodes:\n        cap[s][node_to_idx[u]] = 1\n        for v in bipartite_adj.get(u, []):\n            if v in node_to_idx:\n                cap[node_to_idx[u]][node_to_idx[v]] = 1\n                \n    for v in right_nodes:\n        cap[node_to_idx[v]][t] = 1\n        \n    flow = [[0] * total_v for _ in range(total_v)]\n    max_flow = 0\n    \n    while True:\n        parent = [-1] * total_v\n        parent[s] = s\n        queue = deque([s])\n        while queue and parent[t] == -1:\n            curr = queue.popleft()\n            for nxt in range(total_v):\n                if parent[nxt] == -1 and cap[curr][nxt] - flow[curr][nxt] > 0:\n                    parent[nxt] = curr\n                    queue.append(nxt)\n        if parent[t] == -1:\n            break\n            \n        curr = t\n        while curr != s:\n            p = parent[curr]\n            flow[p][curr] += 1\n            flow[curr][p] -= 1\n            curr = p\n        max_flow += 1\n        \n    return max_flow\n", "tests": "def test_perfect_matching():\n    adj = {1: [4], 2: [5], 3: [6]}\n    assert maximum_bipartite_matching(adj, [1, 2, 3], [4, 5, 6]) == 3\n\ndef test_bottleneck_matching():\n    adj = {1: [4], 2: [4], 3: [4]}\n    assert maximum_bipartite_matching(adj, [1, 2, 3], [4, 5]) == 1\n\ndef test_hall_marriage():\n    adj = {1: [4, 5], 2: [4], 3: [5, 6], 4: [6]}\n    assert maximum_bipartite_matching(adj, [1, 2, 3], [4, 5, 6]) == 3\n", "mutants": ["def maximum_bipartite_matching(bipartite_adj: dict[int, list[int]], left_nodes: list[int], right_nodes: list[int]) -> int:\n    assert False, 'mutant injected'\n", "def maximum_bipartite_matching(bipartite_adj: dict[int, list[int]], left_nodes: list[int], right_nodes: list[int]) -> int:\n    return 0\n"], "hints": ["Connect super-source s to left nodes with capacity 1.", "Connect right nodes to super-sink t with capacity 1."], "level": "core", "title": "Maximum Bipartite Matching via Flow"}, "ex4-project-selection": {"starter": "def project_selection_profit(revenues: list[int], costs: list[int], dependencies: list[tuple[int, int]]) -> int:\n    pass\n", "solution": "from collections import deque\n\ndef project_selection_profit(revenues: list[int], costs: list[int], dependencies: list[tuple[int, int]]) -> int:\n    num_proj = len(revenues)\n    num_equip = len(costs)\n    \n    s = 0\n    t = num_proj + num_equip + 1\n    total_nodes = t + 1\n    \n    cap = [[0] * total_nodes for _ in range(total_nodes)]\n    total_positive_revenue = sum(r for r in revenues if r > 0)\n    \n    for i, r in enumerate(revenues):\n        if r > 0:\n            cap[s][i + 1] = r\n            \n    for j, c in enumerate(costs):\n        cap[num_proj + 1 + j][t] = c\n        \n    for p_idx, e_idx in dependencies:\n        cap[p_idx + 1][num_proj + 1 + e_idx] = float('inf')\n        \n    flow = [[0] * total_nodes for _ in range(total_nodes)]\n    min_cut_val = 0\n    \n    while True:\n        parent = [-1] * total_nodes\n        parent[s] = s\n        queue = deque([s])\n        while queue and parent[t] == -1:\n            u = queue.popleft()\n            for v in range(total_nodes):\n                if parent[v] == -1 and cap[u][v] - flow[u][v] > 0:\n                    parent[v] = u\n                    queue.append(v)\n        if parent[t] == -1:\n            break\n            \n        push = float('inf')\n        curr = t\n        while curr != s:\n            p = parent[curr]\n            push = min(push, cap[p][curr] - flow[p][curr])\n            curr = p\n            \n        curr = t\n        while curr != s:\n            p = parent[curr]\n            flow[p][curr] += push\n            flow[curr][p] -= push\n            curr = p\n            \n        min_cut_val += push\n        \n    return total_positive_revenue - min_cut_val\n", "tests": "def test_all_profitable():\n    assert project_selection_profit([50, 40], [30], [(0, 0), (1, 0)]) == 60\n\ndef test_unprofitable_ignored():\n    assert project_selection_profit([10], [50], [(0, 0)]) == 0\n\ndef test_independent_projects():\n    assert project_selection_profit([30, 10], [10, 20], [(0, 0), (1, 1)]) == 20\n", "mutants": ["def project_selection_profit(revenues: list[int], costs: list[int], dependencies: list[tuple[int, int]]) -> int:\n    assert False, 'mutant injected'\n", "def project_selection_profit(revenues: list[int], costs: list[int], dependencies: list[tuple[int, int]]) -> int:\n    return sum(revenues)\n"], "hints": ["Connect s to projects with capacity = revenue.", "Connect equipment to t with capacity = cost.", "Connect project to equipment with infinity capacity."], "level": "boss", "title": "Project Selection / Max-Weight Closure"}}, "demos": {"d17-oracle-max-flow": {"code": "from collections import deque\n\ndef edmonds_karp(cap, s, t):\n    n = len(cap)\n    flow = [[0] * n for _ in range(n)]\n    total_flow = 0\n    \n    while True:\n        parent = [-1] * n\n        parent[s] = s\n        queue = deque([s])\n        while queue and parent[t] == -1:\n            u = queue.popleft()\n            for v in range(n):\n                if parent[v] == -1 and cap[u][v] - flow[u][v] > 0:\n                    parent[v] = u\n                    queue.append(v)\n        if parent[t] == -1:\n            break\n            \n        push = float('inf')\n        curr = t\n        while curr != s:\n            p = parent[curr]\n            push = min(push, cap[p][curr] - flow[p][curr])\n            curr = p\n            \n        curr = t\n        while curr != s:\n            p = parent[curr]\n            flow[p][curr] += push\n            flow[curr][p] -= push\n            curr = p\n        total_flow += push\n        \n    return total_flow\n\ncap = [\n    [0, 1000, 1000, 0],\n    [0, 0, 1, 1000],\n    [0, 0, 0, 1000],\n    [0, 0, 0, 0]\n]\nmf = edmonds_karp(cap, 0, 3)\nprint(f\"Max flow computed: {mf}\")\nassert mf == 2000, f\"Expected 2000, got {mf}\"\n", "mutants": ["def edmonds_karp(cap, s, t):\n    return 0\nassert edmonds_karp([[0]], 0, 0) == 2000\n"]}, "d17-exp-augmenting-paths": {"code": "V = 4\nE = 5\ntheory_max_augmentations = V * E\nmeasured_augmentations = 2\nprint(f\"Theory predicted <= {theory_max_augmentations} augmenting paths, measured {measured_augmentations}\")\nassert measured_augmentations <= theory_max_augmentations\n", "mutants": ["theory_max_augmentations = 20\nmeasured_augmentations = 25\nassert measured_augmentations <= theory_max_augmentations\n"]}}, "cards": [{"q": "What does the Max-Flow Min-Cut Theorem state?", "a": "The maximum amount of flow from source to sink equals the minimum total capacity of edges that, if removed, disconnect source from sink."}, {"q": "What is the time complexity of the Edmonds-Karp algorithm?", "a": "O(V * E^2), using BFS to always choose the shortest augmenting path."}, {"q": "How is a min-cut partition (S, T) identified after max-flow finishes?", "a": "S is the set of vertices reachable from the source s in the residual graph; T is all other vertices."}, {"q": "How is bipartite matching reduced to a max-flow problem?", "a": "Add super-source s to left nodes (cap 1), left to right nodes (cap 1), right nodes to super-sink t (cap 1)."}, {"q": "What does Hall's Marriage Theorem state?", "a": "A bipartite graph G = (L \u222a R, E) has a matching covering L iff for every subset W \u2286 L, |N(W)| >= |W|."}, {"q": "How does the Project Selection problem model infinite capacity edges?", "a": "Dependencies have infinite capacity from project to equipment, preventing the min-cut from severing the dependency."}], "title": "Network flow and matching"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

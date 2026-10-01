@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V07 Agreement: when do two labellers agree?</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V07">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 6 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V07</p><h1>Agreement: when do two labellers agree?</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V04.html">V04</a></div><div><b>Covers:</b> research methods, CS2023 AI</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>raw agreement</li><li>chance agreement</li><li>Cohen&#x27;s kappa derived</li><li>the prevalence and bias paradoxes (high agreement, low kappa)</li><li>weighted kappa</li><li>Fleiss&#x27; kappa for many raters</li><li>Krippendorff&#x27;s alpha idea</li><li>bootstrap intervals for kappa</li><li>gold sets vs held-out sets (tuned-on vs untouched)</li><li>annotation guidelines and adjudication</li><li>a validation gate before trusting an LLM labeller</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Meera and Kabir are sorting mangoes into two baskets: <strong>ripe</strong> and <strong>not ripe</strong>. Their teacher wants to know whether they sort <em>the same way</em>, because then she can send either child to the market alone.</p>
+<p>She gives them the same 100 mangoes. Afterwards they compare: they put 90 mangoes in the same basket. "We agree 90 times out of 100!" says Kabir. "We are almost the same!"</p>
+<p>But the teacher smiles and asks one more question. "How many mangoes did each of you call ripe?" It turns out that almost every mango that day was unripe, and both children said "not ripe" nearly every time. The teacher explains: "If you had both closed your eyes and just said <em>not ripe</em> to every mango, you would still have agreed about 90 times. Most of your agreement came free. It came from the kind of mangoes we had, not from your eyes."</p>
+<p>So the teacher invents a better score. First she works out how often they would agree <strong>by luck alone</strong>, if each child kept their habits (how often they say ripe) but did not look at the mangoes at all. Then she asks: <em>of the agreement that luck could not give you, how much did you actually get?</em> If they get all of it, the score is 1. If they get only what luck gives, the score is 0. If they agree even less than luck would, the score goes below 0.</p>
+<p>That score is called <strong>kappa</strong>. When Meera and Kabir are graded with kappa, their "90 out of 100" turns out to be close to 0. Luck explains nearly all of it. The children are surprised, and so was a grown-up engineer who once trusted a 90% agreement number.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Two people (or a person and a program) label the same items. <strong>Raw agreement</strong> is the share of items they label the same. It sounds like the right measure, but it hides a trap: when one label is very common, two labellers agree a lot <em>even if neither of them is paying attention</em>.</p>
+<p><strong>Cohen's kappa</strong> fixes this. It compares the agreement you saw with the agreement you would expect by chance, given how often each labeller uses each label:</p>
+<ul>
+<li>kappa = 1 means perfect agreement.</li>
+<li>kappa = 0 means no better than chance.</li>
+<li>kappa below 0 means worse than chance: they systematically disagree.</li>
+</ul>
+<p>Kappa is not accuracy. It says whether two labellers are <em>interchangeable</em>, not whether either is <em>right</em>. To know if a new labeller (say, an LLM) can replace a trusted human, you compute kappa against the human's labels on items <strong>the new labeller was never tuned on</strong>.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let two raters label the same $n$ items with categories $1, \dots, K$. Let $n_{ij}$ be the number of items rater A put in category $i$ and rater B put in category $j$. Write $p_{ij} = n_{ij}/n$, and the marginals $p_{i\cdot} = \sum_j p_{ij}$ (how often A uses $i$) and $p_{\cdot j} = \sum_i p_{ij}$ (how often B uses $j$).</p>
+<p><strong>Observed agreement:</strong> $p_o = \sum_i p_{ii}$.</p>
+<p><strong>Chance agreement:</strong> if A and B labelled independently, keeping their own label frequencies, they would both choose $i$ with probability $p_{i\cdot}\,p_{\cdot i}$, so $p_e = \sum_i p_{i\cdot}\, p_{\cdot i}$.</p>
+<p><strong>Cohen's kappa</strong> (Cohen, 1960):</p>
+<p>$$\kappa = \frac{p_o - p_e}{1 - p_e}$$</p>
+<p>It is undefined when $p_e = 1$, which happens only when both raters use one and the same single category for every item.</p>
+<p><strong>Weighted kappa</strong> for ordered categories: choose disagreement weights $w_{ij}$ with $w_{ii} = 0$, for example linear $w_{ij} = |i-j|/(K-1)$ or quadratic $w_{ij} = (i-j)^2/(K-1)^2$. Then</p>
+<p>$$\kappa_w = 1 - \frac{\sum_{ij} w_{ij}\, p_{ij}}{\sum_{ij} w_{ij}\, p_{i\cdot}\, p_{\cdot j}}$$</p>
+<p>With $w_{ij} = 1$ for every $i \ne j$ this is exactly Cohen's kappa.</p>
+<p><strong>Fleiss' kappa</strong> (Fleiss, 1971) for $N$ items each rated by the same number $r \ge 2$ of raters, where $n_{ij}$ now counts raters who put item $i$ in category $j$: per-item agreement $P_i = \frac{\sum_j n_{ij}^2 - r}{r(r-1)}$, mean $\bar P = \frac1N \sum_i P_i$, category shares $p_j = \frac{1}{Nr}\sum_i n_{ij}$, chance $\bar P_e = \sum_j p_j^2$, and $\kappa_F = (\bar P - \bar P_e)/(1 - \bar P_e)$. Fleiss pools all raters into one set of category shares, so with $r = 2$ it equals <strong>Scott's pi</strong>, not Cohen's kappa.</p>
+<p><strong>Krippendorff's alpha</strong> generalises the same idea, $\alpha = 1 - D_o/D_e$ (observed over expected <em>disagreement</em>), and also handles missing ratings and any number of raters. We name it here and do not build it.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>We want to justify three things: the formula for $p_e$, the shape of kappa, and why kappa moves with prevalence.</p>
+<p><strong>Step 1: chance agreement is a product of habits.</strong> Imagine rater B's labels were shuffled among the items. Shuffling keeps B's habits, meaning how often B says each label, but destroys any link to the items. Pick one item at random. A says $i$ with probability $p_{i\cdot}$. B's shuffled label is $i$ with probability $p_{\cdot i}$, independently of A. So both say $i$ with probability $p_{i\cdot} p_{\cdot i}$. Summing over $i$ gives $p_e$. You can check this without any algebra: pair every one of A's labels with every one of B's labels ($n^2$ pairs) and count how many pairs match. That count divided by $n^2$ equals $p_e$ exactly. The Oracle below does this.</p>
+<p><strong>Step 2: kappa is a rescaling.</strong> The largest possible agreement is 1. Chance already gives $p_e$. So the agreement that luck cannot explain has room $1 - p_e$, and the raters achieved $p_o - p_e$ of it. The ratio is kappa. At $p_o = 1$, kappa is 1. At $p_o = p_e$, kappa is 0. At $p_o = 0$, kappa is $-p_e/(1-p_e)$, which is $-1$ when $p_e = 1/2$.</p>
+<p><strong>Step 3: prevalence changes kappa even for identical raters.</strong> Take two binary raters who each, independently, report the true label with probability $r$ and the wrong label otherwise, on items whose true "yes" rate is $\pi$. Then each says yes with probability $q = \pi r + (1-\pi)(1-r)$. They agree when both are right or both are wrong, so $p_o = r^2 + (1-r)^2$, and that <strong>does not depend on $\pi$</strong>. But $p_e = q^2 + (1-q)^2$ does. At $\pi = 1/2$, $q = 1/2$, $p_e = 1/2$, and $\kappa = 2p_o - 1 = (2r-1)^2$: for $r = 0.9$, $\kappa = 0.64$. At $\pi = 0.05$ the same raters give $q = 0.14$, $p_e = 0.7592$, $p_o = 0.82$ and $\kappa \approx 0.25$. The raters did not change. The world did. This is the <strong>prevalence paradox</strong> (Feinstein and Cicchetti, 1990): high raw agreement, low kappa. The companion <strong>bias paradox</strong>: when two raters use a label at <em>different</em> rates, $p_e$ falls and kappa can <em>rise</em>.</p>
+<p><strong>Step 4: why a held-out set.</strong> If you try many labelling rules and keep the one with the best kappa on a gold set, the winner's kappa is the maximum of many noisy numbers. The maximum of noisy numbers is biased upward, like picking the student who guessed best on one test. On fresh items the winner regresses toward its true skill. The Experiment measures this optimism directly.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>An oracle is a second, independent way to get the same answer. If two methods that share no code agree on hundreds of random inputs, a bug would have to fool both in the same way.</p>
+<p>Here the two methods compute chance agreement $p_e$ differently. Method 1 uses the marginal formula $\sum_i p_{i\cdot} p_{\cdot i}$. Method 2 is brute force: pair every label of A with every label of B and count matches. They must agree to floating-point precision, and therefore the two kappas must agree too. The broken version uses the pooled marginals of Scott's pi, a real and common confusion, and the oracle catches it.</p>
+<div class="lab demo" data-demo="oracle-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Chance agreement two ways, on 300 random label sets</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from collections import Counter
+
+def pe_marginals(a, b):
+    n = len(a)
+    ca, cb = Counter(a), Counter(b)
+    return sum(ca[c] / n * cb[c] / n for c in set(a) | set(b))
+
+def pe_bruteforce(a, b):
+    n = len(a)
+    matches = sum(1 for x in a for y in b if x == y)
+    return matches / (n * n)
+
+def kappa(a, b, pe):
+    po = sum(x == y for x, y in zip(a, b)) / len(a)
+    return (po - pe) / (1 - pe)
+
+rng = random.Random(7)
+checked = 0
+for trial in range(300):
+    n = rng.randint(5, 40)
+    cats = &quot;abcd&quot;[: rng.randint(2, 4)]
+    a = [rng.choice(cats) for _ in range(n)]
+    b = [x if rng.random() &lt; 0.6 else rng.choice(cats) for x in a]
+    p1, p2 = pe_marginals(a, b), pe_bruteforce(a, b)
+    assert abs(p1 - p2) &lt; 1e-12, (trial, p1, p2)
+    if p1 &lt; 1:
+        assert abs(kappa(a, b, p1) - kappa(a, b, p2)) &lt; 1e-9
+        checked += 1
+print(f&quot;marginal formula == brute-force pairing on 300 label sets ({checked} kappas compared)&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory makes two predictions you can test against simulated reality.</p>
+<p><strong>Prediction 1 (prevalence paradox).</strong> Two raters who are each right 90% of the time have $\kappa = (2r-1)^2 = 0.64$ when the true yes-rate is 50%, and $\kappa \approx 0.2525$ when it is 5%. Their raw agreement is 0.82 in both worlds. We simulate 200 studies of 500 items in each world and check that the theoretical value sits inside a 95% interval for the mean measured kappa.</p>
+<div class="lab demo" data-demo="experiment-prevalence">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Same raters, two worlds</h3></div>
+
+<textarea class="code" spellcheck="false">import random, statistics
+
+def kappa(a, b):
+    n = len(a)
+    po = sum(x == y for x, y in zip(a, b)) / n
+    qa, qb = sum(a) / n, sum(b) / n
+    pe = qa * qb + (1 - qa) * (1 - qb)
+    return (po - pe) / (1 - pe)
+
+def theory(pi, r):
+    q = pi * r + (1 - pi) * (1 - r)
+    po = r * r + (1 - r) ** 2
+    pe = q * q + (1 - q) ** 2
+    return (po - pe) / (1 - pe), po
+
+rng = random.Random(2026)
+r = 0.9
+for pi in (0.5, 0.05):
+    ks, agrees = [], []
+    for study in range(200):
+        truth = [1 if rng.random() &lt; pi else 0 for _ in range(500)]
+        a = [t if rng.random() &lt; r else 1 - t for t in truth]
+        b = [t if rng.random() &lt; r else 1 - t for t in truth]
+        ks.append(kappa(a, b))
+        agrees.append(sum(x == y for x, y in zip(a, b)) / 500)
+    k_th, po_th = theory(pi, r)
+    mean = statistics.fmean(ks)
+    half = 1.96 * statistics.stdev(ks) / len(ks) ** 0.5
+    print(f&quot;prevalence {pi:&gt;4}: raw agreement {statistics.fmean(agrees):.3f} (theory {po_th:.3f}); &quot;
+          f&quot;kappa {mean:.4f} +/- {half:.4f} (theory {k_th:.4f})&quot;)
+    assert abs(mean - k_th) &lt; half + 0.005, (pi, mean, k_th)
+    assert abs(statistics.fmean(agrees) - po_th) &lt; 0.01
+print(&quot;Same raters, same raw agreement; kappa falls from about 0.64 to 0.25 because the world changed.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p><strong>Prediction 2 (tuned on gold, tested on holdout).</strong> If you choose the best of 20 candidate labelling rules by kappa on a 78-item gold set, its gold kappa is optimistic. On a fresh 60-item holdout the same rule scores lower on average. The size of the drop is the price of selecting on the data you report on.</p>
+<div class="lab demo" data-demo="experiment-optimism">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Selection makes the gold score lie</h3></div>
+
+<textarea class="code" spellcheck="false">import random, statistics
+
+def kappa(a, b):
+    n = len(a)
+    po = sum(x == y for x, y in zip(a, b)) / n
+    qa, qb = sum(a) / n, sum(b) / n
+    pe = qa * qb + (1 - qa) * (1 - qb)
+    return 0.0 if pe == 1 else (po - pe) / (1 - pe)
+
+rng = random.Random(11)
+gaps, gold_best, hold_best = [], [], []
+for rep in range(150):
+    truth = [1 if rng.random() &lt; 0.12 else 0 for _ in range(138)]
+    gold, hold = truth[:78], truth[78:]
+    rules = []
+    for _ in range(20):
+        sens, spec = rng.uniform(0.3, 0.6), rng.uniform(0.85, 0.95)
+        rules.append([(1 if rng.random() &lt; sens else 0) if t else (1 if rng.random() &gt; spec else 0) for t in truth])
+    best = max(rules, key=lambda lab: kappa(gold, lab[:78]))
+    g, h = kappa(gold, best[:78]), kappa(hold, best[78:])
+    gold_best.append(g); hold_best.append(h); gaps.append(g - h)
+mean_gap = statistics.fmean(gaps)
+half = 1.96 * statistics.stdev(gaps) / len(gaps) ** 0.5
+print(f&quot;best rule on gold: kappa {statistics.fmean(gold_best):.3f}; same rule on holdout: {statistics.fmean(hold_best):.3f}&quot;)
+print(f&quot;optimism = {mean_gap:.3f} +/- {half:.3f} (95% interval for the mean over 150 repeats)&quot;)
+assert mean_gap - half &gt; 0, &quot;selection on gold should inflate the gold score&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Reality check: the measured optimism is noisy from run to run of the whole study, which is why we report an interval and not one number. With 60 holdout items and a 12% yes-rate, only about 7 items are positive, so any single holdout kappa is itself very uncertain. Exercise 5 builds the tool to show that.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-raw-agreement" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Raw agreement, with honest errors</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>raw_agreement(a, b)</code>: the fraction of positions where the two label lists are equal. Two rules make it honest. If the lists have different lengths, raise <code>ValueError</code>, because pairing them up would silently compare the wrong items. If they are empty, raise <code>ValueError</code>, because agreement on nothing is undefined, not 0 and not 1.</p></div>
+<textarea class="code" spellcheck="false">def raw_agreement(a, b):
+    &quot;&quot;&quot;Fraction of items on which labels a and b are equal.&quot;&quot;&quot;
+    # your code here
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_basic():
+    assert raw_agreement([&quot;y&quot;, &quot;n&quot;, &quot;y&quot;, &quot;y&quot;], [&quot;y&quot;, &quot;n&quot;, &quot;n&quot;, &quot;y&quot;]) == 0.75
+
+def test_all_and_none():
+    assert raw_agreement([1, 2, 3], [1, 2, 3]) == 1.0
+    assert raw_agreement([&quot;a&quot;, &quot;b&quot;], [&quot;b&quot;, &quot;a&quot;]) == 0.0
+
+def test_length_mismatch_raises():
+    try:
+        raw_agreement([1, 2], [1])
+    except ValueError:
+        return
+    assert False, &quot;different lengths must raise ValueError, not be silently truncated&quot;
+
+def test_empty_raises():
+    try:
+        raw_agreement([], [])
+    except ValueError:
+        return
+    assert False, &quot;empty input must raise ValueError&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-cohen-kappa" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Cohen&#x27;s kappa from scratch</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>cohen_kappa(a, b)</code> for any hashable labels. Use the categories that either rater used. Compute $p_o$, then $p_e = \sum_c p_A(c)\,p_B(c)$, then $\kappa = (p_o - p_e)/(1 - p_e)$. Raise <code>ValueError</code> for different lengths, for empty input, and when $p_e = 1$ (kappa is undefined there, so never return a made-up 0 or 1). The tests include a textbook case where Scott's pi gives a different answer, so pooling the two raters' shares will fail.</p></div>
+<textarea class="code" spellcheck="false">def cohen_kappa(a, b):
+    &quot;&quot;&quot;Cohen&#x27;s kappa between two equal-length label lists.&quot;&quot;&quot;
+    raise NotImplementedError
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def _from_counts(yy, yn, ny, nn):
+    a = [&quot;y&quot;] * yy + [&quot;y&quot;] * yn + [&quot;n&quot;] * ny + [&quot;n&quot;] * nn
+    b = [&quot;y&quot;] * yy + [&quot;n&quot;] * yn + [&quot;y&quot;] * ny + [&quot;n&quot;] * nn
+    return a, b
+
+def test_textbook_example():
+    # 50 grant applications: both yes 20, A yes/B no 5, A no/B yes 10, both no 15.
+    # p_o = 0.7, p_e = 0.5*0.6 + 0.5*0.4 = 0.5, kappa = 0.4 (Scott&#x27;s pi would give 0.3939...)
+    a, b = _from_counts(20, 5, 10, 15)
+    assert abs(cohen_kappa(a, b) - 0.4) &lt; 1e-12
+
+def test_perfect_chance_and_worse():
+    assert cohen_kappa([0, 1, 1, 0], [0, 1, 1, 0]) == 1.0
+    assert abs(cohen_kappa([0, 1] * 50, [0, 0, 1, 1] * 25)) &lt; 1e-12
+    assert abs(cohen_kappa([0, 1] * 10, [1, 0] * 10) - (-1.0)) &lt; 1e-12
+
+def test_category_used_by_one_rater_only():
+    # p_o = 2/3; p_e = (2/3)(1/3) + (1/3)(1/3) = 1/3; kappa = 0.5
+    assert abs(cohen_kappa([&quot;x&quot;, &quot;x&quot;, &quot;y&quot;], [&quot;x&quot;, &quot;z&quot;, &quot;y&quot;]) - 0.5) &lt; 1e-12
+
+def test_symmetric():
+    a = list(&quot;aabbbcacba&quot;)
+    b = list(&quot;abbbccacaa&quot;)
+    assert abs(cohen_kappa(a, b) - cohen_kappa(b, a)) &lt; 1e-12
+
+def test_undefined_raises():
+    try:
+        cohen_kappa([&quot;y&quot;] * 5, [&quot;y&quot;] * 5)
+    except ValueError:
+        return
+    assert False, &quot;p_e = 1 must raise ValueError&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-paradox" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Build the paradox yourself</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>make_paradox()</code> that returns a pair of lists <code>(a, b)</code>, each of exactly 100 labels, every label <code>"yes"</code> or <code>"no"</code>, such that raw agreement is <strong>at least 0.90</strong> and Cohen's kappa is <strong>at most 0.10</strong>. The tests compute both numbers with their own reference code, so your answer is checked independently of any function you wrote. Think about the mango story before you type.</p></div>
+<textarea class="code" spellcheck="false">def make_paradox():
+    &quot;&quot;&quot;Return (a, b): 100 yes/no labels each, agreement &gt;= 0.90, kappa &lt;= 0.10.&quot;&quot;&quot;
+    a = [&quot;yes&quot;] * 50 + [&quot;no&quot;] * 50
+    b = list(a)
+    return a, b
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def _ref(a, b):
+    n = len(a)
+    po = sum(x == y for x, y in zip(a, b)) / n
+    pa, pb = a.count(&quot;yes&quot;) / n, b.count(&quot;yes&quot;) / n
+    pe = pa * pb + (1 - pa) * (1 - pb)
+    return po, (po - pe) / (1 - pe)
+
+def test_shape():
+    a, b = make_paradox()
+    assert len(a) == 100 and len(b) == 100
+    assert set(a) | set(b) &lt;= {&quot;yes&quot;, &quot;no&quot;}
+
+def test_high_raw_agreement():
+    a, b = make_paradox()
+    assert _ref(a, b)[0] &gt;= 0.90
+
+def test_low_kappa():
+    a, b = make_paradox()
+    assert _ref(a, b)[1] &lt;= 0.10
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-weighted" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Weighted kappa for ordered labels</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Ratings like "bad / okay / good / great" are ordered, so confusing <em>bad</em> with <em>great</em> is worse than confusing <em>okay</em> with <em>good</em>. Write <code>weighted_kappa(a, b, k, weights="linear")</code> for integer labels <code>0..k-1</code>. Use disagreement weights $w_{ij} = |i-j|/(k-1)$ for <code>"linear"</code> and $(i-j)^2/(k-1)^2$ for <code>"quadratic"</code>, and return $1 - \sum w_{ij} p_{ij} / \sum w_{ij} p_{i\cdot} p_{\cdot j}$. Raise <code>ValueError</code> for an unknown weights name or when the expected disagreement is 0.</p></div>
+<textarea class="code" spellcheck="false">def weighted_kappa(a, b, k, weights=&quot;linear&quot;):
+    &quot;&quot;&quot;Weighted kappa for integer labels 0..k-1.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def _cohen(a, b):
+    n = len(a)
+    po = sum(x == y for x, y in zip(a, b)) / n
+    pe = sum(a.count(c) / n * b.count(c) / n for c in set(a) | set(b))
+    return (po - pe) / (1 - pe)
+
+def test_two_categories_equals_cohen():
+    # with k = 2 the only disagreement weight is 1, so weighted = unweighted kappa
+    a = [0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1]
+    b = [0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1]
+    assert abs(weighted_kappa(a, b, 2) - _cohen(a, b)) &lt; 1e-12
+    assert abs(weighted_kappa(a, b, 2, &quot;quadratic&quot;) - _cohen(a, b)) &lt; 1e-12
+
+def test_near_misses_score_higher_than_far_misses():
+    a = [0, 1, 2, 3] * 10
+    near = [1, 2, 3, 2] * 10
+    far = [3, 3, 0, 0] * 10
+    assert weighted_kappa(a, near, 4) &gt; weighted_kappa(a, far, 4)
+    assert weighted_kappa(a, near, 4, &quot;quadratic&quot;) &gt; weighted_kappa(a, near, 4, &quot;linear&quot;)
+
+def test_hand_computed_value():
+    # a = [0,0,2,2], b = [0,1,2,1], k = 3, linear weights.
+    # observed disagreement = 0.25*0.5 + 0.25*0.5 = 0.25
+    # marginals A = [0.5, 0, 0.5], B = [0.25, 0.5, 0.25]; expected disagreement = 0.5
+    assert abs(weighted_kappa([0, 0, 2, 2], [0, 1, 2, 1], 3) - 0.5) &lt; 1e-12
+
+def test_bad_weights_raises():
+    try:
+        weighted_kappa([0, 1], [1, 0], 2, &quot;cubic&quot;)
+    except ValueError:
+        return
+    assert False, &quot;unknown weight names must raise ValueError&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex5-bootstrap" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>How sure are we about a kappa? A bootstrap interval</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>A kappa from 60 items is a noisy number. Write <code>kappa_ci(a, b, reps=2000, seed=0, level=0.95)</code> that returns <code>(lo, hi)</code>, a percentile bootstrap interval. For each of <code>reps</code> rounds, draw <code>n</code> item indices <strong>with replacement</strong> using <code>random.Random(seed)</code>, keeping each item's pair of labels together, and compute Cohen's kappa of the resampled pairs. Skip rounds where kappa is undefined; if every round is undefined, raise <code>ValueError</code>. Sort the kept values and return the empirical $(1-\text{level})/2$ and $1-(1-\text{level})/2$ quantiles. You may copy your <code>cohen_kappa</code> into this cell.</p></div>
+<textarea class="code" spellcheck="false">import random
+
+def kappa_ci(a, b, reps=2000, seed=0, level=0.95):
+    &quot;&quot;&quot;Percentile bootstrap interval for Cohen&#x27;s kappa.&quot;&quot;&quot;
+    rng = random.Random(seed)
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def _pairs(yy, yn, ny, nn):
+    a = [&quot;y&quot;] * (yy + yn) + [&quot;n&quot;] * (ny + nn)
+    b = [&quot;y&quot;] * yy + [&quot;n&quot;] * yn + [&quot;y&quot;] * ny + [&quot;n&quot;] * nn
+    return a, b
+
+def test_contains_point_estimate():
+    a, b = _pairs(20, 5, 10, 15)          # kappa = 0.4
+    lo, hi = kappa_ci(a, b, reps=400, seed=1)
+    assert lo &lt; 0.4 &lt; hi, (lo, hi)
+    assert -1 &lt;= lo &lt;= hi &lt;= 1
+
+def test_reproducible_and_seed_matters():
+    a, b = _pairs(20, 5, 10, 15)
+    assert kappa_ci(a, b, reps=300, seed=5) == kappa_ci(a, b, reps=300, seed=5)
+    assert kappa_ci(a, b, reps=300, seed=5) != kappa_ci(a, b, reps=300, seed=6)
+
+def test_more_data_narrower():
+    a, b = _pairs(20, 5, 10, 15)
+    lo1, hi1 = kappa_ci(a, b, reps=400, seed=2)
+    lo4, hi4 = kappa_ci(a * 4, b * 4, reps=400, seed=2)
+    assert (hi4 - lo4) &lt; 0.7 * (hi1 - lo1), (hi1 - lo1, hi4 - lo4)
+
+def test_lower_level_is_narrower():
+    a, b = _pairs(20, 5, 10, 15)
+    lo95, hi95 = kappa_ci(a, b, reps=400, seed=3, level=0.95)
+    lo50, hi50 = kappa_ci(a, b, reps=400, seed=3, level=0.50)
+    assert lo95 &lt;= lo50 &lt;= hi50 &lt;= hi95
+    assert (hi50 - lo50) &lt; (hi95 - lo95)
+
+def test_tiny_sample_survives_undefined_rounds():
+    lo, hi = kappa_ci([&quot;y&quot;, &quot;n&quot;, &quot;y&quot;, &quot;y&quot;], [&quot;y&quot;, &quot;n&quot;, &quot;n&quot;, &quot;y&quot;], reps=200, seed=4)
+    assert lo &lt;= hi
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex6-fleiss" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Many raters: Fleiss&#x27; kappa</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>When every item is labelled by the same number of raters $r$ (not always the same people), use Fleiss' kappa. Write <code>fleiss_kappa(table)</code> where <code>table[i][j]</code> is how many raters put item <code>i</code> in category <code>j</code>. Every row must sum to the same <code>r &gt;= 2</code>, otherwise raise <code>ValueError</code>. Use the formulas from <em>Precisely</em>. The tests check a fact from <em>Why it's true</em>: with two raters, Fleiss' kappa equals Scott's pi, not Cohen's kappa.</p></div>
+<textarea class="code" spellcheck="false">def fleiss_kappa(table):
+    &quot;&quot;&quot;Fleiss&#x27; kappa for a table of per-item category counts.&quot;&quot;&quot;
+    return 1.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def _table_from_two_raters(a, b, cats):
+    return [[(x == c) + (y == c) for c in cats] for x, y in zip(a, b)]
+
+def _scott_pi(a, b):
+    n = len(a)
+    po = sum(x == y for x, y in zip(a, b)) / n
+    pooled = a + b
+    pe = sum((pooled.count(c) / (2 * n)) ** 2 for c in set(pooled))
+    return (po - pe) / (1 - pe)
+
+def test_two_raters_equal_scotts_pi():
+    a = list(&quot;yyyyyyyyyyyyyyyyyyyyyyyyynnnnnnnnnnnnnnnnnnnnnnnnn&quot;)
+    b = list(&quot;yyyyyyyyyyyyyyyyyyyynnnnnyyyyyyyyyynnnnnnnnnnnnnnn&quot;)
+    t = _table_from_two_raters(a, b, &quot;yn&quot;)
+    assert abs(fleiss_kappa(t) - _scott_pi(a, b)) &lt; 1e-12
+    assert abs(fleiss_kappa(t) - 0.4) &gt; 0.005   # and so it is NOT Cohen&#x27;s 0.4 here
+
+def test_perfect_agreement():
+    assert abs(fleiss_kappa([[3, 0], [0, 3], [3, 0]]) - 1.0) &lt; 1e-12
+
+def test_three_categories_known_value():
+    # 4 items, 3 raters. P_i = [1, 1/3, 1/3, 1]; P_bar = 2/3.
+    # shares = [4/12, 4/12, 4/12]; pe = 1/3; kappa = (2/3 - 1/3)/(2/3) = 0.5
+    t = [[3, 0, 0], [1, 2, 0], [0, 2, 1], [0, 0, 3]]
+    assert abs(fleiss_kappa(t) - 0.5) &lt; 1e-12
+
+def test_unequal_rows_raise():
+    try:
+        fleiss_kappa([[2, 1], [1, 1]])
+    except ValueError:
+        return
+    assert False, &quot;rows with different rater counts must raise ValueError&quot;
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"90% agreement means a good labeller."</strong> Only if chance agreement is low. With a rare label, 90% can be pure luck: the mango story, and Exercise 3.</li>
+<li><strong>"Kappa is accuracy."</strong> Kappa measures whether two raters are interchangeable. Two raters can agree perfectly and both be wrong. To measure correctness you need a trusted reference, and then kappa against that reference is agreement with <em>it</em>.</li>
+<li><strong>"A high kappa on the gold set proves the labeller works."</strong> Not if you tuned the labeller on that gold set. Selection inflates the score (Experiment 2). Only a held-out set that played no part in building the labeller can validate it.</li>
+<li><strong>"Running the same LLM twice and getting kappa 0.9 shows it is valid."</strong> That is reliability (it repeats itself), not validity (it matches the truth). A consistent labeller can be consistently wrong.</li>
+<li><strong>"Kappa 0.41 is moderate, so it is fine."</strong> The Landis and Koch labels (0.41 to 0.60 'moderate') are a convention its authors called arbitrary. Whether a kappa is good enough depends on what you will do with the labels, and on its confidence interval.</li>
+<li><strong>"Kappa is a correlation."</strong> For two binary raters kappa is close to, but not the same as, the phi correlation. They differ exactly when the raters' marginals differ.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Kappa is a property of <em>raters on a population</em>, not of raters alone. Move the same raters to a population with a different prevalence and kappa changes (Why it's true, step 3). So never compare kappas across datasets with different base rates as if they were skill scores.</p>
+<p>With rare categories the number of informative items is tiny. Sixty items at a 12% rate hold about seven positives, so one flipped label moves kappa a lot. Always report the interval (Exercise 5), and prefer adding positives over adding items.</p>
+<p>Kappa is undefined when $p_e = 1$ and unstable as $p_e \to 1$. Alternatives such as Gwet's AC1 were designed to be less sensitive to prevalence, but they answer a slightly different question. Pick the statistic before you see the numbers.</p>
+<p>Kappa cannot tell you <em>which</em> rater is wrong, and it ignores <em>why</em> they disagree. Read the disagreements. Half of all labelling bugs are in the guideline, not the labeller.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>This module exists because of your own audit. The evidence is in your own validation ledger, kept locally under <code>.claude-artifacts/</code>.</p>
+<ul>
+<li>On the "acceptance criteria" field, the LLM labels agreed with your hand labels <strong>83–91% of the time</strong>, and the 28 Sep report treated that as accuracy. Cohen's kappa on the 60-item <strong>holdout was 0.10</strong>. The field is mostly False, so raw agreement was chance talking: the mango story, in your own data. Every rate on the 28 Sep index and gap pages built on those fields is withdrawn.</li>
+<li>The frozen <code>accept</code> rule scored <strong>kappa 0.92 on the gold set it was tuned on and 0.10 on the holdout</strong>, finding 3 of 9 positives. That is Experiment 2 exactly: selection on gold made the gold score lie.</li>
+<li>The fix that worked is the one this module teaches: a hand-labelled gold set, an untouched holdout, and a gate (kappa at least 0.40 on the holdout) before any LLM-labelled field is reported. The frozen emotion rules passed with holdout kappa 0.67. Acceptance criteria and intent did not, so those columns were dropped.</li>
+</ul>
+<p>When you next let an agent label anything, ask it three things. What is the kappa? On which items was it measured? Were those items used to build the labeller?</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why can raw agreement be high when neither rater is paying attention?</p></div><div class="a" hidden><p>When one label is very common, two raters who both use it most of the time agree by chance. Chance agreement is the sum over labels of (A's share) × (B's share).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Write Cohen's kappa.</p></div><div class="a" hidden><p>$\kappa = (p_o - p_e)/(1 - p_e)$, with $p_o$ the observed agreement and $p_e = \sum_i p_{i\cdot} p_{\cdot i}$ the chance agreement from the two raters' own marginals.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What do kappa = 1, 0 and -1 mean?</p></div><div class="a" hidden><p>1 is perfect agreement, 0 is agreement exactly at chance level, and negative means systematically worse than chance. It reaches -1 only when $p_e = 1/2$ and $p_o = 0$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Two raters are each 90% accurate. Why is their kappa 0.64 at a 50% base rate but about 0.25 at 5%?</p></div><div class="a" hidden><p>Their observed agreement ($r^2 + (1-r)^2 = 0.82$) does not depend on prevalence, but chance agreement does. At 5% prevalence both say "no" so often that chance already explains most of the agreement.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why must a labeller be validated on a held-out set?</p></div><div class="a" hidden><p>If you tuned or selected it on the gold set, its gold score is biased upward (the best of many noisy scores). Only items that played no part in building it give an honest estimate.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>With two raters, what does Fleiss' kappa equal?</p></div><div class="a" hidden><p>Scott's pi, which uses one pooled set of category shares for both raters, not Cohen's kappa, which uses each rater's own shares.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>How do you bootstrap a kappa correctly?</p></div><div class="a" hidden><p>Resample items with replacement, keeping each item's pair of labels together. Recompute kappa each time and take the percentile interval. Resampling the raters separately destroys the pairing and drives kappa to about 0.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>What is the difference between reliability and validity for a labeller?</p></div><div class="a" hidden><p>Reliability means it gives the same answer again (self-agreement). Validity means its answers match the truth. A labeller can be perfectly reliable and consistently wrong.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain the mango story to a child and say why 90% agreement can be worthless. You can pass Exercise 5 without looking at the hints. And, looking at any agreement number an agent gives you, you ask at once: kappa, on which items, and were they held out?</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Cohen, J. (1960). A coefficient of agreement for nominal scales. <em>Educational and Psychological Measurement</em>, 20(1), 37–46.</li>
+<li>Fleiss, J. L. (1971). Measuring nominal scale agreement among many raters. <em>Psychological Bulletin</em>, 76(5), 378–382.</li>
+<li>Cohen, J. (1968). Weighted kappa: nominal scale agreement with provision for scaled disagreement or partial credit. <em>Psychological Bulletin</em>, 70(4), 213–220.</li>
+<li>Feinstein, A. R., and Cicchetti, D. V. (1990). High agreement but low kappa: I. The problems of two paradoxes. <em>Journal of Clinical Epidemiology</em>, 43(6), 543–549.</li>
+<li>Landis, J. R., and Koch, G. G. (1977). The measurement of observer agreement for categorical data. <em>Biometrics</em>, 33(1), 159–174.</li>
+<li>Artstein, R., and Poesio, M. (2008). Inter-coder agreement for computational linguistics. <em>Computational Linguistics</em>, 34(4), 555–596.</li>
+<li>Krippendorff, K. (2018). <em>Content Analysis: An Introduction to Its Methodology</em> (4th ed.). SAGE.</li>
+<li>Efron, B., and Tibshirani, R. J. (1993). <em>An Introduction to the Bootstrap</em>. Chapman and Hall.</li>
+</ul></section>
+<footer class="pager"><a href="V04.html">&larr; V04 Estimation and confidence intervals</a>
+<a href="V05.html">V05 Hypothesis tests and p-values &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V07", "packages": [], "exercises": {"ex1-raw-agreement": {"starter": "def raw_agreement(a, b):\n    \"\"\"Fraction of items on which labels a and b are equal.\"\"\"\n    # your code here\n    return 0.0\n", "solution": "def raw_agreement(a, b):\n    \"\"\"Fraction of items on which labels a and b are equal.\"\"\"\n    if len(a) != len(b):\n        raise ValueError(\"label lists must have the same length\")\n    if not a:\n        raise ValueError(\"agreement on zero items is undefined\")\n    return sum(x == y for x, y in zip(a, b)) / len(a)\n", "tests": "def test_basic():\n    assert raw_agreement([\"y\", \"n\", \"y\", \"y\"], [\"y\", \"n\", \"n\", \"y\"]) == 0.75\n\ndef test_all_and_none():\n    assert raw_agreement([1, 2, 3], [1, 2, 3]) == 1.0\n    assert raw_agreement([\"a\", \"b\"], [\"b\", \"a\"]) == 0.0\n\ndef test_length_mismatch_raises():\n    try:\n        raw_agreement([1, 2], [1])\n    except ValueError:\n        return\n    assert False, \"different lengths must raise ValueError, not be silently truncated\"\n\ndef test_empty_raises():\n    try:\n        raw_agreement([], [])\n    except ValueError:\n        return\n    assert False, \"empty input must raise ValueError\"\n", "mutants": ["def raw_agreement(a, b):\n    # zip silently truncates to the shorter list\n    if not a:\n        raise ValueError(\"empty\")\n    return sum(x == y for x, y in zip(a, b)) / len(a)\n", "def raw_agreement(a, b):\n    if len(a) != len(b) or not a:\n        raise ValueError(\"bad input\")\n    return sum(x != y for x, y in zip(a, b)) / len(a)\n"], "hints": ["`zip` stops at the shorter list without complaint. Check lengths first.", "`sum(x == y for x, y in zip(a, b))` counts matches, because True counts as 1."], "level": "warmup", "title": "Raw agreement, with honest errors"}, "ex2-cohen-kappa": {"starter": "def cohen_kappa(a, b):\n    \"\"\"Cohen's kappa between two equal-length label lists.\"\"\"\n    raise NotImplementedError\n", "solution": "from collections import Counter\n\ndef cohen_kappa(a, b):\n    \"\"\"Cohen's kappa between two equal-length label lists.\"\"\"\n    if len(a) != len(b) or not a:\n        raise ValueError(\"need two non-empty label lists of equal length\")\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((ca[c] / n) * (cb[c] / n) for c in set(ca) | set(cb))\n    if pe == 1:\n        raise ValueError(\"kappa is undefined when chance agreement is 1\")\n    return (po - pe) / (1 - pe)\n", "tests": "def _from_counts(yy, yn, ny, nn):\n    a = [\"y\"] * yy + [\"y\"] * yn + [\"n\"] * ny + [\"n\"] * nn\n    b = [\"y\"] * yy + [\"n\"] * yn + [\"y\"] * ny + [\"n\"] * nn\n    return a, b\n\ndef test_textbook_example():\n    # 50 grant applications: both yes 20, A yes/B no 5, A no/B yes 10, both no 15.\n    # p_o = 0.7, p_e = 0.5*0.6 + 0.5*0.4 = 0.5, kappa = 0.4 (Scott's pi would give 0.3939...)\n    a, b = _from_counts(20, 5, 10, 15)\n    assert abs(cohen_kappa(a, b) - 0.4) < 1e-12\n\ndef test_perfect_chance_and_worse():\n    assert cohen_kappa([0, 1, 1, 0], [0, 1, 1, 0]) == 1.0\n    assert abs(cohen_kappa([0, 1] * 50, [0, 0, 1, 1] * 25)) < 1e-12\n    assert abs(cohen_kappa([0, 1] * 10, [1, 0] * 10) - (-1.0)) < 1e-12\n\ndef test_category_used_by_one_rater_only():\n    # p_o = 2/3; p_e = (2/3)(1/3) + (1/3)(1/3) = 1/3; kappa = 0.5\n    assert abs(cohen_kappa([\"x\", \"x\", \"y\"], [\"x\", \"z\", \"y\"]) - 0.5) < 1e-12\n\ndef test_symmetric():\n    a = list(\"aabbbcacba\")\n    b = list(\"abbbccacaa\")\n    assert abs(cohen_kappa(a, b) - cohen_kappa(b, a)) < 1e-12\n\ndef test_undefined_raises():\n    try:\n        cohen_kappa([\"y\"] * 5, [\"y\"] * 5)\n    except ValueError:\n        return\n    assert False, \"p_e = 1 must raise ValueError\"\n", "mutants": ["from collections import Counter\n\ndef cohen_kappa(a, b):\n    # Scott's pi: one pooled set of shares for both raters\n    if len(a) != len(b) or not a:\n        raise ValueError(\"bad input\")\n    n = len(a)\n    pooled = Counter(a) + Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((pooled[c] / (2 * n)) ** 2 for c in pooled)\n    if pe == 1:\n        raise ValueError(\"undefined\")\n    return (po - pe) / (1 - pe)\n", "from collections import Counter\n\ndef cohen_kappa(a, b):\n    # wrong denominator; every test with p_e = 1/2 still passes, which is why one test uses p_e = 1/3\n    if len(a) != len(b) or not a:\n        raise ValueError(\"bad input\")\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((ca[c] / n) * (cb[c] / n) for c in set(ca) | set(cb))\n    if pe == 1:\n        raise ValueError(\"undefined\")\n    return (po - pe) / pe\n", "from collections import Counter\n\ndef cohen_kappa(a, b):\n    if len(a) != len(b) or not a:\n        raise ValueError(\"bad input\")\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((ca[c] / n) * (cb[c] / n) for c in set(ca) | set(cb))\n    if pe == 1:\n        return 0.0  # a made-up number where the statistic is undefined\n    return (po - pe) / (1 - pe)\n"], "hints": ["`collections.Counter(a)[c]` counts how often rater A used label `c`, and is 0 for labels A never used.", "Loop over `set(a) | set(b)` so a label only one rater used still counts. Its product term is 0, but it must not crash."], "level": "core", "title": "Cohen's kappa from scratch"}, "ex3-paradox": {"starter": "def make_paradox():\n    \"\"\"Return (a, b): 100 yes/no labels each, agreement >= 0.90, kappa <= 0.10.\"\"\"\n    a = [\"yes\"] * 50 + [\"no\"] * 50\n    b = list(a)\n    return a, b\n", "solution": "def make_paradox():\n    \"\"\"Return (a, b): 100 yes/no labels each, agreement >= 0.90, kappa <= 0.10.\"\"\"\n    # 91 items both say no; A says yes on 5 others, B says yes on 4 different ones.\n    a = [\"no\"] * 91 + [\"yes\"] * 5 + [\"no\"] * 4\n    b = [\"no\"] * 91 + [\"no\"] * 5 + [\"yes\"] * 4\n    return a, b\n", "tests": "def _ref(a, b):\n    n = len(a)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pa, pb = a.count(\"yes\") / n, b.count(\"yes\") / n\n    pe = pa * pb + (1 - pa) * (1 - pb)\n    return po, (po - pe) / (1 - pe)\n\ndef test_shape():\n    a, b = make_paradox()\n    assert len(a) == 100 and len(b) == 100\n    assert set(a) | set(b) <= {\"yes\", \"no\"}\n\ndef test_high_raw_agreement():\n    a, b = make_paradox()\n    assert _ref(a, b)[0] >= 0.90\n\ndef test_low_kappa():\n    a, b = make_paradox()\n    assert _ref(a, b)[1] <= 0.10\n", "mutants": ["def make_paradox():\n    # balanced labels with 90% agreement: kappa is 0.8, not a paradox\n    a = [\"yes\"] * 50 + [\"no\"] * 50\n    b = [\"yes\"] * 45 + [\"no\"] * 5 + [\"no\"] * 45 + [\"yes\"] * 5\n    return a, b\n", "def make_paradox():\n    # low kappa, but agreement is only 50%: also not a paradox\n    a = [\"yes\", \"no\"] * 50\n    b = [\"yes\", \"yes\", \"no\", \"no\"] * 25\n    return a, b\n"], "hints": ["Kappa is near zero when agreement is close to what chance predicts. When is chance agreement already about 0.9?", "Make \"no\" very common for both raters, and put their few \"yes\" labels on different items."], "level": "core", "title": "Build the paradox yourself"}, "ex4-weighted": {"starter": "def weighted_kappa(a, b, k, weights=\"linear\"):\n    \"\"\"Weighted kappa for integer labels 0..k-1.\"\"\"\n    return 0.0\n", "solution": "def weighted_kappa(a, b, k, weights=\"linear\"):\n    \"\"\"Weighted kappa for integer labels 0..k-1.\"\"\"\n    if len(a) != len(b) or not a or k < 2:\n        raise ValueError(\"need equal-length non-empty labels and k >= 2\")\n    if weights == \"linear\":\n        w = lambda i, j: abs(i - j) / (k - 1)\n    elif weights == \"quadratic\":\n        w = lambda i, j: (i - j) ** 2 / (k - 1) ** 2\n    else:\n        raise ValueError(f\"unknown weights {weights!r}\")\n    n = len(a)\n    obs = [[0.0] * k for _ in range(k)]\n    for x, y in zip(a, b):\n        obs[x][y] += 1 / n\n    pa = [sum(row) for row in obs]\n    pb = [sum(obs[i][j] for i in range(k)) for j in range(k)]\n    num = sum(w(i, j) * obs[i][j] for i in range(k) for j in range(k))\n    den = sum(w(i, j) * pa[i] * pb[j] for i in range(k) for j in range(k))\n    if den == 0:\n        raise ValueError(\"expected disagreement is 0; weighted kappa is undefined\")\n    return 1 - num / den\n", "tests": "def _cohen(a, b):\n    n = len(a)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum(a.count(c) / n * b.count(c) / n for c in set(a) | set(b))\n    return (po - pe) / (1 - pe)\n\ndef test_two_categories_equals_cohen():\n    # with k = 2 the only disagreement weight is 1, so weighted = unweighted kappa\n    a = [0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 1, 1]\n    b = [0, 1, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1]\n    assert abs(weighted_kappa(a, b, 2) - _cohen(a, b)) < 1e-12\n    assert abs(weighted_kappa(a, b, 2, \"quadratic\") - _cohen(a, b)) < 1e-12\n\ndef test_near_misses_score_higher_than_far_misses():\n    a = [0, 1, 2, 3] * 10\n    near = [1, 2, 3, 2] * 10\n    far = [3, 3, 0, 0] * 10\n    assert weighted_kappa(a, near, 4) > weighted_kappa(a, far, 4)\n    assert weighted_kappa(a, near, 4, \"quadratic\") > weighted_kappa(a, near, 4, \"linear\")\n\ndef test_hand_computed_value():\n    # a = [0,0,2,2], b = [0,1,2,1], k = 3, linear weights.\n    # observed disagreement = 0.25*0.5 + 0.25*0.5 = 0.25\n    # marginals A = [0.5, 0, 0.5], B = [0.25, 0.5, 0.25]; expected disagreement = 0.5\n    assert abs(weighted_kappa([0, 0, 2, 2], [0, 1, 2, 1], 3) - 0.5) < 1e-12\n\ndef test_bad_weights_raises():\n    try:\n        weighted_kappa([0, 1], [1, 0], 2, \"cubic\")\n    except ValueError:\n        return\n    assert False, \"unknown weight names must raise ValueError\"\n", "mutants": ["def weighted_kappa(a, b, k, weights=\"linear\"):\n    # mixes up agreement weights (1 - w) and disagreement weights (w)\n    if weights not in (\"linear\", \"quadratic\"):\n        raise ValueError(\"bad weights\")\n    n = len(a)\n    w = (lambda i, j: abs(i - j) / (k - 1)) if weights == \"linear\" else (lambda i, j: (i - j) ** 2 / (k - 1) ** 2)\n    obs = [[0.0] * k for _ in range(k)]\n    for x, y in zip(a, b):\n        obs[x][y] += 1 / n\n    pa = [sum(row) for row in obs]\n    pb = [sum(obs[i][j] for i in range(k)) for j in range(k)]\n    num = sum((1 - w(i, j)) * obs[i][j] for i in range(k) for j in range(k))\n    den = sum(w(i, j) * pa[i] * pb[j] for i in range(k) for j in range(k))\n    return 1 - num / den\n", "def weighted_kappa(a, b, k, weights=\"linear\"):\n    # uses the same marginal for both raters (A's), so chance disagreement is wrong\n    if weights not in (\"linear\", \"quadratic\"):\n        raise ValueError(\"bad weights\")\n    n = len(a)\n    w = (lambda i, j: abs(i - j) / (k - 1)) if weights == \"linear\" else (lambda i, j: (i - j) ** 2 / (k - 1) ** 2)\n    obs = [[0.0] * k for _ in range(k)]\n    for x, y in zip(a, b):\n        obs[x][y] += 1 / n\n    pa = [sum(row) for row in obs]\n    num = sum(w(i, j) * obs[i][j] for i in range(k) for j in range(k))\n    den = sum(w(i, j) * pa[i] * pa[j] for i in range(k) for j in range(k))\n    return 1 - num / den\n"], "hints": ["Build the k-by-k table of observed proportions first; both marginals come from it.", "In the hand-computed test the table has 0.25 at (0,0), (0,1), (2,2) and (2,1). Check your marginals against that."], "level": "core", "title": "Weighted kappa for ordered labels"}, "ex5-bootstrap": {"starter": "import random\n\ndef kappa_ci(a, b, reps=2000, seed=0, level=0.95):\n    \"\"\"Percentile bootstrap interval for Cohen's kappa.\"\"\"\n    rng = random.Random(seed)\n    return (0.0, 0.0)\n", "solution": "import random\nfrom collections import Counter\n\ndef _kappa(a, b):\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((ca[c] / n) * (cb[c] / n) for c in set(ca) | set(cb))\n    if pe == 1:\n        return None\n    return (po - pe) / (1 - pe)\n\ndef kappa_ci(a, b, reps=2000, seed=0, level=0.95):\n    \"\"\"Percentile bootstrap interval for Cohen's kappa.\"\"\"\n    if len(a) != len(b) or not a:\n        raise ValueError(\"need two non-empty label lists of equal length\")\n    rng = random.Random(seed)\n    n = len(a)\n    vals = []\n    for _ in range(reps):\n        idx = [rng.randrange(n) for _ in range(n)]\n        k = _kappa([a[i] for i in idx], [b[i] for i in idx])\n        if k is not None:\n            vals.append(k)\n    if not vals:\n        raise ValueError(\"kappa was undefined in every bootstrap sample\")\n    vals.sort()\n    tail = (1 - level) / 2\n    m = len(vals) - 1\n    return vals[int(tail * m)], vals[int(round((1 - tail) * m))]\n", "tests": "def _pairs(yy, yn, ny, nn):\n    a = [\"y\"] * (yy + yn) + [\"n\"] * (ny + nn)\n    b = [\"y\"] * yy + [\"n\"] * yn + [\"y\"] * ny + [\"n\"] * nn\n    return a, b\n\ndef test_contains_point_estimate():\n    a, b = _pairs(20, 5, 10, 15)          # kappa = 0.4\n    lo, hi = kappa_ci(a, b, reps=400, seed=1)\n    assert lo < 0.4 < hi, (lo, hi)\n    assert -1 <= lo <= hi <= 1\n\ndef test_reproducible_and_seed_matters():\n    a, b = _pairs(20, 5, 10, 15)\n    assert kappa_ci(a, b, reps=300, seed=5) == kappa_ci(a, b, reps=300, seed=5)\n    assert kappa_ci(a, b, reps=300, seed=5) != kappa_ci(a, b, reps=300, seed=6)\n\ndef test_more_data_narrower():\n    a, b = _pairs(20, 5, 10, 15)\n    lo1, hi1 = kappa_ci(a, b, reps=400, seed=2)\n    lo4, hi4 = kappa_ci(a * 4, b * 4, reps=400, seed=2)\n    assert (hi4 - lo4) < 0.7 * (hi1 - lo1), (hi1 - lo1, hi4 - lo4)\n\ndef test_lower_level_is_narrower():\n    a, b = _pairs(20, 5, 10, 15)\n    lo95, hi95 = kappa_ci(a, b, reps=400, seed=3, level=0.95)\n    lo50, hi50 = kappa_ci(a, b, reps=400, seed=3, level=0.50)\n    assert lo95 <= lo50 <= hi50 <= hi95\n    assert (hi50 - lo50) < (hi95 - lo95)\n\ndef test_tiny_sample_survives_undefined_rounds():\n    lo, hi = kappa_ci([\"y\", \"n\", \"y\", \"y\"], [\"y\", \"n\", \"n\", \"y\"], reps=200, seed=4)\n    assert lo <= hi\n", "mutants": ["import random\nfrom collections import Counter\n\ndef _kappa(a, b):\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((ca[c] / n) * (cb[c] / n) for c in set(ca) | set(cb))\n    return None if pe == 1 else (po - pe) / (1 - pe)\n\ndef kappa_ci(a, b, reps=2000, seed=0, level=0.95):\n    # resamples the two raters independently: destroys the pairing, so kappa collapses to ~0\n    rng = random.Random(seed)\n    n = len(a)\n    vals = []\n    for _ in range(reps):\n        ra = [a[rng.randrange(n)] for _ in range(n)]\n        rb = [b[rng.randrange(n)] for _ in range(n)]\n        k = _kappa(ra, rb)\n        if k is not None:\n            vals.append(k)\n    vals.sort()\n    tail = (1 - level) / 2\n    m = len(vals) - 1\n    return vals[int(tail * m)], vals[int(round((1 - tail) * m))]\n", "import random\nfrom collections import Counter\n\ndef _kappa(a, b):\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((ca[c] / n) * (cb[c] / n) for c in set(ca) | set(cb))\n    return None if pe == 1 else (po - pe) / (1 - pe)\n\ndef kappa_ci(a, b, reps=2000, seed=0, level=0.95):\n    # quantiles from 'level' instead of the tails: a 95% interval comes out razor thin\n    rng = random.Random(seed)\n    n = len(a)\n    vals = []\n    for _ in range(reps):\n        idx = [rng.randrange(n) for _ in range(n)]\n        k = _kappa([a[i] for i in idx], [b[i] for i in idx])\n        if k is not None:\n            vals.append(k)\n    vals.sort()\n    m = len(vals) - 1\n    return vals[int(level / 2 * m)], vals[int(round((1 - level / 2) * m))]\n", "import random\nfrom collections import Counter\n\ndef _kappa(a, b):\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = sum((ca[c] / n) * (cb[c] / n) for c in set(ca) | set(cb))\n    return None if pe == 1 else (po - pe) / (1 - pe)\n\ndef kappa_ci(a, b, reps=2000, seed=0, level=0.95):\n    rng = random.Random(0)  # ignores the seed argument\n    n = len(a)\n    vals = []\n    for _ in range(reps):\n        idx = [rng.randrange(n) for _ in range(n)]\n        k = _kappa([a[i] for i in idx], [b[i] for i in idx])\n        if k is not None:\n            vals.append(k)\n    vals.sort()\n    tail = (1 - level) / 2\n    m = len(vals) - 1\n    return vals[int(tail * m)], vals[int(round((1 - tail) * m))]\n"], "hints": ["Resample *item indices*, then read both raters' labels at those indices. Pairs must travel together.", "A 95% interval cuts 2.5% off each tail: indices near `0.025 * m` and `0.975 * m` of the sorted list."], "level": "boss", "title": "How sure are we about a kappa? A bootstrap interval"}, "ex6-fleiss": {"starter": "def fleiss_kappa(table):\n    \"\"\"Fleiss' kappa for a table of per-item category counts.\"\"\"\n    return 1.0\n", "solution": "def fleiss_kappa(table):\n    \"\"\"Fleiss' kappa for a table of per-item category counts.\"\"\"\n    if not table:\n        raise ValueError(\"empty table\")\n    r = sum(table[0])\n    if r < 2 or any(sum(row) != r for row in table):\n        raise ValueError(\"every item needs the same number (>= 2) of ratings\")\n    N, k = len(table), len(table[0])\n    P = [(sum(c * c for c in row) - r) / (r * (r - 1)) for row in table]\n    p_bar = sum(P) / N\n    shares = [sum(row[j] for row in table) / (N * r) for j in range(k)]\n    pe = sum(s * s for s in shares)\n    if pe == 1:\n        raise ValueError(\"chance agreement is 1; kappa is undefined\")\n    return (p_bar - pe) / (1 - pe)\n", "tests": "def _table_from_two_raters(a, b, cats):\n    return [[(x == c) + (y == c) for c in cats] for x, y in zip(a, b)]\n\ndef _scott_pi(a, b):\n    n = len(a)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pooled = a + b\n    pe = sum((pooled.count(c) / (2 * n)) ** 2 for c in set(pooled))\n    return (po - pe) / (1 - pe)\n\ndef test_two_raters_equal_scotts_pi():\n    a = list(\"yyyyyyyyyyyyyyyyyyyyyyyyynnnnnnnnnnnnnnnnnnnnnnnnn\")\n    b = list(\"yyyyyyyyyyyyyyyyyyyynnnnnyyyyyyyyyynnnnnnnnnnnnnnn\")\n    t = _table_from_two_raters(a, b, \"yn\")\n    assert abs(fleiss_kappa(t) - _scott_pi(a, b)) < 1e-12\n    assert abs(fleiss_kappa(t) - 0.4) > 0.005   # and so it is NOT Cohen's 0.4 here\n\ndef test_perfect_agreement():\n    assert abs(fleiss_kappa([[3, 0], [0, 3], [3, 0]]) - 1.0) < 1e-12\n\ndef test_three_categories_known_value():\n    # 4 items, 3 raters. P_i = [1, 1/3, 1/3, 1]; P_bar = 2/3.\n    # shares = [4/12, 4/12, 4/12]; pe = 1/3; kappa = (2/3 - 1/3)/(2/3) = 0.5\n    t = [[3, 0, 0], [1, 2, 0], [0, 2, 1], [0, 0, 3]]\n    assert abs(fleiss_kappa(t) - 0.5) < 1e-12\n\ndef test_unequal_rows_raise():\n    try:\n        fleiss_kappa([[2, 1], [1, 1]])\n    except ValueError:\n        return\n    assert False, \"rows with different rater counts must raise ValueError\"\n", "mutants": ["def fleiss_kappa(table):\n    # divides per-item agreement by r*r instead of r*(r-1): counts a rater agreeing with itself\n    r = sum(table[0])\n    if any(sum(row) != r for row in table):\n        raise ValueError(\"unequal\")\n    N, k = len(table), len(table[0])\n    P = [(sum(c * c for c in row) - r) / (r * r) for row in table]\n    p_bar = sum(P) / N\n    shares = [sum(row[j] for row in table) / (N * r) for j in range(k)]\n    pe = sum(s * s for s in shares)\n    return (p_bar - pe) / (1 - pe)\n", "def fleiss_kappa(table):\n    # forgets to subtract r: every item looks like it agrees more than it does\n    r = sum(table[0])\n    if any(sum(row) != r for row in table):\n        raise ValueError(\"unequal\")\n    N, k = len(table), len(table[0])\n    P = [sum(c * c for c in row) / (r * (r - 1)) for row in table]\n    p_bar = sum(P) / N\n    shares = [sum(row[j] for row in table) / (N * r) for j in range(k)]\n    pe = sum(s * s for s in shares)\n    return (p_bar - pe) / (1 - pe)\n"], "hints": ["For one item, $\\sum_j n_{ij}^2 - r$ counts ordered pairs of *different* raters who agree; there are $r(r-1)$ ordered pairs in total.", "Category shares divide by $N r$, the total number of ratings, not by $N$."], "level": "boss", "title": "Many raters: Fleiss' kappa"}}, "demos": {"oracle-two-ways": {"code": "import random\nfrom collections import Counter\n\ndef pe_marginals(a, b):\n    n = len(a)\n    ca, cb = Counter(a), Counter(b)\n    return sum(ca[c] / n * cb[c] / n for c in set(a) | set(b))\n\ndef pe_bruteforce(a, b):\n    n = len(a)\n    matches = sum(1 for x in a for y in b if x == y)\n    return matches / (n * n)\n\ndef kappa(a, b, pe):\n    po = sum(x == y for x, y in zip(a, b)) / len(a)\n    return (po - pe) / (1 - pe)\n\nrng = random.Random(7)\nchecked = 0\nfor trial in range(300):\n    n = rng.randint(5, 40)\n    cats = \"abcd\"[: rng.randint(2, 4)]\n    a = [rng.choice(cats) for _ in range(n)]\n    b = [x if rng.random() < 0.6 else rng.choice(cats) for x in a]\n    p1, p2 = pe_marginals(a, b), pe_bruteforce(a, b)\n    assert abs(p1 - p2) < 1e-12, (trial, p1, p2)\n    if p1 < 1:\n        assert abs(kappa(a, b, p1) - kappa(a, b, p2)) < 1e-9\n        checked += 1\nprint(f\"marginal formula == brute-force pairing on 300 label sets ({checked} kappas compared)\")\n", "mutants": ["import random\nfrom collections import Counter\n\ndef pe_marginals(a, b):\n    # Scott's pi pools both raters into one set of shares: a different statistic\n    n = len(a)\n    pooled = Counter(a) + Counter(b)\n    return sum((pooled[c] / (2 * n)) ** 2 for c in pooled)\n\ndef pe_bruteforce(a, b):\n    n = len(a)\n    matches = sum(1 for x in a for y in b if x == y)\n    return matches / (n * n)\n\nrng = random.Random(7)\nfor trial in range(300):\n    n = rng.randint(5, 40)\n    cats = \"abcd\"[: rng.randint(2, 4)]\n    a = [rng.choice(cats) for _ in range(n)]\n    b = [x if rng.random() < 0.6 else rng.choice(cats) for x in a]\n    assert abs(pe_marginals(a, b) - pe_bruteforce(a, b)) < 1e-12, (trial, \"pooled marginals disagree with pairing\")\n"]}, "experiment-prevalence": {"code": "import random, statistics\n\ndef kappa(a, b):\n    n = len(a)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    qa, qb = sum(a) / n, sum(b) / n\n    pe = qa * qb + (1 - qa) * (1 - qb)\n    return (po - pe) / (1 - pe)\n\ndef theory(pi, r):\n    q = pi * r + (1 - pi) * (1 - r)\n    po = r * r + (1 - r) ** 2\n    pe = q * q + (1 - q) ** 2\n    return (po - pe) / (1 - pe), po\n\nrng = random.Random(2026)\nr = 0.9\nfor pi in (0.5, 0.05):\n    ks, agrees = [], []\n    for study in range(200):\n        truth = [1 if rng.random() < pi else 0 for _ in range(500)]\n        a = [t if rng.random() < r else 1 - t for t in truth]\n        b = [t if rng.random() < r else 1 - t for t in truth]\n        ks.append(kappa(a, b))\n        agrees.append(sum(x == y for x, y in zip(a, b)) / 500)\n    k_th, po_th = theory(pi, r)\n    mean = statistics.fmean(ks)\n    half = 1.96 * statistics.stdev(ks) / len(ks) ** 0.5\n    print(f\"prevalence {pi:>4}: raw agreement {statistics.fmean(agrees):.3f} (theory {po_th:.3f}); \"\n          f\"kappa {mean:.4f} +/- {half:.4f} (theory {k_th:.4f})\")\n    assert abs(mean - k_th) < half + 0.005, (pi, mean, k_th)\n    assert abs(statistics.fmean(agrees) - po_th) < 0.01\nprint(\"Same raters, same raw agreement; kappa falls from about 0.64 to 0.25 because the world changed.\")\n", "mutants": ["import random, statistics\n\ndef kappa(a, b):\n    n = len(a)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    pe = 0.5  # assumes chance agreement is always one half: the naive belief\n    return (po - pe) / (1 - pe)\n\ndef theory(pi, r):\n    q = pi * r + (1 - pi) * (1 - r)\n    po = r * r + (1 - r) ** 2\n    pe = q * q + (1 - q) ** 2\n    return (po - pe) / (1 - pe), po\n\nrng = random.Random(2026)\nfor pi in (0.5, 0.05):\n    ks = []\n    for study in range(200):\n        truth = [1 if rng.random() < pi else 0 for _ in range(500)]\n        a = [t if rng.random() < 0.9 else 1 - t for t in truth]\n        b = [t if rng.random() < 0.9 else 1 - t for t in truth]\n        ks.append(kappa(a, b))\n    mean = statistics.fmean(ks)\n    half = 1.96 * statistics.stdev(ks) / len(ks) ** 0.5\n    assert abs(mean - theory(pi, 0.9)[0]) < half + 0.005, (pi, mean)\n"]}, "experiment-optimism": {"code": "import random, statistics\n\ndef kappa(a, b):\n    n = len(a)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    qa, qb = sum(a) / n, sum(b) / n\n    pe = qa * qb + (1 - qa) * (1 - qb)\n    return 0.0 if pe == 1 else (po - pe) / (1 - pe)\n\nrng = random.Random(11)\ngaps, gold_best, hold_best = [], [], []\nfor rep in range(150):\n    truth = [1 if rng.random() < 0.12 else 0 for _ in range(138)]\n    gold, hold = truth[:78], truth[78:]\n    rules = []\n    for _ in range(20):\n        sens, spec = rng.uniform(0.3, 0.6), rng.uniform(0.85, 0.95)\n        rules.append([(1 if rng.random() < sens else 0) if t else (1 if rng.random() > spec else 0) for t in truth])\n    best = max(rules, key=lambda lab: kappa(gold, lab[:78]))\n    g, h = kappa(gold, best[:78]), kappa(hold, best[78:])\n    gold_best.append(g); hold_best.append(h); gaps.append(g - h)\nmean_gap = statistics.fmean(gaps)\nhalf = 1.96 * statistics.stdev(gaps) / len(gaps) ** 0.5\nprint(f\"best rule on gold: kappa {statistics.fmean(gold_best):.3f}; same rule on holdout: {statistics.fmean(hold_best):.3f}\")\nprint(f\"optimism = {mean_gap:.3f} +/- {half:.3f} (95% interval for the mean over 150 repeats)\")\nassert mean_gap - half > 0, \"selection on gold should inflate the gold score\"\n", "mutants": ["import random, statistics\n\ndef kappa(a, b):\n    n = len(a)\n    po = sum(x == y for x, y in zip(a, b)) / n\n    qa, qb = sum(a) / n, sum(b) / n\n    pe = qa * qb + (1 - qa) * (1 - qb)\n    return 0.0 if pe == 1 else (po - pe) / (1 - pe)\n\nrng = random.Random(11)\ngaps = []\nfor rep in range(150):\n    truth = [1 if rng.random() < 0.12 else 0 for _ in range(138)]\n    gold, hold = truth[:78], truth[78:]\n    rules = []\n    for _ in range(20):\n        sens, spec = rng.uniform(0.3, 0.6), rng.uniform(0.85, 0.95)\n        rules.append([(1 if rng.random() < sens else 0) if t else (1 if rng.random() > spec else 0) for t in truth])\n    best = rules[0]  # no selection at all: the claim below is now wrong\n    gaps.append(kappa(gold, best[:78]) - kappa(hold, best[78:]))\nhalf = 1.96 * statistics.stdev(gaps) / len(gaps) ** 0.5\nassert statistics.fmean(gaps) - half > 0, \"without selection there is no systematic optimism\"\n"]}}, "cards": [{"q": "Why can raw agreement be high when neither rater is paying attention?", "a": "When one label is very common, two raters who both use it most of the time agree by chance. Chance agreement is the sum over labels of (A's share) \u00d7 (B's share)."}, {"q": "Write Cohen's kappa.", "a": "$\\kappa = (p_o - p_e)/(1 - p_e)$, with $p_o$ the observed agreement and $p_e = \\sum_i p_{i\\cdot} p_{\\cdot i}$ the chance agreement from the two raters' own marginals."}, {"q": "What do kappa = 1, 0 and -1 mean?", "a": "1 is perfect agreement, 0 is agreement exactly at chance level, and negative means systematically worse than chance. It reaches -1 only when $p_e = 1/2$ and $p_o = 0$."}, {"q": "Two raters are each 90% accurate. Why is their kappa 0.64 at a 50% base rate but about 0.25 at 5%?", "a": "Their observed agreement ($r^2 + (1-r)^2 = 0.82$) does not depend on prevalence, but chance agreement does. At 5% prevalence both say \"no\" so often that chance already explains most of the agreement."}, {"q": "Why must a labeller be validated on a held-out set?", "a": "If you tuned or selected it on the gold set, its gold score is biased upward (the best of many noisy scores). Only items that played no part in building it give an honest estimate."}, {"q": "With two raters, what does Fleiss' kappa equal?", "a": "Scott's pi, which uses one pooled set of category shares for both raters, not Cohen's kappa, which uses each rater's own shares."}, {"q": "How do you bootstrap a kappa correctly?", "a": "Resample items with replacement, keeping each item's pair of labels together. Recompute kappa each time and take the percentile interval. Resampling the raters separately destroys the pairing and drives kappa to about 0."}, {"q": "What is the difference between reliability and validity for a labeller?", "a": "Reliability means it gives the same answer again (self-agreement). Validity means its answers match the truth. A labeller can be perfectly reliable and consistently wrong."}], "title": "Agreement: when do two labellers agree?"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

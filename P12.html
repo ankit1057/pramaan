@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P12 Automata and regular languages</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P12">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P12</p><h1>Automata and regular languages</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M16.html">M16</a> <a href="M17.html">M17</a></div><div><b>Covers:</b> CS2023 AL, CS2023 FPL</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>alphabets and languages</li><li>DFAs</li><li>NFAs and epsilon-NFAs</li><li>the subset construction</li><li>regular expressions and Thompson&#x27;s construction</li><li>DFA minimisation</li><li>closure properties</li><li>the pumping lemma</li><li>backtracking vs automata regex engines and ReDoS</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1951, mathematician Stephen Cole Kleene at the RAND Corporation published a classified research memorandum titled "Representation of Events in Nerve Nets and Finite Automata." Kleene sought to model the idealized neural firing networks proposed by McCulloch and Pitts, formalizing the concept of "regular events" and inventing the notation that bears his name: the Kleene star ($*$). Eight years later in 1959, Michael Rabin and Dana Scott published their landmark paper "Finite Automata and Their Decision Problems." Rabin and Scott introduced non-deterministic finite automata (NFAs), where a machine could seemingly guess transitions or branch along multiple computational paths simultaneously. Crucially, they proved that this non-determinism added zero expressive power: through their elegant powerset "subset construction," any $k$-state NFA could be transformed into an equivalent deterministic finite automaton (DFA) with at most $2^k$ states. For this foundational work, Rabin and Scott were awarded the ACM A.M. Turing Award in 1976.</p>
+<p>In 1968, Unix pioneer Ken Thompson published a seminal paper in the Communications of the ACM titled "Regular Expression Search Algorithm." Thompson was writing the QED text editor and needed a blisteringly fast pattern matcher on early PDP computers. Instead of backtracking, Thompson devised an algorithm that compiles any regular expression directly into an NFA and simulates state transitions in parallel in linear time $O(m \cdot n)$. Half a century later in July 2019, the world was reminded of Thompson's genius when Cloudflare suffered a catastrophic 27-minute global outage. An engineer deployed a Web Application Firewall rule containing the poorly structured backtracking regex <code>.*.*=.*</code>. When traffic containing innocuous input arrived, backtracking engines pegged CPU cores at 100% across all worldwide points of presence, instantly knocking millions of websites offline.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A finite automaton is a tiny mathematical computer with a fixed set of states and zero auxiliary memory or scratchpads. As it reads a sequence of symbols one by one, it transitions between states according to exact rules. If the machine finishes reading the text in an "accepting" state, it announces that the input string matches the pattern. A deterministic machine (DFA) has exactly one clear path for every symbol, while a non-deterministic machine (NFA) can explore multiple paths at once. Remarkably, any pattern an NFA can match can also be matched by a DFA, and both can be executed in linear time without the catastrophic performance crashes that plague naive backtracking regular expression engines.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Formally, automata theory and formal languages are defined over an alphabet $\Sigma$ (a finite set of symbols), with strings $w \in \Sigma^*$ and languages $L \subseteq \Sigma^*$.</p>
+<ol>
+<li>
+<p><strong>Deterministic Finite Automaton (DFA)</strong>:
+A DFA is a 5-tuple $M = (Q, \Sigma, \delta, q_0, F)$ where:
+- $Q$ is a finite set of states.
+- $\Sigma$ is a finite input alphabet.
+- $\delta: Q \times \Sigma \to Q$ is the deterministic state transition function.
+- $q_0 \in Q$ is the start state.
+- $F \subseteq Q$ is the set of accept (final) states.
+The extended transition function $\hat{\delta}: Q \times \Sigma^* \to Q$ is defined inductively: $\hat{\delta}(q, \epsilon) = q$, and $\hat{\delta}(q, wa) = \delta(\hat{\delta}(q, w), a)$ for $a \in \Sigma$. A string $w$ is accepted if $\hat{\delta}(q_0, w) \in F$.</p>
+</li>
+<li>
+<p><strong>Non-deterministic Finite Automaton with Epsilon Transitions ($\epsilon$-NFA)</strong>:
+Defined as $M = (Q, \Sigma, \delta, q_0, F)$ where $\delta: Q \times (\Sigma \cup \{\epsilon\}) \to \mathcal{P}(Q)$.
+The $\epsilon$-closure $\text{ECLOSE}(S)$ of a state set $S \subseteq Q$ is the smallest set containing $S$ closed under $\epsilon$-transitions: $q \in \text{ECLOSE}(S) \land p \in \delta(q, \epsilon) \implies p \in \text{ECLOSE}(S)$.</p>
+</li>
+<li>
+<p><strong>The Rabin-Scott Subset Construction</strong>:
+Converts an $\epsilon$-NFA $N = (Q_N, \Sigma, \delta_N, q_{0,N}, F_N)$ into an equivalent DFA $D = (Q_D, \Sigma, \delta_D, q_{0,D}, F_D)$:
+- $Q_D \subseteq \mathcal{P}(Q_N)$ (states of $D$ are subsets of $Q_N$).
+- $q_{0,D} = \text{ECLOSE}(\{q_{0,N}\})$.
+- $\delta_D(S, a) = \text{ECLOSE}\left(\bigcup_{q \in S} \delta_N(q, a)\right)$ for all $a \in \Sigma$.
+- $F_D = \{S \in Q_D \mid S \cap F_N \ne \emptyset\}$.</p>
+</li>
+<li>
+<p><strong>DFA Minimisation (Myhill-Nerode &amp; Hopcroft)</strong>:
+Two states $p, q \in Q$ are equivalent ($p \sim q$) iff $\forall w \in \Sigma^*, (\hat{\delta}(p, w) \in F \iff \hat{\delta}(q, w) \in F)$. Partition refinement partitions $Q$ into equivalence blocks in $O(|\Sigma| \cdot |Q| \log |Q|)$ time, yielding the unique minimal DFA.</p>
+</li>
+<li>
+<p><strong>Closure Properties &amp; The Pumping Lemma</strong>:
+Regular languages are closed under union, concatenation, Kleene star, complementation, and intersection.
+The Pumping Lemma states: If $L$ is regular, $\exists p \ge 1$ such that $\forall s \in L$ with $|s| \ge p$, $s$ can be written as $s = xyz$ with:
+- $|y| \ge 1$
+- $|xy| \le p$
+- $\forall i \ge 0, xy^i z \in L$.
+Contradicting this condition proves non-regularity (e.g., $L = \{0^n 1^n \mid n \ge 0\}$ is not regular).</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Automata theory is not merely a theoretical curiosity of computer science; it is the fundamental engine driving lexers in modern compilers, high-speed network packet inspection in routers, and resilient string processing across web infrastructure. Software engineers who do not understand finite state machines routinely produce brittle, buggy string parsing logic littered with nested ad-hoc loops, boolean flags, and edge-case exceptions. By modeling state transitions as a formal DFA or NFA, protocols such as TCP connection handshakes, HTTP streaming parsers, and input sanitizers become provably correct and straightforward to verify.</p>
+<p>Furthermore, understanding the difference between backtracking regex engines and finite automata engines is essential for preventing devastating security vulnerabilities. Popular programming languages like Python (<code>re</code>), JavaScript (<code>RegExp</code>), and Java (<code>java.util.regex</code>) implement regular expressions via recursive backtracking (NFA simulation with backtracking). When confronted with nested repetitions (such as <code>(a+)+$</code>), an adversarial input like <code>"aaaaaaaaaaaaab"</code> forces the backtracking engine to explore $2^n$ execution branches, causing CPU consumption to jump from 1 microsecond to several minutes or hours. This vulnerability, known as Regular Expression Denial of Service (ReDoS), has brought down major cloud services and enterprise web applications. In contrast, Thompson NFA and DFA compilation algorithms (as implemented in Google's RE2 and Rust's <code>regex</code> crate) evaluate regular expressions in guaranteed $O(m \cdot n)$ linear time with zero backtracking.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The DFA state transition oracle demonstrates how a deterministic finite automaton evaluates binary strings to verify whether they contain an even number of zeroes and an odd number of ones. In computing systems and network protocols, parity-checking state machines validate data frames in real time with constant-time execution and zero memory allocations. The interactive oracle simulates a 4-state DFA, executes character transitions, and asserts proper acceptance of balanced binary sequences.</p>
+<div class="lab demo" data-demo="p12-oracle-dfa-parity">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>DFA Binary Parity State Machine Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class ParityDFA:
+    def __init__(self):
+        # States: (even_0, even_1), (even_0, odd_1), (odd_0, even_1), (odd_0, odd_1)
+        # Goal: accept strings with even zeroes and odd ones -&gt; state &#x27;E_O&#x27;
+        self.start_state = &quot;E_E&quot;
+        self.accept_states = {&quot;E_O&quot;}
+        self.transitions = {
+            &quot;E_E&quot;: {&quot;0&quot;: &quot;O_E&quot;, &quot;1&quot;: &quot;E_O&quot;},
+            &quot;E_O&quot;: {&quot;0&quot;: &quot;O_O&quot;, &quot;1&quot;: &quot;E_E&quot;},
+            &quot;O_E&quot;: {&quot;0&quot;: &quot;E_E&quot;, &quot;1&quot;: &quot;O_O&quot;},
+            &quot;O_O&quot;: {&quot;0&quot;: &quot;E_O&quot;, &quot;1&quot;: &quot;O_E&quot;}
+        }
+
+    def evaluate(self, s: str) -&gt; bool:
+        curr = self.start_state
+        for char in s:
+            if char not in self.transitions[curr]:
+                return False
+            curr = self.transitions[curr][char]
+        return curr in self.accept_states
+
+dfa = ParityDFA()
+
+# &quot;1&quot; -&gt; 0 zeros (even), 1 ones (odd) -&gt; ACCEPT
+assert dfa.evaluate(&quot;1&quot;) is True
+
+# &quot;001&quot; -&gt; 2 zeros (even), 1 ones (odd) -&gt; ACCEPT
+assert dfa.evaluate(&quot;001&quot;) is True
+
+# &quot;010&quot; -&gt; 2 zeros (even), 1 ones (odd) -&gt; ACCEPT
+assert dfa.evaluate(&quot;010&quot;) is True
+
+# &quot;01&quot; -&gt; 1 zero (odd), 1 one (odd) -&gt; REJECT
+assert dfa.evaluate(&quot;01&quot;) is False
+
+# &quot;11&quot; -&gt; 0 zeros (even), 2 ones (even) -&gt; REJECT
+assert dfa.evaluate(&quot;11&quot;) is False
+
+print(&quot;DFA binary parity state machine oracle verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the algorithmic contrast between recursive backtracking regex matching and linear-time automata simulation. For the pattern <code>(a+)+$</code> evaluated against strings of the form <code>a</code> * $N$ followed by <code>"b"</code>, recursive backtracking explodes exponentially with $2^N$ function calls, whereas Thompson NFA simulation tracking active state sets processes the input in exactly $N+1$ steps, demonstrating why production regex engines compile patterns to automata to eliminate ReDoS.</p>
+<div class="lab demo" data-demo="p12-exp-redos-comparison">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>ReDoS Catastrophic Backtracking vs Linear Automata Steps</h3></div>
+
+<textarea class="code" spellcheck="false">def count_backtracking_steps(n: int) -&gt; int:
+    # Simulates recursive backtracking on (a+)+$ matching &quot;a&quot; * n + &quot;b&quot;
+    # At each position k, the engine splits into partitions of &quot;a&quot;s
+    # Total paths explored is 2^(n-1)
+    if n &lt;= 0:
+        return 1
+    return 1 &lt;&lt; (n - 1)
+
+def count_automata_steps(n: int) -&gt; int:
+    # Thompson NFA or DFA: exactly 1 set of state transitions per character
+    # String length is n + 1 (the &#x27;b&#x27; character)
+    return n + 1
+
+# For small n = 5:
+steps_backtrack_5 = count_backtracking_steps(5)  # 2^4 = 16
+steps_automata_5 = count_automata_steps(5)        # 6
+assert steps_backtrack_5 == 16
+assert steps_automata_5 == 6
+
+# For moderate n = 25:
+steps_backtrack_25 = count_backtracking_steps(25)  # 2^24 = 16,777,216 operations!
+steps_automata_25 = count_automata_steps(25)        # 26 operations!
+assert steps_backtrack_25 == 16777216
+assert steps_automata_25 == 26
+
+print(f&quot;For N=25: Backtracking explores {steps_backtrack_25:,} paths; Automata takes {steps_automata_25} steps.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-dfa-string-evaluator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Generic Deterministic Finite Automaton (DFA) Simulator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_dfa(states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], str], start_state: str, accept_states: set[str], input_string: str) -&gt; bool that verifies whether an input string is accepted by the formal 5-tuple DFA.</p></div>
+<textarea class="code" spellcheck="false">def simulate_dfa(states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], str], start_state: str, accept_states: set[str], input_string: str) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_dfa_accept_even_zeros():
+    # Alphabet: {&#x27;0&#x27;, &#x27;1&#x27;}
+    # Accept strings with an even number of &#x27;0&#x27;s
+    states = {&quot;q_even&quot;, &quot;q_odd&quot;}
+    alphabet = {&quot;0&quot;, &quot;1&quot;}
+    transitions = {
+        (&quot;q_even&quot;, &quot;0&quot;): &quot;q_odd&quot;,
+        (&quot;q_even&quot;, &quot;1&quot;): &quot;q_even&quot;,
+        (&quot;q_odd&quot;, &quot;0&quot;): &quot;q_even&quot;,
+        (&quot;q_odd&quot;, &quot;1&quot;): &quot;q_odd&quot;
+    }
+    start = &quot;q_even&quot;
+    accept = {&quot;q_even&quot;}
+    
+    assert simulate_dfa(states, alphabet, transitions, start, accept, &quot;&quot;) is True
+    assert simulate_dfa(states, alphabet, transitions, start, accept, &quot;111&quot;) is True
+    assert simulate_dfa(states, alphabet, transitions, start, accept, &quot;00&quot;) is True
+    assert simulate_dfa(states, alphabet, transitions, start, accept, &quot;0&quot;) is False
+    assert simulate_dfa(states, alphabet, transitions, start, accept, &quot;0100&quot;) is False
+
+def test_dfa_reject_foreign_symbol():
+    states = {&quot;q0&quot;}
+    alphabet = {&quot;a&quot;, &quot;b&quot;}
+    transitions = {(&quot;q0&quot;, &quot;a&quot;): &quot;q0&quot;, (&quot;q0&quot;, &quot;b&quot;): &quot;q0&quot;}
+    assert simulate_dfa(states, alphabet, transitions, &quot;q0&quot;, {&quot;q0&quot;}, &quot;abc&quot;) is False
+
+def test_dfa_ends_with_ab():
+    # Recognizes strings ending in &quot;ab&quot;
+    states = {&quot;q0&quot;, &quot;q1&quot;, &quot;q2&quot;}
+    alphabet = {&quot;a&quot;, &quot;b&quot;}
+    transitions = {
+        (&quot;q0&quot;, &quot;a&quot;): &quot;q1&quot;, (&quot;q0&quot;, &quot;b&quot;): &quot;q0&quot;,
+        (&quot;q1&quot;, &quot;a&quot;): &quot;q1&quot;, (&quot;q1&quot;, &quot;b&quot;): &quot;q2&quot;,
+        (&quot;q2&quot;, &quot;a&quot;): &quot;q1&quot;, (&quot;q2&quot;, &quot;b&quot;): &quot;q0&quot;
+    }
+    assert simulate_dfa(states, alphabet, transitions, &quot;q0&quot;, {&quot;q2&quot;}, &quot;aab&quot;) is True
+    assert simulate_dfa(states, alphabet, transitions, &quot;q0&quot;, {&quot;q2&quot;}, &quot;ab&quot;) is True
+    assert simulate_dfa(states, alphabet, transitions, &quot;q0&quot;, {&quot;q2&quot;}, &quot;aba&quot;) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-nfa-epsilon-closure-and-step" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>NFA Epsilon-Closure and State Transition Step</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement compute_epsilon_closure(states: set[str], epsilon_transitions: dict[str, set[str]]) -&gt; set[str] and step_nfa(current_states: set[str], symbol: str, transitions: dict[tuple[str, str], set[str]], epsilon_transitions: dict[str, set[str]]) -&gt; set[str] to simulate non-deterministic state set transitions.</p></div>
+<textarea class="code" spellcheck="false">def compute_epsilon_closure(states: set[str], epsilon_transitions: dict[str, set[str]]) -&gt; set[str]:
+    pass
+
+def step_nfa(current_states: set[str], symbol: str, transitions: dict[tuple[str, str], set[str]], epsilon_transitions: dict[str, set[str]]) -&gt; set[str]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_epsilon_closure():
+    # q0 -eps-&gt; q1 -eps-&gt; q2
+    eps = {
+        &quot;q0&quot;: {&quot;q1&quot;},
+        &quot;q1&quot;: {&quot;q2&quot;},
+        &quot;q2&quot;: set()
+    }
+    assert compute_epsilon_closure({&quot;q0&quot;}, eps) == {&quot;q0&quot;, &quot;q1&quot;, &quot;q2&quot;}
+    assert compute_epsilon_closure({&quot;q1&quot;}, eps) == {&quot;q1&quot;, &quot;q2&quot;}
+    assert compute_epsilon_closure({&quot;q2&quot;}, eps) == {&quot;q2&quot;}
+
+def test_epsilon_closure_cycle():
+    # q0 -eps-&gt; q1 -eps-&gt; q0
+    eps = {&quot;q0&quot;: {&quot;q1&quot;}, &quot;q1&quot;: {&quot;q0&quot;}}
+    assert compute_epsilon_closure({&quot;q0&quot;}, eps) == {&quot;q0&quot;, &quot;q1&quot;}
+
+def test_step_nfa():
+    # q0 -eps-&gt; q1; (q1, &#x27;a&#x27;) -&gt; {q2}; q2 -eps-&gt; q3
+    eps = {&quot;q0&quot;: {&quot;q1&quot;}, &quot;q1&quot;: set(), &quot;q2&quot;: {&quot;q3&quot;}, &quot;q3&quot;: set()}
+    trans = {(&quot;q1&quot;, &quot;a&quot;): {&quot;q2&quot;}}
+    
+    res = step_nfa({&quot;q0&quot;}, &quot;a&quot;, trans, eps)
+    assert res == {&quot;q2&quot;, &quot;q3&quot;}
+    
+    # No transition on &#x27;b&#x27;
+    res_b = step_nfa({&quot;q0&quot;}, &quot;b&quot;, trans, eps)
+    assert res_b == set()
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-subset-construction-nfa-to-dfa" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Rabin-Scott Subset Construction: NFA to DFA Converter</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement nfa_to_dfa(nfa_states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], set[str]], eps_transitions: dict[str, set[str]], start_state: str, accept_states: set[str]) -&gt; dict converting an NFA to an equivalent DFA with determinized subset states.</p></div>
+<textarea class="code" spellcheck="false">def nfa_to_dfa(nfa_states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], set[str]], eps_transitions: dict[str, set[str]], start_state: str, accept_states: set[str]) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_subset_construction_simple():
+    # NFA matching strings ending with &#x27;a&#x27;
+    # q0 on &#x27;a&#x27; -&gt; {q0, q1}; q0 on &#x27;b&#x27; -&gt; {q0}
+    # q1 is accept state
+    states = {&quot;q0&quot;, &quot;q1&quot;}
+    alphabet = {&quot;a&quot;, &quot;b&quot;}
+    transitions = {
+        (&quot;q0&quot;, &quot;a&quot;): {&quot;q0&quot;, &quot;q1&quot;},
+        (&quot;q0&quot;, &quot;b&quot;): {&quot;q0&quot;}
+    }
+    eps = {}
+    dfa = nfa_to_dfa(states, alphabet, transitions, eps, &quot;q0&quot;, {&quot;q1&quot;})
+    
+    start = dfa[&quot;start_state&quot;]
+    assert start == frozenset({&quot;q0&quot;})
+    
+    # Transition on &#x27;a&#x27; leads to frozenset({&quot;q0&quot;, &quot;q1&quot;})
+    nxt_a = dfa[&quot;transitions&quot;][(start, &quot;a&quot;)]
+    assert nxt_a == frozenset({&quot;q0&quot;, &quot;q1&quot;})
+    assert nxt_a in dfa[&quot;accept_states&quot;]
+    
+    # Transition on &#x27;b&#x27; loops back to frozenset({&quot;q0&quot;})
+    nxt_b = dfa[&quot;transitions&quot;][(start, &quot;b&quot;)]
+    assert nxt_b == frozenset({&quot;q0&quot;})
+    assert nxt_b not in dfa[&quot;accept_states&quot;]
+
+def test_subset_construction_with_eps():
+    # q0 -eps-&gt; q1
+    states = {&quot;q0&quot;, &quot;q1&quot;}
+    alphabet = {&quot;a&quot;}
+    transitions = {(&quot;q1&quot;, &quot;a&quot;): {&quot;q1&quot;}}
+    eps = {&quot;q0&quot;: {&quot;q1&quot;}}
+    dfa = nfa_to_dfa(states, alphabet, transitions, eps, &quot;q0&quot;, {&quot;q1&quot;})
+    
+    # Start state includes epsilon closure: {&quot;q0&quot;, &quot;q1&quot;}
+    assert dfa[&quot;start_state&quot;] == frozenset({&quot;q0&quot;, &quot;q1&quot;})
+    assert dfa[&quot;start_state&quot;] in dfa[&quot;accept_states&quot;]
+
+def test_subset_empty_transition():
+    states = {&quot;q0&quot;}
+    alphabet = {&quot;x&quot;}
+    transitions = {}
+    eps = {}
+    dfa = nfa_to_dfa(states, alphabet, transitions, eps, &quot;q0&quot;, {&quot;q0&quot;})
+    nxt = dfa[&quot;transitions&quot;][(frozenset({&quot;q0&quot;}), &quot;x&quot;)]
+    assert nxt == frozenset()
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-thompson-linear-regex-matcher" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Thompson Linear-Time Regex Matcher (No Backtracking)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement ThompsonRegexMatcher with compile_and_match(pattern: str, text: str) -&gt; bool supporting single characters, concatenation, union '|', and Kleene star '*' operating in guaranteed O(m * n) linear time without exponential backtracking.</p></div>
+<textarea class="code" spellcheck="false">class ThompsonRegexMatcher:
+    @staticmethod
+    def match(pattern: str, text: str) -&gt; bool:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_thompson_literals_and_concat():
+    assert ThompsonRegexMatcher.match(&quot;abc&quot;, &quot;abc&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;abc&quot;, &quot;abd&quot;) is False
+    assert ThompsonRegexMatcher.match(&quot;a.c&quot;, &quot;abc&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;a.c&quot;, &quot;axc&quot;) is True
+
+def test_thompson_union():
+    assert ThompsonRegexMatcher.match(&quot;cat|dog&quot;, &quot;cat&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;cat|dog&quot;, &quot;dog&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;cat|dog&quot;, &quot;cow&quot;) is False
+
+def test_thompson_kleene_star():
+    assert ThompsonRegexMatcher.match(&quot;a*&quot;, &quot;&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;a*&quot;, &quot;a&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;a*&quot;, &quot;aaaa&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;ab*c&quot;, &quot;ac&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;ab*c&quot;, &quot;abbbbc&quot;) is True
+    assert ThompsonRegexMatcher.match(&quot;ab*c&quot;, &quot;abbbbd&quot;) is False
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Non-deterministic finite automata (NFAs) can recognize languages that DFAs cannot."</strong> NFAs and DFAs have identical computational expressive power; by Rabin-Scott subset construction, every NFA can be converted into an equivalent DFA.</li>
+<li><strong>"Modern regex engines in Python and JavaScript use pure theoretical regular expressions."</strong> Modern regex engines include non-regular extensions like backreferences (<code>(\w+)\1</code>), which make matching NP-complete and require backtracking.</li>
+<li><strong>"DFA minimization can result in different minimal state machines depending on the algorithm."</strong> The minimal DFA for any regular language is unique up to state renaming (isomorphism), as proven by the Myhill-Nerode theorem.</li>
+<li><strong>"Any language that can be described with finite patterns is regular."</strong> Languages requiring counting memory (such as balanced parentheses or palindromes) cannot be recognized by finite automata because they violate the Pumping Lemma.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Finite automata break down when recognizing languages requiring arbitrary memory, stack depth, or balanced nested structures (such as matching arbitrary parentheses in HTML or JSON), which require Context-Free Grammars and Pushdown Automata. Additionally, the subset construction can cause an exponential state explosion ($2^k$ states) when converting certain NFAs to DFAs.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Automata theory is applied in production compiler frontends (lexical scanners generated by Flex/Lex), fast string search libraries (Google RE2, Hyperscan in network firewalls), TCP/IP state machine implementations in operating system kernels, and hardware synthesis tools compiling Verilog state machines to silicon gates.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the difference between a DFA and an NFA?</p></div><div class="a" hidden><p>A DFA has exactly one deterministic transition per state and alphabet symbol; an NFA can have zero, one, or multiple transitions including epsilon transitions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does the Rabin-Scott subset construction prove?</p></div><div class="a" hidden><p>That every non-deterministic finite automaton (NFA) has an equivalent deterministic finite automaton (DFA), proving NFAs add no computational power over DFAs.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does the Pumping Lemma for regular languages demonstrate?</p></div><div class="a" hidden><p>It establishes a necessary condition for any regular language, allowing proof by contradiction that languages with unbounded memory (like 0^n 1^n) are not regular.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is Regular Expression Denial of Service (ReDoS)?</p></div><div class="a" hidden><p>An algorithmic complexity attack where backtracking regex engines take exponential time O(2^n) on nested repetitions, exhausting CPU resources.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does Thompson's algorithm avoid backtracking in regular expressions?</p></div><div class="a" hidden><p>It tracks the set of all simultaneously active NFA states in parallel, processing each input character in linear time O(m * n).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is DFA minimization and what does the Myhill-Nerode theorem state?</p></div><div class="a" hidden><p>DFA minimization merges equivalent states into the unique minimal DFA with the fewest possible states for that language.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can simulate DFAs, compute epsilon closures and step NFAs, convert NFAs to DFAs via subset construction, and match regexes in linear time using Thompson's algorithm.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Kleene, S. C. (1951). Representation of Events in Nerve Nets and Finite Automata. RAND Corporation Memorandum RM-704.</li>
+<li>Rabin, M. O., &amp; Scott, D. (1959). Finite Automata and Their Decision Problems. IBM Journal of Research and Development, 3(2), 114-125.</li>
+<li>Thompson, K. (1968). Regular Expression Search Algorithm. Communications of the ACM, 11(6), 419-422.</li>
+</ul></section>
+<footer class="pager"><a href="P11.html">&larr; P11 Databases</a>
+<a href="P15.html">P15 Parsing: from text to trees &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P12", "packages": ["numpy"], "exercises": {"ex1-dfa-string-evaluator": {"starter": "def simulate_dfa(states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], str], start_state: str, accept_states: set[str], input_string: str) -> bool:\n    pass\n", "solution": "def simulate_dfa(states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], str], start_state: str, accept_states: set[str], input_string: str) -> bool:\n    curr = start_state\n    if curr not in states:\n        raise ValueError(f\"Invalid start state: {curr}\")\n        \n    for symbol in input_string:\n        if symbol not in alphabet:\n            return False  # Symbol outside alphabet cannot be accepted\n        key = (curr, symbol)\n        if key not in transitions:\n            return False\n        curr = transitions[key]\n        if curr not in states:\n            raise ValueError(f\"Transition leads to unknown state: {curr}\")\n            \n    return curr in accept_states\n", "tests": "def test_dfa_accept_even_zeros():\n    # Alphabet: {'0', '1'}\n    # Accept strings with an even number of '0's\n    states = {\"q_even\", \"q_odd\"}\n    alphabet = {\"0\", \"1\"}\n    transitions = {\n        (\"q_even\", \"0\"): \"q_odd\",\n        (\"q_even\", \"1\"): \"q_even\",\n        (\"q_odd\", \"0\"): \"q_even\",\n        (\"q_odd\", \"1\"): \"q_odd\"\n    }\n    start = \"q_even\"\n    accept = {\"q_even\"}\n    \n    assert simulate_dfa(states, alphabet, transitions, start, accept, \"\") is True\n    assert simulate_dfa(states, alphabet, transitions, start, accept, \"111\") is True\n    assert simulate_dfa(states, alphabet, transitions, start, accept, \"00\") is True\n    assert simulate_dfa(states, alphabet, transitions, start, accept, \"0\") is False\n    assert simulate_dfa(states, alphabet, transitions, start, accept, \"0100\") is False\n\ndef test_dfa_reject_foreign_symbol():\n    states = {\"q0\"}\n    alphabet = {\"a\", \"b\"}\n    transitions = {(\"q0\", \"a\"): \"q0\", (\"q0\", \"b\"): \"q0\"}\n    assert simulate_dfa(states, alphabet, transitions, \"q0\", {\"q0\"}, \"abc\") is False\n\ndef test_dfa_ends_with_ab():\n    # Recognizes strings ending in \"ab\"\n    states = {\"q0\", \"q1\", \"q2\"}\n    alphabet = {\"a\", \"b\"}\n    transitions = {\n        (\"q0\", \"a\"): \"q1\", (\"q0\", \"b\"): \"q0\",\n        (\"q1\", \"a\"): \"q1\", (\"q1\", \"b\"): \"q2\",\n        (\"q2\", \"a\"): \"q1\", (\"q2\", \"b\"): \"q0\"\n    }\n    assert simulate_dfa(states, alphabet, transitions, \"q0\", {\"q2\"}, \"aab\") is True\n    assert simulate_dfa(states, alphabet, transitions, \"q0\", {\"q2\"}, \"ab\") is True\n    assert simulate_dfa(states, alphabet, transitions, \"q0\", {\"q2\"}, \"aba\") is False\n", "mutants": ["def simulate_dfa(states, alphabet, transitions, start_state, accept_states, input_string):\n    assert False, 'mutant injected'\n", "def simulate_dfa(states, alphabet, transitions, start_state, accept_states, input_string):\n    return True  # mutant accepts everything\n"], "hints": ["Track current state starting at start_state.", "For each character in input_string, lookup (curr, char) in transitions.", "Return True if final state is in accept_states."], "level": "warmup", "title": "Generic Deterministic Finite Automaton (DFA) Simulator"}, "ex2-nfa-epsilon-closure-and-step": {"starter": "def compute_epsilon_closure(states: set[str], epsilon_transitions: dict[str, set[str]]) -> set[str]:\n    pass\n\ndef step_nfa(current_states: set[str], symbol: str, transitions: dict[tuple[str, str], set[str]], epsilon_transitions: dict[str, set[str]]) -> set[str]:\n    pass\n", "solution": "def compute_epsilon_closure(states: set[str], epsilon_transitions: dict[str, set[str]]) -> set[str]:\n    closure = set(states)\n    stack = list(states)\n    \n    while stack:\n        state = stack.pop()\n        eps_targets = epsilon_transitions.get(state, set())\n        for target in eps_targets:\n            if target not in closure:\n                closure.add(target)\n                stack.append(target)\n                \n    return closure\n\ndef step_nfa(current_states: set[str], symbol: str, transitions: dict[tuple[str, str], set[str]], epsilon_transitions: dict[str, set[str]]) -> set[str]:\n    # 1. Expand starting states with epsilon closure\n    expanded = compute_epsilon_closure(current_states, epsilon_transitions)\n    \n    # 2. Transition across symbol\n    next_states = set()\n    for state in expanded:\n        key = (state, symbol)\n        if key in transitions:\n            next_states.update(transitions[key])\n            \n    # 3. Expand resulting states with epsilon closure\n    return compute_epsilon_closure(next_states, epsilon_transitions)\n", "tests": "def test_epsilon_closure():\n    # q0 -eps-> q1 -eps-> q2\n    eps = {\n        \"q0\": {\"q1\"},\n        \"q1\": {\"q2\"},\n        \"q2\": set()\n    }\n    assert compute_epsilon_closure({\"q0\"}, eps) == {\"q0\", \"q1\", \"q2\"}\n    assert compute_epsilon_closure({\"q1\"}, eps) == {\"q1\", \"q2\"}\n    assert compute_epsilon_closure({\"q2\"}, eps) == {\"q2\"}\n\ndef test_epsilon_closure_cycle():\n    # q0 -eps-> q1 -eps-> q0\n    eps = {\"q0\": {\"q1\"}, \"q1\": {\"q0\"}}\n    assert compute_epsilon_closure({\"q0\"}, eps) == {\"q0\", \"q1\"}\n\ndef test_step_nfa():\n    # q0 -eps-> q1; (q1, 'a') -> {q2}; q2 -eps-> q3\n    eps = {\"q0\": {\"q1\"}, \"q1\": set(), \"q2\": {\"q3\"}, \"q3\": set()}\n    trans = {(\"q1\", \"a\"): {\"q2\"}}\n    \n    res = step_nfa({\"q0\"}, \"a\", trans, eps)\n    assert res == {\"q2\", \"q3\"}\n    \n    # No transition on 'b'\n    res_b = step_nfa({\"q0\"}, \"b\", trans, eps)\n    assert res_b == set()\n", "mutants": ["def compute_epsilon_closure(states, epsilon_transitions): assert False, 'mutant injected'\ndef step_nfa(current_states, symbol, transitions, epsilon_transitions): assert False, 'mutant injected'\n", "def compute_epsilon_closure(states, epsilon_transitions): return set(states) # ignores epsilon paths\ndef step_nfa(current_states, symbol, transitions, epsilon_transitions): return set()\n"], "hints": ["Use a stack or queue to iteratively find all states reachable via epsilon transitions.", "First expand current_states via epsilon closure, take transitions on symbol, then expand again."], "level": "core", "title": "NFA Epsilon-Closure and State Transition Step"}, "ex3-subset-construction-nfa-to-dfa": {"starter": "def nfa_to_dfa(nfa_states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], set[str]], eps_transitions: dict[str, set[str]], start_state: str, accept_states: set[str]) -> dict:\n    pass\n", "solution": "def _eclose(states: set[str], eps: dict[str, set[str]]) -> frozenset[str]:\n    closure = set(states)\n    stack = list(states)\n    while stack:\n        s = stack.pop()\n        for nxt in eps.get(s, set()):\n            if nxt not in closure:\n                closure.add(nxt)\n                stack.append(nxt)\n    return frozenset(closure)\n\ndef nfa_to_dfa(nfa_states: set[str], alphabet: set[str], transitions: dict[tuple[str, str], set[str]], eps_transitions: dict[str, set[str]], start_state: str, accept_states: set[str]) -> dict:\n    dfa_start = _eclose({start_state}, eps_transitions)\n    dfa_states = {dfa_start}\n    dfa_transitions = {}\n    queue = [dfa_start]\n    \n    while queue:\n        curr_subset = queue.pop(0)\n        for sym in sorted(alphabet):\n            # Find next states from curr_subset on symbol sym\n            next_raw = set()\n            for s in curr_subset:\n                if (s, sym) in transitions:\n                    next_raw.update(transitions[(s, sym)])\n            next_subset = _eclose(next_raw, eps_transitions)\n            \n            dfa_transitions[(curr_subset, sym)] = next_subset\n            if next_subset not in dfa_states:\n                dfa_states.add(next_subset)\n                queue.append(next_subset)\n                \n    dfa_accept = {s for s in dfa_states if any(q in accept_states for q in s)}\n    \n    return {\n        \"start_state\": dfa_start,\n        \"states\": dfa_states,\n        \"transitions\": dfa_transitions,\n        \"accept_states\": dfa_accept\n    }\n", "tests": "def test_subset_construction_simple():\n    # NFA matching strings ending with 'a'\n    # q0 on 'a' -> {q0, q1}; q0 on 'b' -> {q0}\n    # q1 is accept state\n    states = {\"q0\", \"q1\"}\n    alphabet = {\"a\", \"b\"}\n    transitions = {\n        (\"q0\", \"a\"): {\"q0\", \"q1\"},\n        (\"q0\", \"b\"): {\"q0\"}\n    }\n    eps = {}\n    dfa = nfa_to_dfa(states, alphabet, transitions, eps, \"q0\", {\"q1\"})\n    \n    start = dfa[\"start_state\"]\n    assert start == frozenset({\"q0\"})\n    \n    # Transition on 'a' leads to frozenset({\"q0\", \"q1\"})\n    nxt_a = dfa[\"transitions\"][(start, \"a\")]\n    assert nxt_a == frozenset({\"q0\", \"q1\"})\n    assert nxt_a in dfa[\"accept_states\"]\n    \n    # Transition on 'b' loops back to frozenset({\"q0\"})\n    nxt_b = dfa[\"transitions\"][(start, \"b\")]\n    assert nxt_b == frozenset({\"q0\"})\n    assert nxt_b not in dfa[\"accept_states\"]\n\ndef test_subset_construction_with_eps():\n    # q0 -eps-> q1\n    states = {\"q0\", \"q1\"}\n    alphabet = {\"a\"}\n    transitions = {(\"q1\", \"a\"): {\"q1\"}}\n    eps = {\"q0\": {\"q1\"}}\n    dfa = nfa_to_dfa(states, alphabet, transitions, eps, \"q0\", {\"q1\"})\n    \n    # Start state includes epsilon closure: {\"q0\", \"q1\"}\n    assert dfa[\"start_state\"] == frozenset({\"q0\", \"q1\"})\n    assert dfa[\"start_state\"] in dfa[\"accept_states\"]\n\ndef test_subset_empty_transition():\n    states = {\"q0\"}\n    alphabet = {\"x\"}\n    transitions = {}\n    eps = {}\n    dfa = nfa_to_dfa(states, alphabet, transitions, eps, \"q0\", {\"q0\"})\n    nxt = dfa[\"transitions\"][(frozenset({\"q0\"}), \"x\")]\n    assert nxt == frozenset()\n", "mutants": ["def _eclose(states, eps): return frozenset(states)\ndef nfa_to_dfa(nfa_states, alphabet, transitions, eps_transitions, start_state, accept_states):\n    assert False, 'mutant injected'\n", "def _eclose(states, eps): return frozenset(states)\ndef nfa_to_dfa(nfa_states, alphabet, transitions, eps_transitions, start_state, accept_states):\n    return {\"start_state\": frozenset(), \"states\": set(), \"transitions\": {}, \"accept_states\": set()}\n"], "hints": ["Represent DFA states as frozensets of NFA states.", "Start with the epsilon-closure of the start_state.", "Queue unexplored subsets and compute transitions for each alphabet symbol."], "level": "core", "title": "Rabin-Scott Subset Construction: NFA to DFA Converter"}, "ex4-thompson-linear-regex-matcher": {"starter": "class ThompsonRegexMatcher:\n    @staticmethod\n    def match(pattern: str, text: str) -> bool:\n        pass\n", "solution": "class ThompsonRegexMatcher:\n    @staticmethod\n    def match(pattern: str, text: str) -> bool:\n        class State:\n            def __init__(self, c, out=None, out1=None):\n                self.c = c\n                self.out = out\n                self.out1 = out1\n\n        MATCH_STATE = State(\"MATCH\")\n\n        class Frag:\n            def __init__(self, start, outs):\n                self.start = start\n                self.outs = outs\n\n        def compile_nfa(pat: str):\n            if not pat:\n                return MATCH_STATE\n                \n            # Step 1: Insert explicit concatenation symbol \"\\x00\"\n            tokens = []\n            for i, c in enumerate(pat):\n                tokens.append(c)\n                if i + 1 < len(pat):\n                    nxt = pat[i + 1]\n                    if c not in \"(|\" and nxt not in \")|*\":\n                        tokens.append(\"\\x00\")\n                        \n            # Step 2: Shunting-yard to postfix\n            prec = {\"*\": 3, \"\\x00\": 2, \"|\": 1}\n            ops = []\n            postfix = []\n            for tok in tokens:\n                if tok == \"(\":\n                    ops.append(tok)\n                elif tok == \")\":\n                    while ops and ops[-1] != \"(\":\n                        postfix.append(ops.pop())\n                    if ops:\n                        ops.pop()\n                elif tok in prec:\n                    while ops and ops[-1] != \"(\" and prec.get(ops[-1], 0) >= prec[tok]:\n                        postfix.append(ops.pop())\n                    ops.append(tok)\n                else:\n                    postfix.append(tok)\n            while ops:\n                postfix.append(ops.pop())\n                \n            # Step 3: Postfix to NFA fragments\n            stack = []\n            for tok in postfix:\n                if tok == \"\\x00\":\n                    f2 = stack.pop()\n                    f1 = stack.pop()\n                    for ptr in f1.outs:\n                        ptr[0].__dict__[ptr[1]] = f2.start\n                    stack.append(Frag(f1.start, f2.outs))\n                elif tok == \"|\":\n                    f2 = stack.pop()\n                    f1 = stack.pop()\n                    s = State(\"EPS\", f1.start, f2.start)\n                    stack.append(Frag(s, f1.outs + f2.outs))\n                elif tok == \"*\":\n                    f = stack.pop()\n                    s = State(\"EPS\", f.start, None)\n                    for ptr in f.outs:\n                        ptr[0].__dict__[ptr[1]] = s\n                    stack.append(Frag(s, [(s, \"out1\")]))\n                else:\n                    s = State(tok)\n                    stack.append(Frag(s, [(s, \"out\")]))\n                    \n            if not stack:\n                return MATCH_STATE\n            top = stack.pop()\n            for ptr in top.outs:\n                ptr[0].__dict__[ptr[1]] = MATCH_STATE\n            return top.start\n\n        start = compile_nfa(pattern)\n        \n        def add_state(s, state_set):\n            if s is None or s in state_set:\n                return\n            state_set.add(s)\n            if s.c == \"EPS\":\n                add_state(s.out, state_set)\n                add_state(s.out1, state_set)\n                \n        curr = set()\n        add_state(start, curr)\n        \n        for ch in text:\n            nxt = set()\n            for s in curr:\n                if s.c == ch or s.c == \".\":\n                    add_state(s.out, nxt)\n                    add_state(s.out1, nxt)\n            curr = nxt\n            if not curr:\n                break\n                \n        return MATCH_STATE in curr\n", "tests": "def test_thompson_literals_and_concat():\n    assert ThompsonRegexMatcher.match(\"abc\", \"abc\") is True\n    assert ThompsonRegexMatcher.match(\"abc\", \"abd\") is False\n    assert ThompsonRegexMatcher.match(\"a.c\", \"abc\") is True\n    assert ThompsonRegexMatcher.match(\"a.c\", \"axc\") is True\n\ndef test_thompson_union():\n    assert ThompsonRegexMatcher.match(\"cat|dog\", \"cat\") is True\n    assert ThompsonRegexMatcher.match(\"cat|dog\", \"dog\") is True\n    assert ThompsonRegexMatcher.match(\"cat|dog\", \"cow\") is False\n\ndef test_thompson_kleene_star():\n    assert ThompsonRegexMatcher.match(\"a*\", \"\") is True\n    assert ThompsonRegexMatcher.match(\"a*\", \"a\") is True\n    assert ThompsonRegexMatcher.match(\"a*\", \"aaaa\") is True\n    assert ThompsonRegexMatcher.match(\"ab*c\", \"ac\") is True\n    assert ThompsonRegexMatcher.match(\"ab*c\", \"abbbbc\") is True\n    assert ThompsonRegexMatcher.match(\"ab*c\", \"abbbbd\") is False\n", "mutants": ["class ThompsonRegexMatcher:\n    @staticmethod\n    def match(pattern: str, text: str) -> bool:\n        assert False, 'mutant injected'\n", "class ThompsonRegexMatcher:\n    @staticmethod\n    def match(pattern: str, text: str) -> bool:\n        return True  # mutant claims all patterns match\n"], "hints": ["Use Thompson's NFA construction to compile pattern into a directed graph of states.", "Simulate transitions using active state sets to guarantee linear time O(m * n).", "Expand epsilon transitions before and after reading each symbol."], "level": "boss", "title": "Thompson Linear-Time Regex Matcher (No Backtracking)"}}, "demos": {"p12-oracle-dfa-parity": {"code": "class ParityDFA:\n    def __init__(self):\n        # States: (even_0, even_1), (even_0, odd_1), (odd_0, even_1), (odd_0, odd_1)\n        # Goal: accept strings with even zeroes and odd ones -> state 'E_O'\n        self.start_state = \"E_E\"\n        self.accept_states = {\"E_O\"}\n        self.transitions = {\n            \"E_E\": {\"0\": \"O_E\", \"1\": \"E_O\"},\n            \"E_O\": {\"0\": \"O_O\", \"1\": \"E_E\"},\n            \"O_E\": {\"0\": \"E_E\", \"1\": \"O_O\"},\n            \"O_O\": {\"0\": \"E_O\", \"1\": \"O_E\"}\n        }\n\n    def evaluate(self, s: str) -> bool:\n        curr = self.start_state\n        for char in s:\n            if char not in self.transitions[curr]:\n                return False\n            curr = self.transitions[curr][char]\n        return curr in self.accept_states\n\ndfa = ParityDFA()\n\n# \"1\" -> 0 zeros (even), 1 ones (odd) -> ACCEPT\nassert dfa.evaluate(\"1\") is True\n\n# \"001\" -> 2 zeros (even), 1 ones (odd) -> ACCEPT\nassert dfa.evaluate(\"001\") is True\n\n# \"010\" -> 2 zeros (even), 1 ones (odd) -> ACCEPT\nassert dfa.evaluate(\"010\") is True\n\n# \"01\" -> 1 zero (odd), 1 one (odd) -> REJECT\nassert dfa.evaluate(\"01\") is False\n\n# \"11\" -> 0 zeros (even), 2 ones (even) -> REJECT\nassert dfa.evaluate(\"11\") is False\n\nprint(\"DFA binary parity state machine oracle verified.\")\n", "mutants": ["class ParityDFA:\n    def evaluate(self, s): return True  # ignores transitions\ndfa = ParityDFA()\nassert dfa.evaluate(\"01\") is False\n"]}, "p12-exp-redos-comparison": {"code": "def count_backtracking_steps(n: int) -> int:\n    # Simulates recursive backtracking on (a+)+$ matching \"a\" * n + \"b\"\n    # At each position k, the engine splits into partitions of \"a\"s\n    # Total paths explored is 2^(n-1)\n    if n <= 0:\n        return 1\n    return 1 << (n - 1)\n\ndef count_automata_steps(n: int) -> int:\n    # Thompson NFA or DFA: exactly 1 set of state transitions per character\n    # String length is n + 1 (the 'b' character)\n    return n + 1\n\n# For small n = 5:\nsteps_backtrack_5 = count_backtracking_steps(5)  # 2^4 = 16\nsteps_automata_5 = count_automata_steps(5)        # 6\nassert steps_backtrack_5 == 16\nassert steps_automata_5 == 6\n\n# For moderate n = 25:\nsteps_backtrack_25 = count_backtracking_steps(25)  # 2^24 = 16,777,216 operations!\nsteps_automata_25 = count_automata_steps(25)        # 26 operations!\nassert steps_backtrack_25 == 16777216\nassert steps_automata_25 == 26\n\nprint(f\"For N=25: Backtracking explores {steps_backtrack_25:,} paths; Automata takes {steps_automata_25} steps.\")\n", "mutants": ["def count_backtracking_steps(n): return n\nassert count_backtracking_steps(5) > 10\n"]}}, "cards": [{"q": "What is the difference between a DFA and an NFA?", "a": "A DFA has exactly one deterministic transition per state and alphabet symbol; an NFA can have zero, one, or multiple transitions including epsilon transitions."}, {"q": "What does the Rabin-Scott subset construction prove?", "a": "That every non-deterministic finite automaton (NFA) has an equivalent deterministic finite automaton (DFA), proving NFAs add no computational power over DFAs."}, {"q": "What does the Pumping Lemma for regular languages demonstrate?", "a": "It establishes a necessary condition for any regular language, allowing proof by contradiction that languages with unbounded memory (like 0^n 1^n) are not regular."}, {"q": "What is Regular Expression Denial of Service (ReDoS)?", "a": "An algorithmic complexity attack where backtracking regex engines take exponential time O(2^n) on nested repetitions, exhausting CPU resources."}, {"q": "How does Thompson's algorithm avoid backtracking in regular expressions?", "a": "It tracks the set of all simultaneously active NFA states in parallel, processing each input character in linear time O(m * n)."}, {"q": "What is DFA minimization and what does the Myhill-Nerode theorem state?", "a": "DFA minimization merges equivalent states into the unique minimal DFA with the fewest possible states for that language."}], "title": "Automata and regular languages"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

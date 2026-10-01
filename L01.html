@@ -1,0 +1,381 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L01 What learning from data means</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="L01">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Learning machines · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">L01</p><h1>What learning from data means</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M27.html">M27</a> <a href="M09.html">M09</a></div><div><b>Covers:</b> CS2023 AI</div>
+<details><summary>Everything this module teaches (14 items)</summary><ul class="must"><li>supervised, unsupervised and reinforcement learning</li><li>features and labels</li><li>hypothesis classes</li><li>loss functions</li><li>empirical risk minimisation</li><li>train/validation/test splits</li><li>overfitting and underfitting</li><li>the bias-variance trade-off</li><li>cross-validation</li><li>data leakage</li><li>baselines first</li><li>what AI is: the Turing test, the Chinese Room, and AI vs machine learning vs deep learning</li><li>the no-free-lunch theorem</li><li>preprocessing: imputing missing values vs a missing-indicator flag, and encoding categorical features</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In an ancient mountain province renowned for its sweet green apples, a young orchard keeper named Leo stands beside sixty wooden crates filled with freshly harvested fruit. A fruit merchant from the capital approaches with a bag of gold coins and says: "Leo, I will pay three gold coins for every crate of sweet apples, but zero coins for sour ones. How do you decide which apples are sweet before packing them?"</p>
+<p>Leo smiles confidently: "I wrote down five hundred rules in my notebook! Rule one: if an apple has five red spots and a curved stem, it is sweet! Rule two: if it was picked on a Tuesday under a crescent moon, it is sweet!"</p>
+<p>The merchant cuts open three apples matching Leo's complicated rules. Two are horribly bitter, and one is rotten inside.</p>
+<p>A traveling scholar sits on a wooden barrel and speaks gently: "Leo, you did not discover the principles of fruit sweetness. You memorized the unique specks of dust on the apples you picked last week. When you write five hundred specific rules for five hundred apples, your rules fit the past perfectly but predict nothing about tomorrow. You have overfitted. True learning is not memorization; true learning is discovering a simple, smooth pattern that generalizes to apples you have never seen before in your life."</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Machine learning is the study of algorithms that discover patterns from data rather than following hand-coded procedural rules. In supervised learning, models learn a mapping from input features to output labels by minimizing an empirical loss function. To ensure models generalize rather than memorize, data must be partitioned into train, validation, and test splits with strict prevention of data leakage. The bias-variance trade-off governs model complexity: underfitting models have high bias, while overfitting models have high variance.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $\mathcal{X} \subseteq \mathbb{R}^d$ be the feature space and $\mathcal{Y}$ be the label space. Data points $(x_i, y_i) \sim \mathcal{D}$ are drawn i.i.d. from an unknown joint distribution. A hypothesis class $\mathcal{H}$ defines candidate functions $h_\theta: \mathcal{X} \to \mathcal{Y}$.
+1. <strong>Empirical Risk Minimization (ERM):</strong>
+   $$\hat{\theta} = \arg\min_{\theta} \mathcal{R}_{\text{emp}}(\theta) = \arg\min_{\theta} \frac{1}{n} \sum_{i=1}^n \mathcal{L}(h_\theta(x_i), y_i)$$
+2. <strong>Generalization Risk:</strong> $\mathcal{R}(\theta) = \mathbb{E}_{(x, y) \sim \mathcal{D}}[\mathcal{L}(h_\theta(x), y)]$. The generalization gap is $|\mathcal{R}_{\text{emp}}(\theta) - \mathcal{R}(\theta)|$.
+3. <strong>Bias-Variance Decomposition:</strong> For squared error loss:
+   $$\mathbb{E}[(y - \hat{f}(x))^2] = \text{Bias}(\hat{f}(x))^2 + \text{Var}(\hat{f}(x)) + \sigma_{\epsilon}^2$$
+   where $\text{Bias}(\hat{f}(x)) = \mathbb{E}[\hat{f}(x)] - f(x)$ and $\text{Var}(\hat{f}(x)) = \mathbb{E}[(\hat{f}(x) - \mathbb{E}[\hat{f}(x)])^2]$.
+4. <strong>No Free Lunch Theorem (Wolpert):</strong> Averaged across all possible data distributions, no learning algorithm outperforms uniform random guessing on unseen instances.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why is machine learning necessary when human programmers can write explicit rules? Complex real-world perceptual tasks—such as speech recognition, visual scene segmentation, fraud detection, and natural language translation—possess high-dimensional input spaces where rule-based logic fails catastrophically. Writing <code>if-else</code> statements for every pixel combination in an image would require more lines of code than atoms in the observable universe.</p>
+<p>However, learning from data introduces subtle methodological failure modes that destroy production models:
+1. <strong>Data Leakage:</strong> Information from the test or evaluation set inadvertently leaks into feature preprocessing (e.g. computing standardizing $z$-scores or missing-value imputations over the entire dataset prior to splitting). In production, the model encounters truly unseen data and performance collapses.
+2. <strong>The Overfitting Illusion:</strong> Complex models with excessive capacity memorize training noise, achieving zero training error but producing nonsensical predictions on new distributions.
+3. <strong>The Missing Indicator Fallacy:</strong> Naively imputing missing values with the column mean discards the vital signal that a measurement was missing in the first place; appending a binary missingness indicator column preserves this critical domain information.
+4. <strong>Baselines First:</strong> Before building a billion-parameter neural network, an engineer must always construct a trivial baseline (majority class or linear regression); if complex models cannot decisively outperform a simple baseline, the complex architecture is unjustified.</p>
+<p>Mastering empirical risk minimization, clean dataset splits, and regularized hypothesis spaces provides the mathematical foundation for all modern artificial intelligence.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The test oracle for machine learning foundations verifies that dataset partitioning and preprocessing preserve statistical independence without data leakage. In the demonstration below, we partition a synthetic dataset into training, validation, and test sets, and compute normalization parameters exclusively on the training split. A broken mutant preprocessor that normalizes using full-dataset statistics is caught instantly by the assertion engine.</p>
+<div class="lab demo" data-demo="oracle-split-leakage">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Data leakage verification in dataset normalization</h3></div>
+
+<textarea class="code" spellcheck="false">import numpy as np
+
+def split_and_normalize(X: np.ndarray, y: np.ndarray, train_ratio: float = 0.7, seed: int = 42):
+    n = len(X)
+    rng = np.random.RandomState(seed)
+    indices = rng.permutation(n)
+    split_idx = int(n * train_ratio)
+    
+    train_idx, test_idx = indices[:split_idx], indices[split_idx:]
+    X_train, X_test = X[train_idx], X[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
+    
+    # Correct: compute mean and std ONLY on training set
+    mu = np.mean(X_train, axis=0)
+    sigma = np.std(X_train, axis=0)
+    sigma[sigma == 0] = 1.0  # Avoid division by zero
+    
+    X_train_norm = (X_train - mu) / sigma
+    X_test_norm = (X_test - mu) / sigma
+    
+    return X_train_norm, X_test_norm, mu, sigma
+
+# Verify oracle with synthetic data
+rng = np.random.RandomState(123)
+X_raw = rng.normal(loc=10.0, scale=2.0, size=(100, 3))
+y_raw = rng.randint(0, 2, size=100)
+
+X_tr, X_te, mu_fit, sig_fit = split_and_normalize(X_raw, y_raw)
+assert abs(np.mean(X_tr)) &lt; 0.1, &quot;Training mean should be centered near 0&quot;
+assert abs(np.std(X_tr) - 1.0) &lt; 0.1, &quot;Training std should be near 1&quot;
+print(f&quot;Data normalization oracle verified: Train mean={np.mean(X_tr):.3f}, Test mean={np.mean(X_te):.3f}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical bias-variance decomposition experiment comparing polynomial regression models of increasing capacity fitted to a noisy sine wave. We simulate one hundred independent training datasets, evaluate the average prediction, and decompose the total expected test error into squared bias, model variance, and irreducible environmental noise, confirming the theoretical U-shaped generalization curve and guiding hyperparameter selection for production engineering systems.</p>
+<div class="lab demo" data-demo="exp-bias-variance-sine">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical bias-variance decomposition on polynomial regression</h3></div>
+
+<textarea class="code" spellcheck="false">import numpy as np
+import math
+
+def run_bias_variance_experiment():
+    # Ground truth function: f(x) = sin(pi * x)
+    # We evaluate at x_eval = 0.5 (true value = 1.0)
+    x_eval = 0.5
+    true_val = math.sin(math.pi * x_eval) # 1.0
+    noise_sigma = 0.3
+    
+    n_sims = 100
+    preds_degree_1 = [] # Underfitting linear model
+    preds_degree_3 = [] # Well-fitted cubic model
+    
+    rng = np.random.RandomState(42)
+    for _ in range(n_sims):
+        # Sample 15 points
+        x = rng.uniform(-1, 1, size=15)
+        y = np.sin(np.pi * x) + rng.normal(0, noise_sigma, size=15)
+        
+        # Fit degree 1: y ~ w0 + w1*x
+        p1 = np.polyfit(x, y, deg=1)
+        preds_degree_1.append(np.polyval(p1, x_eval))
+        
+        # Fit degree 3: y ~ w0 + w1*x + w2*x^2 + w3*x^3
+        p3 = np.polyfit(x, y, deg=3)
+        preds_degree_3.append(np.polyval(p3, x_eval))
+        
+    bias_sq_d1 = (np.mean(preds_degree_1) - true_val) ** 2
+    var_d1 = np.var(preds_degree_1)
+    
+    bias_sq_d3 = (np.mean(preds_degree_3) - true_val) ** 2
+    var_d3 = np.var(preds_degree_3)
+    
+    return {
+        &#x27;bias_sq_d1&#x27;: bias_sq_d1, &#x27;var_d1&#x27;: var_d1,
+        &#x27;bias_sq_d3&#x27;: bias_sq_d3, &#x27;var_d3&#x27;: var_d3
+    }
+
+res = run_bias_variance_experiment()
+print(f&quot;Degree 1 (Linear): Bias^2 = {res[&#x27;bias_sq_d1&#x27;]:.4f}, Variance = {res[&#x27;var_d1&#x27;]:.4f}&quot;)
+print(f&quot;Degree 3 (Cubic):  Bias^2 = {res[&#x27;bias_sq_d3&#x27;]:.4f}, Variance = {res[&#x27;var_d3&#x27;]:.4f}&quot;)
+# Degree 1 has high bias, Degree 3 has significantly lower bias
+assert res[&#x27;bias_sq_d1&#x27;] &gt; res[&#x27;bias_sq_d3&#x27;]
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-clean-dataset-split" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Leak-free stratified train, validation, and test dataset splitting</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>split_dataset(X, y, train_pct=0.7, val_pct=0.15, test_pct=0.15, seed=42)</code>:
+Inputs:
+- <code>X</code>: 2D list or array of shape $(N, D)$.
+- <code>y</code>: 1D list or array of length $N$ (labels).
+- <code>train_pct, val_pct, test_pct</code>: Floats summing to 1.0.
+- <code>seed</code>: Integer pseudo-random seed.</p>
+<p>Requirements:
+1. Validate inputs: $N \ge 3$, all percentages $&gt; 0$, and $|\text{train\_pct} + \text{val\_pct} + \text{test\_pct} - 1.0| \le 10^{-5}$. Raise <code>ValueError</code> on violation.
+2. Shuffle row indices deterministically using a seeded pseudo-random permutation.
+3. Compute partition sizes:
+   $n_{\text{train}} = \lfloor N \cdot \text{train\_pct} \rfloor$,
+   $n_{\text{val}} = \lfloor N \cdot \text{val\_pct} \rfloor$,
+   $n_{\text{test}} = N - (n_{\text{train}} + n_{\text{val}})$.
+4. Return a dictionary:
+   <code>{'X_train': list, 'y_train': list, 'X_val': list, 'y_val': list, 'X_test': list, 'y_test': list, 'sizes': (n_train, n_val, n_test)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def split_dataset(X, y, train_pct=0.7, val_pct=0.15, test_pct=0.15, seed=42):
+    # Splits dataset into train, val, and test partitions
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_split_clean():
+    X = [[i] for i in range(100)]
+    y = list(range(100))
+    res = split_dataset(X, y, 0.7, 0.15, 0.15, seed=123)
+    assert res[&#x27;sizes&#x27;] == (70, 15, 15)
+    assert len(res[&#x27;X_train&#x27;]) == 70
+    assert len(res[&#x27;X_val&#x27;]) == 15
+    assert len(res[&#x27;X_test&#x27;]) == 15
+    # Verify no overlapping indices
+    train_set = {x[0] for x in res[&#x27;X_train&#x27;]}
+    val_set = {x[0] for x in res[&#x27;X_val&#x27;]}
+    test_set = {x[0] for x in res[&#x27;X_test&#x27;]}
+    assert len(train_set &amp; val_set) == 0
+    assert len(train_set &amp; test_set) == 0
+
+def test_split_invalid_sum():
+    try:
+        split_dataset([[1], [2], [3]], [1, 2, 3], 0.5, 0.5, 0.5)
+        assert False, &quot;Should raise ValueError for sum &gt; 1.0&quot;
+    except ValueError:
+        pass
+
+def test_split_too_few_samples():
+    try:
+        split_dataset([[1]], [1], 0.7, 0.15, 0.15)
+        assert False, &quot;Should raise ValueError for n &lt; 3&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-leak-free-preprocessor" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Leak-free categorical encoding and missing value imputation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>fit_transform_preprocessor(train_records, test_records, numeric_cols, categorical_cols)</code>:
+Inputs:
+- <code>train_records</code>: List of dictionaries representing training data.
+- <code>test_records</code>: List of dictionaries representing test data.
+- <code>numeric_cols</code>: List of column names to treat as numeric (missing values represented as <code>None</code>).
+- <code>categorical_cols</code>: List of column names to one-hot encode (missing values represented as <code>None</code> or <code>'MISSING'</code>).</p>
+<p>Rules:
+1. <strong>Fit Phase (TRAIN ONLY):</strong>
+   - For each numeric col, compute the median of non-missing training values.
+   - For each categorical col, collect the sorted list of distinct non-missing categories observed in training data.
+2. <strong>Transform Phase (Applied to both Train and Test):</strong>
+   - For each numeric col $c$: output the imputed value (replacing <code>None</code> with train median), followed immediately by a binary indicator column <code>f"{c}_is_missing"</code> (<code>1.0</code> if original was <code>None</code>, else <code>0.0</code>).
+   - For each categorical col $c$: generate binary one-hot columns for each category learned during the fit phase. If a test record contains an unseen category or <code>None</code>, all one-hot columns for $c$ must be <code>0.0</code>.
+3. Return a dictionary:
+   <code>{'X_train': 2D_list_floats, 'X_test': 2D_list_floats, 'feature_names': list_str}</code>.
+Raise <code>ValueError</code> if <code>train_records</code> is empty.</p></div>
+<textarea class="code" spellcheck="false">def fit_transform_preprocessor(train_records, test_records, numeric_cols, categorical_cols):
+    # Fit and transform data without leakage
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_preprocessor_clean():
+    train = [
+        {&#x27;age&#x27;: 20, &#x27;city&#x27;: &#x27;NY&#x27;},
+        {&#x27;age&#x27;: 40, &#x27;city&#x27;: &#x27;SF&#x27;},
+        {&#x27;age&#x27;: None, &#x27;city&#x27;: &#x27;NY&#x27;},
+    ]
+    test = [
+        {&#x27;age&#x27;: None, &#x27;city&#x27;: &#x27;SF&#x27;},
+        {&#x27;age&#x27;: 30, &#x27;city&#x27;: &#x27;LONDON&#x27;}, # LONDON is unseen category
+    ]
+    res = fit_transform_preprocessor(train, test, [&#x27;age&#x27;], [&#x27;city&#x27;])
+    assert res[&#x27;feature_names&#x27;] == [&#x27;age&#x27;, &#x27;age_is_missing&#x27;, &#x27;city_NY&#x27;, &#x27;city_SF&#x27;]
+    # Train median for age is 30.0 (from 20 and 40)
+    # Test row 0: age imputed to 30.0, is_missing=1.0, city_NY=0.0, city_SF=1.0
+    assert res[&#x27;X_test&#x27;][0] == [30.0, 1.0, 0.0, 1.0]
+    # Test row 1: age=30.0, is_missing=0.0, unseen city LONDON -&gt; all zeros [0.0, 0.0]
+    assert res[&#x27;X_test&#x27;][1] == [30.0, 0.0, 0.0, 0.0]
+
+def test_preprocessor_empty_train():
+    try:
+        fit_transform_preprocessor([], [], [&#x27;age&#x27;], [&#x27;city&#x27;])
+        assert False, &quot;Should raise ValueError for empty train_records&quot;
+    except ValueError:
+        pass
+
+def test_preprocessor_numeric_only():
+    train = [{&#x27;x&#x27;: 10}, {&#x27;x&#x27;: 20}]
+    test = [{&#x27;x&#x27;: None}]
+    res = fit_transform_preprocessor(train, test, [&#x27;x&#x27;], [])
+    assert res[&#x27;feature_names&#x27;] == [&#x27;x&#x27;, &#x27;x_is_missing&#x27;]
+    assert res[&#x27;X_test&#x27;][0] == [15.0, 1.0]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-kfold-cross-validation" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>K-fold cross-validation generator and loss aggregator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>kfold_cross_validation(X, y, k=5, seed=42)</code> to generate disjoint partition splits for $k$-fold cross-validation:
+Inputs:
+- <code>X</code>: List of $N$ feature records.
+- <code>y</code>: List of $N$ labels.
+- <code>k</code>: Integer number of folds ($2 \le k \le N$).
+- <code>seed</code>: Integer pseudo-random seed.</p>
+<p>Requirements:
+1. Validate inputs: $N \ge k \ge 2$, <code>len(X) == len(y)</code>. Raise <code>ValueError</code> on violation.
+2. Permute row indices using seeded random order.
+3. Partition indices into $k$ contiguous slices of approximately equal size (sizes differ by at most 1).
+4. For each fold $i \in \{0 \dots k-1\}$:
+   - Test set is slice $i$.
+   - Train set is the union of all other $k-1$ slices.
+5. Return a list of $k$ dictionary folds:
+   <code>[{'fold': i, 'train_indices': list[int], 'test_indices': list[int]}, ...]</code>.</p></div>
+<textarea class="code" spellcheck="false">def kfold_cross_validation(X, y, k=5, seed=42):
+    # Generates k-fold cross-validation splits
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_kfold_basic():
+    X = list(range(10))
+    y = list(range(10))
+    folds = kfold_cross_validation(X, y, k=5, seed=42)
+    assert len(folds) == 5
+    for f in folds:
+        assert len(f[&#x27;test_indices&#x27;]) == 2
+        assert len(f[&#x27;train_indices&#x27;]) == 8
+        assert set(f[&#x27;train_indices&#x27;]) &amp; set(f[&#x27;test_indices&#x27;]) == set()
+
+def test_kfold_unequal_remainder():
+    X = list(range(10))
+    y = list(range(10))
+    folds = kfold_cross_validation(X, y, k=3, seed=42)
+    assert len(folds) == 3
+    # 10 split into 3 folds: sizes 4, 3, 3
+    test_lens = sorted([len(f[&#x27;test_indices&#x27;]) for f in folds])
+    assert test_lens == [3, 3, 4]
+
+def test_kfold_invalid_k():
+    try:
+        kfold_cross_validation([1, 2], [1, 2], k=5)
+        assert False, &quot;Should raise ValueError for k &gt; n&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-bias-variance-calc" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Bias-variance-noise decomposition engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>decompose_bias_variance(f_true, model_predictions, true_eval_point, noise_variance=0.0)</code>:
+Given a set of $M$ models trained on independent datasets sampled from the true function with noise, evaluate the expected loss decomposition at a target point $x^*$:
+Inputs:
+- <code>f_true</code>: Callable representing true clean function $f(x^*)$.
+- <code>model_predictions</code>: Non-empty list of float predictions $[\hat{f}_1(x^*), \dots, \hat{f}_M(x^*)]$.
+- <code>true_eval_point</code>: Float input value $x^*$.
+- <code>noise_variance</code>: Float $\sigma^2 \ge 0$ representing irreducible environmental noise.</p>
+<p>Formulas:
+1. True value: $y^* = f(x^*)$.
+2. Mean prediction: $\bar{f} = \frac{1}{M} \sum_{m=1}^M \hat{f}_m(x^*)$.
+3. Squared Bias: $\text{Bias}^2 = (\bar{f} - y^*)^2$.
+4. Variance: $\text{Var} = \frac{1}{M} \sum_{m=1}^M (\hat{f}_m(x^*) - \bar{f})^2$.
+5. Expected Mean Squared Error:
+   $$\text{MSE} = \text{Bias}^2 + \text{Var} + \sigma^2$$
+Return dictionary:
+<code>{'bias_squared': round(Bias2, 4), 'variance': round(Var, 4), 'noise': round(noise_variance, 4), 'expected_mse': round(MSE, 4)}</code>.
+Raise <code>ValueError</code> if <code>model_predictions</code> is empty or <code>noise_variance &lt; 0</code>.</p></div>
+<textarea class="code" spellcheck="false">def decompose_bias_variance(f_true, model_predictions, true_eval_point, noise_variance=0.0):
+    # Decomposes prediction error into bias, variance, and noise
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bias_variance_clean():
+    f_true = lambda x: 10.0
+    # Models have bias = 2.0 (mean=12.0) and variance = 1.0 (preds 11 and 13)
+    preds = [11.0, 13.0]
+    res = decompose_bias_variance(f_true, preds, 0.0, noise_variance=0.5)
+    assert res[&#x27;bias_squared&#x27;] == 4.0   # (12 - 10)^2
+    assert res[&#x27;variance&#x27;] == 1.0       # ((11-12)^2 + (13-12)^2)/2 = 1.0
+    assert res[&#x27;noise&#x27;] == 0.5
+    assert res[&#x27;expected_mse&#x27;] == 5.5   # 4.0 + 1.0 + 0.5
+
+def test_bias_variance_unbiased():
+    f_true = lambda x: 5.0
+    preds = [4.0, 5.0, 6.0] # mean is 5.0 -&gt; bias^2 = 0
+    res = decompose_bias_variance(f_true, preds, 0.0, noise_variance=0.0)
+    assert res[&#x27;bias_squared&#x27;] == 0.0
+    assert abs(res[&#x27;variance&#x27;] - 0.6667) &lt; 0.001
+
+def test_bias_variance_invalid_noise():
+    try:
+        decompose_bias_variance(lambda x: x, [1.0], 0.0, noise_variance=-1.0)
+        assert False, &quot;Should raise ValueError for negative noise&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Machine learning means algorithms write their own code."</strong> ML models optimize numerical parameters within a mathematically constrained hypothesis class defined by human engineers.</li>
+<li><strong>"More features always lead to better model accuracy."</strong> Adding redundant or irrelevant features causes the Curse of Dimensionality and increases overfitting risk.</li>
+<li><strong>"Evaluating on the validation set gives an unbiased final test score."</strong> Repeated hyperparameter tuning on validation data leaks signal into model selection; only a sealed test set is unbiased.</li>
+<li><strong>"A model with zero training error is optimal."</strong> Zero training error is typically a signature of severe overfitting and failure to generalize.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Supervised empirical risk minimization breaks down catastrophically under severe covariate shift and concept drift (such as a financial fraud model trained during peacetime encountering wartime hyperinflation), where the training distribution diverges fundamentally from the production deployment distribution, invalidating the foundational independent and identically distributed (i.i.d.) statistical sampling assumption.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>When a classifier is deployed to the field, the train/test split must be stratified across distinct geographical clusters, not across individual records. Otherwise the same site lands on both sides of the split, spatial leakage inflates the reported accuracy, and the model underperforms on exactly the resource-constrained devices it was built for.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Empirical Risk Minimization (ERM)?</p></div><div class="a" hidden><p>Optimizing model parameters to minimize average loss over the training dataset as a proxy for true distribution risk.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the bias-variance trade-off?</p></div><div class="a" hidden><p>Underfitting models suffer from high bias (rigid assumptions); overfitting models suffer from high variance (sensitive to training noise).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is data leakage?</p></div><div class="a" hidden><p>When information from the test or validation set contaminates model training or preprocessing, producing falsely optimistic evaluations.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does the No Free Lunch theorem state?</p></div><div class="a" hidden><p>No single machine learning algorithm outperforms all others when averaged across all possible data distributions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why should numerical missingness be paired with an indicator column?</p></div><div class="a" hidden><p>Imputing a median fills the missing slot, but adding <code>_is_missing</code> preserves the predictive information that the value was absent.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why is a test set evaluated only once at the conclusion of a project?</p></div><div class="a" hidden><p>Repeated testing on a test set converts it into a de facto validation set, leaking information into model selection decisions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain empirical risk minimization, implement leak-free preprocessors from scratch, prevent data leakage, and compute exact bias-variance decompositions.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Hastie, T., Tibshirani, R., and Friedman, J. <em>The Elements of Statistical Learning</em>. 2nd ed., Springer, 2009.</li>
+<li>Goodfellow, I., Bengio, Y., and Courville, A. <em>Deep Learning</em>. MIT Press, 2016.</li>
+</ul></section>
+<footer class="pager"><a href="S16.html">&larr; S16 Kotlin deep dive</a>
+<a href="P05.html">P05 Computer architecture and the memory hierarchy &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "L01", "packages": ["numpy", "scipy"], "exercises": {"ex1-clean-dataset-split": {"starter": "def split_dataset(X, y, train_pct=0.7, val_pct=0.15, test_pct=0.15, seed=42):\n    # Splits dataset into train, val, and test partitions\n    return {}\n", "solution": "import random\n\ndef split_dataset(X, y, train_pct=0.7, val_pct=0.15, test_pct=0.15, seed=42):\n    if len(X) != len(y) or len(X) < 3:\n        raise ValueError(\"X and y must have equal length >= 3\")\n    if train_pct <= 0 or val_pct <= 0 or test_pct <= 0:\n        raise ValueError(\"Percentages must be positive\")\n    if abs(train_pct + val_pct + test_pct - 1.0) > 1e-5:\n        raise ValueError(\"Percentages must sum to 1.0\")\n\n    n = len(X)\n    rng = random.Random(seed)\n    indices = list(range(n))\n    rng.shuffle(indices)\n\n    n_train = int(n * train_pct)\n    n_val = int(n * val_pct)\n    n_test = n - (n_train + n_val)\n\n    train_idx = indices[:n_train]\n    val_idx = indices[n_train:n_train + n_val]\n    test_idx = indices[n_train + n_val:]\n\n    return {\n        'X_train': [X[i] for i in train_idx],\n        'y_train': [y[i] for i in train_idx],\n        'X_val': [X[i] for i in val_idx],\n        'y_val': [y[i] for i in val_idx],\n        'X_test': [X[i] for i in test_idx],\n        'y_test': [y[i] for i in test_idx],\n        'sizes': (n_train, n_val, n_test)\n    }\n", "tests": "def test_split_clean():\n    X = [[i] for i in range(100)]\n    y = list(range(100))\n    res = split_dataset(X, y, 0.7, 0.15, 0.15, seed=123)\n    assert res['sizes'] == (70, 15, 15)\n    assert len(res['X_train']) == 70\n    assert len(res['X_val']) == 15\n    assert len(res['X_test']) == 15\n    # Verify no overlapping indices\n    train_set = {x[0] for x in res['X_train']}\n    val_set = {x[0] for x in res['X_val']}\n    test_set = {x[0] for x in res['X_test']}\n    assert len(train_set & val_set) == 0\n    assert len(train_set & test_set) == 0\n\ndef test_split_invalid_sum():\n    try:\n        split_dataset([[1], [2], [3]], [1, 2, 3], 0.5, 0.5, 0.5)\n        assert False, \"Should raise ValueError for sum > 1.0\"\n    except ValueError:\n        pass\n\ndef test_split_too_few_samples():\n    try:\n        split_dataset([[1]], [1], 0.7, 0.15, 0.15)\n        assert False, \"Should raise ValueError for n < 3\"\n    except ValueError:\n        pass\n", "mutants": ["def split_dataset(X, y, train_pct=0.7, val_pct=0.15, test_pct=0.15, seed=42):\n    # Fails to shuffle deterministically with seed\n    if len(X) < 3: raise ValueError()\n    return {'X_train': X, 'y_train': y, 'X_val': [], 'y_val': [], 'X_test': [], 'y_test': [], 'sizes': (len(X), 0, 0)}\n", "def split_dataset(X, y, train_pct=0.7, val_pct=0.15, test_pct=0.15, seed=42):\n    # Overlaps train and val splits\n    if len(X) < 3 or abs(train_pct + val_pct + test_pct - 1.0) > 1e-5: raise ValueError()\n    return {'X_train': X[:2], 'y_train': y[:2], 'X_val': X[:2], 'y_val': y[:2], 'X_test': X[2:], 'y_test': y[2:], 'sizes': (2, 2, len(X)-2)}\n"], "hints": ["Use `random.Random(seed).shuffle(indices)` for reproducible index permutation.", "Check `abs(train + val + test - 1.0) <= 1e-5`."], "level": "warmup", "title": "Leak-free stratified train, validation, and test dataset splitting"}, "ex2-leak-free-preprocessor": {"starter": "def fit_transform_preprocessor(train_records, test_records, numeric_cols, categorical_cols):\n    # Fit and transform data without leakage\n    return {}\n", "solution": "def fit_transform_preprocessor(train_records, test_records, numeric_cols, categorical_cols):\n    if not train_records:\n        raise ValueError(\"train_records cannot be empty\")\n\n    # Fit phase: compute medians and categories from train_records only\n    num_medians = {}\n    for col in numeric_cols:\n        vals = [r[col] for r in train_records if r.get(col) is not None]\n        if vals:\n            sorted_v = sorted(vals)\n            mid = len(sorted_v) // 2\n            med = sorted_v[mid] if len(sorted_v) % 2 != 0 else (sorted_v[mid - 1] + sorted_v[mid]) / 2.0\n            num_medians[col] = float(med)\n        else:\n            num_medians[col] = 0.0\n\n    cat_vocab = {}\n    for col in categorical_cols:\n        cats = {r[col] for r in train_records if r.get(col) is not None and r.get(col) != 'MISSING'}\n        cat_vocab[col] = sorted(list(cats))\n\n    # Construct feature names\n    feature_names = []\n    for col in numeric_cols:\n        feature_names.append(col)\n        feature_names.append(f\"{col}_is_missing\")\n    for col in categorical_cols:\n        for cat in cat_vocab[col]:\n            feature_names.append(f\"{col}_{cat}\")\n\n    def transform(records):\n        matrix = []\n        for r in records:\n            row = []\n            # Numeric\n            for col in numeric_cols:\n                raw_val = r.get(col)\n                if raw_val is None:\n                    row.append(num_medians[col])\n                    row.append(1.0)\n                else:\n                    row.append(float(raw_val))\n                    row.append(0.0)\n            # Categorical\n            for col in categorical_cols:\n                raw_cat = r.get(col)\n                for cat in cat_vocab[col]:\n                    row.append(1.0 if raw_cat == cat else 0.0)\n            matrix.append(row)\n        return matrix\n\n    return {\n        'X_train': transform(train_records),\n        'X_test': transform(test_records),\n        'feature_names': feature_names\n    }\n", "tests": "def test_preprocessor_clean():\n    train = [\n        {'age': 20, 'city': 'NY'},\n        {'age': 40, 'city': 'SF'},\n        {'age': None, 'city': 'NY'},\n    ]\n    test = [\n        {'age': None, 'city': 'SF'},\n        {'age': 30, 'city': 'LONDON'}, # LONDON is unseen category\n    ]\n    res = fit_transform_preprocessor(train, test, ['age'], ['city'])\n    assert res['feature_names'] == ['age', 'age_is_missing', 'city_NY', 'city_SF']\n    # Train median for age is 30.0 (from 20 and 40)\n    # Test row 0: age imputed to 30.0, is_missing=1.0, city_NY=0.0, city_SF=1.0\n    assert res['X_test'][0] == [30.0, 1.0, 0.0, 1.0]\n    # Test row 1: age=30.0, is_missing=0.0, unseen city LONDON -> all zeros [0.0, 0.0]\n    assert res['X_test'][1] == [30.0, 0.0, 0.0, 0.0]\n\ndef test_preprocessor_empty_train():\n    try:\n        fit_transform_preprocessor([], [], ['age'], ['city'])\n        assert False, \"Should raise ValueError for empty train_records\"\n    except ValueError:\n        pass\n\ndef test_preprocessor_numeric_only():\n    train = [{'x': 10}, {'x': 20}]\n    test = [{'x': None}]\n    res = fit_transform_preprocessor(train, test, ['x'], [])\n    assert res['feature_names'] == ['x', 'x_is_missing']\n    assert res['X_test'][0] == [15.0, 1.0]\n", "mutants": ["def fit_transform_preprocessor(train_records, test_records, numeric_cols, categorical_cols):\n    # Leaks test categories into vocabulary\n    if not train_records: raise ValueError()\n    return {'X_train': [], 'X_test': [], 'feature_names': []}\n", "def fit_transform_preprocessor(train_records, test_records, numeric_cols, categorical_cols):\n    # Fails to generate missingness indicator columns\n    if not train_records: raise ValueError()\n    return {'X_train': [[0.0]], 'X_test': [[0.0]], 'feature_names': ['age']}\n"], "hints": ["Compute medians and category lists strictly on `train_records`.", "Append `f\"{col}_is_missing\"` column for each numeric feature."], "level": "core", "title": "Leak-free categorical encoding and missing value imputation"}, "ex3-kfold-cross-validation": {"starter": "def kfold_cross_validation(X, y, k=5, seed=42):\n    # Generates k-fold cross-validation splits\n    return []\n", "solution": "import random\n\ndef kfold_cross_validation(X, y, k=5, seed=42):\n    n = len(X)\n    if len(X) != len(y):\n        raise ValueError(\"X and y must have equal length\")\n    if not isinstance(k, int) or k < 2 or k > n:\n        raise ValueError(f\"k must satisfy 2 <= k <= n (got k={k}, n={n})\")\n\n    rng = random.Random(seed)\n    indices = list(range(n))\n    rng.shuffle(indices)\n\n    # Compute fold sizes\n    base_size = n // k\n    remainder = n % k\n\n    folds = []\n    start = 0\n    fold_slices = []\n\n    for i in range(k):\n        size = base_size + (1 if i < remainder else 0)\n        fold_slices.append(indices[start:start + size])\n        start += size\n\n    for i in range(k):\n        test_idx = fold_slices[i]\n        train_idx = []\n        for j in range(k):\n            if j != i:\n                train_idx.extend(fold_slices[j])\n\n        folds.append({\n            'fold': i,\n            'train_indices': sorted(train_idx),\n            'test_indices': sorted(test_idx)\n        })\n\n    return folds\n", "tests": "def test_kfold_basic():\n    X = list(range(10))\n    y = list(range(10))\n    folds = kfold_cross_validation(X, y, k=5, seed=42)\n    assert len(folds) == 5\n    for f in folds:\n        assert len(f['test_indices']) == 2\n        assert len(f['train_indices']) == 8\n        assert set(f['train_indices']) & set(f['test_indices']) == set()\n\ndef test_kfold_unequal_remainder():\n    X = list(range(10))\n    y = list(range(10))\n    folds = kfold_cross_validation(X, y, k=3, seed=42)\n    assert len(folds) == 3\n    # 10 split into 3 folds: sizes 4, 3, 3\n    test_lens = sorted([len(f['test_indices']) for f in folds])\n    assert test_lens == [3, 3, 4]\n\ndef test_kfold_invalid_k():\n    try:\n        kfold_cross_validation([1, 2], [1, 2], k=5)\n        assert False, \"Should raise ValueError for k > n\"\n    except ValueError:\n        pass\n", "mutants": ["def kfold_cross_validation(X, y, k=5, seed=42):\n    # Returns empty list\n    if k > len(X) or k < 2: raise ValueError()\n    return []\n", "def kfold_cross_validation(X, y, k=5, seed=42):\n    # Fails to partition disjoint test sets\n    if k > len(X) or k < 2: raise ValueError()\n    return [{'fold': i, 'train_indices': [0], 'test_indices': [0]} for i in range(k)]\n"], "hints": ["Distribute remainder indices: `base_size + (1 if i < remainder else 0)`.", "Ensure `train_indices` and `test_indices` are disjoint."], "level": "core", "title": "K-fold cross-validation generator and loss aggregator"}, "ex4-bias-variance-calc": {"starter": "def decompose_bias_variance(f_true, model_predictions, true_eval_point, noise_variance=0.0):\n    # Decomposes prediction error into bias, variance, and noise\n    return {}\n", "solution": "def decompose_bias_variance(f_true, model_predictions, true_eval_point, noise_variance=0.0):\n    if not model_predictions:\n        raise ValueError(\"model_predictions cannot be empty\")\n    if noise_variance < 0:\n        raise ValueError(\"noise_variance must be non-negative\")\n\n    y_true = float(f_true(true_eval_point))\n    m = len(model_predictions)\n    f_bar = sum(model_predictions) / m\n\n    bias_sq = (f_bar - y_true) ** 2\n    variance = sum((p - f_bar) ** 2 for p in model_predictions) / m\n    expected_mse = bias_sq + variance + noise_variance\n\n    return {\n        'bias_squared': round(float(bias_sq), 4),\n        'variance': round(float(variance), 4),\n        'noise': round(float(noise_variance), 4),\n        'expected_mse': round(float(expected_mse), 4)\n    }\n", "tests": "def test_bias_variance_clean():\n    f_true = lambda x: 10.0\n    # Models have bias = 2.0 (mean=12.0) and variance = 1.0 (preds 11 and 13)\n    preds = [11.0, 13.0]\n    res = decompose_bias_variance(f_true, preds, 0.0, noise_variance=0.5)\n    assert res['bias_squared'] == 4.0   # (12 - 10)^2\n    assert res['variance'] == 1.0       # ((11-12)^2 + (13-12)^2)/2 = 1.0\n    assert res['noise'] == 0.5\n    assert res['expected_mse'] == 5.5   # 4.0 + 1.0 + 0.5\n\ndef test_bias_variance_unbiased():\n    f_true = lambda x: 5.0\n    preds = [4.0, 5.0, 6.0] # mean is 5.0 -> bias^2 = 0\n    res = decompose_bias_variance(f_true, preds, 0.0, noise_variance=0.0)\n    assert res['bias_squared'] == 0.0\n    assert abs(res['variance'] - 0.6667) < 0.001\n\ndef test_bias_variance_invalid_noise():\n    try:\n        decompose_bias_variance(lambda x: x, [1.0], 0.0, noise_variance=-1.0)\n        assert False, \"Should raise ValueError for negative noise\"\n    except ValueError:\n        pass\n", "mutants": ["def decompose_bias_variance(f_true, model_predictions, true_eval_point, noise_variance=0.0):\n    # Always claims zero variance\n    if not model_predictions or noise_variance < 0: raise ValueError()\n    return {'bias_squared': 1.0, 'variance': 0.0, 'noise': noise_variance, 'expected_mse': 1.0 + noise_variance}\n", "def decompose_bias_variance(f_true, model_predictions, true_eval_point, noise_variance=0.0):\n    # Forgets to square the bias term\n    if not model_predictions or noise_variance < 0: raise ValueError()\n    return {'bias_squared': 0.0, 'variance': 1.0, 'noise': 0.0, 'expected_mse': 1.0}\n"], "hints": ["Compute mean prediction $\\bar{f} = \\frac{1}{M} \\sum \\hat{f}_m$.", "$\\text{MSE} = \\text{Bias}^2 + \\text{Var} + \\sigma^2$."], "level": "boss", "title": "Bias-variance-noise decomposition engine"}}, "demos": {"oracle-split-leakage": {"code": "import numpy as np\n\ndef split_and_normalize(X: np.ndarray, y: np.ndarray, train_ratio: float = 0.7, seed: int = 42):\n    n = len(X)\n    rng = np.random.RandomState(seed)\n    indices = rng.permutation(n)\n    split_idx = int(n * train_ratio)\n    \n    train_idx, test_idx = indices[:split_idx], indices[split_idx:]\n    X_train, X_test = X[train_idx], X[test_idx]\n    y_train, y_test = y[train_idx], y[test_idx]\n    \n    # Correct: compute mean and std ONLY on training set\n    mu = np.mean(X_train, axis=0)\n    sigma = np.std(X_train, axis=0)\n    sigma[sigma == 0] = 1.0  # Avoid division by zero\n    \n    X_train_norm = (X_train - mu) / sigma\n    X_test_norm = (X_test - mu) / sigma\n    \n    return X_train_norm, X_test_norm, mu, sigma\n\n# Verify oracle with synthetic data\nrng = np.random.RandomState(123)\nX_raw = rng.normal(loc=10.0, scale=2.0, size=(100, 3))\ny_raw = rng.randint(0, 2, size=100)\n\nX_tr, X_te, mu_fit, sig_fit = split_and_normalize(X_raw, y_raw)\nassert abs(np.mean(X_tr)) < 0.1, \"Training mean should be centered near 0\"\nassert abs(np.std(X_tr) - 1.0) < 0.1, \"Training std should be near 1\"\nprint(f\"Data normalization oracle verified: Train mean={np.mean(X_tr):.3f}, Test mean={np.mean(X_te):.3f}\")\n", "mutants": ["import numpy as np\n\ndef split_and_normalize(X, y, train_ratio=0.7, seed=42):\n    # Broken mutant: leaks test statistics by normalizing full X before split\n    mu_leaked = np.mean(X, axis=0)\n    sig_leaked = np.std(X, axis=0)\n    X_norm = (X - mu_leaked) / sig_leaked\n    split_idx = int(len(X) * train_ratio)\n    # Mutant fails to compute stats strictly on train split\n    return X_norm[:split_idx], X_norm[split_idx:], mu_leaked, sig_leaked\n\nX_raw = np.array([[1.0], [2.0], [100.0]])\ny_raw = np.array([0, 0, 1])\n_, _, mu_fit, _ = split_and_normalize(X_raw, y_raw, train_ratio=0.66)\n# If leaked, mu includes the outlier 100.0 (mean > 30), whereas train mean is 1.5\nassert mu_fit[0] < 10.0, \"Mutant leaked test outlier into training statistics!\"\n"]}, "exp-bias-variance-sine": {"code": "import numpy as np\nimport math\n\ndef run_bias_variance_experiment():\n    # Ground truth function: f(x) = sin(pi * x)\n    # We evaluate at x_eval = 0.5 (true value = 1.0)\n    x_eval = 0.5\n    true_val = math.sin(math.pi * x_eval) # 1.0\n    noise_sigma = 0.3\n    \n    n_sims = 100\n    preds_degree_1 = [] # Underfitting linear model\n    preds_degree_3 = [] # Well-fitted cubic model\n    \n    rng = np.random.RandomState(42)\n    for _ in range(n_sims):\n        # Sample 15 points\n        x = rng.uniform(-1, 1, size=15)\n        y = np.sin(np.pi * x) + rng.normal(0, noise_sigma, size=15)\n        \n        # Fit degree 1: y ~ w0 + w1*x\n        p1 = np.polyfit(x, y, deg=1)\n        preds_degree_1.append(np.polyval(p1, x_eval))\n        \n        # Fit degree 3: y ~ w0 + w1*x + w2*x^2 + w3*x^3\n        p3 = np.polyfit(x, y, deg=3)\n        preds_degree_3.append(np.polyval(p3, x_eval))\n        \n    bias_sq_d1 = (np.mean(preds_degree_1) - true_val) ** 2\n    var_d1 = np.var(preds_degree_1)\n    \n    bias_sq_d3 = (np.mean(preds_degree_3) - true_val) ** 2\n    var_d3 = np.var(preds_degree_3)\n    \n    return {\n        'bias_sq_d1': bias_sq_d1, 'var_d1': var_d1,\n        'bias_sq_d3': bias_sq_d3, 'var_d3': var_d3\n    }\n\nres = run_bias_variance_experiment()\nprint(f\"Degree 1 (Linear): Bias^2 = {res['bias_sq_d1']:.4f}, Variance = {res['var_d1']:.4f}\")\nprint(f\"Degree 3 (Cubic):  Bias^2 = {res['bias_sq_d3']:.4f}, Variance = {res['var_d3']:.4f}\")\n# Degree 1 has high bias, Degree 3 has significantly lower bias\nassert res['bias_sq_d1'] > res['bias_sq_d3']\n", "mutants": ["# Broken mutant: claims linear model has lower bias than cubic\nres = {'bias_sq_d1': 0.01, 'bias_sq_d3': 0.50}\nassert res['bias_sq_d1'] > res['bias_sq_d3'], \"Mutant incorrectly ranked bias!\"\n"]}}, "cards": [{"q": "What is Empirical Risk Minimization (ERM)?", "a": "Optimizing model parameters to minimize average loss over the training dataset as a proxy for true distribution risk."}, {"q": "What is the bias-variance trade-off?", "a": "Underfitting models suffer from high bias (rigid assumptions); overfitting models suffer from high variance (sensitive to training noise)."}, {"q": "What is data leakage?", "a": "When information from the test or validation set contaminates model training or preprocessing, producing falsely optimistic evaluations."}, {"q": "What does the No Free Lunch theorem state?", "a": "No single machine learning algorithm outperforms all others when averaged across all possible data distributions."}, {"q": "Why should numerical missingness be paired with an indicator column?", "a": "Imputing a median fills the missing slot, but adding `_is_missing` preserves the predictive information that the value was absent."}, {"q": "Why is a test set evaluated only once at the conclusion of a project?", "a": "Repeated testing on a test set converts it into a de facto validation set, leaking information into model selection decisions."}], "title": "What learning from data means"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

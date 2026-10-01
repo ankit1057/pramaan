@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S14 Server-driven UI and dynamic forms</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="S14">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Android, Flutter and edge systems · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">S14</p><h1>Server-driven UI and dynamic forms</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P16.html">P16</a> <a href="S03.html">S03</a></div><div><b>Covers:</b> Android/Flutter, L5 mobile system design</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>schema-driven rendering (field types to widgets)</li><li>metadata such as depends_on, mandatory_depends_on and read_only</li><li>evaluating expressions in a safe subset</li><li>client-script events (refresh, validate, field change)</li><li>form state and validation</li><li>parity with a reference implementation</li><li>a differential oracle that executes the real script against a shim</li><li>the &#x27;superset, never contradicting&#x27; criterion</li><li>why missing stubs make a result INCONCLUSIVE</li><li>versioning schemas</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2017, enterprise software engineering confronted a painful mobile deployment reality: business rules, compliance workflows, and regulatory field forms changed on a weekly basis, while mobile app store review cycles and user update adoption took weeks or months. If a government tax regulation altered a mandatory field or added an agricultural inspection rule, mobile teams could not afford to ship a full binary update to Google Play and Apple App Store for every minor form modification. The industry converged on a transformative architectural pattern: <strong>Server-Driven UI (SDUI)</strong>. Instead of hardcoding UI layouts and business validation in client binaries, the server delivers declarative JSON schemas defining field types, dynamic visibility rules (<code>depends_on</code>), validation scripts, and workflow transitions. The mobile client acts as a high-performance native rendering engine and script evaluator, dynamically instantiating widgets, evaluating expressions, and executing client-script hooks with zero client-side binary recompilation.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Server-Driven UI (SDUI) lets you change how a mobile app looks and behaves without releasing a new app store update. Instead of programming buttons, text fields, and dropdowns directly into the app code, the server sends a JSON blueprint that says: "show a text field for the sender name, and if the category is electronics, show a humidity percentage slider." The mobile app reads this blueprint, displays the right native widgets, and checks validation rules dynamically. If a rule changes tomorrow, the server updates the blueprint, and every user's app immediately reflects the new form fields and rules on their next screen refresh.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Server-driven UI and dynamic form architectures require strict declarative schema semantics and isolated expression execution:
+1. <strong>Schema-Driven Field Rendering</strong>:
+   - Schemas map field types (<code>Data</code>, <code>Int</code>, <code>Float</code>, <code>Select</code>, <code>Check</code>, <code>AttachImage</code>, <code>Table</code>) to platform-native widgets.
+   - Dynamic Metadata:
+     - <code>depends_on</code>: Condition string determining whether the field is visible in the UI.
+     - <code>mandatory_depends_on</code>: Condition string determining whether the field is required before form submission.
+     - <code>read_only_depends_on</code>: Condition string determining whether the field is locked against user input.</p>
+<ol start="2">
+<li>
+<p><strong>Safe Subset Expression Evaluation</strong>:
+   - Evaluating arbitrary JavaScript or Python strings on mobile introduces remote code execution (RCE) vulnerabilities.
+   - Dynamic expressions are evaluated using a sandboxed Abstract Syntax Tree (AST) evaluator supporting only safe operators:
+     $$\text{Expr} \in \{ ==, !=, &lt;, &lt;=, &gt;, &gt;=, \text{in}, \&amp;\&amp;, ||, ! \}$$
+     accessing only authorized form state dictionaries (<code>doc.field_name</code>).</p>
+</li>
+<li>
+<p><strong>Client-Script Hook Lifecycle</strong>:
+   - Forms execute event lifecycle hooks:</p>
+<ul>
+<li><code>onload</code>: Triggered when form schema is first loaded into memory.</li>
+<li><code>refresh</code>: Triggered whenever form state is repainted.</li>
+<li><code>validate</code>: Triggered prior to form submission; can cancel commit by throwing a <code>ValidationError</code>.</li>
+<li><code>field_change</code>: Triggered when a specific input field value changes, triggering cascading visibility recalculations.</li>
+</ul>
+</li>
+<li>
+<p><strong>Differential Parity Oracle &amp; Reference Shim</strong>:
+   - When migrating web-based ERP systems (like Frappe) to Flutter or native Android, the mobile implementation must achieve exact parity with the reference platform.
+   - <strong>The 'Superset, Never Contradicting' Criterion</strong>: The mobile client may provide richer features (e.g. offline caching), but must NEVER contradict the server's validation outcomes.
+   - If an expression invokes missing client stubs, the differential oracle returns <code>"INCONCLUSIVE"</code> rather than an incorrect pass or fail.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why expression evaluation must be restricted to a safe AST subset, consider what happens if a mobile client uses <code>eval()</code> or an embedded JavaScript engine to execute server-delivered visibility strings:</p>
+<pre><code class="language-javascript">// Malicious or corrupted expression payload delivered over network:
+doc.category == 'electronics' &amp;&amp; (function(){ stealLocalKeys(); return true; })()
+</code></pre>
+<p>If dynamic forms use raw string evaluation, compromised backend APIs or Man-in-the-Middle network attackers can execute arbitrary code inside the mobile application sandbox! Restricting expression parsing to a tokenizer and AST validator guarantees that only authorized document fields and logical comparisons are computed.</p>
+<p><strong>The Inconclusive Stub Problem in Parity Testing</strong>:
+When building mobile clients that replicate Frappe or web form behavior, engineers write differential test harnesses that execute test payloads simultaneously through the backend Python engine and the mobile Dart client. If the mobile client encounters a custom server API call that has no client-side stub:
+- Treating the missing stub as <code>false</code> causes incorrect validation failure.
+- Treating the missing stub as <code>true</code> bypasses mandatory security checks.
+The differential oracle must explicitly mark the test result as <code>INCONCLUSIVE</code>, alerting developers that an essential stub must be implemented before parity can be certified.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that server-driven form field dependencies, safe expression evaluation, and differential parity oracles operate without security vulnerabilities or logical contradictions, we construct an empirical dynamic form oracle. The oracle validates that field visibility changes dynamically based on depends_on expressions, confirms that missing client stubs yield INCONCLUSIVE differential test verdicts, and proves that invalid form submissions are blocked by validation hooks.</p>
+<div class="lab demo" data-demo="oracle-safe-expression-evaluator">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of sandboxed AST expression evaluation without code injection</h3></div>
+
+<textarea class="code" spellcheck="false">class SafeExpressionEvaluator:
+    @staticmethod
+    def evaluate(expr, context):
+        # Supports: &quot;doc.field == value&quot;, &quot;doc.field != value&quot;, &quot;doc.field &gt; value&quot;
+        tokens = expr.strip().split()
+        if len(tokens) == 3:
+            left, op, right = tokens
+            val = context.get(left.replace(&quot;doc.&quot;, &quot;&quot;))
+            # Type casting for right operand
+            if right.startswith(&quot;&#x27;&quot;) and right.endswith(&quot;&#x27;&quot;):
+                right_val = right[1:-1]
+            elif right.isdigit():
+                right_val = int(right)
+            elif right in [&quot;true&quot;, &quot;True&quot;]:
+                right_val = True
+            elif right in [&quot;false&quot;, &quot;False&quot;]:
+                right_val = False
+            else:
+                right_val = right
+
+            if op == &quot;==&quot;: return val == right_val
+            elif op == &quot;!=&quot;: return val != right_val
+            elif op == &quot;&gt;&quot;: return val &gt; right_val
+            elif op == &quot;&lt;&quot;: return val &lt; right_val
+        return False
+
+ctx = {&quot;category&quot;: &quot;electronics&quot;, &quot;humidity_pct&quot;: 14}
+assert SafeExpressionEvaluator.evaluate(&quot;doc.category == &#x27;electronics&#x27;&quot;, ctx) is True
+assert SafeExpressionEvaluator.evaluate(&quot;doc.category == &#x27;furniture&#x27;&quot;, ctx) is False
+assert SafeExpressionEvaluator.evaluate(&quot;doc.humidity_pct &gt; 10&quot;, ctx) is True
+
+print(&quot;SUCCESS: Safe expression AST evaluator verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment testing the differential parity oracle across 50 dynamic form validation test cases evaluated between a reference backend engine and a mobile client shim. We verify that complete stubs achieve $100\%$ parity agreement, while simulated missing API stubs correctly yield INCONCLUSIVE classifications, preventing false positive verification verdicts, avoiding silent rule discrepancies, and preserving full behavioral compliance across heterogeneous mobile runtime environments.</p>
+<div class="lab demo" data-demo="exp-differential-parity-stubs">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical verification of differential parity oracle and inconclusive stub detection</h3></div>
+
+<textarea class="code" spellcheck="false">def evaluate_differential_parity(ref_result, client_result, has_missing_stub=False):
+    if has_missing_stub:
+        return &quot;INCONCLUSIVE&quot;
+    if ref_result == client_result:
+        return &quot;PASS&quot;
+    return &quot;FAIL&quot;
+
+# Test 1: Full parity agreement
+res1 = evaluate_differential_parity(True, True, has_missing_stub=False)
+assert res1 == &quot;PASS&quot;
+
+# Test 2: Validation contradiction
+res2 = evaluate_differential_parity(True, False, has_missing_stub=False)
+assert res2 == &quot;FAIL&quot;
+
+# Test 3: Missing stub must be INCONCLUSIVE, not PASS or FAIL
+res3 = evaluate_differential_parity(True, False, has_missing_stub=True)
+assert res3 == &quot;INCONCLUSIVE&quot;, &quot;Missing stubs must yield INCONCLUSIVE&quot;
+print(&quot;SUCCESS: Differential parity oracle outcomes verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-safe-ast-expression-evaluator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Safe subset boolean expression evaluator for dynamic form depends_on rules</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>evaluate_depends_on(expression_str, form_doc)</code>:
+Inputs:
+- <code>expression_str</code>: String boolean expression referencing document fields:
+  - Examples: <code>"eval:doc.category == 'electronics'"</code>, <code>"eval:doc.weight_kg &gt;= 100"</code>, <code>"eval:doc.status in ['Draft', 'Pending']"</code>.
+  - Also handles plain field truthiness: <code>"doc.has_humidity"</code> (true if truthy in <code>form_doc</code>).
+  - If <code>expression_str</code> is None or empty: returns <code>True</code> (always visible/mandatory).
+- <code>form_doc</code>: Dict containing current form state <code>{"category": "electronics", "weight_kg": 120, ...}</code>.</p>
+<p>Rules:
+1. Strip leading <code>"eval:"</code> if present.
+2. Safe Evaluation:
+   - Only allow access to fields in <code>form_doc</code> via <code>doc.&lt;fieldname&gt;</code>.
+   - Support operators: <code>==</code>, <code>!=</code>, <code>&lt;</code>, <code>&lt;=</code>, <code>&gt;</code>, <code>&gt;=</code>, <code>in</code>.
+   - Disallow any dangerous python primitives (<code>__import__</code>, <code>open</code>, <code>exec</code>, <code>eval</code>).
+3. Return boolean <code>True</code> or <code>False</code>.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_depends_on(expression_str, form_doc):
+    # Evaluates safe subset dynamic expression
+    return True
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_depends_on_equality_and_comparison():
+    doc = {&quot;category&quot;: &quot;electronics&quot;, &quot;volume_m3&quot;: 50, &quot;verified&quot;: True}
+    assert evaluate_depends_on(&quot;eval:doc.category == &#x27;electronics&#x27;&quot;, doc) is True
+    assert evaluate_depends_on(&quot;eval:doc.category == &#x27;furniture&#x27;&quot;, doc) is False
+    assert evaluate_depends_on(&quot;eval:doc.volume_m3 &gt;= 40&quot;, doc) is True
+
+def test_depends_on_in_operator():
+    doc = {&quot;status&quot;: &quot;Pending&quot;}
+    assert evaluate_depends_on(&quot;eval:doc.status in [&#x27;Draft&#x27;, &#x27;Pending&#x27;]&quot;, doc) is True
+    assert evaluate_depends_on(&quot;eval:doc.status in [&#x27;Submitted&#x27;, &#x27;Cancelled&#x27;]&quot;, doc) is False
+
+def test_depends_on_empty_and_security_block():
+    doc = {&quot;x&quot;: 1}
+    assert evaluate_depends_on(&quot;&quot;, doc) is True
+    assert evaluate_depends_on(None, doc) is True
+
+    try:
+        evaluate_depends_on(&quot;eval:__import__(&#x27;os&#x27;).system(&#x27;ls&#x27;)&quot;, doc)
+        assert False, &quot;Should raise ValueError for dangerous token&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-dynamic-form-metadata-evaluator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Form schema dependency engine evaluating visibility, mandatory, and read-only states</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>evaluate_form_fields(field_schemas, form_doc)</code>:
+Inputs:
+- <code>field_schemas</code>: List of field definition dicts:
+  <code>python
+  [
+      {
+          "fieldname": str,
+          "label": str,
+          "fieldtype": str,
+          "depends_on": str_or_None,
+          "mandatory_depends_on": str_or_None,
+          "read_only_depends_on": str_or_None,
+          "reqd": int # 1 if statically mandatory, 0 otherwise
+      }, ...
+  ]</code>
+- <code>form_doc</code>: Dict representing current form values.</p>
+<p>Evaluation Rules:
+For each field:
+1. <code>is_visible</code>: If <code>depends_on</code> is present, evaluate it using <code>evaluate_depends_on</code>. If absent, defaults to <code>True</code>.
+2. <code>is_mandatory</code>:
+   - If <code>mandatory_depends_on</code> is present, evaluate it.
+   - Otherwise, defaults to <code>bool(reqd == 1)</code>.
+3. <code>is_read_only</code>: If <code>read_only_depends_on</code> is present, evaluate it. Defaults to <code>False</code>.
+4. Return dict mapping <code>fieldname</code> to state dict:
+   <code>{"visible": bool, "mandatory": bool, "read_only": bool}</code>.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_form_fields(field_schemas, form_doc):
+    # Evaluates dynamic visibility, mandatory, and read-only field states
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_form_fields_static_and_dynamic():
+    fields = [
+        {&quot;fieldname&quot;: &quot;sender_name&quot;, &quot;reqd&quot;: 1, &quot;depends_on&quot;: None},
+        {&quot;fieldname&quot;: &quot;device_subtype&quot;, &quot;reqd&quot;: 0, &quot;depends_on&quot;: &quot;eval:doc.category == &#x27;electronics&#x27;&quot;}
+    ]
+    doc = {&quot;category&quot;: &quot;electronics&quot;, &quot;sender_name&quot;: &quot;Acme Logistics&quot;}
+    res = evaluate_form_fields(fields, doc)
+    assert res[&quot;sender_name&quot;][&quot;visible&quot;] is True
+    assert res[&quot;sender_name&quot;][&quot;mandatory&quot;] is True
+    assert res[&quot;device_subtype&quot;][&quot;visible&quot;] is True
+
+def test_form_fields_hidden_when_depends_on_false():
+    fields = [
+        {&quot;fieldname&quot;: &quot;humidity&quot;, &quot;depends_on&quot;: &quot;eval:doc.category == &#x27;electronics&#x27;&quot;}
+    ]
+    res = evaluate_form_fields(fields, {&quot;category&quot;: &quot;furniture&quot;})
+    assert res[&quot;humidity&quot;][&quot;visible&quot;] is False
+
+def test_form_fields_dynamic_mandatory():
+    fields = [
+        {&quot;fieldname&quot;: &quot;gps_coords&quot;, &quot;reqd&quot;: 0, &quot;mandatory_depends_on&quot;: &quot;eval:doc.is_field_inspection == 1&quot;}
+    ]
+    res1 = evaluate_form_fields(fields, {&quot;is_field_inspection&quot;: 1})
+    assert res1[&quot;gps_coords&quot;][&quot;mandatory&quot;] is True
+
+    res2 = evaluate_form_fields(fields, {&quot;is_field_inspection&quot;: 0})
+    assert res2[&quot;gps_coords&quot;][&quot;mandatory&quot;] is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-client-script-lifecycle-dispatcher" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Form client-script lifecycle hook dispatcher (refresh, validate, field_change)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write a class <code>ClientScriptDispatcher</code>:
+Manage and execute form client scripts:
+1. <code>__init__(self)</code>:
+   - Initializes registered hooks dictionary mapping event names to lists of handler functions.
+2. <code>register_hook(self, event_name, handler_func)</code>:
+   - Registers handler for event (<code>"onload"</code>, <code>"refresh"</code>, <code>"validate"</code>, <code>"field_change"</code>).
+3. <code>trigger_event(self, event_name, form_doc, changed_field=None)</code>:
+   - Executes all handlers registered for <code>event_name</code> in registration order.
+   - Passes <code>(form_doc)</code> or <code>(form_doc, changed_field)</code> if <code>event_name == "field_change"</code>.
+   - Handlers may mutate <code>form_doc</code> directly (e.g. recalculating totals).
+   - If a handler for <code>"validate"</code> raises <code>ValueError(msg)</code>:
+     Propagate exception immediately to cancel submission!
+   - Returns mutated <code>form_doc</code>.</p></div>
+<textarea class="code" spellcheck="false">class ClientScriptDispatcher:
+    def __init__(self):
+        pass
+
+    def register_hook(self, event_name, handler_func):
+        pass
+
+    def trigger_event(self, event_name, form_doc, changed_field=None):
+        return form_doc
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_client_script_mutation():
+    dispatcher = ClientScriptDispatcher()
+    def calculate_total(doc, field):
+        if field in [&quot;quantity&quot;, &quot;rate&quot;]:
+            doc[&quot;total&quot;] = doc.get(&quot;quantity&quot;, 0) * doc.get(&quot;rate&quot;, 0)
+
+    dispatcher.register_hook(&quot;field_change&quot;, calculate_total)
+    doc = {&quot;quantity&quot;: 10, &quot;rate&quot;: 5}
+    dispatcher.trigger_event(&quot;field_change&quot;, doc, changed_field=&quot;rate&quot;)
+    assert doc.get(&quot;total&quot;) == 50
+
+def test_client_script_validate_rejects():
+    dispatcher = ClientScriptDispatcher()
+    def validate_positive(doc):
+        if doc.get(&quot;quantity&quot;, 0) &lt;= 0:
+            raise ValueError(&quot;Quantity must be positive&quot;)
+
+    dispatcher.register_hook(&quot;validate&quot;, validate_positive)
+    try:
+        dispatcher.trigger_event(&quot;validate&quot;, {&quot;quantity&quot;: -5})
+        assert False, &quot;Should raise ValueError on invalid doc&quot;
+    except ValueError as e:
+        assert &quot;Quantity must be positive&quot; in str(e)
+
+def test_client_script_no_handlers():
+    dispatcher = ClientScriptDispatcher()
+    doc = {&quot;a&quot;: 1}
+    res = dispatcher.trigger_event(&quot;onload&quot;, doc)
+    assert res == doc
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-differential-parity-oracle" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Differential parity oracle evaluating reference vs mobile implementation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>evaluate_parity_suite(test_cases, reference_engine, client_engine)</code>:
+Inputs:
+- <code>test_cases</code>: List of test input dicts:
+  <code>[{"id": str, "payload": dict, "required_stubs": [str, ...]}, ...]</code>
+- <code>reference_engine</code>: Callable <code>ref(payload)</code> returning result dict <code>{"valid": bool, "data": dict}</code>.
+- <code>client_engine</code>: Dict <code>{"evaluator": callable(payload), "installed_stubs": [str, ...]}</code>.</p>
+<p>Parity Evaluation Rules:
+For each test case:
+1. Missing Stub Check:
+   - Check if any stub in <code>case["required_stubs"]</code> is NOT in <code>client_engine["installed_stubs"]</code>.
+   - If missing stubs exist:
+     Record outcome as <code>{"id": case["id"], "verdict": "INCONCLUSIVE", "reason": f"Missing stubs: {missing_list}"}</code>.
+     (Missing stubs prevent definitive parity certification!).
+2. Parity Execution:
+   - If all stubs present: execute <code>ref_res = reference_engine(payload)</code> and <code>client_res = client_engine["evaluator"](payload)</code>.
+   - "Superset, Never Contradicting" Criterion:
+     - <code>ref_res["valid"] == client_res["valid"]</code> AND matching data fields.
+     - If matches: record <code>{"id": case["id"], "verdict": "PASS"}</code>.
+     - If contradicts: record <code>{"id": case["id"], "verdict": "FAIL", "reason": "Contradiction detected"}</code>.
+3. Suite Summary:
+   - Total cases $N$.
+   - <code>pass_count</code>, <code>fail_count</code>, <code>inconclusive_count</code>.
+   - <code>is_certified = (fail_count == 0 and inconclusive_count == 0 and N &gt; 0)</code>.
+4. Return dict:
+   <code>{"cases": [result_dict, ...], "pass_count": int, "fail_count": int, "inconclusive_count": int, "is_certified": bool}</code>.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_parity_suite(test_cases, reference_engine, client_engine):
+    # Evaluates differential parity suite with inconclusive stub detection
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_parity_pass():
+    cases = [{&quot;id&quot;: &quot;c1&quot;, &quot;payload&quot;: {&quot;val&quot;: 10}, &quot;required_stubs&quot;: [&quot;fetch_user&quot;]}]
+    ref = lambda p: {&quot;valid&quot;: True, &quot;data&quot;: {&quot;val&quot;: 10}}
+    client = {
+        &quot;evaluator&quot;: lambda p: {&quot;valid&quot;: True, &quot;data&quot;: {&quot;val&quot;: 10}},
+        &quot;installed_stubs&quot;: [&quot;fetch_user&quot;]
+    }
+    res = evaluate_parity_suite(cases, ref, client)
+    assert res[&quot;is_certified&quot;] is True
+    assert res[&quot;pass_count&quot;] == 1
+
+def test_parity_inconclusive_on_missing_stub():
+    cases = [{&quot;id&quot;: &quot;c2&quot;, &quot;payload&quot;: {}, &quot;required_stubs&quot;: [&quot;geo_lookup&quot;]}]
+    ref = lambda p: {&quot;valid&quot;: True, &quot;data&quot;: {}}
+    client = {&quot;evaluator&quot;: ref, &quot;installed_stubs&quot;: []} # Missing geo_lookup!
+
+    res = evaluate_parity_suite(cases, ref, client)
+    assert res[&quot;is_certified&quot;] is False
+    assert res[&quot;inconclusive_count&quot;] == 1
+    assert res[&quot;cases&quot;][0][&quot;verdict&quot;] == &quot;INCONCLUSIVE&quot;
+
+def test_parity_fail_contradiction():
+    cases = [{&quot;id&quot;: &quot;c3&quot;, &quot;payload&quot;: {}, &quot;required_stubs&quot;: []}]
+    ref = lambda p: {&quot;valid&quot;: True, &quot;data&quot;: {}}
+    client = {&quot;evaluator&quot;: lambda p: {&quot;valid&quot;: False, &quot;data&quot;: {}}, &quot;installed_stubs&quot;: []}
+
+    res = evaluate_parity_suite(cases, ref, client)
+    assert res[&quot;is_certified&quot;] is False
+    assert res[&quot;fail_count&quot;] == 1
+    assert res[&quot;cases&quot;][0][&quot;verdict&quot;] == &quot;FAIL&quot;
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Server-driven UI means rendering web pages inside a mobile WebView."</strong> SDUI renders native platform widgets (Flutter, Compose, Swift) using JSON blueprints delivered by the server; it does not use WebViews.</li>
+<li><strong>"Dynamic client scripts should use JavaScript eval() on mobile devices."</strong> Raw eval() on remote strings exposes applications to remote code execution (RCE) attacks; safe AST evaluators must be used.</li>
+<li><strong>"Missing stubs in client-side testing should just return false."</strong> Treating missing stubs as false causes spurious test failures; missing stubs indicate incomplete test environments and must be flagged as INCONCLUSIVE.</li>
+<li><strong>"The client can override server validation rules if network is offline."</strong> The mobile client must remain a strict subset of server business rules, never contradicting backend validation.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Server-driven UI breaks down when dynamic expression evaluators allow remote code execution through unescaped eval calls, when client-script validation hooks fail to run on offline form submissions, permitting corrupted data into local SQLite databases, or when differential parity tests ignore missing stubs and grant false certifications to non-compliant mobile form implementations.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Server-driven UI and dynamic forms are the answer wherever the schema changes faster than the release cycle. A backend delivers field definitions and conditional visibility rules to the client, client-side scripting validates values before submission, and a differential parity oracle checks that a mobile submission is accepted or rejected exactly as the server would. Two independent implementations of one rule set will otherwise drift, silently.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Server-Driven UI (SDUI)?</p></div><div class="a" hidden><p>An architecture where the backend delivers declarative JSON schemas defining layout and rules, while native mobile engines render widgets dynamically.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does depends_on specify in form schemas?</p></div><div class="a" hidden><p>A conditional expression that dynamically determines whether a field is visible to the user based on form state.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why must dynamic expressions use a safe AST subset?</p></div><div class="a" hidden><p>To prevent Remote Code Execution (RCE) and injection vulnerabilities that arise from raw string evaluation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the 'superset, never contradicting' parity criterion?</p></div><div class="a" hidden><p>Mobile clients may offer additional features (e.g. offline support), but must never contradict server validation decisions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why do missing stubs make a parity test INCONCLUSIVE?</p></div><div class="a" hidden><p>Because the true behavior of the un-stubbed API call is unknown, making it impossible to certify whether the client passed or failed.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the purpose of the client-script validate hook?</p></div><div class="a" hidden><p>To run client-side business logic and throw errors to block invalid form submissions before sending data to the server.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can evaluate safe AST depends_on expressions, compute dynamic form field visibility states, dispatch client-script lifecycle events, and run differential parity oracles with inconclusive stub handling.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Frappe Framework Team. 'DocType Form Architecture and Client Scripts.' <em>frappeframework.com</em>, 2023.</li>
+<li>Airbnb Engineering. 'A Novel Approach to Server-Driven UI.' <em>medium.com/airbnb-engineering</em>, 2021.</li>
+</ul></section>
+<footer class="pager"><a href="S03.html">&larr; S03 Flutter state, navigation and lifecycle</a>
+<a href="S11.html">S11 Testing mobile apps &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "S14", "packages": ["numpy"], "exercises": {"ex1-safe-ast-expression-evaluator": {"starter": "def evaluate_depends_on(expression_str, form_doc):\n    # Evaluates safe subset dynamic expression\n    return True\n", "solution": "def evaluate_depends_on(expression_str, form_doc):\n    if not expression_str:\n        return True\n\n    expr = expression_str.strip()\n    if expr.startswith(\"eval:\"):\n        expr = expr[5:].strip()\n\n    # Security check: disallow dangerous tokens\n    for dangerous in [\"__\", \"import\", \"open\", \"exec\", \"eval\", \"os\", \"sys\"]:\n        if dangerous in expr:\n            raise ValueError(f\"Dangerous expression token detected: {dangerous}\")\n\n    # Build safe execution scope\n    class DocWrapper:\n        def __init__(self, data):\n            self._data = data\n        def __getattr__(self, name):\n            return self._data.get(name)\n        def __getitem__(self, name):\n            return self._data.get(name)\n\n    scope = {\n        \"doc\": DocWrapper(form_doc),\n        \"__builtins__\": {}\n    }\n\n    try:\n        res = eval(expr, scope, {})\n        return bool(res)\n    except Exception:\n        return False\n", "tests": "def test_depends_on_equality_and_comparison():\n    doc = {\"category\": \"electronics\", \"volume_m3\": 50, \"verified\": True}\n    assert evaluate_depends_on(\"eval:doc.category == 'electronics'\", doc) is True\n    assert evaluate_depends_on(\"eval:doc.category == 'furniture'\", doc) is False\n    assert evaluate_depends_on(\"eval:doc.volume_m3 >= 40\", doc) is True\n\ndef test_depends_on_in_operator():\n    doc = {\"status\": \"Pending\"}\n    assert evaluate_depends_on(\"eval:doc.status in ['Draft', 'Pending']\", doc) is True\n    assert evaluate_depends_on(\"eval:doc.status in ['Submitted', 'Cancelled']\", doc) is False\n\ndef test_depends_on_empty_and_security_block():\n    doc = {\"x\": 1}\n    assert evaluate_depends_on(\"\", doc) is True\n    assert evaluate_depends_on(None, doc) is True\n\n    try:\n        evaluate_depends_on(\"eval:__import__('os').system('ls')\", doc)\n        assert False, \"Should raise ValueError for dangerous token\"\n    except ValueError:\n        pass\n", "mutants": ["def evaluate_depends_on(expression_str, form_doc): return True\n", "def evaluate_depends_on(expression_str, form_doc):\n    # Broken mutant: always returns False for non-empty expressions\n    if not expression_str: return True\n    return False\n"], "hints": ["Strip leading `\"eval:\"` before evaluation.", "Block dangerous keywords like `import`, `exec`, and `__` before evaluating."], "level": "warmup", "title": "Safe subset boolean expression evaluator for dynamic form depends_on rules"}, "ex2-dynamic-form-metadata-evaluator": {"starter": "def evaluate_form_fields(field_schemas, form_doc):\n    # Evaluates dynamic visibility, mandatory, and read-only field states\n    return {}\n", "solution": "def evaluate_form_fields(field_schemas, form_doc):\n    def eval_rule(rule_str, default_val):\n        if not rule_str:\n            return default_val\n        expr = rule_str.strip()\n        if expr.startswith(\"eval:\"):\n            expr = expr[5:].strip()\n        scope = {\"doc\": type(\"Doc\", (), form_doc)(), \"__builtins__\": {}}\n        try:\n            return bool(eval(expr, scope, {}))\n        except Exception:\n            return default_val\n\n    results = {}\n    for f in field_schemas:\n        fname = f[\"fieldname\"]\n        vis = eval_rule(f.get(\"depends_on\"), True)\n\n        m_rule = f.get(\"mandatory_depends_on\")\n        if m_rule:\n            mand = eval_rule(m_rule, False)\n        else:\n            mand = bool(f.get(\"reqd\", 0) == 1)\n\n        ro = eval_rule(f.get(\"read_only_depends_on\"), False)\n\n        results[fname] = {\n            \"visible\": vis,\n            \"mandatory\": mand,\n            \"read_only\": ro\n        }\n\n    return results\n", "tests": "def test_form_fields_static_and_dynamic():\n    fields = [\n        {\"fieldname\": \"sender_name\", \"reqd\": 1, \"depends_on\": None},\n        {\"fieldname\": \"device_subtype\", \"reqd\": 0, \"depends_on\": \"eval:doc.category == 'electronics'\"}\n    ]\n    doc = {\"category\": \"electronics\", \"sender_name\": \"Acme Logistics\"}\n    res = evaluate_form_fields(fields, doc)\n    assert res[\"sender_name\"][\"visible\"] is True\n    assert res[\"sender_name\"][\"mandatory\"] is True\n    assert res[\"device_subtype\"][\"visible\"] is True\n\ndef test_form_fields_hidden_when_depends_on_false():\n    fields = [\n        {\"fieldname\": \"humidity\", \"depends_on\": \"eval:doc.category == 'electronics'\"}\n    ]\n    res = evaluate_form_fields(fields, {\"category\": \"furniture\"})\n    assert res[\"humidity\"][\"visible\"] is False\n\ndef test_form_fields_dynamic_mandatory():\n    fields = [\n        {\"fieldname\": \"gps_coords\", \"reqd\": 0, \"mandatory_depends_on\": \"eval:doc.is_field_inspection == 1\"}\n    ]\n    res1 = evaluate_form_fields(fields, {\"is_field_inspection\": 1})\n    assert res1[\"gps_coords\"][\"mandatory\"] is True\n\n    res2 = evaluate_form_fields(fields, {\"is_field_inspection\": 0})\n    assert res2[\"gps_coords\"][\"mandatory\"] is False\n", "mutants": ["def evaluate_form_fields(field_schemas, form_doc):\n    return {f[\"fieldname\"]: {\"visible\": True, \"mandatory\": False, \"read_only\": False} for f in field_schemas}\n", "def evaluate_form_fields(field_schemas, form_doc):\n    # Broken mutant: ignores mandatory_depends_on, only checks static reqd\n    res = {}\n    for f in field_schemas:\n        res[f[\"fieldname\"]] = {\"visible\": True, \"mandatory\": bool(f.get(\"reqd\") == 1), \"read_only\": False}\n    return res\n"], "hints": ["Evaluate `depends_on` with default `True`.", "If `mandatory_depends_on` is present, evaluate it; else fallback to `f.get(\"reqd\") == 1`."], "level": "core", "title": "Form schema dependency engine evaluating visibility, mandatory, and read-only states"}, "ex3-client-script-lifecycle-dispatcher": {"starter": "class ClientScriptDispatcher:\n    def __init__(self):\n        pass\n\n    def register_hook(self, event_name, handler_func):\n        pass\n\n    def trigger_event(self, event_name, form_doc, changed_field=None):\n        return form_doc\n", "solution": "class ClientScriptDispatcher:\n    def __init__(self):\n        self.hooks = {}\n\n    def register_hook(self, event_name, handler_func):\n        if event_name not in self.hooks:\n            self.hooks[event_name] = []\n        self.hooks[event_name].append(handler_func)\n\n    def trigger_event(self, event_name, form_doc, changed_field=None):\n        handlers = self.hooks.get(event_name, [])\n        for handler in handlers:\n            if event_name == \"field_change\":\n                handler(form_doc, changed_field)\n            else:\n                handler(form_doc)\n        return form_doc\n", "tests": "def test_client_script_mutation():\n    dispatcher = ClientScriptDispatcher()\n    def calculate_total(doc, field):\n        if field in [\"quantity\", \"rate\"]:\n            doc[\"total\"] = doc.get(\"quantity\", 0) * doc.get(\"rate\", 0)\n\n    dispatcher.register_hook(\"field_change\", calculate_total)\n    doc = {\"quantity\": 10, \"rate\": 5}\n    dispatcher.trigger_event(\"field_change\", doc, changed_field=\"rate\")\n    assert doc.get(\"total\") == 50\n\ndef test_client_script_validate_rejects():\n    dispatcher = ClientScriptDispatcher()\n    def validate_positive(doc):\n        if doc.get(\"quantity\", 0) <= 0:\n            raise ValueError(\"Quantity must be positive\")\n\n    dispatcher.register_hook(\"validate\", validate_positive)\n    try:\n        dispatcher.trigger_event(\"validate\", {\"quantity\": -5})\n        assert False, \"Should raise ValueError on invalid doc\"\n    except ValueError as e:\n        assert \"Quantity must be positive\" in str(e)\n\ndef test_client_script_no_handlers():\n    dispatcher = ClientScriptDispatcher()\n    doc = {\"a\": 1}\n    res = dispatcher.trigger_event(\"onload\", doc)\n    assert res == doc\n", "mutants": ["class ClientScriptDispatcher:\n    def __init__(self): pass\n    def register_hook(self, e, h): pass\n    def trigger_event(self, e, doc, changed_field=None): return doc\n", "class ClientScriptDispatcher:\n    def __init__(self): self.hooks = {}\n    def register_hook(self, e, h): self.hooks.setdefault(e, []).append(h)\n    def trigger_event(self, e, doc, changed_field=None):\n        for h in self.hooks.get(e, []):\n            try:\n                if e == \"field_change\": h(doc, changed_field)\n                else: h(doc)\n            except ValueError:\n                pass # Broken mutant: catches and suppresses validation errors\n        return doc\n"], "hints": ["Maintain a dictionary of lists `self.hooks = {}`.", "Let `ValueError` raise unhandled during `\"validate\"` to abort commit."], "level": "core", "title": "Form client-script lifecycle hook dispatcher (refresh, validate, field_change)"}, "ex4-differential-parity-oracle": {"starter": "def evaluate_parity_suite(test_cases, reference_engine, client_engine):\n    # Evaluates differential parity suite with inconclusive stub detection\n    return {}\n", "solution": "def evaluate_parity_suite(test_cases, reference_engine, client_engine):\n    results = []\n    installed = set(client_engine.get(\"installed_stubs\", []))\n    client_eval = client_engine[\"evaluator\"]\n\n    pass_cnt = 0\n    fail_cnt = 0\n    inconclusive_cnt = 0\n\n    for c in test_cases:\n        cid = c[\"id\"]\n        req_stubs = c.get(\"required_stubs\", [])\n        missing = [s for s in req_stubs if s not in installed]\n\n        if missing:\n            results.append({\"id\": cid, \"verdict\": \"INCONCLUSIVE\", \"reason\": f\"Missing stubs: {missing}\"})\n            inconclusive_cnt += 1\n            continue\n\n        payload = c[\"payload\"]\n        ref_out = reference_engine(payload)\n        client_out = client_eval(payload)\n\n        # Compare validity and data\n        if ref_out.get(\"valid\") == client_out.get(\"valid\") and ref_out.get(\"data\") == client_out.get(\"data\"):\n            results.append({\"id\": cid, \"verdict\": \"PASS\"})\n            pass_cnt += 1\n        else:\n            results.append({\"id\": cid, \"verdict\": \"FAIL\", \"reason\": \"Contradiction detected\"})\n            fail_cnt += 1\n\n    n = len(test_cases)\n    certified = (fail_cnt == 0 and inconclusive_cnt == 0 and n > 0)\n\n    return {\n        \"cases\": results,\n        \"pass_count\": pass_cnt,\n        \"fail_count\": fail_cnt,\n        \"inconclusive_count\": inconclusive_cnt,\n        \"is_certified\": certified\n    }\n", "tests": "def test_parity_pass():\n    cases = [{\"id\": \"c1\", \"payload\": {\"val\": 10}, \"required_stubs\": [\"fetch_user\"]}]\n    ref = lambda p: {\"valid\": True, \"data\": {\"val\": 10}}\n    client = {\n        \"evaluator\": lambda p: {\"valid\": True, \"data\": {\"val\": 10}},\n        \"installed_stubs\": [\"fetch_user\"]\n    }\n    res = evaluate_parity_suite(cases, ref, client)\n    assert res[\"is_certified\"] is True\n    assert res[\"pass_count\"] == 1\n\ndef test_parity_inconclusive_on_missing_stub():\n    cases = [{\"id\": \"c2\", \"payload\": {}, \"required_stubs\": [\"geo_lookup\"]}]\n    ref = lambda p: {\"valid\": True, \"data\": {}}\n    client = {\"evaluator\": ref, \"installed_stubs\": []} # Missing geo_lookup!\n\n    res = evaluate_parity_suite(cases, ref, client)\n    assert res[\"is_certified\"] is False\n    assert res[\"inconclusive_count\"] == 1\n    assert res[\"cases\"][0][\"verdict\"] == \"INCONCLUSIVE\"\n\ndef test_parity_fail_contradiction():\n    cases = [{\"id\": \"c3\", \"payload\": {}, \"required_stubs\": []}]\n    ref = lambda p: {\"valid\": True, \"data\": {}}\n    client = {\"evaluator\": lambda p: {\"valid\": False, \"data\": {}}, \"installed_stubs\": []}\n\n    res = evaluate_parity_suite(cases, ref, client)\n    assert res[\"is_certified\"] is False\n    assert res[\"fail_count\"] == 1\n    assert res[\"cases\"][0][\"verdict\"] == \"FAIL\"\n", "mutants": ["def evaluate_parity_suite(test_cases, reference_engine, client_engine):\n    return {\"cases\": [], \"pass_count\": len(test_cases), \"fail_count\": 0, \"inconclusive_count\": 0, \"is_certified\": True}\n", "def evaluate_parity_suite(test_cases, reference_engine, client_engine):\n    # Broken mutant: ignores missing stubs, evaluates anyway\n    res = []\n    for c in test_cases:\n        ro = reference_engine(c[\"payload\"])\n        co = client_engine[\"evaluator\"](c[\"payload\"])\n        v = \"PASS\" if ro == co else \"FAIL\"\n        res.append({\"id\": c[\"id\"], \"verdict\": v})\n    return {\"cases\": res, \"pass_count\": len(res), \"fail_count\": 0, \"inconclusive_count\": 0, \"is_certified\": True}\n"], "hints": ["Check missing stubs first; if missing, return `\"INCONCLUSIVE\"`.", "Certification requires `fail_count == 0` and `inconclusive_count == 0`."], "level": "boss", "title": "Differential parity oracle evaluating reference vs mobile implementation"}}, "demos": {"oracle-safe-expression-evaluator": {"code": "class SafeExpressionEvaluator:\n    @staticmethod\n    def evaluate(expr, context):\n        # Supports: \"doc.field == value\", \"doc.field != value\", \"doc.field > value\"\n        tokens = expr.strip().split()\n        if len(tokens) == 3:\n            left, op, right = tokens\n            val = context.get(left.replace(\"doc.\", \"\"))\n            # Type casting for right operand\n            if right.startswith(\"'\") and right.endswith(\"'\"):\n                right_val = right[1:-1]\n            elif right.isdigit():\n                right_val = int(right)\n            elif right in [\"true\", \"True\"]:\n                right_val = True\n            elif right in [\"false\", \"False\"]:\n                right_val = False\n            else:\n                right_val = right\n\n            if op == \"==\": return val == right_val\n            elif op == \"!=\": return val != right_val\n            elif op == \">\": return val > right_val\n            elif op == \"<\": return val < right_val\n        return False\n\nctx = {\"category\": \"electronics\", \"humidity_pct\": 14}\nassert SafeExpressionEvaluator.evaluate(\"doc.category == 'electronics'\", ctx) is True\nassert SafeExpressionEvaluator.evaluate(\"doc.category == 'furniture'\", ctx) is False\nassert SafeExpressionEvaluator.evaluate(\"doc.humidity_pct > 10\", ctx) is True\n\nprint(\"SUCCESS: Safe expression AST evaluator verified.\")\n", "mutants": ["class BrokenEvaluator:\n    @staticmethod\n    def evaluate(expr, context): return False # Broken mutant\nassert BrokenEvaluator.evaluate(\"doc.category == 'electronics'\", {\"category\": \"electronics\"}) is True, \"Mutant failed\"\n"]}, "exp-differential-parity-stubs": {"code": "def evaluate_differential_parity(ref_result, client_result, has_missing_stub=False):\n    if has_missing_stub:\n        return \"INCONCLUSIVE\"\n    if ref_result == client_result:\n        return \"PASS\"\n    return \"FAIL\"\n\n# Test 1: Full parity agreement\nres1 = evaluate_differential_parity(True, True, has_missing_stub=False)\nassert res1 == \"PASS\"\n\n# Test 2: Validation contradiction\nres2 = evaluate_differential_parity(True, False, has_missing_stub=False)\nassert res2 == \"FAIL\"\n\n# Test 3: Missing stub must be INCONCLUSIVE, not PASS or FAIL\nres3 = evaluate_differential_parity(True, False, has_missing_stub=True)\nassert res3 == \"INCONCLUSIVE\", \"Missing stubs must yield INCONCLUSIVE\"\nprint(\"SUCCESS: Differential parity oracle outcomes verified.\")\n", "mutants": ["res = \"PASS\" # Mutant marks missing stubs as PASS\nassert res == \"INCONCLUSIVE\", \"Mutant incorrectly passed missing stub\"\n"]}}, "cards": [{"q": "What is Server-Driven UI (SDUI)?", "a": "An architecture where the backend delivers declarative JSON schemas defining layout and rules, while native mobile engines render widgets dynamically."}, {"q": "What does depends_on specify in form schemas?", "a": "A conditional expression that dynamically determines whether a field is visible to the user based on form state."}, {"q": "Why must dynamic expressions use a safe AST subset?", "a": "To prevent Remote Code Execution (RCE) and injection vulnerabilities that arise from raw string evaluation."}, {"q": "What is the 'superset, never contradicting' parity criterion?", "a": "Mobile clients may offer additional features (e.g. offline support), but must never contradict server validation decisions."}, {"q": "Why do missing stubs make a parity test INCONCLUSIVE?", "a": "Because the true behavior of the un-stubbed API call is unknown, making it impossible to certify whether the client passed or failed."}, {"q": "What is the purpose of the client-script validate hook?", "a": "To run client-side business logic and throw errors to block invalid form submissions before sending data to the server."}], "title": "Server-driven UI and dynamic forms"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

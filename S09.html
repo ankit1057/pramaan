@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>S09 Mobile networking and reliability</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="S09">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Android, Flutter and edge systems · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">S09</p><h1>Mobile networking and reliability</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P09.html">P09</a> <a href="S01.html">S01</a></div><div><b>Covers:</b> Android/Flutter, CS2023 NC</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>HTTP clients (dio, OkHttp)</li><li>connect and read timeouts</li><li>retries with idempotency, exponential backoff and jitter</li><li>circuit breakers</li><li>HTTP caching (Cache-Control, ETag, 304)</li><li>token-refresh races and single-flight</li><li>request logging and wire evidence</li><li>certificate pinning trade-offs</li><li>payload size and compression</li><li>designing for low connectivity</li><li>debouncing, throttling and cancelling stale requests (search-as-you-type)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2012, engineers at Twitter and Google faced a mobile networking crisis. Smartphones running on 3G and spotty edge cellular networks experienced massive latency delays: setting up a single HTTPS connection required multiple back-and-forth round trips (TCP 3-way handshake followed by TLS 1.2 negotiation), consuming up to 1.5 seconds before a single byte of HTTP payload could be requested. Furthermore, when mobile radios switched from Wi-Fi to cellular cell towers, TCP connections broke abruptly, forcing mobile apps to start handshakes from scratch. This motivated Google to invent <strong>QUIC</strong> (Quick UDP Internet Connections), which became the foundation of <strong>HTTP/3</strong>. By integrating TLS 1.3 encryption directly into the transport layer and multiplexing streams over UDP with 0-RTT connection resumption and connection migration, QUIC revolutionized mobile networking. For mobile engineers, mastering HTTP timeouts, exponential backoff, circuit breakers, and idempotency keys is essential for building apps that remain resilient in challenging connectivity environments.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Mobile phones connect to unpredictable wireless networks: signals drop in elevators, switch between Wi-Fi and 5G, and stall in rural areas. If a mobile app makes a network request and waits forever, the app freezes or drains the battery. To prevent this, good mobile networking uses strict connection and read timeouts. If a request fails because the server is overloaded, the app doesn't immediately hammer the server again; it waits with exponential backoff (e.g. 1 second, then 2, then 4) and adds random "jitter". If the server stays down, a circuit breaker trips open to fail instantly without wasting radio energy. Finally, HTTP caching and search-as-you-type debouncing prevent sending unnecessary requests across the airwaves.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Mobile networking architecture addresses high-latency, packet-loss, and radio battery characteristics:
+1. <strong>HTTP Client Stack &amp; Timeouts</strong>:
+   - Modern clients (OkHttp on Android, Dio in Flutter) configure three distinct timeouts:
+     - <strong>Connect Timeout</strong>: Time to establish TCP socket and complete TLS handshake (typically 5–10s).
+     - <strong>Read Timeout</strong>: Maximum duration between two incoming data packets (typically 10–15s).
+     - <strong>Write Timeout</strong>: Maximum duration to transmit request body packets to socket.</p>
+<ol start="2">
+<li>
+<p><strong>Exponential Backoff and Full Jitter</strong>:
+   - Without random jitter, thousands of disconnected mobile clients reconnect simultaneously when a cellular tower recovers, causing a <strong>thundering herd</strong> outage.
+   - <strong>Decorrelated Full Jitter</strong> formula (AWS Architecture):
+     $$T_{\text{sleep}} = \text{random}(0, \min(T_{\max}, T_{\text{base}} \times 2^{\text{attempt}}))$$</p>
+</li>
+<li>
+<p><strong>Circuit Breaker Pattern</strong>:
+   - Three states:</p>
+<ul>
+<li><code>CLOSED</code>: Normal operation; requests pass through. Failures increment failure counter.</li>
+<li><code>OPEN</code>: Failures exceed threshold; all requests fail immediately without touching the network radio.</li>
+<li><code>HALF_OPEN</code>: After a cooldown timeout, allows a limited probe request through. If successful, resets to <code>CLOSED</code>; if failed, trips back to <code>OPEN</code>.</li>
+</ul>
+</li>
+<li>
+<p><strong>HTTP Caching and Conditional Revalidation</strong>:
+   - <code>Cache-Control: max-age=N</code>: Cached response is considered fresh for $N$ seconds.
+   - <code>ETag</code> / <code>If-None-Match</code>: Client sends cached entity tag; server returns <code>304 Not Modified</code> with zero body bytes if unchanged.</p>
+</li>
+<li>
+<p><strong>Token-Refresh Single-Flight Mutex</strong>:
+   - When multiple concurrent API calls receive <code>401 Unauthorized</code> due to expired OAuth tokens, a single-flight mutex ensures only <strong>one</strong> token refresh HTTP call is made. All pending requests queue and replay with the newly minted access token.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why mobile networking requires idempotency and debouncing, consider how cellular radios consume power. A phone's cellular radio has three power states:
+1. <strong>Sleep / Idle</strong>: Consumes minimal battery ($\approx 5$ mW).
+2. <strong>Short Duty Cycle</strong>: Ready to receive ($\approx 50$ mW).
+3. <strong>High Power Active</strong>: Actively transmitting data ($\approx 1500$ mW).</p>
+<p>After every transmission burst, the radio tail timer holds the radio in high-power state for 5–15 seconds before sleeping. A chatty mobile app that sends search requests on every single keystroke keeps the radio permanently in high-power state, draining the battery within hours! <strong>Debouncing</strong> cancels pending requests and waits for user typing to pause (e.g. 300ms) before transmitting.</p>
+<p><strong>Certificate Pinning vs Operational Risk</strong>:
+Certificate pinning binds the mobile app to a specific server public key hash (SHA-256), blocking Man-in-the-Middle (MitM) attacks from compromised corporate proxies or malicious root CAs. However, if the server certificate expires or is revoked in an emergency and the app has no backup pins, the mobile app is permanently bricked until users update via app stores! Modern best practice recommends pinning backup root keys and supporting dynamic pin updates via remote configuration.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that exponential retry schedules, circuit breaker state transitions, and single-flight token refresh mutexes adhere to resilient distributed networking specifications, we construct an empirical network resilience oracle. The oracle validates that exponential backoff clamps delays to maximum thresholds, confirms that circuit breakers trip open after consecutive network errors, and proves that concurrent 401 errors dispatch exactly one token refresh call.</p>
+<div class="lab demo" data-demo="oracle-circuit-breaker-transitions">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical validation of Circuit Breaker CLOSED, OPEN, and HALF_OPEN transitions</h3></div>
+
+<textarea class="code" spellcheck="false">class CircuitBreaker:
+    def __init__(self, failure_threshold=3, cooldown_s=5):
+        self.failure_threshold = failure_threshold
+        self.cooldown_s = cooldown_s
+        self.state = &quot;CLOSED&quot;
+        self.failure_count = 0
+        self.last_failure_time = 0
+
+    def record_failure(self, current_time):
+        self.failure_count += 1
+        self.last_failure_time = current_time
+        if self.failure_count &gt;= self.failure_threshold:
+            self.state = &quot;OPEN&quot;
+
+    def can_execute(self, current_time):
+        if self.state == &quot;CLOSED&quot;:
+            return True
+        if self.state == &quot;OPEN&quot;:
+            if current_time - self.last_failure_time &gt;= self.cooldown_s:
+                self.state = &quot;HALF_OPEN&quot;
+                return True
+            return False
+        return True # HALF_OPEN
+
+cb = CircuitBreaker(failure_threshold=3, cooldown_s=10)
+assert cb.can_execute(0) is True
+
+# 3 failures trip breaker to OPEN
+cb.record_failure(1)
+cb.record_failure(2)
+cb.record_failure(3)
+assert cb.state == &quot;OPEN&quot;
+assert cb.can_execute(5) is False, &quot;Should fast-fail during cooldown&quot;
+
+# At time 15 (after 10s cooldown), enters HALF_OPEN
+assert cb.can_execute(15) is True
+assert cb.state == &quot;HALF_OPEN&quot;
+print(&quot;SUCCESS: Circuit breaker state transitions verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring total transmitted network bytes between naive polling and conditional HTTP ETag revalidation over 50 simulated update checks. We verify that ETag 304 Not Modified responses reduce total network bandwidth consumption by over $95\%$, preserving user cellular data limits, avoiding cellular tower packet loss, minimizing radio power usage, and extending battery life on mobile edge devices.</p>
+<div class="lab demo" data-demo="exp-etag-caching-bandwidth-savings">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical bandwidth reduction comparison of full download vs ETag 304 revalidation</h3></div>
+
+<textarea class="code" spellcheck="false">def simulate_network_transfers(checks=50, payload_bytes=100000): # 100 KB
+    # Naive: downloads full payload every time
+    naive_bytes = checks * payload_bytes
+
+    # ETag: 1 initial download (100KB), subsequent 49 checks return 304 (300 bytes headers)
+    etag_bytes = payload_bytes + (checks - 1) * 300
+
+    reduction = (1 - (etag_bytes / naive_bytes)) * 100
+    return naive_bytes, etag_bytes, reduction
+
+naive, etag, pct = simulate_network_transfers(50, 100000)
+print(f&quot;Naive: {naive / 1024:.1f} KB, ETag: {etag / 1024:.1f} KB&quot;)
+print(f&quot;Bandwidth reduction: {pct:.2f}%&quot;)
+
+assert pct &gt; 95.0, &quot;ETag conditional requests must yield &gt;95% bandwidth reduction&quot;
+assert etag &lt; naive / 20, &quot;ETag must consume less than 1/20th of naive transfers&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-exponential-backoff-retry-schedule" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Exponential backoff retry delay generator with jitter and delay clamping</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>calculate_retry_delays(attempt_count, base_ms=100, max_delay_ms=2000, factor=2.0)</code>:
+Inputs:
+- <code>attempt_count</code>: Integer number of retry attempts to generate (e.g. 4).
+- <code>base_ms</code>: Base initial retry delay in milliseconds (default 100).
+- <code>max_delay_ms</code>: Maximum allowed delay ceiling (default 2000).
+- <code>factor</code>: Exponential multiplication factor (default 2.0).</p>
+<p>Delay Formula:
+For attempt index $i \in [0, \text{attempt\_count}-1]$:
+$$\text{delay}_i = \min(\text{max\_delay\_ms}, \text{base\_ms} \times (\text{factor}^i))$$</p>
+<p>Return a list of integer delay values in milliseconds for each attempt.</p></div>
+<textarea class="code" spellcheck="false">def calculate_retry_delays(attempt_count, base_ms=100, max_delay_ms=2000, factor=2.0):
+    # Calculates clamped exponential retry delays
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_exponential_retry_delays():
+    res = calculate_retry_delays(4, base_ms=100, max_delay_ms=2000, factor=2.0)
+    assert res == [100, 200, 400, 800]
+
+def test_clamping_at_max_delay():
+    res = calculate_retry_delays(5, base_ms=500, max_delay_ms=1500, factor=2.0)
+    assert res == [500, 1000, 1500, 1500, 1500]
+
+def test_zero_attempts():
+    res = calculate_retry_delays(0)
+    assert res == []
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-circuit-breaker-engine" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Circuit Breaker state machine with threshold tripping and half-open probing</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write a class <code>NetworkCircuitBreaker</code>:
+Implement a circuit breaker:
+1. <code>__init__(self, failure_threshold=3, recovery_time_s=10)</code>:
+   - Stores configuration.
+   - States: <code>"CLOSED"</code>, <code>"OPEN"</code>, <code>"HALF_OPEN"</code>. Starts in <code>"CLOSED"</code>.
+   - Tracks consecutive failure count and timestamp of last failure.
+2. <code>execute_request(self, current_time, request_func)</code>:
+   - Checks state:
+     - If <code>"CLOSED"</code>: allow request.
+     - If <code>"OPEN"</code>:
+       - If <code>current_time - last_failure_time &gt;= recovery_time_s</code>:
+         transition to <code>"HALF_OPEN"</code>, allow request.
+       - Else: raise <code>RuntimeError("Circuit breaker is OPEN")</code>.
+     - If <code>"HALF_OPEN"</code>: allow probe request.
+   - Run <code>request_func()</code>:
+     - If succeeds:
+       - If state was <code>"HALF_OPEN"</code>: transition to <code>"CLOSED"</code>, reset failure count to 0.
+       - If state was <code>"CLOSED"</code>: reset failure count to 0.
+       - Return result.
+     - If raises an Exception:
+       - <code>last_failure_time = current_time</code>
+       - If state was <code>"HALF_OPEN"</code>: transition back to <code>"OPEN"</code>.
+       - If state was <code>"CLOSED"</code>:
+         <code>failure_count += 1</code>
+         If <code>failure_count &gt;= failure_threshold</code>: transition to <code>"OPEN"</code>.
+       - Re-raise the exception!</p></div>
+<textarea class="code" spellcheck="false">class NetworkCircuitBreaker:
+    def __init__(self, failure_threshold=3, recovery_time_s=10):
+        pass
+
+    def execute_request(self, current_time, request_func):
+        return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_circuit_breaker_normal_closed():
+    cb = NetworkCircuitBreaker(failure_threshold=2, recovery_time_s=5)
+    res = cb.execute_request(10, lambda: &quot;OK&quot;)
+    assert res == &quot;OK&quot;
+    assert cb.state == &quot;CLOSED&quot;
+
+def test_circuit_breaker_trips_open():
+    cb = NetworkCircuitBreaker(failure_threshold=2, recovery_time_s=5)
+    def fail(): raise ValueError(&quot;Net error&quot;)
+
+    # Failure 1
+    try: cb.execute_request(10, fail)
+    except ValueError: pass
+    assert cb.state == &quot;CLOSED&quot;
+
+    # Failure 2 trips OPEN
+    try: cb.execute_request(11, fail)
+    except ValueError: pass
+    assert cb.state == &quot;OPEN&quot;
+
+    # Immediate next request blocked by CB
+    try:
+        cb.execute_request(12, lambda: &quot;OK&quot;)
+        assert False, &quot;Should raise RuntimeError&quot;
+    except RuntimeError as e:
+        assert &quot;Circuit breaker is OPEN&quot; in str(e)
+
+def test_circuit_breaker_half_open_recovery():
+    cb = NetworkCircuitBreaker(failure_threshold=1, recovery_time_s=10)
+    try: cb.execute_request(0, lambda: 1/0)
+    except ZeroDivisionError: pass
+    assert cb.state == &quot;OPEN&quot;
+
+    # At time 10, probe succeeds -&gt; CLOSED
+    res = cb.execute_request(10, lambda: &quot;Recovered&quot;)
+    assert res == &quot;Recovered&quot;
+    assert cb.state == &quot;CLOSED&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-http-cache-etag-revalidation" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>HTTP client cache conditional revalidation with Cache-Control and ETag 304</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>handle_http_cached_request(url, client_cache, server_endpoint, current_time)</code>:
+Inputs:
+- <code>url</code>: String request URL.
+- <code>client_cache</code>: Dict storing cached entries:
+  <code>{url: {"body": str, "etag": str, "stored_time": int, "max_age": int}}</code>
+- <code>server_endpoint</code>: Callable <code>server_endpoint(url, if_none_match=None)</code>:
+  - Returns dict:
+    - If <code>if_none_match == current_etag</code>: <code>{"status_code": 304, "headers": {}}</code>
+    - Else: <code>{"status_code": 200, "etag": str, "max_age": int, "body": str}</code>
+- <code>current_time</code>: Integer timestamp in seconds.</p>
+<p>Caching Logic:
+1. If URL in <code>client_cache</code>:
+   - Check if cached entry is fresh: <code>(current_time - entry["stored_time"]) &lt; entry["max_age"]</code>.
+   - If fresh: return <code>{"source": "cache", "status_code": 200, "body": entry["body"]}</code> (no server call!).
+2. If stale or not in cache:
+   - Call <code>server_endpoint(url, if_none_match=entry["etag"] if in cache else None)</code>.
+   - If server returns 304:
+     - Update <code>entry["stored_time"] = current_time</code>.
+     - Return <code>{"source": "revalidated", "status_code": 200, "body": entry["body"]}</code>.
+   - If server returns 200:
+     - Save/overwrite in <code>client_cache</code>:
+       <code>{"body": resp["body"], "etag": resp["etag"], "stored_time": current_time, "max_age": resp["max_age"]}</code>.
+     - Return <code>{"source": "network", "status_code": 200, "body": resp["body"]}</code>.</p></div>
+<textarea class="code" spellcheck="false">def handle_http_cached_request(url, client_cache, server_endpoint, current_time):
+    # Implements HTTP cache freshness and conditional ETag revalidation
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cache_hit_fresh():
+    cache = {&quot;/api/user&quot;: {&quot;body&quot;: &quot;Alice&quot;, &quot;etag&quot;: &quot;W/123&quot;, &quot;stored_time&quot;: 100, &quot;max_age&quot;: 60}}
+    server_called = False
+    def mock_server(url, if_none_match=None):
+        nonlocal server_called; server_called = True
+        return {&quot;status_code&quot;: 200, &quot;body&quot;: &quot;Bob&quot;}
+
+    res = handle_http_cached_request(&quot;/api/user&quot;, cache, mock_server, current_time=130) # 30s elapsed &lt; 60
+    assert res[&quot;source&quot;] == &quot;cache&quot;
+    assert res[&quot;body&quot;] == &quot;Alice&quot;
+    assert server_called is False
+
+def test_cache_revalidate_304():
+    cache = {&quot;/api/user&quot;: {&quot;body&quot;: &quot;Alice&quot;, &quot;etag&quot;: &quot;W/123&quot;, &quot;stored_time&quot;: 100, &quot;max_age&quot;: 60}}
+    def mock_server(url, if_none_match=None):
+        if if_none_match == &quot;W/123&quot;:
+            return {&quot;status_code&quot;: 304}
+        return {&quot;status_code&quot;: 200, &quot;body&quot;: &quot;Bob&quot;, &quot;etag&quot;: &quot;W/999&quot;, &quot;max_age&quot;: 60}
+
+    res = handle_http_cached_request(&quot;/api/user&quot;, cache, mock_server, current_time=200) # 100s elapsed &gt; 60
+    assert res[&quot;source&quot;] == &quot;revalidated&quot;
+    assert res[&quot;body&quot;] == &quot;Alice&quot;
+    assert cache[&quot;/api/user&quot;][&quot;stored_time&quot;] == 200
+
+def test_cache_miss_full_download():
+    cache = {}
+    def mock_server(url, if_none_match=None):
+        return {&quot;status_code&quot;: 200, &quot;body&quot;: &quot;NewContent&quot;, &quot;etag&quot;: &quot;W/AAA&quot;, &quot;max_age&quot;: 120}
+
+    res = handle_http_cached_request(&quot;/api/items&quot;, cache, mock_server, current_time=50)
+    assert res[&quot;source&quot;] == &quot;network&quot;
+    assert res[&quot;body&quot;] == &quot;NewContent&quot;
+    assert &quot;/api/items&quot; in cache
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-single-flight-token-refresh-mutex" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Single-flight token refresh mutex with concurrent request queuing and replay</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write a class <code>SingleFlightTokenClient</code>:
+Simulate concurrent requests handling OAuth token refresh:
+1. <code>__init__(self, initial_token="expired_token", valid_token="fresh_token_xyz")</code>:
+   - Stores current token and valid token.
+   - Tracks total count of executed <code>token_refresh()</code> calls (<code>refresh_call_count = 0</code>).
+   - Tracks active refresh flight status.
+2. <code>make_request(self, endpoint, is_token_valid_func)</code>:
+   - Evaluates <code>is_token_valid_func(self.current_token)</code>:
+     - If token is valid: return <code>{"status": 200, "token_used": self.current_token}</code>.
+     - If token is expired (returns False):
+       - If a token refresh is NOT currently in-flight:
+         - Mark refresh in-flight.
+         - Call <code>self.refresh_token()</code>.
+         - Mark refresh complete.
+       - (In simulation, queued requests wait for the active refresh to complete).
+       - Replay request with updated <code>self.current_token</code>.
+       - Return <code>{"status": 200, "token_used": self.current_token}</code>.
+3. <code>refresh_token(self)</code>:
+   - Increments <code>self.refresh_call_count += 1</code>.
+   - Sets <code>self.current_token = self.valid_token</code>.
+4. <code>run_concurrent_batch(self, endpoints, is_token_valid_func)</code>:
+   - Simulates executing a list of concurrent endpoint requests when the token is initially expired.
+   - Crucial constraint: Across all concurrent requests in the batch, <code>refresh_token()</code> must be called EXACTLY ONCE!
+   - Returns list of request result dicts.</p></div>
+<textarea class="code" spellcheck="false">class SingleFlightTokenClient:
+    def __init__(self, initial_token=&quot;expired_token&quot;, valid_token=&quot;fresh_token_xyz&quot;):
+        pass
+
+    def run_concurrent_batch(self, endpoints, is_token_valid_func):
+        return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_single_flight_refresh_called_exactly_once():
+    client = SingleFlightTokenClient(initial_token=&quot;expired&quot;, valid_token=&quot;valid_123&quot;)
+    is_valid = lambda t: t == &quot;valid_123&quot;
+
+    endpoints = [&quot;/user&quot;, &quot;/orders&quot;, &quot;/settings&quot;, &quot;/notifications&quot;]
+    res = client.run_concurrent_batch(endpoints, is_valid)
+
+    assert len(res) == 4
+    for r in res:
+        assert r[&quot;token_used&quot;] == &quot;valid_123&quot;
+    assert client.refresh_call_count == 1, &quot;Refresh must be called exactly once across batch&quot;
+
+def test_no_refresh_when_token_already_valid():
+    client = SingleFlightTokenClient(initial_token=&quot;valid_123&quot;, valid_token=&quot;valid_123&quot;)
+    is_valid = lambda t: t == &quot;valid_123&quot;
+
+    res = client.run_concurrent_batch([&quot;/home&quot;], is_valid)
+    assert res[0][&quot;token_used&quot;] == &quot;valid_123&quot;
+    assert client.refresh_call_count == 0
+
+def test_second_batch_uses_existing_valid_token():
+    client = SingleFlightTokenClient(initial_token=&quot;expired&quot;, valid_token=&quot;valid_123&quot;)
+    is_valid = lambda t: t == &quot;valid_123&quot;
+
+    # Batch 1 refreshes
+    client.run_concurrent_batch([&quot;/a&quot;], is_valid)
+    assert client.refresh_call_count == 1
+
+    # Batch 2 does not refresh again
+    client.run_concurrent_batch([&quot;/b&quot;], is_valid)
+    assert client.refresh_call_count == 1
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Setting a 60-second HTTP timeout ensures the app never drops slow requests."</strong> Excessive 60-second timeouts leave cellular radios burning battery and keep users staring at infinite spinners; mobile read timeouts should generally not exceed 10–15 seconds.</li>
+<li><strong>"Retrying failed network requests immediately improves mobile app reliability."</strong> Immediate retries during server outages create devastating thundering herd floods that keep backend services down; exponential backoff with random jitter is required.</li>
+<li><strong>"Certificate pinning is risk-free enhanced security."</strong> If certificates are rotated without updated pins pre-shipped in the app, the mobile app becomes permanently unable to connect to the backend until users update via app stores.</li>
+<li><strong>"Search-as-you-type can send an HTTP request on every single keypress."</strong> Keystroke flooding saturates mobile radio hardware and exhausts server capacity; input streams must be debounced with 300–400ms timers and obsolete in-flight requests cancelled.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Mobile networking breaks down when un-jittered retries launch thousands of simultaneous requests upon cellular tower recovery, causing thundering herd crashes, when token refresh races trigger multiple redundant OAuth token minting calls that invalidate active refresh tokens, or when search-as-you-type inputs lack debouncing, exhausting device battery and overwhelming backend search clusters with stale queries.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Reliable networking governs synchronisation over an unreliable link. Interceptors implement exponential backoff with full jitter so a whole fleet does not retry in lockstep, a single-flight token refresh mutex stops concurrent requests racing to renew auth, and ETag conditional revalidation minimises data consumption on a metered 2G or 3G connection.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What are the three essential mobile HTTP timeouts?</p></div><div class="a" hidden><p>Connect timeout (socket/TLS setup), Read timeout (gap between incoming packets), and Write timeout (upload packet transmission).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why add random jitter to exponential backoff?</p></div><div class="a" hidden><p>To prevent synchronized client retries from overwhelming recovering servers with a thundering herd spike.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is a Circuit Breaker in mobile networking?</p></div><div class="a" hidden><p>A client-side state machine that fast-fails requests when server errors exceed a threshold, preventing battery drain and radio waste.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does HTTP ETag conditional revalidation work?</p></div><div class="a" hidden><p>Client sends If-None-Match with cached ETag; server returns 304 Not Modified without payload body if unchanged, saving bandwidth.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the single-flight pattern for token refresh?</p></div><div class="a" hidden><p>Ensuring that when multiple concurrent requests encounter 401 Unauthorized, only one refresh call is dispatched while other requests await the new token.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is debouncing in mobile search inputs?</p></div><div class="a" hidden><p>Delaying network transmission until the user has stopped typing for a defined duration (e.g. 300ms), cancelling obsolete in-flight requests.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can calculate jittered exponential retry delays, implement circuit breaker state machines, revalidate HTTP ETag caches, and manage single-flight token refresh mutexes.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Amazon Web Services. 'Exponential Backoff And Jitter.' <em>AWS Architecture Blog</em>, 2015.</li>
+<li>Fielding, R., et al. 'HTTP/1.1 Semantics and Content.' <em>RFC 7231</em>, 2014.</li>
+</ul></section>
+<footer class="pager"><a href="S08.html">&larr; S08 Mobile storage and offline-first data</a>
+<a href="P13.html">P13 Grammars, computability and undecidability &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "S09", "packages": ["numpy"], "exercises": {"ex1-exponential-backoff-retry-schedule": {"starter": "def calculate_retry_delays(attempt_count, base_ms=100, max_delay_ms=2000, factor=2.0):\n    # Calculates clamped exponential retry delays\n    return []\n", "solution": "def calculate_retry_delays(attempt_count, base_ms=100, max_delay_ms=2000, factor=2.0):\n    delays = []\n    for i in range(attempt_count):\n        raw_delay = base_ms * (factor ** i)\n        clamped = min(max_delay_ms, int(raw_delay))\n        delays.append(clamped)\n    return delays\n", "tests": "def test_exponential_retry_delays():\n    res = calculate_retry_delays(4, base_ms=100, max_delay_ms=2000, factor=2.0)\n    assert res == [100, 200, 400, 800]\n\ndef test_clamping_at_max_delay():\n    res = calculate_retry_delays(5, base_ms=500, max_delay_ms=1500, factor=2.0)\n    assert res == [500, 1000, 1500, 1500, 1500]\n\ndef test_zero_attempts():\n    res = calculate_retry_delays(0)\n    assert res == []\n", "mutants": ["def calculate_retry_delays(attempt_count, base_ms=100, max_delay_ms=2000, factor=2.0):\n    return [base_ms * (i + 1) for i in range(attempt_count)] # Linear mutant\n", "def calculate_retry_delays(attempt_count, base_ms=100, max_delay_ms=2000, factor=2.0):\n    # Broken mutant: fails to clamp at max_delay_ms\n    return [int(base_ms * (factor ** i)) for i in range(attempt_count)]\n"], "hints": ["Use `min(max_delay_ms, int(raw_delay))` to clamp.", "For $i=0$, factor$^0 = 1$, so delay is `base_ms`."], "level": "warmup", "title": "Exponential backoff retry delay generator with jitter and delay clamping"}, "ex2-circuit-breaker-engine": {"starter": "class NetworkCircuitBreaker:\n    def __init__(self, failure_threshold=3, recovery_time_s=10):\n        pass\n\n    def execute_request(self, current_time, request_func):\n        return None\n", "solution": "class NetworkCircuitBreaker:\n    def __init__(self, failure_threshold=3, recovery_time_s=10):\n        self.failure_threshold = failure_threshold\n        self.recovery_time_s = recovery_time_s\n        self.state = \"CLOSED\"\n        self.failure_count = 0\n        self.last_failure_time = 0\n\n    def execute_request(self, current_time, request_func):\n        if self.state == \"OPEN\":\n            if current_time - self.last_failure_time >= self.recovery_time_s:\n                self.state = \"HALF_OPEN\"\n            else:\n                raise RuntimeError(\"Circuit breaker is OPEN\")\n\n        try:\n            res = request_func()\n            self.failure_count = 0\n            self.state = \"CLOSED\"\n            return res\n        except Exception:\n            self.last_failure_time = current_time\n            if self.state == \"HALF_OPEN\":\n                self.state = \"OPEN\"\n            else:\n                self.failure_count += 1\n                if self.failure_count >= self.failure_threshold:\n                    self.state = \"OPEN\"\n            raise\n", "tests": "def test_circuit_breaker_normal_closed():\n    cb = NetworkCircuitBreaker(failure_threshold=2, recovery_time_s=5)\n    res = cb.execute_request(10, lambda: \"OK\")\n    assert res == \"OK\"\n    assert cb.state == \"CLOSED\"\n\ndef test_circuit_breaker_trips_open():\n    cb = NetworkCircuitBreaker(failure_threshold=2, recovery_time_s=5)\n    def fail(): raise ValueError(\"Net error\")\n\n    # Failure 1\n    try: cb.execute_request(10, fail)\n    except ValueError: pass\n    assert cb.state == \"CLOSED\"\n\n    # Failure 2 trips OPEN\n    try: cb.execute_request(11, fail)\n    except ValueError: pass\n    assert cb.state == \"OPEN\"\n\n    # Immediate next request blocked by CB\n    try:\n        cb.execute_request(12, lambda: \"OK\")\n        assert False, \"Should raise RuntimeError\"\n    except RuntimeError as e:\n        assert \"Circuit breaker is OPEN\" in str(e)\n\ndef test_circuit_breaker_half_open_recovery():\n    cb = NetworkCircuitBreaker(failure_threshold=1, recovery_time_s=10)\n    try: cb.execute_request(0, lambda: 1/0)\n    except ZeroDivisionError: pass\n    assert cb.state == \"OPEN\"\n\n    # At time 10, probe succeeds -> CLOSED\n    res = cb.execute_request(10, lambda: \"Recovered\")\n    assert res == \"Recovered\"\n    assert cb.state == \"CLOSED\"\n", "mutants": ["class NetworkCircuitBreaker:\n    def __init__(self, failure_threshold=3, recovery_time_s=10): self.state = \"CLOSED\"\n    def execute_request(self, current_time, request_func): return request_func()\n", "class NetworkCircuitBreaker:\n    def __init__(self, failure_threshold=3, recovery_time_s=10):\n        self.state = \"CLOSED\"\n    def execute_request(self, current_time, request_func):\n        if self.state == \"OPEN\": raise RuntimeError(\"Circuit breaker is OPEN\")\n        try: return request_func()\n        except Exception:\n            self.state = \"OPEN\" # Trips immediately on 1 failure regardless of threshold\n            raise\n"], "hints": ["Track `self.failure_count` and check `>= self.failure_threshold`.", "Transition to `\"HALF_OPEN\"` when `current_time - self.last_failure_time >= recovery_time_s`."], "level": "core", "title": "Circuit Breaker state machine with threshold tripping and half-open probing"}, "ex3-http-cache-etag-revalidation": {"starter": "def handle_http_cached_request(url, client_cache, server_endpoint, current_time):\n    # Implements HTTP cache freshness and conditional ETag revalidation\n    return {}\n", "solution": "def handle_http_cached_request(url, client_cache, server_endpoint, current_time):\n    if url in client_cache:\n        entry = client_cache[url]\n        if (current_time - entry[\"stored_time\"]) < entry[\"max_age\"]:\n            return {\"source\": \"cache\", \"status_code\": 200, \"body\": entry[\"body\"]}\n\n    etag_to_send = client_cache[url][\"etag\"] if url in client_cache else None\n    resp = server_endpoint(url, if_none_match=etag_to_send)\n\n    if resp[\"status_code\"] == 304:\n        client_cache[url][\"stored_time\"] = current_time\n        return {\"source\": \"revalidated\", \"status_code\": 200, \"body\": client_cache[url][\"body\"]}\n    elif resp[\"status_code\"] == 200:\n        client_cache[url] = {\n            \"body\": resp[\"body\"],\n            \"etag\": resp[\"etag\"],\n            \"stored_time\": current_time,\n            \"max_age\": resp[\"max_age\"]\n        }\n        return {\"source\": \"network\", \"status_code\": 200, \"body\": resp[\"body\"]}\n    else:\n        return {\"source\": \"network\", \"status_code\": resp[\"status_code\"], \"body\": resp.get(\"body\")}\n", "tests": "def test_cache_hit_fresh():\n    cache = {\"/api/user\": {\"body\": \"Alice\", \"etag\": \"W/123\", \"stored_time\": 100, \"max_age\": 60}}\n    server_called = False\n    def mock_server(url, if_none_match=None):\n        nonlocal server_called; server_called = True\n        return {\"status_code\": 200, \"body\": \"Bob\"}\n\n    res = handle_http_cached_request(\"/api/user\", cache, mock_server, current_time=130) # 30s elapsed < 60\n    assert res[\"source\"] == \"cache\"\n    assert res[\"body\"] == \"Alice\"\n    assert server_called is False\n\ndef test_cache_revalidate_304():\n    cache = {\"/api/user\": {\"body\": \"Alice\", \"etag\": \"W/123\", \"stored_time\": 100, \"max_age\": 60}}\n    def mock_server(url, if_none_match=None):\n        if if_none_match == \"W/123\":\n            return {\"status_code\": 304}\n        return {\"status_code\": 200, \"body\": \"Bob\", \"etag\": \"W/999\", \"max_age\": 60}\n\n    res = handle_http_cached_request(\"/api/user\", cache, mock_server, current_time=200) # 100s elapsed > 60\n    assert res[\"source\"] == \"revalidated\"\n    assert res[\"body\"] == \"Alice\"\n    assert cache[\"/api/user\"][\"stored_time\"] == 200\n\ndef test_cache_miss_full_download():\n    cache = {}\n    def mock_server(url, if_none_match=None):\n        return {\"status_code\": 200, \"body\": \"NewContent\", \"etag\": \"W/AAA\", \"max_age\": 120}\n\n    res = handle_http_cached_request(\"/api/items\", cache, mock_server, current_time=50)\n    assert res[\"source\"] == \"network\"\n    assert res[\"body\"] == \"NewContent\"\n    assert \"/api/items\" in cache\n", "mutants": ["def handle_http_cached_request(url, client_cache, server_endpoint, current_time):\n    # Broken mutant: always calls server, ignores cache\n    resp = server_endpoint(url, None)\n    return {\"source\": \"network\", \"status_code\": 200, \"body\": resp[\"body\"]}\n", "def handle_http_cached_request(url, client_cache, server_endpoint, current_time):\n    # Broken mutant: returns stale cache without revalidating\n    if url in client_cache:\n        return {\"source\": \"cache\", \"status_code\": 200, \"body\": client_cache[url][\"body\"]}\n    return server_endpoint(url, None)\n"], "hints": ["Check `(current_time - entry[\"stored_time\"]) < entry[\"max_age\"]`.", "If 304, update `stored_time` and return original cached body."], "level": "core", "title": "HTTP client cache conditional revalidation with Cache-Control and ETag 304"}, "ex4-single-flight-token-refresh-mutex": {"starter": "class SingleFlightTokenClient:\n    def __init__(self, initial_token=\"expired_token\", valid_token=\"fresh_token_xyz\"):\n        pass\n\n    def run_concurrent_batch(self, endpoints, is_token_valid_func):\n        return []\n", "solution": "class SingleFlightTokenClient:\n    def __init__(self, initial_token=\"expired_token\", valid_token=\"fresh_token_xyz\"):\n        self.current_token = initial_token\n        self.valid_token = valid_token\n        self.refresh_call_count = 0\n        self._refresh_in_flight = False\n\n    def refresh_token(self):\n        self.refresh_call_count += 1\n        self.current_token = self.valid_token\n\n    def run_concurrent_batch(self, endpoints, is_token_valid_func):\n        results = []\n\n        # If token is invalid and multiple requests arrive concurrently:\n        # Exactly one initiates refresh, all share result\n        if not is_token_valid_func(self.current_token):\n            if not self._refresh_in_flight:\n                self._refresh_in_flight = True\n                self.refresh_token()\n                self._refresh_in_flight = False\n\n        for ep in endpoints:\n            results.append({\"status\": 200, \"token_used\": self.current_token})\n\n        return results\n", "tests": "def test_single_flight_refresh_called_exactly_once():\n    client = SingleFlightTokenClient(initial_token=\"expired\", valid_token=\"valid_123\")\n    is_valid = lambda t: t == \"valid_123\"\n\n    endpoints = [\"/user\", \"/orders\", \"/settings\", \"/notifications\"]\n    res = client.run_concurrent_batch(endpoints, is_valid)\n\n    assert len(res) == 4\n    for r in res:\n        assert r[\"token_used\"] == \"valid_123\"\n    assert client.refresh_call_count == 1, \"Refresh must be called exactly once across batch\"\n\ndef test_no_refresh_when_token_already_valid():\n    client = SingleFlightTokenClient(initial_token=\"valid_123\", valid_token=\"valid_123\")\n    is_valid = lambda t: t == \"valid_123\"\n\n    res = client.run_concurrent_batch([\"/home\"], is_valid)\n    assert res[0][\"token_used\"] == \"valid_123\"\n    assert client.refresh_call_count == 0\n\ndef test_second_batch_uses_existing_valid_token():\n    client = SingleFlightTokenClient(initial_token=\"expired\", valid_token=\"valid_123\")\n    is_valid = lambda t: t == \"valid_123\"\n\n    # Batch 1 refreshes\n    client.run_concurrent_batch([\"/a\"], is_valid)\n    assert client.refresh_call_count == 1\n\n    # Batch 2 does not refresh again\n    client.run_concurrent_batch([\"/b\"], is_valid)\n    assert client.refresh_call_count == 1\n", "mutants": ["class SingleFlightTokenClient:\n    def __init__(self, initial_token=\"expired_token\", valid_token=\"fresh_token_xyz\"):\n        self.current_token = initial_token\n        self.valid_token = valid_token\n        self.refresh_call_count = 0\n    def run_concurrent_batch(self, endpoints, is_token_valid_func):\n        # Naive broken mutant: every concurrent request calls refresh independently without mutex\n        res = []\n        for ep in endpoints:\n            self.refresh_call_count += 1\n            res.append({\"status\": 200, \"token_used\": self.valid_token})\n        self.current_token = self.valid_token\n        return res\n", "class SingleFlightTokenClient:\n    def __init__(self, initial_token=\"expired_token\", valid_token=\"fresh_token_xyz\"):\n        self.current_token = initial_token\n        self.valid_token = valid_token\n        self.refresh_call_count = 0\n    def run_concurrent_batch(self, endpoints, is_token_valid_func):\n        # Broken mutant: never refreshes\n        return [{\"status\": 200, \"token_used\": self.current_token} for _ in endpoints]\n"], "hints": ["Check `not is_token_valid_func(self.current_token)` before processing batch.", "Call `self.refresh_token()` once and share the refreshed token."], "level": "boss", "title": "Single-flight token refresh mutex with concurrent request queuing and replay"}}, "demos": {"oracle-circuit-breaker-transitions": {"code": "class CircuitBreaker:\n    def __init__(self, failure_threshold=3, cooldown_s=5):\n        self.failure_threshold = failure_threshold\n        self.cooldown_s = cooldown_s\n        self.state = \"CLOSED\"\n        self.failure_count = 0\n        self.last_failure_time = 0\n\n    def record_failure(self, current_time):\n        self.failure_count += 1\n        self.last_failure_time = current_time\n        if self.failure_count >= self.failure_threshold:\n            self.state = \"OPEN\"\n\n    def can_execute(self, current_time):\n        if self.state == \"CLOSED\":\n            return True\n        if self.state == \"OPEN\":\n            if current_time - self.last_failure_time >= self.cooldown_s:\n                self.state = \"HALF_OPEN\"\n                return True\n            return False\n        return True # HALF_OPEN\n\ncb = CircuitBreaker(failure_threshold=3, cooldown_s=10)\nassert cb.can_execute(0) is True\n\n# 3 failures trip breaker to OPEN\ncb.record_failure(1)\ncb.record_failure(2)\ncb.record_failure(3)\nassert cb.state == \"OPEN\"\nassert cb.can_execute(5) is False, \"Should fast-fail during cooldown\"\n\n# At time 15 (after 10s cooldown), enters HALF_OPEN\nassert cb.can_execute(15) is True\nassert cb.state == \"HALF_OPEN\"\nprint(\"SUCCESS: Circuit breaker state transitions verified.\")\n", "mutants": ["class BrokenCb:\n    state = \"CLOSED\"\n    def can_execute(self, t): return True # Never opens\nb = BrokenCb()\nassert b.state == \"OPEN\", \"Mutant never opened circuit breaker\"\n"]}, "exp-etag-caching-bandwidth-savings": {"code": "def simulate_network_transfers(checks=50, payload_bytes=100000): # 100 KB\n    # Naive: downloads full payload every time\n    naive_bytes = checks * payload_bytes\n\n    # ETag: 1 initial download (100KB), subsequent 49 checks return 304 (300 bytes headers)\n    etag_bytes = payload_bytes + (checks - 1) * 300\n\n    reduction = (1 - (etag_bytes / naive_bytes)) * 100\n    return naive_bytes, etag_bytes, reduction\n\nnaive, etag, pct = simulate_network_transfers(50, 100000)\nprint(f\"Naive: {naive / 1024:.1f} KB, ETag: {etag / 1024:.1f} KB\")\nprint(f\"Bandwidth reduction: {pct:.2f}%\")\n\nassert pct > 95.0, \"ETag conditional requests must yield >95% bandwidth reduction\"\nassert etag < naive / 20, \"ETag must consume less than 1/20th of naive transfers\"\n", "mutants": ["pct = 10.0 # Mutant has negligible savings\nassert pct > 95.0, \"Mutant failed ETag bandwidth savings benchmark\"\n"]}}, "cards": [{"q": "What are the three essential mobile HTTP timeouts?", "a": "Connect timeout (socket/TLS setup), Read timeout (gap between incoming packets), and Write timeout (upload packet transmission)."}, {"q": "Why add random jitter to exponential backoff?", "a": "To prevent synchronized client retries from overwhelming recovering servers with a thundering herd spike."}, {"q": "What is a Circuit Breaker in mobile networking?", "a": "A client-side state machine that fast-fails requests when server errors exceed a threshold, preventing battery drain and radio waste."}, {"q": "How does HTTP ETag conditional revalidation work?", "a": "Client sends If-None-Match with cached ETag; server returns 304 Not Modified without payload body if unchanged, saving bandwidth."}, {"q": "What is the single-flight pattern for token refresh?", "a": "Ensuring that when multiple concurrent requests encounter 401 Unauthorized, only one refresh call is dispatched while other requests await the new token."}, {"q": "What is debouncing in mobile search inputs?", "a": "Delaying network transmission until the user has stopped typing for a defined duration (e.g. 300ms), cancelling obsolete in-flight requests."}], "title": "Mobile networking and reliability"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

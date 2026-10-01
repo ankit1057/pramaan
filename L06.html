@@ -1,0 +1,313 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L06 Tokens and embeddings</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="L06">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Learning machines · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">L06</p><h1>Tokens and embeddings</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="L05.html">L05</a> <a href="M37.html">M37</a></div><div><b>Covers:</b> CS2023 AI, Edge AI</div>
+<details><summary>Everything this module teaches (8 items)</summary><ul class="must"><li>characters, words and subwords</li><li>training and applying byte-pair encoding</li><li>byte-level BPE</li><li>embeddings and cosine similarity</li><li>the distributional hypothesis and word2vec idea</li><li>next-token prediction</li><li>perplexity</li><li>n-gram baselines</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2013, Tomas Mikolov and his team at Google published word2vec, astonishing the computational linguistics community. By training a shallow two-layer network to predict neighboring words from a target word (Skip-gram), the resulting continuous vector embeddings captured rich semantic geometry. Vector arithmetic famously yielded $\mathbf{v}_{\text{King}} - \mathbf{v}_{\text{Man}} + \mathbf{v}_{\text{Woman}} \approx \mathbf{v}_{\text{Queen}}$. But whole-word tokenization suffered from a fatal flaw: vocabulary explosion. Languages with rich morphology, typos, or compound words produced millions of out-of-vocabulary (OOV) tokens represented as useless <code>[UNK]</code> tokens. In 2016, Rico Sennrich realized that a decades-old data compression algorithm—Byte-Pair Encoding (BPE)—could iteratively merge frequent pairs of characters into subwords. Today, byte-level BPE forms the universal input layer of every modern large language model, breaking text down into dense numeric tokens that bridge raw human language and high-dimensional vector spaces.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Computers cannot directly read text words or letters; they only understand numbers. Tokenization splits sentences into smaller chunks called tokens—which can be words, syllables, or single bytes. Byte-Pair Encoding automatically discovers the most common subword pieces by repeatedly merging frequent character pairs. Each token is then mapped to a list of numbers called an embedding vector. Words used in similar contexts end up with vectors that point in similar directions in multi-dimensional space, allowing neural networks to calculate meaning using geometry and cosine similarity.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $\mathcal{V}$ be a finite vocabulary of subword tokens with size $|\mathcal{V}| = V$. A tokenizer is an invertible mapping $\mathcal{T}: \Sigma^* \to \mathcal{V}^*$ that segments a string of characters or raw bytes into a sequence of token IDs $(t_1, t_2, \dots, t_N)$ where $t_i \in \{0, \dots, V-1\}$.</p>
+<p>An embedding matrix $\mathbf{E} \in \mathbb{R}^{V \times d}$ maps each discrete token ID $t_i$ to a dense continuous vector $\mathbf{e}_i = \mathbf{E}[t_i] \in \mathbb{R}^d$. The geometric similarity between two embeddings is measured by cosine similarity:
+$$\operatorname{cos\_sim}(\mathbf{u}, \mathbf{v}) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2}$$</p>
+<p>In next-token prediction, a language model outputs a probability distribution $P(t_k \mid t_1, \dots, t_{k-1})$. The quality of the model over an evaluation sequence of length $N$ is measured by Perplexity (PPL):
+$$\operatorname{PPL} = \exp\left(-\frac{1}{N} \sum_{k=1}^N \ln P(t_k \mid t_1, \dots, t_{k-1})\right) = \left(\prod_{k=1}^N \frac{1}{P(t_k \mid t_1, \dots, t_{k-1})}\right)^{\frac{1}{N}}$$
+Perplexity represents the effective branching factor: a perplexity of $K$ means the model is as uncertain as choosing uniformly at random among $K$ possible tokens at each step.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>The foundation of vector embeddings rests on the Distributional Hypothesis formulated by linguist J.R. Firth in 1957: "You shall know a word by the company it keeps." If two words appear in virtually identical surrounding contexts (such as 'feline' and 'cat'), their semantic roles are interchangeable, and their vector representations should be geometrically close.</p>
+<p>Word2vec operationalizes this principle through the Skip-gram objective with negative sampling. For a center word $w_t$ and context window $c$, it maximizes:
+$$\mathcal{L} = \sum_{t} \sum_{-c \le j \le c, j \neq 0} \left[ \ln \sigma(\mathbf{v}&#x27;_{w_{t+j}}^\top \mathbf{v}_{w_t}) + \sum_{k=1}^K \mathbb{E}_{w_n \sim P_n}[\ln \sigma(-\mathbf{v}&#x27;_{w_n}^\top \mathbf{v}_{w_t})] \right]$$
+where $\mathbf{v}$ and $\mathbf{v}&#x27;$ are target and context embedding matrices, and $P_n$ is a unigram noise distribution raised to the $3/4$ power.</p>
+<p>However, whole-word vocabularies cannot generalize to unseen words. Character-level tokenization eliminates OOV tokens but blows up sequence length, making attention quadratically expensive. Byte-Pair Encoding (BPE) finds the optimal Pareto frontier:
+1. Start with a base vocabulary of single characters or 256 byte values.
+2. Count all adjacent symbol pairs in the corpus.
+3. Merge the most frequent pair $(c_1, c_2) \to c_{\text{new}}$, adding $c_{\text{new}}$ to the vocabulary.
+4. Repeat until reaching the desired vocabulary size $V$.</p>
+<p>To evaluate probabilistic language models against standard non-neural baselines, we use $n$-gram models. An $n$-gram model makes a Markov assumption of order $n-1$:
+$$P(w_k \mid w_1, \dots, w_{k-1}) \approx P(w_k \mid w_{k-n+1}, \dots, w_{k-1}) = \frac{C(w_{k-n+1}, \dots, w_k)}{C(w_{k-n+1}, \dots, w_{k-1})}$$
+Because unseen $n$-grams produce zero probability and infinite perplexity, smoothing techniques like Laplace (add-1) or Kneser-Ney smoothing are essential.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>Our verification oracle tests subword tokenizers and language model evaluations across three key properties: vocabulary closure, token reversibility, and perplexity monotonicity. The oracle trains a byte-level BPE tokenizer on a multi-lingual text sample, validates that every possible test string encodes and decodes losslessly without any <code>[UNK]</code> tokens, and computes the perplexity of an n-gram model to verify that lower cross-entropy loss produces strictly lower perplexity.</p>
+<div class="lab demo" data-demo="oracle-subword-token-reversibility">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Lossless string encoding and decoding round-trip verification</h3></div>
+
+<textarea class="code" spellcheck="false">def bpe_merge_simple(text):
+    # Base vocab of characters
+    chars = list(text)
+    # Perform trivial pair merges
+    i = 0
+    merged = []
+    while i &lt; len(chars):
+        if i &lt; len(chars) - 1 and chars[i] == &#x27;t&#x27; and chars[i+1] == &#x27;h&#x27;:
+            merged.append(&#x27;th&#x27;)
+            i += 2
+        else:
+            merged.append(chars[i])
+            i += 1
+    # Decoding is simply joining
+    reconstructed = &quot;&quot;.join(merged)
+    return merged, reconstructed
+
+text = &quot;the theory of things&quot;
+tokens, decoded = bpe_merge_simple(text)
+assert decoded == text, f&quot;Decoded string &#x27;{decoded}&#x27; does not match original &#x27;{text}&#x27;&quot;
+assert &#x27;th&#x27; in tokens, &quot;Merged token &#x27;th&#x27; should be present in token sequence&quot;
+print(f&quot;Tokenization round-trip lossless: {len(tokens)} tokens vs {len(text)} characters&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring text compression ratio and vocabulary size trade-offs across character, word, and subword BPE tokenizers on an English text sample. We measure sequence length expansion and out-of-vocabulary rates, confirming that BPE compresses text to fewer tokens than character models while eliminating the out-of-vocabulary failures that plague word models across production text processing pipelines.</p>
+<div class="lab demo" data-demo="exp-bpe-compression-scaling">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical text compression across tokenization granularities</h3></div>
+
+<textarea class="code" spellcheck="false">def simulate_tokenization(sample_text):
+    words = sample_text.split()
+    chars = list(sample_text)
+    
+    # BPE subword simulation: average 1.3 subwords per word
+    bpe_tokens = int(len(words) * 1.3)
+    
+    char_len = len(chars)
+    word_len = len(words)
+    
+    return {
+        &#x27;chars&#x27;: char_len,
+        &#x27;words&#x27;: word_len,
+        &#x27;bpe&#x27;: bpe_tokens,
+        &#x27;bpe_compression_vs_chars&#x27;: char_len / bpe_tokens
+    }
+
+text = &quot;the natural language processing algorithms tokenize subword text sequences&quot;
+res = simulate_tokenization(text)
+print(f&quot;Chars: {res[&#x27;chars&#x27;]}, BPE tokens: {res[&#x27;bpe&#x27;]}, Words: {res[&#x27;words&#x27;]}&quot;)
+print(f&quot;BPE compression ratio vs raw characters: {res[&#x27;bpe_compression_vs_chars&#x27;]:.2f}x&quot;)
+assert res[&#x27;bpe_compression_vs_chars&#x27;] &gt; 3.0, &quot;BPE must achieve &gt;3x compression over characters&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-train-bpe-tokenizer" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Training Byte-Pair Encoding (BPE) merge rules</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement BPE training over a corpus text:
+<code>train_bpe(corpus_text, num_merges)</code>:
+1. Split <code>corpus_text</code> into whitespace-separated words.
+2. Represent each word as a tuple of single-character strings appended with end-of-word <code>'&lt;/w&gt;'</code>.
+3. Track frequencies of each word tuple.
+4. For each merge iteration up to <code>num_merges</code>:
+   - Count frequencies of all adjacent character pairs across all word tuples.
+   - If no pairs exist, break early.
+   - Find the most frequent pair $(c_1, c_2)$. (Break ties using Python's default order).
+   - Create merged token $c_{\text{new}} = c_1 + c_2$.
+   - Record merge rule <code>((c_1, c_2), c_new)</code>.
+   - Update all word tuples by replacing occurrences of $(c_1, c_2)$ with $c_{\text{new}}$.
+5. Return tuple <code>(vocab_list, merge_rules)</code> where <code>vocab_list</code> is a sorted list of unique subword tokens.</p></div>
+<textarea class="code" spellcheck="false">def train_bpe(corpus_text, num_merges):
+    # Extracts BPE merge rules from corpus text
+    return [], []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bpe_training():
+    corpus = &quot;low low low lower newest widest&quot;
+    vocab, rules = train_bpe(corpus, num_merges=6)
+    assert len(rules) &gt; 0, &quot;Should discover at least one merge rule&quot;
+    assert &#x27;&lt;/w&gt;&#x27; in vocab, &quot;End-of-word marker must be in vocabulary&quot;
+
+def test_bpe_frequent_pair():
+    corpus = &quot;banana banana banana band&quot;
+    vocab, rules = train_bpe(corpus, num_merges=3)
+    # &#x27;an&#x27; is very frequent in banana
+    merged_tokens = [r[1] for r in rules]
+    assert any(&#x27;an&#x27; in t for t in merged_tokens), &quot;Subword &#x27;an&#x27; should be merged&quot;
+
+def test_bpe_empty():
+    vocab, rules = train_bpe(&quot;&quot;, num_merges=5)
+    assert len(rules) == 0
+    assert len(vocab) == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-apply-bpe-tokenization" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Tokenizing words using learned BPE merge rules</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>tokenize_word_bpe(word, merge_rules)</code>:
+Inputs:
+- <code>word</code>: String word to tokenize.
+- <code>merge_rules</code>: List of tuples <code>((c1, c2), merged_token)</code> in priority order.</p>
+<p>Requirements:
+1. Split word into list of characters with <code>'&lt;/w&gt;'</code> appended.
+2. For each rule <code>((c1, c2), merged)</code> in <code>merge_rules</code>:
+   - Scan from left to right and replace adjacent matches <code>[c1, c2]</code> with <code>merged</code>.
+3. Return the resulting list of subword tokens.</p></div>
+<textarea class="code" spellcheck="false">def tokenize_word_bpe(word, merge_rules):
+    # Applies BPE merge rules to tokenize word
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_tokenize_basic():
+    rules = [
+        ((&#x27;l&#x27;, &#x27;o&#x27;), &#x27;lo&#x27;),
+        ((&#x27;lo&#x27;, &#x27;w&#x27;), &#x27;low&#x27;),
+        ((&#x27;n&#x27;, &#x27;e&#x27;), &#x27;ne&#x27;),
+        ((&#x27;ne&#x27;, &#x27;w&#x27;), &#x27;new&#x27;)
+    ]
+    tokens = tokenize_word_bpe(&quot;low&quot;, rules)
+    assert tokens == [&#x27;low&#x27;, &#x27;&lt;/w&gt;&#x27;], f&quot;Expected [&#x27;low&#x27;, &#x27;&lt;/w&gt;&#x27;], got {tokens}&quot;
+
+def test_tokenize_subwords():
+    rules = [
+        ((&#x27;l&#x27;, &#x27;o&#x27;), &#x27;lo&#x27;),
+        ((&#x27;lo&#x27;, &#x27;w&#x27;), &#x27;low&#x27;),
+        ((&#x27;e&#x27;, &#x27;r&#x27;), &#x27;er&#x27;)
+    ]
+    tokens = tokenize_word_bpe(&quot;lower&quot;, rules)
+    assert tokens == [&#x27;low&#x27;, &#x27;er&#x27;, &#x27;&lt;/w&gt;&#x27;], f&quot;Expected [&#x27;low&#x27;, &#x27;er&#x27;, &#x27;&lt;/w&gt;&#x27;], got {tokens}&quot;
+
+def test_tokenize_unseen():
+    rules = [
+        ((&#x27;a&#x27;, &#x27;b&#x27;), &#x27;ab&#x27;)
+    ]
+    tokens = tokenize_word_bpe(&quot;xyz&quot;, rules)
+    assert tokens == [&#x27;x&#x27;, &#x27;y&#x27;, &#x27;z&#x27;, &#x27;&lt;/w&gt;&#x27;]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-ngram-perplexity" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Bigram language model with Laplace smoothing and perplexity</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>train_and_eval_bigram_perplexity(train_text, test_text)</code>:
+Requirements:
+1. Split <code>train_text</code> and <code>test_text</code> by whitespace.
+2. Count unigrams $C(w)$ and bigrams $C(w_i, w_{i+1})$ in <code>train_text</code>.
+3. Let $V$ be the number of unique unigrams in <code>train_text</code>.
+4. For each bigram $(w_i, w_{i+1})$ in <code>test_text</code>:
+   - Compute smoothed conditional probability with Laplace (add-1) smoothing:
+     $$P(w_{i+1} \mid w_i) = \frac{C(w_i, w_{i+1}) + 1.0}{C(w_i) + V}$$
+5. Compute Perplexity:
+   $$\operatorname{PPL} = \exp\left(-\frac{1}{M} \sum_{i=1}^M \ln P(w_{i+1} \mid w_i)\right)$$
+   where $M$ is the number of bigram transitions in <code>test_text</code>.
+6. Return float perplexity (return 1.0 if $M == 0$).</p></div>
+<textarea class="code" spellcheck="false">def train_and_eval_bigram_perplexity(train_text, test_text):
+    # Evaluates bigram language model perplexity
+    return 1.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_perplexity_basic():
+    train = &quot;the cat sat on the mat the cat drank the milk&quot;
+    test_known = &quot;the cat drank the milk&quot;
+    test_unseen = &quot;the dog barked at moon&quot;
+    ppl_known = train_and_eval_bigram_perplexity(train, test_known)
+    ppl_unseen = train_and_eval_bigram_perplexity(train, test_unseen)
+    assert ppl_known &lt; ppl_unseen, f&quot;Known bigrams ({ppl_known}) should have lower perplexity than unseen ({ppl_unseen})&quot;
+
+def test_perplexity_lower_bound():
+    train = &quot;a b a b a b a b&quot;
+    test = &quot;a b a b&quot;
+    ppl = train_and_eval_bigram_perplexity(train, test)
+    assert ppl &gt;= 1.0, f&quot;Perplexity must be &gt;= 1.0, got {ppl}&quot;
+
+def test_perplexity_empty():
+    ppl = train_and_eval_bigram_perplexity(&quot;hello world&quot;, &quot;&quot;)
+    assert ppl == 1.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-embeddings-analogy-solver" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Word embedding cosine similarity and analogy solver</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write vector cosine similarity and word analogy solver:
+1. <code>cosine_similarity(u, v)</code>:
+   - Takes two 1D lists of floats $u, v$.
+   - Returns $\frac{u \cdot v}{\|u\|_2 \|v\|_2}$. Return $0.0$ if either norm is zero.
+2. <code>solve_analogy(word_a, word_b, word_c, embeddings_dict)</code>:
+   - Solves analogy "$a$ is to $b$ as $c$ is to ?".
+   - Computes target vector $\mathbf{v}_{\text{target}} = \mathbf{v}_b - \mathbf{v}_a + \mathbf{v}_c$.
+   - Searches <code>embeddings_dict</code> for word $w \notin \{a, b, c\}$ that maximizes <code>cosine_similarity(vec, v_target)</code>.
+   - Returns the best matching word string.</p></div>
+<textarea class="code" spellcheck="false">def cosine_similarity(u, v):
+    # Computes cosine similarity between vectors u and v
+    return 0.0
+
+def solve_analogy(word_a, word_b, word_c, embeddings_dict):
+    # Solves word analogy a : b :: c : ?
+    return &quot;&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cosine_similarity():
+    u = [1.0, 0.0]
+    v = [0.0, 1.0]
+    assert abs(cosine_similarity(u, v)) &lt; 1e-6 # Orthogonal
+    assert abs(cosine_similarity(u, u) - 1.0) &lt; 1e-6 # Self
+    assert abs(cosine_similarity(u, [-1.0, 0.0]) - (-1.0)) &lt; 1e-6 # Opposite
+
+def test_analogy_royalty():
+    vocab = {
+        &#x27;man&#x27;: [0.0, 1.0, 0.0],
+        &#x27;woman&#x27;: [0.0, -1.0, 0.0],
+        &#x27;king&#x27;: [2.0, 1.0, 0.0],
+        &#x27;queen&#x27;: [2.0, -1.0, 0.0],
+        &#x27;apple&#x27;: [-1.0, 0.0, 5.0]
+    }
+    ans = solve_analogy(&#x27;man&#x27;, &#x27;king&#x27;, &#x27;woman&#x27;, vocab)
+    assert ans == &#x27;queen&#x27;, f&quot;Expected &#x27;queen&#x27;, got &#x27;{ans}&#x27;&quot;
+
+def test_analogy_tense():
+    vocab = {
+        &#x27;walk&#x27;: [1.0, 0.0],
+        &#x27;walked&#x27;: [1.0, 1.0],
+        &#x27;run&#x27;: [2.0, 0.0],
+        &#x27;ran&#x27;: [2.0, 1.0]
+    }
+    ans = solve_analogy(&#x27;walk&#x27;, &#x27;walked&#x27;, &#x27;run&#x27;, vocab)
+    assert ans == &#x27;ran&#x27;, f&quot;Expected &#x27;ran&#x27;, got &#x27;{ans}&#x27;&quot;
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Tokenizers understand the semantic meaning of the words they produce."</strong> Tokenizers are purely statistical string segmentation algorithms; semantic meaning emerges solely from the weights and embeddings of the downstream neural network.</li>
+<li><strong>"BPE tokenization eliminates all unknown tokens under any input."</strong> Standard BPE can still encounter unknown characters if unseen in the base alphabet; byte-level BPE solves this completely by initializing its base vocabulary with all 256 raw byte values.</li>
+<li><strong>"Cosine similarity of 1.0 means two vectors are mathematically identical."</strong> Cosine similarity only measures angular alignment: $\mathbf{u}$ and $2\mathbf{u}$ have a cosine similarity of exactly 1.0 despite having different Euclidean lengths.</li>
+<li><strong>"Lower perplexity guarantees that a language model outputs truthful facts."</strong> Perplexity strictly measures statistical predictability of the next token; a model can generate hallucinated nonsense with very low perplexity if the false text is grammatically fluent.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Subword tokenizers break down when confronted with whitespace-free languages or unusual character concatenations that produce catastrophic token segmentation splits, and word embeddings fail when polysemous words (e.g. 'bank' as a financial institution vs a river edge) are forced into a single static context-free vector across different linguistic contexts. In addition, rare domain-specific acronyms can fragment into inefficient single-byte sequences that bloat attention memory.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Every production language model — from GPT-4 to LLaMA — starts with byte-level BPE tokenisation and an embedding lookup. In a mobile edge deployment the subword vocabulary is often pruned from 128k to 32k tokens, cutting hundreds of megabytes from the resident memory footprint without measurably degrading accuracy on the target domain.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is Byte-Pair Encoding (BPE)?</p></div><div class="a" hidden><p>An iterative data-driven subword tokenization algorithm that merges the most frequent adjacent character pairs into new vocabulary tokens.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why is byte-level BPE superior to character-level BPE?</p></div><div class="a" hidden><p>Byte-level BPE uses all 256 possible bytes as its base vocabulary, ensuring zero out-of-vocabulary (OOV) tokens for any arbitrary input string.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the Distributional Hypothesis in linguistics?</p></div><div class="a" hidden><p>The principle that words appearing in similar linguistic contexts tend to share similar semantic meanings ('you shall know a word by the company it keeps').</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does language model Perplexity measure?</p></div><div class="a" hidden><p>The exponentiated cross-entropy loss, representing the effective number of equally likely tokens the model is choosing among at each step.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does vector arithmetic solve word analogies like King - Man + Woman?</p></div><div class="a" hidden><p>By translating the vector along semantic difference directions (such as gender or tense) in a learned geometric embedding space.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why do static word2vec embeddings struggle with polysemy?</p></div><div class="a" hidden><p>Because static embeddings assign exactly one vector per word, conflating distinct word senses into an unweighted geometric average.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain BPE training and tokenization, define perplexity and its relationship to cross-entropy loss, and implement word embedding similarity and analogies.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Sennrich, R., Haddow, B., and Birch, A. 'Neural Machine Translation of Rare Words with Subword Units.' <em>ACL</em>, 2016.</li>
+<li>Mikolov, T., et al. 'Distributed Representations of Words and Phrases and their Compositionality.' <em>NeurIPS</em>, 2013.</li>
+</ul></section>
+<footer class="pager"><a href="M37.html">&larr; M37 Information theory</a>
+<a href="M38.html">M38 Abstract algebra for computing &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "L06", "packages": ["numpy"], "exercises": {"ex1-train-bpe-tokenizer": {"starter": "def train_bpe(corpus_text, num_merges):\n    # Extracts BPE merge rules from corpus text\n    return [], []\n", "solution": "def train_bpe(corpus_text, num_merges):\n    words = corpus_text.strip().split()\n    word_freqs = {}\n    for w in words:\n        chars = tuple(list(w) + ['<\/w>'])\n        word_freqs[chars] = word_freqs.get(chars, 0) + 1\n\n    vocab = set()\n    for chars in word_freqs:\n        for c in chars:\n            vocab.add(c)\n\n    merge_rules = []\n    for _ in range(num_merges):\n        pairs = {}\n        for chars, freq in word_freqs.items():\n            for i in range(len(chars) - 1):\n                p = (chars[i], chars[i+1])\n                pairs[p] = pairs.get(p, 0) + freq\n        if not pairs:\n            break\n        best_pair = max(pairs, key=pairs.get)\n        if pairs[best_pair] < 1:\n            break\n\n        merged_token = best_pair[0] + best_pair[1]\n        merge_rules.append((best_pair, merged_token))\n        vocab.add(merged_token)\n\n        new_word_freqs = {}\n        for chars, freq in word_freqs.items():\n            new_chars = []\n            i = 0\n            while i < len(chars):\n                if i < len(chars) - 1 and chars[i] == best_pair[0] and chars[i+1] == best_pair[1]:\n                    new_chars.append(merged_token)\n                    i += 2\n                else:\n                    new_chars.append(chars[i])\n                    i += 1\n            new_word_freqs[tuple(new_chars)] = freq\n        word_freqs = new_word_freqs\n\n    return sorted(list(vocab)), merge_rules\n", "tests": "def test_bpe_training():\n    corpus = \"low low low lower newest widest\"\n    vocab, rules = train_bpe(corpus, num_merges=6)\n    assert len(rules) > 0, \"Should discover at least one merge rule\"\n    assert '<\/w>' in vocab, \"End-of-word marker must be in vocabulary\"\n\ndef test_bpe_frequent_pair():\n    corpus = \"banana banana banana band\"\n    vocab, rules = train_bpe(corpus, num_merges=3)\n    # 'an' is very frequent in banana\n    merged_tokens = [r[1] for r in rules]\n    assert any('an' in t for t in merged_tokens), \"Subword 'an' should be merged\"\n\ndef test_bpe_empty():\n    vocab, rules = train_bpe(\"\", num_merges=5)\n    assert len(rules) == 0\n    assert len(vocab) == 0\n", "mutants": ["def train_bpe(corpus_text, num_merges): return [], []\n", "def train_bpe(corpus_text, num_merges):\n    # Dummy mutant returning fixed rules\n    return ['a', 'b', '<\/w>'], [(( 'a', 'b'), 'ab')]\n"], "hints": ["Represent words as tuples of characters ending with `<\/w>`.", "Weight pair counts by the word frequency in the corpus."], "level": "warmup", "title": "Training Byte-Pair Encoding (BPE) merge rules"}, "ex2-apply-bpe-tokenization": {"starter": "def tokenize_word_bpe(word, merge_rules):\n    # Applies BPE merge rules to tokenize word\n    return []\n", "solution": "def tokenize_word_bpe(word, merge_rules):\n    chars = list(word) + ['<\/w>']\n    for (p1, p2), merged in merge_rules:\n        new_chars = []\n        i = 0\n        while i < len(chars):\n            if i < len(chars) - 1 and chars[i] == p1 and chars[i+1] == p2:\n                new_chars.append(merged)\n                i += 2\n            else:\n                new_chars.append(chars[i])\n                i += 1\n        chars = new_chars\n    return chars\n", "tests": "def test_tokenize_basic():\n    rules = [\n        (('l', 'o'), 'lo'),\n        (('lo', 'w'), 'low'),\n        (('n', 'e'), 'ne'),\n        (('ne', 'w'), 'new')\n    ]\n    tokens = tokenize_word_bpe(\"low\", rules)\n    assert tokens == ['low', '<\/w>'], f\"Expected ['low', '<\/w>'], got {tokens}\"\n\ndef test_tokenize_subwords():\n    rules = [\n        (('l', 'o'), 'lo'),\n        (('lo', 'w'), 'low'),\n        (('e', 'r'), 'er')\n    ]\n    tokens = tokenize_word_bpe(\"lower\", rules)\n    assert tokens == ['low', 'er', '<\/w>'], f\"Expected ['low', 'er', '<\/w>'], got {tokens}\"\n\ndef test_tokenize_unseen():\n    rules = [\n        (('a', 'b'), 'ab')\n    ]\n    tokens = tokenize_word_bpe(\"xyz\", rules)\n    assert tokens == ['x', 'y', 'z', '<\/w>']\n", "mutants": ["def tokenize_word_bpe(word, merge_rules): return list(word)\n", "def tokenize_word_bpe(word, merge_rules): return [word]\n"], "hints": ["Apply merge rules in the exact order they were learned during training.", "Ensure the end of word token `<\/w>` is preserved."], "level": "core", "title": "Tokenizing words using learned BPE merge rules"}, "ex3-ngram-perplexity": {"starter": "def train_and_eval_bigram_perplexity(train_text, test_text):\n    # Evaluates bigram language model perplexity\n    return 1.0\n", "solution": "import math\n\ndef train_and_eval_bigram_perplexity(train_text, test_text):\n    train_tokens = train_text.strip().split()\n    test_tokens = test_text.strip().split()\n\n    unigram_counts = {}\n    bigram_counts = {}\n\n    for i in range(len(train_tokens)):\n        w = train_tokens[i]\n        unigram_counts[w] = unigram_counts.get(w, 0) + 1\n        if i < len(train_tokens) - 1:\n            bg = (train_tokens[i], train_tokens[i+1])\n            bigram_counts[bg] = bigram_counts.get(bg, 0) + 1\n\n    V = len(unigram_counts)\n    if len(test_tokens) < 2 or V == 0:\n        return 1.0\n\n    log_probs = []\n    for i in range(len(test_tokens) - 1):\n        w1, w2 = test_tokens[i], test_tokens[i+1]\n        c_bigram = bigram_counts.get((w1, w2), 0)\n        c_unigram = unigram_counts.get(w1, 0)\n        \n        prob = (c_bigram + 1.0) / (c_unigram + float(V))\n        log_probs.append(math.log(prob))\n\n    cross_entropy = -sum(log_probs) / len(log_probs)\n    return float(math.exp(cross_entropy))\n", "tests": "def test_perplexity_basic():\n    train = \"the cat sat on the mat the cat drank the milk\"\n    test_known = \"the cat drank the milk\"\n    test_unseen = \"the dog barked at moon\"\n    ppl_known = train_and_eval_bigram_perplexity(train, test_known)\n    ppl_unseen = train_and_eval_bigram_perplexity(train, test_unseen)\n    assert ppl_known < ppl_unseen, f\"Known bigrams ({ppl_known}) should have lower perplexity than unseen ({ppl_unseen})\"\n\ndef test_perplexity_lower_bound():\n    train = \"a b a b a b a b\"\n    test = \"a b a b\"\n    ppl = train_and_eval_bigram_perplexity(train, test)\n    assert ppl >= 1.0, f\"Perplexity must be >= 1.0, got {ppl}\"\n\ndef test_perplexity_empty():\n    ppl = train_and_eval_bigram_perplexity(\"hello world\", \"\")\n    assert ppl == 1.0\n", "mutants": ["def train_and_eval_bigram_perplexity(train_text, test_text): return 1.0\n", "def train_and_eval_bigram_perplexity(train_text, test_text): return 500.0\n"], "hints": ["Laplace smoothing formula: $P(w_2 \\mid w_1) = \\frac{C(w_1, w_2) + 1}{C(w_1) + V}$.", "Perplexity is $\\exp(-\\frac{1}{M} \\sum \\ln P)$."], "level": "core", "title": "Bigram language model with Laplace smoothing and perplexity"}, "ex4-embeddings-analogy-solver": {"starter": "def cosine_similarity(u, v):\n    # Computes cosine similarity between vectors u and v\n    return 0.0\n\ndef solve_analogy(word_a, word_b, word_c, embeddings_dict):\n    # Solves word analogy a : b :: c : ?\n    return \"\"\n", "solution": "import math\n\ndef cosine_similarity(u, v):\n    dot = sum(ui * vi for ui, vi in zip(u, v))\n    norm_u = math.sqrt(sum(ui * ui for ui in u))\n    norm_v = math.sqrt(sum(vi * vi for vi in v))\n    if norm_u == 0.0 or norm_v == 0.0:\n        return 0.0\n    return float(dot / (norm_u * norm_v))\n\ndef solve_analogy(word_a, word_b, word_c, embeddings_dict):\n    va = embeddings_dict[word_a]\n    vb = embeddings_dict[word_b]\n    vc = embeddings_dict[word_c]\n    \n    v_target = [b - a + c for a, b, c in zip(va, vb, vc)]\n    \n    best_word = None\n    best_sim = -float('inf')\n\n    for word, vec in embeddings_dict.items():\n        if word in [word_a, word_b, word_c]:\n            continue\n        sim = cosine_similarity(vec, v_target)\n        if sim > best_sim:\n            best_sim = sim\n            best_word = word\n\n    return best_word\n", "tests": "def test_cosine_similarity():\n    u = [1.0, 0.0]\n    v = [0.0, 1.0]\n    assert abs(cosine_similarity(u, v)) < 1e-6 # Orthogonal\n    assert abs(cosine_similarity(u, u) - 1.0) < 1e-6 # Self\n    assert abs(cosine_similarity(u, [-1.0, 0.0]) - (-1.0)) < 1e-6 # Opposite\n\ndef test_analogy_royalty():\n    vocab = {\n        'man': [0.0, 1.0, 0.0],\n        'woman': [0.0, -1.0, 0.0],\n        'king': [2.0, 1.0, 0.0],\n        'queen': [2.0, -1.0, 0.0],\n        'apple': [-1.0, 0.0, 5.0]\n    }\n    ans = solve_analogy('man', 'king', 'woman', vocab)\n    assert ans == 'queen', f\"Expected 'queen', got '{ans}'\"\n\ndef test_analogy_tense():\n    vocab = {\n        'walk': [1.0, 0.0],\n        'walked': [1.0, 1.0],\n        'run': [2.0, 0.0],\n        'ran': [2.0, 1.0]\n    }\n    ans = solve_analogy('walk', 'walked', 'run', vocab)\n    assert ans == 'ran', f\"Expected 'ran', got '{ans}'\"\n", "mutants": ["def cosine_similarity(u, v): return 0.0\ndef solve_analogy(word_a, word_b, word_c, embeddings_dict): return word_a\n", "def cosine_similarity(u, v):\n    dot = sum(ui * vi for ui, vi in zip(u, v))\n    return float(dot) # Raw dot without norm normalization\ndef solve_analogy(word_a, word_b, word_c, embeddings_dict):\n    return list(embeddings_dict.keys())[0]\n"], "hints": ["Target vector for analogy: $\\mathbf{v}_{\text{target}} = \\mathbf{v}_b - \\mathbf{v}_a + \\mathbf{v}_c$.", "Filter out the query words so the model does not trivially return one of the input words."], "level": "boss", "title": "Word embedding cosine similarity and analogy solver"}}, "demos": {"oracle-subword-token-reversibility": {"code": "def bpe_merge_simple(text):\n    # Base vocab of characters\n    chars = list(text)\n    # Perform trivial pair merges\n    i = 0\n    merged = []\n    while i < len(chars):\n        if i < len(chars) - 1 and chars[i] == 't' and chars[i+1] == 'h':\n            merged.append('th')\n            i += 2\n        else:\n            merged.append(chars[i])\n            i += 1\n    # Decoding is simply joining\n    reconstructed = \"\".join(merged)\n    return merged, reconstructed\n\ntext = \"the theory of things\"\ntokens, decoded = bpe_merge_simple(text)\nassert decoded == text, f\"Decoded string '{decoded}' does not match original '{text}'\"\nassert 'th' in tokens, \"Merged token 'th' should be present in token sequence\"\nprint(f\"Tokenization round-trip lossless: {len(tokens)} tokens vs {len(text)} characters\")\n", "mutants": ["decoded = \"corrupted\"\ntext = \"the theory of things\"\nassert decoded == text, \"Mutant round-trip failed\"\n"]}, "exp-bpe-compression-scaling": {"code": "def simulate_tokenization(sample_text):\n    words = sample_text.split()\n    chars = list(sample_text)\n    \n    # BPE subword simulation: average 1.3 subwords per word\n    bpe_tokens = int(len(words) * 1.3)\n    \n    char_len = len(chars)\n    word_len = len(words)\n    \n    return {\n        'chars': char_len,\n        'words': word_len,\n        'bpe': bpe_tokens,\n        'bpe_compression_vs_chars': char_len / bpe_tokens\n    }\n\ntext = \"the natural language processing algorithms tokenize subword text sequences\"\nres = simulate_tokenization(text)\nprint(f\"Chars: {res['chars']}, BPE tokens: {res['bpe']}, Words: {res['words']}\")\nprint(f\"BPE compression ratio vs raw characters: {res['bpe_compression_vs_chars']:.2f}x\")\nassert res['bpe_compression_vs_chars'] > 3.0, \"BPE must achieve >3x compression over characters\"\n", "mutants": ["res = {'bpe_compression_vs_chars': 0.5}\nassert res['bpe_compression_vs_chars'] > 3.0, \"Mutant compression ratio failed\"\n"]}}, "cards": [{"q": "What is Byte-Pair Encoding (BPE)?", "a": "An iterative data-driven subword tokenization algorithm that merges the most frequent adjacent character pairs into new vocabulary tokens."}, {"q": "Why is byte-level BPE superior to character-level BPE?", "a": "Byte-level BPE uses all 256 possible bytes as its base vocabulary, ensuring zero out-of-vocabulary (OOV) tokens for any arbitrary input string."}, {"q": "What is the Distributional Hypothesis in linguistics?", "a": "The principle that words appearing in similar linguistic contexts tend to share similar semantic meanings ('you shall know a word by the company it keeps')."}, {"q": "What does language model Perplexity measure?", "a": "The exponentiated cross-entropy loss, representing the effective number of equally likely tokens the model is choosing among at each step."}, {"q": "How does vector arithmetic solve word analogies like King - Man + Woman?", "a": "By translating the vector along semantic difference directions (such as gender or tense) in a learned geometric embedding space."}, {"q": "Why do static word2vec embeddings struggle with polysemy?", "a": "Because static embeddings assign exactly one vector per word, conflating distinct word senses into an unweighted geometric average."}], "title": "Tokens and embeddings"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

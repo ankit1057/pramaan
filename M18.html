@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M18 Counting: permutations, combinations and the binomial theorem</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M18">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~4h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M18</p><h1>Counting: permutations, combinations and the binomial theorem</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M17.html">M17</a></div><div><b>Covers:</b> NCERT 11: Permutations and Combinations, NCERT 11: Binomial Theorem, CS2023 MSF</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>the multiplication principle</li><li>factorials</li><li>permutations with and without repetition and with identical items</li><li>combinations</li><li>Pascal&#x27;s triangle and Pascal&#x27;s identity</li><li>the binomial theorem (general and middle term)</li><li>the pigeonhole principle</li><li>inclusion-exclusion</li><li>stars and bars</li><li>combinatorial proofs</li><li>derangements</li><li>the binomial series (1+x)^n for any rational index n, valid for |x|&lt;1</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Five cousins are lined up for a photograph at a wedding: Anu, Bir, Chetan, Dia and Esha.</p>
+<p>The photographer is fussy. He tries them in one order, frowns, and swaps two. Then another order. The children get bored and start asking how many times he could possibly do this before he runs out of arrangements.</p>
+<p>Anu works it out. Five choices for who stands first. Whoever that is, four are left for second place. Then three, then two, then one. Five times four times three times two times one. A hundred and twenty photographs.</p>
+<p>Then Dadi comes out with three identical laddoos and says three of the five may have one.</p>
+<p>"A hundred and twenty again?" says Bir hopefully.</p>
+<p>Anu starts listing. Anu-Bir-Chetan. Anu-Chetan-Bir. Bir-Anu-Chetan... and stops, because these are all the <em>same three children</em>. The laddoos are identical. Nobody can tell which one they got.</p>
+<p>So she counts how many times each group of three gets written down. Three children can be ordered in six ways. Every single group is being counted six times over.</p>
+<p>A hundred and twenty divided by six. Ten.</p>
+<p>Here is the surprise: the hard count and the easy count are the <em>same count</em>, divided by the number of distinctions you have decided not to care about. Almost every counting problem you will ever meet is this one move — count it the easy way with everything distinguishable, then divide out the sameness.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Counting carefully is a real skill, and the whole subject rests on two rules.</p>
+<p><strong>Multiplication principle:</strong> if a choice has $m$ options and an independent second choice has $n$, the pair has $mn$ options.</p>
+<p><strong>Division principle:</strong> if your count sees each genuine outcome exactly $k$ times, divide by $k$.</p>
+<p>From these, everything follows. A <strong>permutation</strong> is an arrangement where order matters. A <strong>combination</strong> is a selection where it does not — and it is just the permutation count divided by the orderings you are ignoring, exactly as Anu discovered.</p>
+<p>The <strong>binomial theorem</strong> then notices something lovely: expanding $(a+b)^n$ means choosing, from each of $n$ brackets, whether to take $a$ or $b$. So the coefficients <em>are</em> combinations. Algebra and counting turn out to be the same subject written twice.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>The two principles and factorials</h2>
+<p><strong>Multiplication principle:</strong> a sequence of independent choices with $n_1, n_2, \dots, n_k$ options has $n_1 n_2\cdots n_k$ outcomes.</p>
+<p><strong>Factorial:</strong> $n! = n\times(n-1)\times\dots\times 1$, with $0! = 1$. That convention is not arbitrary — it is forced, because there is exactly one way to arrange nothing, and because the formulas below need it to work at their boundaries.</p>
+<h2>Permutations and combinations</h2>
+<p>Arrangements of $r$ objects from $n$ distinct objects, order mattering:</p>
+<p>$$P(n,r) = {}^nP_r = \frac{n!}{(n-r)!}$$</p>
+<p>With repetition allowed: $n^r$.</p>
+<p>Selections of $r$ from $n$, order <strong>not</strong> mattering:</p>
+<p>$$C(n,r) = \binom{n}{r} = \frac{n!}{r!\,(n-r)!} = \frac{P(n,r)}{r!}$$</p>
+<p><strong>Permutations with identical items.</strong> Arranging $n$ objects of which $n_1$ are alike of one kind, $n_2$ of another, and so on:</p>
+<p>$$\frac{n!}{n_1!\,n_2!\cdots n_k!}$$</p>
+<p>This is the division principle again: the $n_1!$ rearrangements among identical items are indistinguishable.</p>
+<p><strong>Stars and bars.</strong> The number of ways to distribute $n$ identical items into $k$ distinct boxes, boxes allowed to be empty, is</p>
+<p>$$\binom{n+k-1}{k-1}$$</p>
+<p>Picture $n$ stars and $k-1$ bars in a row; choosing where the bars go determines the distribution. Requiring every box non-empty gives $\binom{n-1}{k-1}$.</p>
+<h2>Pascal's triangle and the binomial theorem</h2>
+<p><strong>Pascal's identity:</strong></p>
+<p>$$\binom{n}{r} = \binom{n-1}{r-1} + \binom{n-1}{r}$$</p>
+<p><strong>Binomial theorem</strong>, for a non-negative integer $n$:</p>
+<p>$$(a+b)^n = \sum_{r=0}^{n}\binom{n}{r}a^{n-r}b^{r}$$</p>
+<p>The <strong>general term</strong> is $T_{r+1} = \binom{n}{r}a^{n-r}b^r$. The <strong>middle term</strong> is the $\left(\frac{n}{2}+1\right)$-th when $n$ is even, and there are two middle terms, the $\frac{n+1}{2}$-th and $\frac{n+3}{2}$-th, when $n$ is odd.</p>
+<p>Setting $a=b=1$ gives $\sum_r \binom{n}{r} = 2^n$ — the power-set count of M16, arrived at from a different direction. Setting $a=1, b=-1$ gives $\sum_r (-1)^r\binom{n}{r} = 0$ for $n \ge 1$.</p>
+<p><strong>Binomial series.</strong> For any real exponent $n$ and $|x| &lt; 1$:</p>
+<p>$$(1+x)^n = 1 + nx + \frac{n(n-1)}{2!}x^2 + \frac{n(n-1)(n-2)}{3!}x^3 + \dots$$</p>
+<p>When $n$ is a non-negative integer the coefficients eventually become zero and the series terminates, recovering the finite theorem. Otherwise it is a genuine infinite series, convergent <strong>only</strong> for $|x|&lt;1$.</p>
+<h2>Pigeonhole and inclusion-exclusion</h2>
+<p><strong>Pigeonhole principle:</strong> placing $n$ items into $m$ boxes with $n &gt; m$ forces some box to hold at least two. More sharply, some box holds at least $\lceil n/m\rceil$.</p>
+<p><strong>Inclusion-exclusion</strong> for three sets:</p>
+<p>$$|A\cup B\cup C| = |A|+|B|+|C| - |A\cap B| - |B\cap C| - |A\cap C| + |A\cap B\cap C|$$</p>
+<p>and in general, alternate adding and subtracting over all intersections.</p>
+<p><strong>Derangements.</strong> A derangement is a permutation leaving no element fixed. By inclusion-exclusion,</p>
+<p>$$D_n = n!\sum_{k=0}^{n}\frac{(-1)^k}{k!}, \qquad \frac{D_n}{n!}\to \frac{1}{e}\approx 0.3679$$</p>
+<p>and $D_n$ satisfies $D_n = (n-1)(D_{n-1}+D_{n-2})$ with $D_0=1$, $D_1=0$.</p>
+<h2>Combinatorial proofs</h2>
+<p>A <strong>combinatorial proof</strong> establishes an identity by counting one set two ways. To prove Pascal's identity: count the $r$-subsets of $\{1,\dots,n\}$. Either a subset contains element $n$ — then the rest is an $(r-1)$-subset of the remaining $n-1$, giving $\binom{n-1}{r-1}$ — or it does not, giving $\binom{n-1}{r}$. The two cases are exhaustive and disjoint, so the counts add. No algebra at all.</p>
+<h2>A pinch of history</h2>
+<p>Combinatorics has deep Indian roots. Pingala's <em>Chandahshastra</em>, a treatise on Sanskrit prosody, enumerates the patterns of long and short syllables in a metre of $n$ beats — a binary enumeration giving $2^n$ — and the tradition's triangular array of binomial coefficients is called the <em>meru-prastara</em>, "the staircase of Mount Meru". Counting metres of $n$ beats from syllables of length 1 and 2 produces the Fibonacci numbers, described by <strong>Virahanka</strong> (c. 600–800 CE) centuries before Fibonacci.</p>
+<p>Mahavira (9th century) gave the combination formula, and Bhaskara II's <em>Lilavati</em> (1150) treats permutations and combinations systematically, including arrangements with repeated items. Al-Karaji in the 10th century and Omar Khayyam in the 11th knew the triangle; it appears in China as Yang Hui's triangle (1261), itself crediting Jia Xian (c. 1050). Blaise Pascal's <em>Traité du triangle arithmétique</em> (published 1665) gave the systematic treatment that attached his name to it in Europe.</p>
+<p>The derangement problem — the <em>problème des rencontres</em> — was posed by Pierre Rémond de Montmort in 1708 and solved by him and by Nicholas Bernoulli.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: $P(n,r) = \frac{n!}{(n-r)!}$.</strong> Fill $r$ positions in order. The first has $n$ choices, the second $n-1$, down to $n-r+1$ for the last. By the multiplication principle the product is $n(n-1)\cdots(n-r+1)$, which equals $\frac{n!}{(n-r)!}$ because the factorial in the denominator cancels precisely the factors we did not use.</p>
+<p><strong>Result 2: $\binom{n}{r} = \frac{P(n,r)}{r!}$.</strong></p>
+<ol>
+<li>Every selection of $r$ objects can be arranged in $r!$ orders.</li>
+<li>So each unordered selection corresponds to exactly $r!$ different ordered arrangements.</li>
+<li>The ordered count $P(n,r)$ therefore counts each selection exactly $r!$ times.</li>
+<li>By the division principle, divide by $r!$.</li>
+</ol>
+<p><strong>The non-obvious step is 3</strong> — the claim that <em>every</em> selection is over-counted by the <em>same</em> factor. If different selections were counted different numbers of times, division would be invalid. Here they are not, because $r$ distinct objects always have exactly $r!$ orderings. This is also precisely why permutations with <em>identical</em> items need a different formula: there the over-counting factor varies with the multiset.</p>
+<p><strong>Result 3: the binomial theorem, by counting.</strong></p>
+<ol>
+<li>$(a+b)^n$ is $n$ brackets multiplied together.</li>
+<li>Expanding means choosing, from each bracket independently, either the $a$ or the $b$, and multiplying the choices.</li>
+<li>A term with exactly $r$ b's and $n-r$ a's contributes $a^{n-r}b^r$.</li>
+<li>How many ways produce that term? Choose which $r$ of the $n$ brackets supply the $b$: that is $\binom{n}{r}$.</li>
+<li>Collecting like terms gives $\sum_r \binom{n}{r}a^{n-r}b^r$.</li>
+</ol>
+<p>The coefficients are not <em>like</em> combinations; they <em>are</em> combinations, and this derivation explains why Pascal's triangle and the expansion are the same object.</p>
+<p><strong>Result 4: the pigeonhole principle.</strong> Suppose every one of the $m$ boxes held at most one item. Then the total number of items is at most $m$. But we have $n &gt; m$ items — a contradiction. So some box holds at least two. The principle is almost insultingly simple and yet proves non-obvious things: among any 13 people two share a birth month; in any group of $n$ people two have the same number of acquaintances within the group.</p>
+<p><strong>Result 5: derangements by inclusion-exclusion.</strong></p>
+<ol>
+<li>Let $A_i$ be the set of permutations fixing element $i$. We want the permutations in none of the $A_i$.</li>
+<li>$|A_i| = (n-1)!$, since the other $n-1$ elements are free.</li>
+<li>An intersection of $k$ of them fixes $k$ specified elements, leaving $(n-k)!$, and there are $\binom{n}{k}$ such intersections.</li>
+<li>Inclusion-exclusion gives $D_n = \sum_{k=0}^n (-1)^k \binom{n}{k}(n-k)!$.</li>
+<li>Simplify: $\binom{n}{k}(n-k)! = \frac{n!}{k!}$, so $D_n = n!\sum_{k=0}^n \frac{(-1)^k}{k!}$.</li>
+<li>The sum is the truncated series for $e^{-1}$, so $\frac{D_n}{n!}\to \frac1e$.</li>
+</ol></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle counts everything twice: once by <strong>brute-force enumeration</strong>, generating the actual arrangements and selections and counting them, and once by <strong>formula</strong>, doing arithmetic with factorials. Enumeration knows no formulas; the formulas never build an arrangement. If a factorial were misplaced, or a division forgotten, the two would disagree.</p>
+<p>This is the honest way to check a counting formula, and it is exactly what you should do when a counting argument in real work feels slippery: shrink the problem until you can enumerate it, and check. The mutant below computes $\binom{n}{r}$ without dividing by $r!$ — that is, it reports permutations where combinations were asked for, which is the error Bir was hoping for.</p>
+<div class="lab demo" data-demo="m18-counting-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Enumerating the arrangements against the formulas</h3></div>
+
+<textarea class="code" spellcheck="false">from itertools import permutations, combinations, combinations_with_replacement, product
+from math import factorial, comb, perm
+
+
+def nPr(n, r):
+    return factorial(n) // factorial(n - r)
+
+
+def nCr(n, r):
+    return factorial(n) // (factorial(r) * factorial(n - r))
+
+
+for n in range(0, 8):
+    for r in range(0, n + 1):
+        enumerated_perms = sum(1 for _ in permutations(range(n), r))
+        enumerated_combs = sum(1 for _ in combinations(range(n), r))
+        assert enumerated_perms == nPr(n, r) == perm(n, r), f&quot;permutations wrong at {n},{r}&quot;
+        assert enumerated_combs == nCr(n, r) == comb(n, r), f&quot;combinations wrong at {n},{r}&quot;
+        # the division principle: each selection appears r! times among the arrangements
+        assert enumerated_perms == enumerated_combs * factorial(r)
+
+print(&quot;permutations and combinations verified by enumeration for n = 0..7&quot;)
+print(&quot;5 cousins in a row:&quot;, nPr(5, 5), &quot; 3 of 5 chosen for laddoos:&quot;, nCr(5, 3))
+assert nPr(5, 5) == 120 and nCr(5, 3) == 10
+assert nPr(5, 3) == nCr(5, 3) * factorial(3) == 60
+
+# Arrangements with repetition allowed.
+for n in range(1, 5):
+    for r in range(0, 5):
+        assert sum(1 for _ in product(range(n), repeat=r)) == n ** r
+
+# Permutations of a multiset, e.g. the letters of a word with repeats.
+def multiset_arrangements(letters):
+    counts = {}
+    for ch in letters:
+        counts[ch] = counts.get(ch, 0) + 1
+    total = factorial(len(letters))
+    for c in counts.values():
+        total //= factorial(c)
+    return total
+
+for word in (&quot;aab&quot;, &quot;aabb&quot;, &quot;banana&quot;, &quot;level&quot;):
+    enumerated = len(set(permutations(word)))
+    assert enumerated == multiset_arrangements(word), word
+print(&quot;multiset arrangements verified; &#x27;banana&#x27; has&quot;, multiset_arrangements(&quot;banana&quot;), &quot;distinct orderings&quot;)
+
+# Stars and bars: n identical items into k distinct boxes.
+def stars_and_bars(n, k):
+    return comb(n + k - 1, k - 1)
+
+for n in range(0, 7):
+    for k in range(1, 5):
+        enumerated = sum(1 for _ in combinations_with_replacement(range(k), n))
+        assert enumerated == stars_and_bars(n, k), f&quot;stars and bars wrong at {n},{k}&quot;
+print(&quot;stars and bars verified; 7 laddoos into 3 bowls:&quot;, stars_and_bars(7, 3))
+
+# Pascal&#x27;s identity and the row sum.
+for n in range(1, 15):
+    for r in range(1, n):
+        assert comb(n, r) == comb(n - 1, r - 1) + comb(n - 1, r)
+    assert sum(comb(n, r) for r in range(n + 1)) == 2 ** n
+    assert sum((-1) ** r * comb(n, r) for r in range(n + 1)) == 0
+print(&quot;Pascal&#x27;s identity, the row sum 2^n and the alternating sum 0 all verified&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Two predictions.</p>
+<p><strong>First, derangements.</strong> Theory says the proportion of permutations with no fixed point tends to $\frac1e \approx 0.3679$, and remarkably fast. So: if everyone at a party of $n$ people takes a coat at random, the chance <em>nobody</em> gets their own barely depends on $n$ at all once $n$ is past about 5. We compute $D_n$ three independent ways — brute-force enumeration, the recurrence, and the inclusion-exclusion formula — and watch the ratio.</p>
+<p><strong>Second, the binomial series.</strong> For $|x| &lt; 1$ and a non-integer exponent the series is infinite. Theory predicts it converges to $(1+x)^n$ inside that radius and diverges outside it. We measure both halves.</p>
+<div class="lab demo" data-demo="m18-derangements-and-series">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Derangements three ways, and the binomial series at its boundary</h3></div>
+
+<textarea class="code" spellcheck="false">from itertools import permutations
+from math import factorial, e
+
+
+def derangements_bruteforce(n):
+    if n == 0:
+        return 1
+    return sum(1 for p in permutations(range(n)) if all(p[i] != i for i in range(n)))
+
+
+def derangements_recurrence(n):
+    if n == 0:
+        return 1
+    if n == 1:
+        return 0
+    prev2, prev1 = 1, 0
+    for k in range(2, n + 1):
+        prev2, prev1 = prev1, (k - 1) * (prev1 + prev2)
+    return prev1
+
+
+def derangements_formula(n):
+    return round(factorial(n) * sum((-1) ** k / factorial(k) for k in range(n + 1)))
+
+
+print(f&quot;{&#x27;n&#x27;:&gt;3} {&#x27;brute force&#x27;:&gt;12} {&#x27;recurrence&#x27;:&gt;12} {&#x27;formula&#x27;:&gt;10} {&#x27;D(n)/n!&#x27;:&gt;10}&quot;)
+for n in range(0, 9):
+    b = derangements_bruteforce(n)
+    r = derangements_recurrence(n)
+    f = derangements_formula(n)
+    assert b == r == f, f&quot;the three routes must agree at n={n}&quot;
+    print(f&quot;{n:&gt;3} {b:&gt;12} {r:&gt;12} {f:&gt;10} {b / factorial(n):&gt;10.6f}&quot;)
+
+print()
+print(&quot;predicted limit of D(n)/n! :&quot;, round(1 / e, 6))
+for n in (6, 7, 8):
+    ratio = derangements_bruteforce(n) / factorial(n)
+    print(f&quot;measured at n = {n}: {ratio:.6f}&quot;)
+    assert abs(ratio - 1 / e) &lt; 1e-3, &quot;the ratio must be close to 1/e already&quot;
+
+# It converges extremely fast: n = 8 is good to six decimal places.
+assert abs(derangements_recurrence(12) / factorial(12) - 1 / e) &lt; 1e-9
+
+print()
+print(&quot;binomial series for (1+x)^n with a NON-integer exponent&quot;)
+
+
+def binomial_series(exponent, x, terms):
+    total = 0.0
+    coeff = 1.0
+    for k in range(terms):
+        total += coeff * x ** k
+        coeff *= (exponent - k) / (k + 1)
+    return total
+
+
+print(f&quot;{&#x27;x&#x27;:&gt;8} {&#x27;series (60 terms)&#x27;:&gt;20} {&#x27;true (1+x)^0.5&#x27;:&gt;18} {&#x27;error&#x27;:&gt;12}&quot;)
+for x in (0.1, 0.5, 0.9):
+    approx = binomial_series(0.5, x, 60)
+    true = (1 + x) ** 0.5
+    print(f&quot;{x:&gt;8} {approx:&gt;20.12f} {true:&gt;18.12f} {abs(approx - true):&gt;12.2e}&quot;)
+    assert abs(approx - true) &lt; 1e-6, &quot;inside |x| &lt; 1 the series must converge to the value&quot;
+
+# Outside the radius it diverges: the terms grow without bound.
+runaway = binomial_series(0.5, 1.5, 200)
+print()
+print(&quot;predicted: for x = 1.5 the series DIVERGES; true value would be&quot;, round((1 + 1.5) ** 0.5, 6))
+print(&quot;measured partial sum after 200 terms:&quot;, f&quot;{runaway:.3e}&quot;)
+assert abs(runaway) &gt; 1e3, &quot;outside |x| &lt; 1 the partial sums must run away&quot;
+
+# With an integer exponent the series terminates and reproduces the finite theorem.
+from math import comb
+for n in (0, 1, 5, 9):
+    for x in (0.3, 2.0, -1.7):
+        assert abs(binomial_series(n, x, 60) - (1 + x) ** n) &lt; 1e-9
+        assert abs(sum(comb(n, r) * x ** r for r in range(n + 1)) - (1 + x) ** n) &lt; 1e-9
+print(&quot;with an integer exponent the series terminates and matches the finite theorem&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the derangement ratio converges so fast that by $n=8$ it already matches $\frac1e$ to about six decimal places — which is why the "nobody gets their own coat" probability is essentially the same for 10 people and for 10,000. The binomial series is the opposite story: at $x = 0.9$ it converges, but slowly, and at $x=1.5$ it does not converge at all even though $(1+x)^{0.5}$ is a perfectly ordinary number there. The series has a <em>radius of convergence</em>, and outside it the formula is simply not a valid representation of the function. Writing down a series is not the same as the series being usable, and that distinction is the whole content of M33.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m18-ex1-basic-counting" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Factorials, permutations and combinations</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>factorial(n)</code>, <code>n_p_r(n, r)</code> and <code>n_c_r(n, r)</code> using integer arithmetic so the answers are exact, with <code>factorial(0) == 1</code>. Write <code>arrangements_with_repetition(n, r)</code> returning <code>n ** r</code>. All must raise <code>ValueError</code> for negative arguments or when <code>r &gt; n</code> for the permutation and combination functions.</p></div>
+<textarea class="code" spellcheck="false">def factorial(n):
+    &quot;&quot;&quot;n! with 0! = 1.&quot;&quot;&quot;
+    return 1
+
+
+def n_p_r(n, r):
+    &quot;&quot;&quot;Arrangements of r from n, order mattering.&quot;&quot;&quot;
+    return 0
+
+
+def n_c_r(n, r):
+    &quot;&quot;&quot;Selections of r from n, order not mattering.&quot;&quot;&quot;
+    return 0
+
+
+def arrangements_with_repetition(n, r):
+    &quot;&quot;&quot;Arrangements of r from n with repetition allowed.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_factorial_including_zero():
+    assert factorial(0) == 1
+    assert factorial(1) == 1
+    assert factorial(5) == 120
+    assert factorial(10) == 3628800
+
+
+def test_permutations_and_combinations_hand_checked():
+    # the five cousins
+    assert n_p_r(5, 5) == 120
+    assert n_c_r(5, 3) == 10
+    assert n_p_r(5, 3) == 60
+    # the division principle: P = C * r!
+    assert n_p_r(5, 3) == n_c_r(5, 3) * factorial(3)
+    # symmetry of combinations
+    for n in range(0, 12):
+        for r in range(0, n + 1):
+            assert n_c_r(n, r) == n_c_r(n, n - r)
+
+
+def test_repetition_and_errors():
+    assert arrangements_with_repetition(6, 3) == 216      # three dice
+    assert arrangements_with_repetition(2, 10) == 1024
+    assert arrangements_with_repetition(5, 0) == 1
+    # with repetition there are at least as many as without
+    for n in range(1, 8):
+        for r in range(0, n + 1):
+            assert arrangements_with_repetition(n, r) &gt;= n_p_r(n, r)
+    try:
+        n_c_r(3, 5)
+        assert False, &quot;r above n must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        factorial(-1)
+        assert False, &quot;a negative factorial must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m18-ex2-multiset-starsbars" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Identical items and distributing into boxes</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>multiset_permutations(counts)</code> where <code>counts</code> is a list of positive integers giving how many of each kind there are; return the number of distinct arrangements. Write <code>stars_and_bars(n, k)</code> for <code>n</code> identical items into <code>k</code> distinct boxes, boxes allowed empty, and <code>stars_and_bars_nonempty(n, k)</code> requiring every box non-empty, returning 0 when <code>n &lt; k</code>. Raise <code>ValueError</code> for a non-positive <code>k</code>, a negative <code>n</code>, or a non-positive entry in <code>counts</code>.</p></div>
+<textarea class="code" spellcheck="false">def multiset_permutations(counts):
+    &quot;&quot;&quot;Distinct arrangements of a multiset with the given counts.&quot;&quot;&quot;
+    return 0
+
+
+def stars_and_bars(n, k):
+    &quot;&quot;&quot;n identical items into k distinct boxes, empties allowed.&quot;&quot;&quot;
+    return 0
+
+
+def stars_and_bars_nonempty(n, k):
+    &quot;&quot;&quot;n identical items into k distinct boxes, none empty.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_multiset_against_enumeration():
+    from itertools import permutations
+    cases = {&quot;aab&quot;: [2, 1], &quot;aabb&quot;: [2, 2], &quot;banana&quot;: [3, 2, 1], &quot;level&quot;: [2, 2, 1]}
+    for word, counts in cases.items():
+        assert multiset_permutations(counts) == len(set(permutations(word))), word
+    # all distinct reduces to n!
+    assert multiset_permutations([1, 1, 1, 1]) == 24
+
+
+def test_stars_and_bars_against_enumeration():
+    from itertools import combinations_with_replacement
+    for n in range(0, 8):
+        for k in range(1, 5):
+            enumerated = sum(1 for _ in combinations_with_replacement(range(k), n))
+            assert stars_and_bars(n, k) == enumerated, f&quot;{n},{k}&quot;
+    # hand-checked: 7 laddoos into 3 bowls
+    assert stars_and_bars(7, 3) == 36
+    assert stars_and_bars(0, 4) == 1          # one way: all boxes empty
+
+
+def test_nonempty_version_and_errors():
+    # every box non-empty: give each one first, then distribute the rest freely
+    for n in range(0, 10):
+        for k in range(1, 5):
+            assert stars_and_bars_nonempty(n, k) == (stars_and_bars(n - k, k) if n &gt;= k else 0)
+    assert stars_and_bars_nonempty(7, 3) == 15
+    assert stars_and_bars_nonempty(2, 3) == 0
+    try:
+        stars_and_bars(5, 0)
+        assert False, &quot;k = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        multiset_permutations([2, 0])
+        assert False, &quot;a zero count must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m18-ex3-binomial" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Pascal&#x27;s triangle and the binomial theorem</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>pascal_row(n)</code> returning row <code>n</code> of Pascal's triangle as a list, built using Pascal's identity rather than factorials. Write <code>binomial_expand(n)</code> returning the coefficients of <code>(a+b)**n</code> in order of decreasing power of <code>a</code>. Write <code>general_term(n, r, a, b)</code> returning the value of the term <code>C(n,r) * a**(n-r) * b**r</code>. Write <code>middle_terms(n)</code> returning the 1-based index or indices of the middle term(s). Raise <code>ValueError</code> for a negative <code>n</code> or an <code>r</code> outside <code>0..n</code>.</p></div>
+<textarea class="code" spellcheck="false">def pascal_row(n):
+    &quot;&quot;&quot;Row n of Pascal&#x27;s triangle.&quot;&quot;&quot;
+    return []
+
+
+def binomial_expand(n):
+    &quot;&quot;&quot;Coefficients of (a+b)^n.&quot;&quot;&quot;
+    return []
+
+
+def general_term(n, r, a, b):
+    &quot;&quot;&quot;The (r+1)-th term of the expansion.&quot;&quot;&quot;
+    return 0
+
+
+def middle_terms(n):
+    &quot;&quot;&quot;1-based index or indices of the middle term(s).&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pascal_rows_hand_checked():
+    assert pascal_row(0) == [1]
+    assert pascal_row(1) == [1, 1]
+    assert pascal_row(4) == [1, 4, 6, 4, 1]
+    assert pascal_row(6) == [1, 6, 15, 20, 15, 6, 1]
+    # Pascal&#x27;s identity links consecutive rows
+    for n in range(1, 15):
+        prev, cur = pascal_row(n - 1), pascal_row(n)
+        for r in range(1, n):
+            assert cur[r] == prev[r - 1] + prev[r]
+
+
+def test_row_sums_and_expansion_values():
+    for n in range(0, 15):
+        row = pascal_row(n)
+        assert sum(row) == 2 ** n
+        if n &gt;= 1:
+            assert sum((-1) ** r * c for r, c in enumerate(row)) == 0
+        assert row == row[::-1]            # symmetry
+    # the expansion really evaluates (a+b)^n
+    for n in range(0, 10):
+        for a, b in ((1, 1), (2, 3), (5, -2)):
+            total = sum(general_term(n, r, a, b) for r in range(n + 1))
+            assert total == (a + b) ** n
+
+
+def test_middle_terms_and_errors():
+    assert middle_terms(6) == [4]          # 7 terms, the 4th is central
+    assert middle_terms(7) == [4, 5]       # 8 terms, two central
+    assert middle_terms(0) == [1]
+    # the middle term of (a+b)^6 at a=b=1 is the largest coefficient
+    row = pascal_row(6)
+    assert row[middle_terms(6)[0] - 1] == max(row)
+    try:
+        general_term(5, 6, 1, 1)
+        assert False, &quot;r above n must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m18-ex4-pigeonhole-inclusion" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Pigeonhole and inclusion-exclusion</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>pigeonhole_min(items, boxes)</code> returning the guaranteed minimum occupancy of the fullest box, which is the ceiling of <code>items / boxes</code>. Write <code>has_collision(items, boxes)</code> returning <code>True</code> when a repeat is forced. Write <code>inclusion_exclusion(sizes)</code> where <code>sizes</code> is a dict mapping a <code>frozenset</code> of set-labels to the size of that intersection; return the size of the union by alternating signs over subset sizes. Raise <code>ValueError</code> for non-positive <code>boxes</code> or negative <code>items</code>.</p></div>
+<textarea class="code" spellcheck="false">def pigeonhole_min(items, boxes):
+    &quot;&quot;&quot;The fullest box must hold at least this many.&quot;&quot;&quot;
+    return 0
+
+
+def has_collision(items, boxes):
+    &quot;&quot;&quot;True when two items must share a box.&quot;&quot;&quot;
+    return False
+
+
+def inclusion_exclusion(sizes):
+    &quot;&quot;&quot;Size of the union from the sizes of all intersections.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pigeonhole_counts():
+    assert pigeonhole_min(13, 12) == 2       # 13 people, 12 months
+    assert has_collision(13, 12) is True
+    assert has_collision(12, 12) is False
+    assert pigeonhole_min(10, 3) == 4        # ceiling of 10/3
+    assert pigeonhole_min(9, 3) == 3
+    assert pigeonhole_min(0, 5) == 0
+
+
+def test_inclusion_exclusion_two_and_three_sets():
+    # |A|=10, |B|=8, |A and B|=3  -&gt;  union 15
+    sizes = {frozenset(&quot;A&quot;): 10, frozenset(&quot;B&quot;): 8, frozenset(&quot;AB&quot;): 3}
+    assert inclusion_exclusion(sizes) == 15
+    # three sets, hand-checked
+    sizes3 = {
+        frozenset(&quot;A&quot;): 10, frozenset(&quot;B&quot;): 8, frozenset(&quot;C&quot;): 6,
+        frozenset(&quot;AB&quot;): 3, frozenset(&quot;BC&quot;): 2, frozenset(&quot;AC&quot;): 4,
+        frozenset(&quot;ABC&quot;): 1,
+    }
+    assert inclusion_exclusion(sizes3) == 10 + 8 + 6 - 3 - 2 - 4 + 1
+
+
+def test_inclusion_exclusion_against_real_sets():
+    A = set(range(0, 30, 2))
+    B = set(range(0, 30, 3))
+    C = set(range(0, 30, 5))
+    sizes = {
+        frozenset(&quot;A&quot;): len(A), frozenset(&quot;B&quot;): len(B), frozenset(&quot;C&quot;): len(C),
+        frozenset(&quot;AB&quot;): len(A &amp; B), frozenset(&quot;BC&quot;): len(B &amp; C), frozenset(&quot;AC&quot;): len(A &amp; C),
+        frozenset(&quot;ABC&quot;): len(A &amp; B &amp; C),
+    }
+    assert inclusion_exclusion(sizes) == len(A | B | C)
+    try:
+        pigeonhole_min(5, 0)
+        assert False, &quot;zero boxes must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m18-ex5-derangements-series" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Derangements three ways and the binomial series</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>derangements_recurrence(n)</code> using <code>D(n) = (n-1)(D(n-1) + D(n-2))</code> with <code>D(0)=1</code>, <code>D(1)=0</code>. Write <code>derangements_formula(n)</code> using <code>n! * sum((-1)^k / k!)</code>, rounded to the nearest integer. Write <code>derangement_probability(n)</code> returning <code>D(n)/n!</code>. Write <code>binomial_series(exponent, x, terms)</code> summing the given number of terms of the generalised binomial series, and <code>series_converges(exponent, x)</code> returning <code>True</code> when <code>abs(x) &lt; 1</code> or the exponent is a non-negative integer. Raise <code>ValueError</code> for a negative <code>n</code> or a non-positive <code>terms</code>.</p></div>
+<textarea class="code" spellcheck="false">def derangements_recurrence(n):
+    &quot;&quot;&quot;D(n) by the recurrence.&quot;&quot;&quot;
+    return 0
+
+
+def derangements_formula(n):
+    &quot;&quot;&quot;D(n) by the inclusion-exclusion formula.&quot;&quot;&quot;
+    return 0
+
+
+def derangement_probability(n):
+    &quot;&quot;&quot;D(n)/n!.&quot;&quot;&quot;
+    return 0.0
+
+
+def binomial_series(exponent, x, terms):
+    &quot;&quot;&quot;Partial sum of the generalised binomial series.&quot;&quot;&quot;
+    return 0.0
+
+
+def series_converges(exponent, x):
+    &quot;&quot;&quot;True when the series represents (1+x)**exponent.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_derangements_agree_with_brute_force():
+    from itertools import permutations
+    for n in range(0, 8):
+        brute = 1 if n == 0 else sum(
+            1 for p in permutations(range(n)) if all(p[i] != i for i in range(n)))
+        assert derangements_recurrence(n) == brute, f&quot;recurrence wrong at {n}&quot;
+        assert derangements_formula(n) == brute, f&quot;formula wrong at {n}&quot;
+    # hand-checked values
+    assert derangements_recurrence(4) == 9
+    assert derangements_recurrence(5) == 44
+
+
+def test_probability_tends_to_one_over_e():
+    from math import e, factorial
+    # D(n)/n! is the truncated series for 1/e, so the error is the tail,
+    # bounded by 1/(n+1)!. That is the theory, so test against it.
+    for n in range(2, 13):
+        assert abs(derangement_probability(n) - 1 / e) &lt;= 2 / factorial(n + 1)
+    # by n = 6 that already means three correct decimal places
+    assert abs(derangement_probability(6) - 1 / e) &lt; 1e-3
+    # and it converges fast: by n = 12 it is very close indeed
+    assert abs(derangement_probability(12) - 1 / e) &lt; 1e-9
+    # it is not monotone: the sequence alternates around the limit
+    assert derangement_probability(3) &lt; 1 / e
+    assert derangement_probability(4) &gt; 1 / e
+
+
+def test_binomial_series_inside_and_outside_the_radius():
+    for x in (0.1, 0.5, 0.9, -0.5):
+        assert series_converges(0.5, x) is True
+        assert abs(binomial_series(0.5, x, 80) - (1 + x) ** 0.5) &lt; 1e-6
+    # outside the radius it is not a valid representation
+    assert series_converges(0.5, 1.5) is False
+    assert abs(binomial_series(0.5, 1.5, 200)) &gt; 1e3
+    # an integer exponent terminates, so it works for every x
+    assert series_converges(3, 5.0) is True
+    for x in (0.3, 2.0, -1.7):
+        assert abs(binomial_series(3, x, 40) - (1 + x) ** 3) &lt; 1e-9
+    try:
+        binomial_series(0.5, 0.2, 0)
+        assert False, &quot;zero terms must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Permutation and combination are two formulas to memorise."</strong> They are one count and a division. If you can say what you are over-counting and by how much, you never need to recall which formula is which.</li>
+<li><strong>"$0! = 0$."</strong> It is 1. There is exactly one arrangement of nothing, and every boundary case of every formula here depends on it.</li>
+<li><strong>"Stars and bars needs the boxes to be identical."</strong> The opposite: the boxes must be <strong>distinct</strong> and the items identical. Swap which side is identical and the count is completely different — that is a partition problem with no simple closed form.</li>
+<li><strong>"The binomial theorem needs a whole-number exponent."</strong> The finite version does. The series version works for any real exponent, but only for $|x| &lt; 1$, and that restriction is not negotiable.</li>
+<li><strong>"Pigeonhole is too obvious to be useful."</strong> It proves that two people in London have the same number of hairs on their heads, and it is the standard tool for showing a hash collision or a repeated state must exist. Obviousness and power are unrelated.</li>
+<li><strong>"The chance nobody gets their own coat must drop as the party grows."</strong> It converges to $1/e$ almost immediately, and is essentially the same for 10 guests and for a million.</li>
+<li><strong>"Inclusion-exclusion is just subtract the overlap."</strong> For two sets, yes. For $k$ sets there are $2^k - 1$ terms with alternating signs, and stopping after the pairwise subtractions is a classic undercount.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Closed-form counting runs out quickly. Counting the ways to <strong>partition</strong> $n$ identical items into <em>identical</em> boxes has no simple formula at all — the partition function $p(n)$ grows subexponentially and its asymptotics are a deep result of Hardy and Ramanujan. Counting labelled graphs, or permutations avoiding a pattern, lands in the same territory.</p>
+<p>The formulas also assume exact arithmetic. $\binom{100}{50}$ is about $10^{29}$, far beyond a 64-bit integer, so in any fixed-width language these calculations overflow silently. Python's arbitrary-precision integers hide the problem; Dart, Java and C++ do not. Computing $\binom{n}{r}$ as $\frac{n!}{r!(n-r)!}$ also overflows far earlier than necessary, since the answer may be small while the intermediate factorials are astronomical. The fix is to multiply and divide alternately, keeping the running value small — the same spirit as the stable quadratic formula in M13.</p>
+<p>The binomial series diverges outside $|x|&lt;1$, and no number of terms repairs that. Near the boundary convergence is slow enough to be useless in practice.</p>
+<p>Finally, independence is an assumption the multiplication principle quietly requires. If the second choice depends on the first, $mn$ is wrong, and the correction is conditional counting — which is M27.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>This is where complexity estimates come from. "Try every subset" is $2^n$, "try every ordering" is $n!$, and knowing that $20!$ exceeds $10^{18}$ while $2^{20}$ is only a million tells you instantly which brute force is feasible. The pigeonhole principle is the argument behind every hash-collision discussion, including why a 64-bit hash over $2^{32}$ keys is not safe, and the birthday bound is this module plus M10. Inclusion-exclusion is what makes a query over overlapping filters count correctly. Pascal's identity is the recurrence behind the classic dynamic-programming table, and the overflow caveat above is a real bug people ship whenever they compute a binomial coefficient in a fixed-width integer type.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the single idea that turns a permutation count into a combination count?</p></div><div class="a" hidden><p>The division principle: the ordered count sees each unordered selection exactly r! times, so divide by r!.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why is 0! defined as 1?</p></div><div class="a" hidden><p>Because there is exactly one arrangement of nothing, and because the permutation and combination formulas require it at their boundaries.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Give the combinatorial proof of Pascal's identity.</p></div><div class="a" hidden><p>Count the r-subsets of an n-set by whether they contain element n. If they do, the rest is an (r-1)-subset of n-1; if not, it is an r-subset of n-1. The cases are disjoint and exhaustive.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why are the binomial coefficients combinations?</p></div><div class="a" hidden><p>Expanding (a+b)^n means picking a or b from each of n brackets. The coefficient of a^(n-r) b^r counts which r brackets gave the b, which is C(n,r).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>State the pigeonhole principle in its sharper form.</p></div><div class="a" hidden><p>Placing n items into m boxes forces some box to hold at least the ceiling of n/m.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How many ways to put n identical items into k distinct boxes, empties allowed?</p></div><div class="a" hidden><p>C(n+k-1, k-1), by placing k-1 bars among n stars.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>What is a derangement, and what does D(n)/n! tend to?</p></div><div class="a" hidden><p>A permutation with no fixed point. The ratio tends to 1/e, about 0.3679, and converges very fast.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>When is the binomial series for (1+x)^n valid for non-integer n?</p></div><div class="a" hidden><p>Only for |x| &lt; 1. Outside that radius the series diverges even though the function is perfectly well defined.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Why can computing C(n,r) as n!/(r!(n-r)!) overflow unnecessarily?</p></div><div class="a" hidden><p>Because the intermediate factorials are enormous even when the answer is small. Multiplying and dividing alternately keeps the running value near the final size.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why the laddoo count is the photo count divided by six, you can derive the permutation and combination formulas from the multiplication and division principles rather than recall them, you can give a combinatorial proof of Pascal's identity without algebra, you can recognise a stars-and-bars problem and say which side must be identical, you pass the boss exercise without hints, and you can estimate whether a brute force over subsets or over orderings will finish before you do.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 11, chapters on Permutations and Combinations and on the Binomial Theorem.</li>
+<li>Richard A. Brualdi, <em>Introductory Combinatorics</em>, Pearson.</li>
+<li>Graham, Knuth and Patashnik, <em>Concrete Mathematics</em>, 2nd edition, Addison-Wesley.</li>
+<li>Kim Plofker, <em>Mathematics in India</em>, Princeton University Press, 2009 (Pingala, Virahanka and the meru-prastara).</li>
+<li>Blaise Pascal, <em>Traité du triangle arithmétique</em>, published 1665.</li>
+</ul></section>
+<footer class="pager"><a href="V01.html">&larr; V01 Theorem, theory, reality: how we know anything</a>
+<a href="M27.html">M27 Probability II: conditional probability and random variables &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M18", "packages": [], "exercises": {"m18-ex1-basic-counting": {"starter": "def factorial(n):\n    \"\"\"n! with 0! = 1.\"\"\"\n    return 1\n\n\ndef n_p_r(n, r):\n    \"\"\"Arrangements of r from n, order mattering.\"\"\"\n    return 0\n\n\ndef n_c_r(n, r):\n    \"\"\"Selections of r from n, order not mattering.\"\"\"\n    return 0\n\n\ndef arrangements_with_repetition(n, r):\n    \"\"\"Arrangements of r from n with repetition allowed.\"\"\"\n    return 0\n", "solution": "def factorial(n):\n    \"\"\"n! with 0! = 1.\"\"\"\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    out = 1\n    for k in range(2, n + 1):\n        out *= k\n    return out\n\n\ndef n_p_r(n, r):\n    \"\"\"Arrangements of r from n, order mattering.\"\"\"\n    if r > n:\n        raise ValueError(\"r must not exceed n\")\n    return factorial(n) // factorial(n - r)\n\n\ndef n_c_r(n, r):\n    \"\"\"Selections of r from n, order not mattering.\"\"\"\n    if r > n:\n        raise ValueError(\"r must not exceed n\")\n    return factorial(n) // (factorial(r) * factorial(n - r))\n\n\ndef arrangements_with_repetition(n, r):\n    \"\"\"Arrangements of r from n with repetition allowed.\"\"\"\n    if not isinstance(n, int) or not isinstance(r, int) or n < 0 or r < 0:\n        raise ValueError(\"n and r must be non-negative integers\")\n    return n ** r\n", "tests": "def test_factorial_including_zero():\n    assert factorial(0) == 1\n    assert factorial(1) == 1\n    assert factorial(5) == 120\n    assert factorial(10) == 3628800\n\n\ndef test_permutations_and_combinations_hand_checked():\n    # the five cousins\n    assert n_p_r(5, 5) == 120\n    assert n_c_r(5, 3) == 10\n    assert n_p_r(5, 3) == 60\n    # the division principle: P = C * r!\n    assert n_p_r(5, 3) == n_c_r(5, 3) * factorial(3)\n    # symmetry of combinations\n    for n in range(0, 12):\n        for r in range(0, n + 1):\n            assert n_c_r(n, r) == n_c_r(n, n - r)\n\n\ndef test_repetition_and_errors():\n    assert arrangements_with_repetition(6, 3) == 216      # three dice\n    assert arrangements_with_repetition(2, 10) == 1024\n    assert arrangements_with_repetition(5, 0) == 1\n    # with repetition there are at least as many as without\n    for n in range(1, 8):\n        for r in range(0, n + 1):\n            assert arrangements_with_repetition(n, r) >= n_p_r(n, r)\n    try:\n        n_c_r(3, 5)\n        assert False, \"r above n must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        factorial(-1)\n        assert False, \"a negative factorial must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def factorial(n):\n    \"\"\"Bug: returns 0 for 0!, breaking every boundary case.\"\"\"\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if n == 0:\n        return 0\n    out = 1\n    for k in range(2, n + 1):\n        out *= k\n    return out\n\n\ndef n_p_r(n, r):\n    if r > n:\n        raise ValueError(\"r must not exceed n\")\n    return factorial(n) // factorial(n - r) if factorial(n - r) else 0\n\n\ndef n_c_r(n, r):\n    if r > n:\n        raise ValueError(\"r must not exceed n\")\n    d = factorial(r) * factorial(n - r)\n    return factorial(n) // d if d else 0\n\n\ndef arrangements_with_repetition(n, r):\n    if not isinstance(n, int) or not isinstance(r, int) or n < 0 or r < 0:\n        raise ValueError(\"n and r must be non-negative integers\")\n    return n ** r\n", "def factorial(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    out = 1\n    for k in range(2, n + 1):\n        out *= k\n    return out\n\n\ndef n_p_r(n, r):\n    if r > n:\n        raise ValueError(\"r must not exceed n\")\n    return factorial(n) // factorial(n - r)\n\n\ndef n_c_r(n, r):\n    \"\"\"Bug: divides by r! only, forgetting the (n-r)! factor.\"\"\"\n    if r > n:\n        raise ValueError(\"r must not exceed n\")\n    return factorial(n) // factorial(r)\n\n\ndef arrangements_with_repetition(n, r):\n    if not isinstance(n, int) or not isinstance(r, int) or n < 0 or r < 0:\n        raise ValueError(\"n and r must be non-negative integers\")\n    return n ** r\n"], "hints": ["`0! = 1`, and that is required for the formulas to work when `r` equals 0 or `n`.", "`C(n, r) = n! / (r! * (n-r)!)`. Both factorials are in the denominator."], "level": "warmup", "title": "Factorials, permutations and combinations"}, "m18-ex2-multiset-starsbars": {"starter": "def multiset_permutations(counts):\n    \"\"\"Distinct arrangements of a multiset with the given counts.\"\"\"\n    return 0\n\n\ndef stars_and_bars(n, k):\n    \"\"\"n identical items into k distinct boxes, empties allowed.\"\"\"\n    return 0\n\n\ndef stars_and_bars_nonempty(n, k):\n    \"\"\"n identical items into k distinct boxes, none empty.\"\"\"\n    return 0\n", "solution": "from math import comb, factorial\n\n\ndef multiset_permutations(counts):\n    \"\"\"Distinct arrangements of a multiset with the given counts.\"\"\"\n    if not counts or any((not isinstance(c, int)) or c <= 0 for c in counts):\n        raise ValueError(\"counts must be positive integers\")\n    total = factorial(sum(counts))\n    for c in counts:\n        total //= factorial(c)\n    return total\n\n\ndef stars_and_bars(n, k):\n    \"\"\"n identical items into k distinct boxes, empties allowed.\"\"\"\n    if not isinstance(n, int) or not isinstance(k, int) or n < 0 or k <= 0:\n        raise ValueError(\"n must be non-negative and k positive\")\n    return comb(n + k - 1, k - 1)\n\n\ndef stars_and_bars_nonempty(n, k):\n    \"\"\"n identical items into k distinct boxes, none empty.\"\"\"\n    if not isinstance(n, int) or not isinstance(k, int) or n < 0 or k <= 0:\n        raise ValueError(\"n must be non-negative and k positive\")\n    if n < k:\n        return 0\n    return comb(n - 1, k - 1)\n", "tests": "def test_multiset_against_enumeration():\n    from itertools import permutations\n    cases = {\"aab\": [2, 1], \"aabb\": [2, 2], \"banana\": [3, 2, 1], \"level\": [2, 2, 1]}\n    for word, counts in cases.items():\n        assert multiset_permutations(counts) == len(set(permutations(word))), word\n    # all distinct reduces to n!\n    assert multiset_permutations([1, 1, 1, 1]) == 24\n\n\ndef test_stars_and_bars_against_enumeration():\n    from itertools import combinations_with_replacement\n    for n in range(0, 8):\n        for k in range(1, 5):\n            enumerated = sum(1 for _ in combinations_with_replacement(range(k), n))\n            assert stars_and_bars(n, k) == enumerated, f\"{n},{k}\"\n    # hand-checked: 7 laddoos into 3 bowls\n    assert stars_and_bars(7, 3) == 36\n    assert stars_and_bars(0, 4) == 1          # one way: all boxes empty\n\n\ndef test_nonempty_version_and_errors():\n    # every box non-empty: give each one first, then distribute the rest freely\n    for n in range(0, 10):\n        for k in range(1, 5):\n            assert stars_and_bars_nonempty(n, k) == (stars_and_bars(n - k, k) if n >= k else 0)\n    assert stars_and_bars_nonempty(7, 3) == 15\n    assert stars_and_bars_nonempty(2, 3) == 0\n    try:\n        stars_and_bars(5, 0)\n        assert False, \"k = 0 must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        multiset_permutations([2, 0])\n        assert False, \"a zero count must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import comb, factorial\n\n\ndef multiset_permutations(counts):\n    \"\"\"Bug: divides by the number of kinds rather than by each factorial.\"\"\"\n    if not counts or any((not isinstance(c, int)) or c <= 0 for c in counts):\n        raise ValueError(\"counts must be positive integers\")\n    return factorial(sum(counts)) // factorial(len(counts))\n\n\ndef stars_and_bars(n, k):\n    if not isinstance(n, int) or not isinstance(k, int) or n < 0 or k <= 0:\n        raise ValueError(\"n must be non-negative and k positive\")\n    return comb(n + k - 1, k - 1)\n\n\ndef stars_and_bars_nonempty(n, k):\n    if not isinstance(n, int) or not isinstance(k, int) or n < 0 or k <= 0:\n        raise ValueError(\"n must be non-negative and k positive\")\n    if n < k:\n        return 0\n    return comb(n - 1, k - 1)\n", "from math import comb, factorial\n\n\ndef multiset_permutations(counts):\n    if not counts or any((not isinstance(c, int)) or c <= 0 for c in counts):\n        raise ValueError(\"counts must be positive integers\")\n    total = factorial(sum(counts))\n    for c in counts:\n        total //= factorial(c)\n    return total\n\n\ndef stars_and_bars(n, k):\n    \"\"\"Bug: chooses k instead of k-1 bars.\"\"\"\n    if not isinstance(n, int) or not isinstance(k, int) or n < 0 or k <= 0:\n        raise ValueError(\"n must be non-negative and k positive\")\n    return comb(n + k - 1, k)\n\n\ndef stars_and_bars_nonempty(n, k):\n    if not isinstance(n, int) or not isinstance(k, int) or n < 0 or k <= 0:\n        raise ValueError(\"n must be non-negative and k positive\")\n    if n < k:\n        return 0\n    return comb(n - 1, k - 1)\n"], "hints": ["For a multiset, divide `n!` by the factorial of *each* repeat count, one at a time.", "Stars and bars places `k-1` dividers among `n + k - 1` positions, so the binomial coefficient chooses `k-1`."], "level": "core", "title": "Identical items and distributing into boxes"}, "m18-ex3-binomial": {"starter": "def pascal_row(n):\n    \"\"\"Row n of Pascal's triangle.\"\"\"\n    return []\n\n\ndef binomial_expand(n):\n    \"\"\"Coefficients of (a+b)^n.\"\"\"\n    return []\n\n\ndef general_term(n, r, a, b):\n    \"\"\"The (r+1)-th term of the expansion.\"\"\"\n    return 0\n\n\ndef middle_terms(n):\n    \"\"\"1-based index or indices of the middle term(s).\"\"\"\n    return []\n", "solution": "def pascal_row(n):\n    \"\"\"Row n of Pascal's triangle, built by Pascal's identity.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    row = [1]\n    for _ in range(n):\n        row = [1] + [row[i] + row[i + 1] for i in range(len(row) - 1)] + [1]\n    return row\n\n\ndef binomial_expand(n):\n    \"\"\"Coefficients of (a+b)^n.\"\"\"\n    return pascal_row(n)\n\n\ndef general_term(n, r, a, b):\n    \"\"\"The (r+1)-th term of the expansion.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if not isinstance(r, int) or r < 0 or r > n:\n        raise ValueError(\"r must lie between 0 and n\")\n    return pascal_row(n)[r] * a ** (n - r) * b ** r\n\n\ndef middle_terms(n):\n    \"\"\"1-based index or indices of the middle term(s).\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if n % 2 == 0:\n        return [n // 2 + 1]\n    return [(n + 1) // 2, (n + 3) // 2]\n", "tests": "def test_pascal_rows_hand_checked():\n    assert pascal_row(0) == [1]\n    assert pascal_row(1) == [1, 1]\n    assert pascal_row(4) == [1, 4, 6, 4, 1]\n    assert pascal_row(6) == [1, 6, 15, 20, 15, 6, 1]\n    # Pascal's identity links consecutive rows\n    for n in range(1, 15):\n        prev, cur = pascal_row(n - 1), pascal_row(n)\n        for r in range(1, n):\n            assert cur[r] == prev[r - 1] + prev[r]\n\n\ndef test_row_sums_and_expansion_values():\n    for n in range(0, 15):\n        row = pascal_row(n)\n        assert sum(row) == 2 ** n\n        if n >= 1:\n            assert sum((-1) ** r * c for r, c in enumerate(row)) == 0\n        assert row == row[::-1]            # symmetry\n    # the expansion really evaluates (a+b)^n\n    for n in range(0, 10):\n        for a, b in ((1, 1), (2, 3), (5, -2)):\n            total = sum(general_term(n, r, a, b) for r in range(n + 1))\n            assert total == (a + b) ** n\n\n\ndef test_middle_terms_and_errors():\n    assert middle_terms(6) == [4]          # 7 terms, the 4th is central\n    assert middle_terms(7) == [4, 5]       # 8 terms, two central\n    assert middle_terms(0) == [1]\n    # the middle term of (a+b)^6 at a=b=1 is the largest coefficient\n    row = pascal_row(6)\n    assert row[middle_terms(6)[0] - 1] == max(row)\n    try:\n        general_term(5, 6, 1, 1)\n        assert False, \"r above n must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def pascal_row(n):\n    \"\"\"Bug: adds the wrong neighbours, so rows stop matching the identity.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    row = [1]\n    for _ in range(n):\n        row = [1] + [row[i] + row[i] for i in range(len(row) - 1)] + [1]\n    return row\n\n\ndef binomial_expand(n):\n    return pascal_row(n)\n\n\ndef general_term(n, r, a, b):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if not isinstance(r, int) or r < 0 or r > n:\n        raise ValueError(\"r must lie between 0 and n\")\n    return pascal_row(n)[r] * a ** (n - r) * b ** r\n\n\ndef middle_terms(n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if n % 2 == 0:\n        return [n // 2 + 1]\n    return [(n + 1) // 2, (n + 3) // 2]\n", "def pascal_row(n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    row = [1]\n    for _ in range(n):\n        row = [1] + [row[i] + row[i + 1] for i in range(len(row) - 1)] + [1]\n    return row\n\n\ndef binomial_expand(n):\n    return pascal_row(n)\n\n\ndef general_term(n, r, a, b):\n    \"\"\"Bug: the powers of a and b are swapped.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    if not isinstance(r, int) or r < 0 or r > n:\n        raise ValueError(\"r must lie between 0 and n\")\n    return pascal_row(n)[r] * a ** r * b ** (n - r)\n\n\ndef middle_terms(n):\n    \"\"\"Bug: always returns a single middle term, even for odd n.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    return [n // 2 + 1]\n"], "hints": ["Build each row from the previous one: a 1, then each adjacent pair summed, then a 1.", "In the term `C(n,r) a^(n-r) b^r`, the exponent of `b` is `r` \u2014 the same `r` that counts which brackets supplied a `b`."], "level": "core", "title": "Pascal's triangle and the binomial theorem"}, "m18-ex4-pigeonhole-inclusion": {"starter": "def pigeonhole_min(items, boxes):\n    \"\"\"The fullest box must hold at least this many.\"\"\"\n    return 0\n\n\ndef has_collision(items, boxes):\n    \"\"\"True when two items must share a box.\"\"\"\n    return False\n\n\ndef inclusion_exclusion(sizes):\n    \"\"\"Size of the union from the sizes of all intersections.\"\"\"\n    return 0\n", "solution": "def pigeonhole_min(items, boxes):\n    \"\"\"The fullest box must hold at least this many.\"\"\"\n    if not isinstance(items, int) or not isinstance(boxes, int):\n        raise ValueError(\"items and boxes must be integers\")\n    if boxes <= 0 or items < 0:\n        raise ValueError(\"boxes must be positive and items non-negative\")\n    return -(-items // boxes)          # ceiling division\n\n\ndef has_collision(items, boxes):\n    \"\"\"True when two items must share a box.\"\"\"\n    return pigeonhole_min(items, boxes) >= 2\n\n\ndef inclusion_exclusion(sizes):\n    \"\"\"Size of the union from the sizes of all intersections.\"\"\"\n    total = 0\n    for key, value in sizes.items():\n        k = len(key)\n        if k == 0:\n            continue\n        total += ((-1) ** (k + 1)) * value\n    return total\n", "tests": "def test_pigeonhole_counts():\n    assert pigeonhole_min(13, 12) == 2       # 13 people, 12 months\n    assert has_collision(13, 12) is True\n    assert has_collision(12, 12) is False\n    assert pigeonhole_min(10, 3) == 4        # ceiling of 10/3\n    assert pigeonhole_min(9, 3) == 3\n    assert pigeonhole_min(0, 5) == 0\n\n\ndef test_inclusion_exclusion_two_and_three_sets():\n    # |A|=10, |B|=8, |A and B|=3  ->  union 15\n    sizes = {frozenset(\"A\"): 10, frozenset(\"B\"): 8, frozenset(\"AB\"): 3}\n    assert inclusion_exclusion(sizes) == 15\n    # three sets, hand-checked\n    sizes3 = {\n        frozenset(\"A\"): 10, frozenset(\"B\"): 8, frozenset(\"C\"): 6,\n        frozenset(\"AB\"): 3, frozenset(\"BC\"): 2, frozenset(\"AC\"): 4,\n        frozenset(\"ABC\"): 1,\n    }\n    assert inclusion_exclusion(sizes3) == 10 + 8 + 6 - 3 - 2 - 4 + 1\n\n\ndef test_inclusion_exclusion_against_real_sets():\n    A = set(range(0, 30, 2))\n    B = set(range(0, 30, 3))\n    C = set(range(0, 30, 5))\n    sizes = {\n        frozenset(\"A\"): len(A), frozenset(\"B\"): len(B), frozenset(\"C\"): len(C),\n        frozenset(\"AB\"): len(A & B), frozenset(\"BC\"): len(B & C), frozenset(\"AC\"): len(A & C),\n        frozenset(\"ABC\"): len(A & B & C),\n    }\n    assert inclusion_exclusion(sizes) == len(A | B | C)\n    try:\n        pigeonhole_min(5, 0)\n        assert False, \"zero boxes must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def pigeonhole_min(items, boxes):\n    \"\"\"Bug: uses floor division, so the guarantee is understated.\"\"\"\n    if not isinstance(items, int) or not isinstance(boxes, int):\n        raise ValueError(\"items and boxes must be integers\")\n    if boxes <= 0 or items < 0:\n        raise ValueError(\"boxes must be positive and items non-negative\")\n    return items // boxes\n\n\ndef has_collision(items, boxes):\n    return pigeonhole_min(items, boxes) >= 2\n\n\ndef inclusion_exclusion(sizes):\n    total = 0\n    for key, value in sizes.items():\n        k = len(key)\n        if k == 0:\n            continue\n        total += ((-1) ** (k + 1)) * value\n    return total\n", "def pigeonhole_min(items, boxes):\n    if not isinstance(items, int) or not isinstance(boxes, int):\n        raise ValueError(\"items and boxes must be integers\")\n    if boxes <= 0 or items < 0:\n        raise ValueError(\"boxes must be positive and items non-negative\")\n    return -(-items // boxes)\n\n\ndef has_collision(items, boxes):\n    return pigeonhole_min(items, boxes) >= 2\n\n\ndef inclusion_exclusion(sizes):\n    \"\"\"Bug: adds every intersection instead of alternating signs.\"\"\"\n    total = 0\n    for key, value in sizes.items():\n        if len(key) == 0:\n            continue\n        total += value\n    return total\n"], "hints": ["The guaranteed occupancy is the *ceiling* of items over boxes; `-(-a // b)` is an integer-safe ceiling.", "In inclusion-exclusion the sign depends on how many sets are in the intersection: odd-sized intersections are added, even-sized ones subtracted."], "level": "core", "title": "Pigeonhole and inclusion-exclusion"}, "m18-ex5-derangements-series": {"starter": "def derangements_recurrence(n):\n    \"\"\"D(n) by the recurrence.\"\"\"\n    return 0\n\n\ndef derangements_formula(n):\n    \"\"\"D(n) by the inclusion-exclusion formula.\"\"\"\n    return 0\n\n\ndef derangement_probability(n):\n    \"\"\"D(n)/n!.\"\"\"\n    return 0.0\n\n\ndef binomial_series(exponent, x, terms):\n    \"\"\"Partial sum of the generalised binomial series.\"\"\"\n    return 0.0\n\n\ndef series_converges(exponent, x):\n    \"\"\"True when the series represents (1+x)**exponent.\"\"\"\n    return False\n", "solution": "from math import factorial\n\n\ndef _check_n(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n\n\ndef derangements_recurrence(n):\n    \"\"\"D(n) by the recurrence.\"\"\"\n    _check_n(n)\n    if n == 0:\n        return 1\n    if n == 1:\n        return 0\n    prev2, prev1 = 1, 0\n    for k in range(2, n + 1):\n        prev2, prev1 = prev1, (k - 1) * (prev1 + prev2)\n    return prev1\n\n\ndef derangements_formula(n):\n    \"\"\"D(n) by the inclusion-exclusion formula.\"\"\"\n    _check_n(n)\n    total = sum((-1) ** k / factorial(k) for k in range(n + 1))\n    return round(factorial(n) * total)\n\n\ndef derangement_probability(n):\n    \"\"\"D(n)/n!.\"\"\"\n    _check_n(n)\n    return derangements_recurrence(n) / factorial(n)\n\n\ndef binomial_series(exponent, x, terms):\n    \"\"\"Partial sum of the generalised binomial series.\"\"\"\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    total = 0.0\n    coeff = 1.0\n    for k in range(terms):\n        total += coeff * x ** k\n        coeff *= (exponent - k) / (k + 1)\n    return total\n\n\ndef series_converges(exponent, x):\n    \"\"\"True when the series represents (1+x)**exponent.\"\"\"\n    if isinstance(exponent, int) and not isinstance(exponent, bool) and exponent >= 0:\n        return True\n    return abs(x) < 1\n", "tests": "def test_derangements_agree_with_brute_force():\n    from itertools import permutations\n    for n in range(0, 8):\n        brute = 1 if n == 0 else sum(\n            1 for p in permutations(range(n)) if all(p[i] != i for i in range(n)))\n        assert derangements_recurrence(n) == brute, f\"recurrence wrong at {n}\"\n        assert derangements_formula(n) == brute, f\"formula wrong at {n}\"\n    # hand-checked values\n    assert derangements_recurrence(4) == 9\n    assert derangements_recurrence(5) == 44\n\n\ndef test_probability_tends_to_one_over_e():\n    from math import e, factorial\n    # D(n)/n! is the truncated series for 1/e, so the error is the tail,\n    # bounded by 1/(n+1)!. That is the theory, so test against it.\n    for n in range(2, 13):\n        assert abs(derangement_probability(n) - 1 / e) <= 2 / factorial(n + 1)\n    # by n = 6 that already means three correct decimal places\n    assert abs(derangement_probability(6) - 1 / e) < 1e-3\n    # and it converges fast: by n = 12 it is very close indeed\n    assert abs(derangement_probability(12) - 1 / e) < 1e-9\n    # it is not monotone: the sequence alternates around the limit\n    assert derangement_probability(3) < 1 / e\n    assert derangement_probability(4) > 1 / e\n\n\ndef test_binomial_series_inside_and_outside_the_radius():\n    for x in (0.1, 0.5, 0.9, -0.5):\n        assert series_converges(0.5, x) is True\n        assert abs(binomial_series(0.5, x, 80) - (1 + x) ** 0.5) < 1e-6\n    # outside the radius it is not a valid representation\n    assert series_converges(0.5, 1.5) is False\n    assert abs(binomial_series(0.5, 1.5, 200)) > 1e3\n    # an integer exponent terminates, so it works for every x\n    assert series_converges(3, 5.0) is True\n    for x in (0.3, 2.0, -1.7):\n        assert abs(binomial_series(3, x, 40) - (1 + x) ** 3) < 1e-9\n    try:\n        binomial_series(0.5, 0.2, 0)\n        assert False, \"zero terms must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import factorial\n\n\ndef _check_n(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n\n\ndef derangements_recurrence(n):\n    \"\"\"Bug: uses n instead of n-1 as the multiplier.\"\"\"\n    _check_n(n)\n    if n == 0:\n        return 1\n    if n == 1:\n        return 0\n    prev2, prev1 = 1, 0\n    for k in range(2, n + 1):\n        prev2, prev1 = prev1, k * (prev1 + prev2)\n    return prev1\n\n\ndef derangements_formula(n):\n    _check_n(n)\n    total = sum((-1) ** k / factorial(k) for k in range(n + 1))\n    return round(factorial(n) * total)\n\n\ndef derangement_probability(n):\n    _check_n(n)\n    return derangements_recurrence(n) / factorial(n)\n\n\ndef binomial_series(exponent, x, terms):\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    total = 0.0\n    coeff = 1.0\n    for k in range(terms):\n        total += coeff * x ** k\n        coeff *= (exponent - k) / (k + 1)\n    return total\n\n\ndef series_converges(exponent, x):\n    if isinstance(exponent, int) and not isinstance(exponent, bool) and exponent >= 0:\n        return True\n    return abs(x) < 1\n", "from math import factorial\n\n\ndef _check_n(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n\n\ndef derangements_recurrence(n):\n    _check_n(n)\n    if n == 0:\n        return 1\n    if n == 1:\n        return 0\n    prev2, prev1 = 1, 0\n    for k in range(2, n + 1):\n        prev2, prev1 = prev1, (k - 1) * (prev1 + prev2)\n    return prev1\n\n\ndef derangements_formula(n):\n    _check_n(n)\n    total = sum((-1) ** k / factorial(k) for k in range(n + 1))\n    return round(factorial(n) * total)\n\n\ndef derangement_probability(n):\n    _check_n(n)\n    return derangements_recurrence(n) / factorial(n)\n\n\ndef binomial_series(exponent, x, terms):\n    \"\"\"Bug: the coefficient recurrence divides by k instead of k+1.\"\"\"\n    if not isinstance(terms, int) or terms <= 0:\n        raise ValueError(\"terms must be a positive integer\")\n    total = 0.0\n    coeff = 1.0\n    for k in range(terms):\n        total += coeff * x ** k\n        coeff *= (exponent - k) / max(k, 1)\n    return total\n\n\ndef series_converges(exponent, x):\n    \"\"\"Bug: claims the series always converges.\"\"\"\n    return True\n"], "hints": ["In the derangement recurrence the multiplier is `(k-1)`, not `k`. Check it against D(2) = 1 and D(3) = 2.", "Build the binomial coefficients incrementally: multiply the previous coefficient by `(exponent - k)/(k+1)`."], "level": "boss", "title": "Derangements three ways and the binomial series"}}, "demos": {"m18-counting-two-ways": {"code": "from itertools import permutations, combinations, combinations_with_replacement, product\nfrom math import factorial, comb, perm\n\n\ndef nPr(n, r):\n    return factorial(n) // factorial(n - r)\n\n\ndef nCr(n, r):\n    return factorial(n) // (factorial(r) * factorial(n - r))\n\n\nfor n in range(0, 8):\n    for r in range(0, n + 1):\n        enumerated_perms = sum(1 for _ in permutations(range(n), r))\n        enumerated_combs = sum(1 for _ in combinations(range(n), r))\n        assert enumerated_perms == nPr(n, r) == perm(n, r), f\"permutations wrong at {n},{r}\"\n        assert enumerated_combs == nCr(n, r) == comb(n, r), f\"combinations wrong at {n},{r}\"\n        # the division principle: each selection appears r! times among the arrangements\n        assert enumerated_perms == enumerated_combs * factorial(r)\n\nprint(\"permutations and combinations verified by enumeration for n = 0..7\")\nprint(\"5 cousins in a row:\", nPr(5, 5), \" 3 of 5 chosen for laddoos:\", nCr(5, 3))\nassert nPr(5, 5) == 120 and nCr(5, 3) == 10\nassert nPr(5, 3) == nCr(5, 3) * factorial(3) == 60\n\n# Arrangements with repetition allowed.\nfor n in range(1, 5):\n    for r in range(0, 5):\n        assert sum(1 for _ in product(range(n), repeat=r)) == n ** r\n\n# Permutations of a multiset, e.g. the letters of a word with repeats.\ndef multiset_arrangements(letters):\n    counts = {}\n    for ch in letters:\n        counts[ch] = counts.get(ch, 0) + 1\n    total = factorial(len(letters))\n    for c in counts.values():\n        total //= factorial(c)\n    return total\n\nfor word in (\"aab\", \"aabb\", \"banana\", \"level\"):\n    enumerated = len(set(permutations(word)))\n    assert enumerated == multiset_arrangements(word), word\nprint(\"multiset arrangements verified; 'banana' has\", multiset_arrangements(\"banana\"), \"distinct orderings\")\n\n# Stars and bars: n identical items into k distinct boxes.\ndef stars_and_bars(n, k):\n    return comb(n + k - 1, k - 1)\n\nfor n in range(0, 7):\n    for k in range(1, 5):\n        enumerated = sum(1 for _ in combinations_with_replacement(range(k), n))\n        assert enumerated == stars_and_bars(n, k), f\"stars and bars wrong at {n},{k}\"\nprint(\"stars and bars verified; 7 laddoos into 3 bowls:\", stars_and_bars(7, 3))\n\n# Pascal's identity and the row sum.\nfor n in range(1, 15):\n    for r in range(1, n):\n        assert comb(n, r) == comb(n - 1, r - 1) + comb(n - 1, r)\n    assert sum(comb(n, r) for r in range(n + 1)) == 2 ** n\n    assert sum((-1) ** r * comb(n, r) for r in range(n + 1)) == 0\nprint(\"Pascal's identity, the row sum 2^n and the alternating sum 0 all verified\")\n", "mutants": ["from itertools import permutations, combinations\nfrom math import factorial\n\n\ndef nPr(n, r):\n    return factorial(n) // factorial(n - r)\n\n\ndef nCr(n, r):\n    \"\"\"Bug: forgets to divide out the r! orderings, so this is really nPr.\"\"\"\n    return factorial(n) // factorial(n - r)\n\n\nfor n in range(0, 8):\n    for r in range(0, n + 1):\n        enumerated_perms = sum(1 for _ in permutations(range(n), r))\n        enumerated_combs = sum(1 for _ in combinations(range(n), r))\n        assert enumerated_perms == nPr(n, r), f\"permutations wrong at {n},{r}\"\n        assert enumerated_combs == nCr(n, r), f\"combinations wrong at {n},{r}\"\n\nprint(\"permutations and combinations verified by enumeration for n = 0..7\")\n"]}, "m18-derangements-and-series": {"code": "from itertools import permutations\nfrom math import factorial, e\n\n\ndef derangements_bruteforce(n):\n    if n == 0:\n        return 1\n    return sum(1 for p in permutations(range(n)) if all(p[i] != i for i in range(n)))\n\n\ndef derangements_recurrence(n):\n    if n == 0:\n        return 1\n    if n == 1:\n        return 0\n    prev2, prev1 = 1, 0\n    for k in range(2, n + 1):\n        prev2, prev1 = prev1, (k - 1) * (prev1 + prev2)\n    return prev1\n\n\ndef derangements_formula(n):\n    return round(factorial(n) * sum((-1) ** k / factorial(k) for k in range(n + 1)))\n\n\nprint(f\"{'n':>3} {'brute force':>12} {'recurrence':>12} {'formula':>10} {'D(n)/n!':>10}\")\nfor n in range(0, 9):\n    b = derangements_bruteforce(n)\n    r = derangements_recurrence(n)\n    f = derangements_formula(n)\n    assert b == r == f, f\"the three routes must agree at n={n}\"\n    print(f\"{n:>3} {b:>12} {r:>12} {f:>10} {b / factorial(n):>10.6f}\")\n\nprint()\nprint(\"predicted limit of D(n)/n! :\", round(1 / e, 6))\nfor n in (6, 7, 8):\n    ratio = derangements_bruteforce(n) / factorial(n)\n    print(f\"measured at n = {n}: {ratio:.6f}\")\n    assert abs(ratio - 1 / e) < 1e-3, \"the ratio must be close to 1/e already\"\n\n# It converges extremely fast: n = 8 is good to six decimal places.\nassert abs(derangements_recurrence(12) / factorial(12) - 1 / e) < 1e-9\n\nprint()\nprint(\"binomial series for (1+x)^n with a NON-integer exponent\")\n\n\ndef binomial_series(exponent, x, terms):\n    total = 0.0\n    coeff = 1.0\n    for k in range(terms):\n        total += coeff * x ** k\n        coeff *= (exponent - k) / (k + 1)\n    return total\n\n\nprint(f\"{'x':>8} {'series (60 terms)':>20} {'true (1+x)^0.5':>18} {'error':>12}\")\nfor x in (0.1, 0.5, 0.9):\n    approx = binomial_series(0.5, x, 60)\n    true = (1 + x) ** 0.5\n    print(f\"{x:>8} {approx:>20.12f} {true:>18.12f} {abs(approx - true):>12.2e}\")\n    assert abs(approx - true) < 1e-6, \"inside |x| < 1 the series must converge to the value\"\n\n# Outside the radius it diverges: the terms grow without bound.\nrunaway = binomial_series(0.5, 1.5, 200)\nprint()\nprint(\"predicted: for x = 1.5 the series DIVERGES; true value would be\", round((1 + 1.5) ** 0.5, 6))\nprint(\"measured partial sum after 200 terms:\", f\"{runaway:.3e}\")\nassert abs(runaway) > 1e3, \"outside |x| < 1 the partial sums must run away\"\n\n# With an integer exponent the series terminates and reproduces the finite theorem.\nfrom math import comb\nfor n in (0, 1, 5, 9):\n    for x in (0.3, 2.0, -1.7):\n        assert abs(binomial_series(n, x, 60) - (1 + x) ** n) < 1e-9\n        assert abs(sum(comb(n, r) * x ** r for r in range(n + 1)) - (1 + x) ** n) < 1e-9\nprint(\"with an integer exponent the series terminates and matches the finite theorem\")\n", "mutants": ["from itertools import permutations\nfrom math import factorial, e\n\n\ndef derangements_bruteforce(n):\n    if n == 0:\n        return 1\n    return sum(1 for p in permutations(range(n)) if all(p[i] != i for i in range(n)))\n\n\ndef derangements_recurrence(n):\n    \"\"\"Bug: drops the (n-1) factor from the recurrence.\"\"\"\n    if n == 0:\n        return 1\n    if n == 1:\n        return 0\n    prev2, prev1 = 1, 0\n    for k in range(2, n + 1):\n        prev2, prev1 = prev1, (prev1 + prev2)\n    return prev1\n\n\ndef derangements_formula(n):\n    return round(factorial(n) * sum((-1) ** k / factorial(k) for k in range(n + 1)))\n\n\nfor n in range(0, 9):\n    b = derangements_bruteforce(n)\n    r = derangements_recurrence(n)\n    f = derangements_formula(n)\n    print(f\"  n={n} brute={b} recurrence={r} formula={f}\")\n    assert b == r == f, f\"the three routes must agree at n={n}\"\n"]}}, "cards": [{"q": "What is the single idea that turns a permutation count into a combination count?", "a": "The division principle: the ordered count sees each unordered selection exactly r! times, so divide by r!."}, {"q": "Why is 0! defined as 1?", "a": "Because there is exactly one arrangement of nothing, and because the permutation and combination formulas require it at their boundaries."}, {"q": "Give the combinatorial proof of Pascal's identity.", "a": "Count the r-subsets of an n-set by whether they contain element n. If they do, the rest is an (r-1)-subset of n-1; if not, it is an r-subset of n-1. The cases are disjoint and exhaustive."}, {"q": "Why are the binomial coefficients combinations?", "a": "Expanding (a+b)^n means picking a or b from each of n brackets. The coefficient of a^(n-r) b^r counts which r brackets gave the b, which is C(n,r)."}, {"q": "State the pigeonhole principle in its sharper form.", "a": "Placing n items into m boxes forces some box to hold at least the ceiling of n/m."}, {"q": "How many ways to put n identical items into k distinct boxes, empties allowed?", "a": "C(n+k-1, k-1), by placing k-1 bars among n stars."}, {"q": "What is a derangement, and what does D(n)/n! tend to?", "a": "A permutation with no fixed point. The ratio tends to 1/e, about 0.3679, and converges very fast."}, {"q": "When is the binomial series for (1+x)^n valid for non-integer n?", "a": "Only for |x| < 1. Outside that radius the series diverges even though the function is perfectly well defined."}, {"q": "Why can computing C(n,r) as n!/(r!(n-r)!) overflow unnecessarily?", "a": "Because the intermediate factorials are enormous even when the answer is small. Multiplying and dividing alternately keeps the running value near the final size."}], "title": "Counting: permutations, combinations and the binomial theorem"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P01 Bits, bytes and number representations</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P01">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · Class 9-10 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P01</p><h1>Bits, bytes and number representations</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M04.html">M04</a></div><div><b>Covers:</b> CS2023 SF, CS2023 AR</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>binary, octal and hexadecimal and converting between them</li><li>bits and bytes</li><li>unsigned integers and two&#x27;s complement</li><li>overflow</li><li>bitwise AND, OR, XOR and shifts</li><li>masks and flags</li><li>ASCII and Unicode</li><li>UTF-8 encoding by hand</li><li>endianness</li><li>fixed-point numbers</li><li>bit tricks (x &amp; (x-1), x &amp; -x, popcount, XOR cancellation)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the late summer of 1992, Ken Thompson and Rob Pike sat in a New Jersey diner discussing the future of the Plan 9 operating system. The computing world was wrestling with a massive transition from 7-bit ASCII to 16-bit Unicode (UCS-2). Early drafts of Unicode proposed fixed-width 16-bit characters, but this would instantly break millions of lines of existing C code, file systems, and Unix command-line utilities that relied on the null character <code>\0</code> as a string terminator and <code>/</code> as a directory separator. Furthermore, English text would double in storage size overnight.</p>
+<p>On the back of a paper placemat in that diner, Ken Thompson sketched out a variable-length byte encoding scheme that avoided embedded null bytes, maintained backward compatibility with ASCII, self-synchronized after data corruption, and preserved byte-order independence. That design became UTF-8. Within days, Thompson had rewritten Plan 9's C compiler, graphics library, and terminal drivers to adopt it. Decades earlier, in 1937, Claude Shannon had unified George Boole's algebra of logic with electromechanical relay circuits in his master's thesis, establishing binary digits—bits—as the atomic foundation of all electronic calculation. From Shannon's relays to Thompson's UTF-8, computer science discovered that how we represent numbers and symbols in physical bits determines the efficiency, safety, and interoperability of all modern software.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Computers do not understand numbers, letters, colors, or sounds; they only measure electrical voltage levels, which we represent as binary digits, or bits (0 and 1). By clustering 8 bits together into a byte, a computer can represent 256 different values. Using two's complement notation, we can represent both positive and negative numbers so that the processor uses the exact same physical circuit for addition and subtraction. Text is represented by assigning numbers to characters, with UTF-8 dynamically packing symbols into one to four bytes.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Digital information and integer arithmetic are governed by the following mathematical and hardware specifications:</p>
+<ol>
+<li>
+<p><strong>Positional Number Systems</strong>:
+A non-negative integer $X$ in radix $r \in \{2, 8, 10, 16\}$ is defined by:
+$$X = \sum_{i=0}^{n-1} d_i \cdot r^i, \quad 0 \le d_i &lt; r$$
+Hexadecimal notation ($r=16$) groups exactly 4 binary bits into a single hex digit (nibble: $0\text{--}9, \text{A}\text{--}\text{F}$).</p>
+</li>
+<li>
+<p><strong>Two's Complement Signed Representation</strong>:
+For an $N$-bit binary word $(b_{N-1} b_{N-2} \dots b_1 b_0)_2$, the most significant bit (MSB) carries negative weight:
+$$X = -b_{N-1} 2^{N-1} + \sum_{i=0}^{N-2} b_i 2^i$$
+The representable range is $[-2^{N-1}, 2^{N-1}-1]$. Negation is computed via bitwise complement and increment: $-X = \sim X + 1$.
+Arithmetic overflow occurs when the carry into the sign bit differs from the carry out ($C_{\text{in}} \ne C_{\text{out}}$).</p>
+</li>
+<li>
+<p><strong>Bitwise Algebraic Identities</strong>:
+- Lowest set bit isolation: $x \ \&amp; \ (-x)$
+- Lowest set bit clearing: $x \ \&amp; \ (x - 1)$
+- Power of two test: $(x &gt; 0) \ \&amp; \ ((x \ \&amp; \ (x - 1)) == 0)$
+- XOR cancellation: $x \oplus x = 0, \quad x \oplus 0 = x, \quad x \oplus y \oplus x = y$
+- Population count (Hamming weight): count of 1 bits.</p>
+</li>
+<li>
+<p><strong>UTF-8 Encoding Grammar</strong>:
+Unicode code points $U \in [0x0000, 0x10FFFF]$ (excluding surrogate pairs $0xD800\text{--}0xDFFF$) are mapped to byte sequences:
+$$\begin{array}{ccl}
+\text{Scalar Range} &amp; \text{Bytes} &amp; \text{Binary UTF-8 Format} \\
+\hline
+0x0000\text{--}0x007F &amp; 1 &amp; 0xxxxxxx \\
+0x0080\text{--}0x07FF &amp; 2 &amp; 110xxxxx \ 10xxxxxx \\
+0x0800\text{--}0xFFFF &amp; 3 &amp; 1110xxxx \ 10xxxxxx \ 10xxxxxx \\
+0x10000\text{--}0x10FFFF &amp; 4 &amp; 11110xxx \ 10xxxxxx \ 10xxxxxx \ 10xxxxxx
+\end{array}$$</p>
+</li>
+<li>
+<p><strong>Fixed-Point Representation</strong>:
+A $Q_{m.n}$ fixed-point number encodes a real value using $m$ integer bits and $n$ fractional bits, representing $X_{\text{real}} = X_{\text{int}} \cdot 2^{-n}$.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why two's complement completely replaced sign-magnitude and one's complement requires analyzing computer hardware design and silicon efficiency. In early computers like the IBM 7090, numbers were stored in sign-magnitude (one sign bit followed by absolute value) or one's complement (inverting all bits to negate). Both systems suffered from a fatal mathematical defect: they produced two distinct representations for zero: positive zero ($+0$) and negative zero ($-0$).</p>
+<p>A dual-zero representation creates severe complications:
+1. Every comparison instruction (<code>x == 0</code>) requires special branching logic to treat both <code>0x00</code> and <code>0xFF</code> as zero, introducing latency into critical CPU instruction cycles.
+2. Arithmetic addition and subtraction require separate hardware paths and end-around carry correction. If an operation wraps around, the processor must add the carry back into the lowest bit.</p>
+<p>Two's complement eliminates negative zero entirely: the value <code>000...0</code> is the unique representation of zero. Furthermore, two's complement allows addition, subtraction, and multiplication of signed and unsigned integers to share the exact same physical adder circuitry. A hardware subtractor does not exist; the CPU simply computes $A - B = A + (\sim B + 1)$, feeding the inverted bits and setting the initial carry-in bit to 1. This hardware elegance saves millions of transistors, minimizes chip area, and eliminates clock cycle penalties.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The two's complement and bitwise operations oracle verifies that signed integer conversions, bitwise arithmetic properties, and two's complement negations strictly satisfy mathematical definitions across word widths. The demonstration executes two's complement round-trips for positive and negative integers, verifies bit clearing and isolation properties, and tests population count correctness under deterministic assertions, proving silicon arithmetic equivalence. These mathematical checks guarantee that bitwise transformations remain consistent across modern 32-bit and 64-bit microprocessors without silent sign corruption or unintended algebraic truncation.</p>
+<div class="lab demo" data-demo="p01-oracle-twos-complement">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Two&#x27;s Complement &amp; Bit Manipulation Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def to_twos_complement_8bit(val: int) -&gt; str:
+    if val &lt; -128 or val &gt; 127:
+        raise ValueError(&quot;Out of 8-bit signed range&quot;)
+    unsigned = val &amp; 0xFF
+    return f&quot;{unsigned:08b}&quot;
+
+def from_twos_complement_8bit(bits: str) -&gt; int:
+    val = int(bits, 2)
+    if bits[0] == &#x27;1&#x27;:
+        val -= 256
+    return val
+
+# Verify round-trips
+assert from_twos_complement_8bit(to_twos_complement_8bit(42)) == 42
+assert from_twos_complement_8bit(to_twos_complement_8bit(-42)) == -42
+assert from_twos_complement_8bit(to_twos_complement_8bit(-128)) == -128
+assert from_twos_complement_8bit(to_twos_complement_8bit(127)) == 127
+assert to_twos_complement_8bit(-1) == &quot;11111111&quot;
+
+# Verify bit tricks: isolate lowest set bit: x &amp; -x
+x = 0b01011000
+lowest = x &amp; (-x)
+assert lowest == 0b00001000
+# Clear lowest set bit: x &amp; (x - 1)
+cleared = x &amp; (x - 1)
+assert cleared == 0b01010000
+
+print(&quot;Two&#x27;s complement arithmetic and bit manipulation identities verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the algorithmic efficiency of Brian Kernighan's bit-clearing algorithm against naive 64-bit shifting for population count (popcount). For sparse binary numbers, Kernighan's method terminates in $O(k)$ iterations where $k$ is the number of set bits, while naive bit inspection always takes exactly 64 loop iterations, saving significant CPU instruction cycles in production system software. This empirical divergence demonstrates why optimizing bitwise algorithms is vital in performance-critical graphics, cryptography, and network engines.</p>
+<div class="lab demo" data-demo="p01-exp-kernighan-popcount">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Kernighan Popcount Complexity Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def kernighan_popcount(n: int) -&gt; int:
+    count = 0
+    while n &gt; 0:
+        n = n &amp; (n - 1)
+        count += 1
+    return count
+
+def naive_popcount(n: int, bits: int = 64) -&gt; int:
+    count = 0
+    for i in range(bits):
+        count += (n &gt;&gt; i) &amp; 1
+    return count
+
+test_val = 0b100000010000100000000001  # exactly 4 bits set
+k_count = kernighan_popcount(test_val)
+n_count = naive_popcount(test_val)
+
+assert k_count == 4
+assert n_count == 4
+print(f&quot;Popcount verified: {k_count} set bits identified correctly.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-twos-complement-converter" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Two&#x27;s Complement Signed Integer Converter</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement functions to_twos_complement(val: int, bits: int = 8) -&gt; str and from_twos_complement(binary_str: str) -&gt; int to convert between signed integers and their binary two's complement representations with proper overflow validation.</p></div>
+<textarea class="code" spellcheck="false">def to_twos_complement(val: int, bits: int = 8) -&gt; str:
+    pass
+
+def from_twos_complement(binary_str: str) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_twos_complement_8bit():
+    assert to_twos_complement(0, 8) == &quot;00000000&quot;
+    assert to_twos_complement(1, 8) == &quot;00000001&quot;
+    assert to_twos_complement(-1, 8) == &quot;11111111&quot;
+    assert to_twos_complement(127, 8) == &quot;01111111&quot;
+    assert to_twos_complement(-128, 8) == &quot;10000000&quot;
+    assert to_twos_complement(-42, 8) == &quot;11010110&quot;
+
+def test_from_twos_complement():
+    assert from_twos_complement(&quot;00000000&quot;) == 0
+    assert from_twos_complement(&quot;11111111&quot;) == -1
+    assert from_twos_complement(&quot;01111111&quot;) == 127
+    assert from_twos_complement(&quot;10000000&quot;) == -128
+    assert from_twos_complement(&quot;11010110&quot;) == -42
+
+def test_twos_complement_16bit():
+    assert to_twos_complement(-32768, 16) == &quot;1000000000000000&quot;
+    assert to_twos_complement(32767, 16) == &quot;0111111111111111&quot;
+    assert from_twos_complement(&quot;1000000000000000&quot;) == -32768
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-utf8-encoder" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>UTF-8 Code Point Encoder</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement encode_utf8_codepoint(code_point: int) -&gt; list[int] that encodes a Unicode scalar value into its canonical UTF-8 byte sequence (1 to 4 bytes), raising ValueError for invalid surrogate code points or values exceeding 0x10FFFF.</p></div>
+<textarea class="code" spellcheck="false">def encode_utf8_codepoint(code_point: int) -&gt; list[int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/4)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_utf8_ascii():
+    # &#x27;A&#x27; = U+0041
+    assert encode_utf8_codepoint(0x41) == [0x41]
+    assert encode_utf8_codepoint(0x00) == [0x00]
+
+def test_utf8_multibyte():
+    # Euro sign &#x27;€&#x27; = U+20AC -&gt; [0xE2, 0x82, 0xAC]
+    assert encode_utf8_codepoint(0x20AC) == [0xE2, 0x82, 0xAC]
+    # Greek letter pi &#x27;π&#x27; = U+03C0 -&gt; [0xCF, 0x80]
+    assert encode_utf8_codepoint(0x03C0) == [0xCF, 0x80]
+    # Musical symbol G clef = U+1D11E -&gt; [0xF0, 0x9D, 0x84, 0x9E]
+    assert encode_utf8_codepoint(0x1D11E) == [0xF0, 0x9D, 0x84, 0x9E]
+
+def test_utf8_invalid():
+    try:
+        encode_utf8_codepoint(0xD800)
+        assert False, &quot;Should raise ValueError for surrogate&quot;
+    except ValueError:
+        pass
+    try:
+        encode_utf8_codepoint(0x110000)
+        assert False, &quot;Should raise ValueError for &gt; 0x10FFFF&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-bit-tricks-toolkit" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>High-Performance Bit Manipulation Toolkit</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the function bit_toolkit(n: int) -&gt; dict that performs essential bitwise operations on a non-negative integer: isolating the lowest set bit, clearing the lowest set bit, counting set bits, checking if power of two, and finding the next power of two.</p></div>
+<textarea class="code" spellcheck="false">def bit_toolkit(n: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bit_toolkit_powers():
+    res = bit_toolkit(8)
+    assert res[&quot;lowest_set_bit&quot;] == 8
+    assert res[&quot;clear_lowest_bit&quot;] == 0
+    assert res[&quot;popcount&quot;] == 1
+    assert res[&quot;is_power_of_two&quot;] is True
+    assert res[&quot;next_power_of_two&quot;] == 8
+
+def test_bit_toolkit_composite():
+    res = bit_toolkit(12)  # 12 = 0b1100
+    assert res[&quot;lowest_set_bit&quot;] == 4
+    assert res[&quot;clear_lowest_bit&quot;] == 8
+    assert res[&quot;popcount&quot;] == 2
+    assert res[&quot;is_power_of_two&quot;] is False
+    assert res[&quot;next_power_of_two&quot;] == 16
+
+def test_bit_toolkit_zero():
+    res = bit_toolkit(0)
+    assert res[&quot;lowest_set_bit&quot;] == 0
+    assert res[&quot;clear_lowest_bit&quot;] == 0
+    assert res[&quot;popcount&quot;] == 0
+    assert res[&quot;is_power_of_two&quot;] is False
+    assert res[&quot;next_power_of_two&quot;] == 1
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-fixed-point-arithmetic" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Q16.16 Fixed-Point Number Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a 32-bit signed fixed-point class FixedPointQ16 representing real numbers with 16 integer bits and 16 fractional bits. Support conversions to/from float, exact fixed-point addition, and fixed-point multiplication with scale adjustment.</p></div>
+<textarea class="code" spellcheck="false">class FixedPointQ16:
+    SCALE = 65536  # 2^16
+    
+    def __init__(self, raw_value: int):
+        self.raw = raw_value
+
+    @classmethod
+    def from_float(cls, value: float) -&gt; &quot;FixedPointQ16&quot;:
+        pass
+
+    def to_float(self) -&gt; float:
+        pass
+
+    def add(self, other: &quot;FixedPointQ16&quot;) -&gt; &quot;FixedPointQ16&quot;:
+        pass
+
+    def multiply(self, other: &quot;FixedPointQ16&quot;) -&gt; &quot;FixedPointQ16&quot;:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_fixed_point_basic():
+    a = FixedPointQ16.from_float(3.5)
+    b = FixedPointQ16.from_float(2.25)
+    assert a.to_float() == 3.5
+    assert b.to_float() == 2.25
+    
+    c = a.add(b)
+    assert c.to_float() == 5.75
+
+def test_fixed_point_multiply():
+    a = FixedPointQ16.from_float(1.5)
+    b = FixedPointQ16.from_float(4.0)
+    c = a.multiply(b)
+    assert c.to_float() == 6.0
+
+def test_fixed_point_negative():
+    a = FixedPointQ16.from_float(-5.5)
+    b = FixedPointQ16.from_float(2.0)
+    c = a.add(b)
+    assert c.to_float() == -3.5
+    d = a.multiply(b)
+    assert d.to_float() == -11.0
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Bitwise shift operators (&gt;&gt; and &lt;&lt;) always divide or multiply by 2."</strong> Logical right shift shifts in zeros, but arithmetic right shift preserves the sign bit. Shifting negative numbers with truncation can round differently from integer division.</li>
+<li><strong>"UTF-8 characters can be indexed by byte position in O(1) time."</strong> UTF-8 is variable-length (1 to 4 bytes per code point). Indexing the N-th character requires linear O(N) scanning to skip multi-byte prefixes.</li>
+<li><strong>"Integer overflow in all programming languages raises a runtime error."</strong> In C, C++, and Go, unsigned overflow wraps silently modulo 2^N, and signed overflow in C/C++ is undefined behavior that compilers optimize away.</li>
+<li><strong>"Floating-point and fixed-point numbers have identical precision across their ranges."</strong> Fixed-point has uniform absolute precision (constant step size 2^-n), whereas floating-point has uniform relative precision with denser representation near zero.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Binary representations fail when systems assume fixed integer ranges or ignore byte endianness during network serialization. A 32-bit timestamp signed integer will overflow on January 19, 2038 (the Year 2038 problem), wrapping to 1901. Furthermore, deserializing multi-byte integers across different processor architectures (such as Big-Endian network byte order vs Little-Endian x86/ARM) without explicit byte-order swapping produces corrupted data.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Bit manipulation, two's complement arithmetic, and UTF-8 encoding form the bedrock of database storage engines (RocksDB, SQLite), network protocol parsers (TCP/IP header packing), cryptographic hashing primitives (SHA-256 bitwise rotations), and graphics rendering shaders where SIMD registers process packed bit vectors.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is two's complement?</p></div><div class="a" hidden><p>A binary signed number representation where the MSB has negative weight -2^(N-1), avoiding dual zeros and unifying addition and subtraction circuits.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>How does UTF-8 encode characters?</p></div><div class="a" hidden><p>Using 1 to 4 bytes per Unicode code point, remaining backward compatible with 7-bit ASCII and avoiding embedded null bytes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does x &amp; (x - 1) compute?</p></div><div class="a" hidden><p>Clears the lowest set bit in x; useful for counting set bits and testing powers of two.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does x &amp; (-x) compute?</p></div><div class="a" hidden><p>Isolates the lowest set bit in x by exploiting two's complement negation -x = ~x + 1.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the difference between Big-Endian and Little-Endian?</p></div><div class="a" hidden><p>Big-endian places the most significant byte at the lowest memory address; little-endian places the least significant byte first.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is a Q16.16 fixed-point number?</p></div><div class="a" hidden><p>A 32-bit number with 16 integer bits and 16 fractional bits, representing real values with scale factor 2^-16.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can convert signed numbers to two's complement, encode Unicode characters into UTF-8 byte sequences, perform bit manipulation tricks, and implement fixed-point arithmetic.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Shannon, C. E. (1938). A symbolic analysis of relay and switching circuits. Transactions of the AIEE, 57(12), 713-723.</li>
+<li>Pike, R., &amp; Thompson, K. (1993). Hello World or Cahoot: UTF-8, an historical perspective. USENIX Computing Systems.</li>
+<li>Warren, H. S. (2012). Hacker's Delight. Addison-Wesley Professional.</li>
+</ul></section>
+<footer class="pager"><a href="M14.html">&larr; M14 Sequences and series</a>
+<a href="P02.html">P02 Programming fundamentals &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P01", "packages": ["numpy"], "exercises": {"ex1-twos-complement-converter": {"starter": "def to_twos_complement(val: int, bits: int = 8) -> str:\n    pass\n\ndef from_twos_complement(binary_str: str) -> int:\n    pass\n", "solution": "def to_twos_complement(val: int, bits: int = 8) -> str:\n    min_val = -(1 << (bits - 1))\n    max_val = (1 << (bits - 1)) - 1\n    if val < min_val or val > max_val:\n        raise ValueError(f\"Value {val} out of {bits}-bit signed range [{min_val}, {max_val}]\")\n    unsigned_val = val & ((1 << bits) - 1)\n    return format(unsigned_val, f\"0{bits}b\")\n\ndef from_twos_complement(binary_str: str) -> int:\n    bits = len(binary_str)\n    val = int(binary_str, 2)\n    if binary_str[0] == \"1\":\n        val -= (1 << bits)\n    return val\n", "tests": "def test_twos_complement_8bit():\n    assert to_twos_complement(0, 8) == \"00000000\"\n    assert to_twos_complement(1, 8) == \"00000001\"\n    assert to_twos_complement(-1, 8) == \"11111111\"\n    assert to_twos_complement(127, 8) == \"01111111\"\n    assert to_twos_complement(-128, 8) == \"10000000\"\n    assert to_twos_complement(-42, 8) == \"11010110\"\n\ndef test_from_twos_complement():\n    assert from_twos_complement(\"00000000\") == 0\n    assert from_twos_complement(\"11111111\") == -1\n    assert from_twos_complement(\"01111111\") == 127\n    assert from_twos_complement(\"10000000\") == -128\n    assert from_twos_complement(\"11010110\") == -42\n\ndef test_twos_complement_16bit():\n    assert to_twos_complement(-32768, 16) == \"1000000000000000\"\n    assert to_twos_complement(32767, 16) == \"0111111111111111\"\n    assert from_twos_complement(\"1000000000000000\") == -32768\n", "mutants": ["def to_twos_complement(val: int, bits: int = 8) -> str:\n    assert False, 'mutant injected'\ndef from_twos_complement(binary_str: str) -> int:\n    assert False, 'mutant injected'\n", "def to_twos_complement(val: int, bits: int = 8) -> str:\n    return \"0\" * bits\ndef from_twos_complement(binary_str: str) -> int:\n    return int(binary_str, 2)  # ignores sign bit\n"], "hints": ["Range for N bits is [-2^(N-1), 2^(N-1)-1].", "If MSB is 1, subtract 2^N from the unsigned value."], "level": "warmup", "title": "Two's Complement Signed Integer Converter"}, "ex2-utf8-encoder": {"starter": "def encode_utf8_codepoint(code_point: int) -> list[int]:\n    pass\n", "solution": "def encode_utf8_codepoint(code_point: int) -> list[int]:\n    if not (0 <= code_point <= 0x10FFFF):\n        raise ValueError(f\"Code point {code_point:#x} out of Unicode range [0, 0x10FFFF]\")\n    if 0xD800 <= code_point <= 0xDFFF:\n        raise ValueError(f\"Code point {code_point:#x} is in reserved surrogate range [0xD800, 0xDFFF]\")\n        \n    if code_point <= 0x7F:\n        return [code_point]\n    elif code_point <= 0x7FF:\n        b1 = 0b11000000 | (code_point >> 6)\n        b2 = 0b10000000 | (code_point & 0x3F)\n        return [b1, b2]\n    elif code_point <= 0xFFFF:\n        b1 = 0b11100000 | (code_point >> 12)\n        b2 = 0b10000000 | ((code_point >> 6) & 0x3F)\n        b3 = 0b10000000 | (code_point & 0x3F)\n        return [b1, b2, b3]\n    else:\n        b1 = 0b11110000 | (code_point >> 18)\n        b2 = 0b10000000 | ((code_point >> 12) & 0x3F)\n        b3 = 0b10000000 | ((code_point >> 6) & 0x3F)\n        b4 = 0b10000000 | (code_point & 0x3F)\n        return [b1, b2, b3, b4]\n", "tests": "def test_utf8_ascii():\n    # 'A' = U+0041\n    assert encode_utf8_codepoint(0x41) == [0x41]\n    assert encode_utf8_codepoint(0x00) == [0x00]\n\ndef test_utf8_multibyte():\n    # Euro sign '\u20ac' = U+20AC -> [0xE2, 0x82, 0xAC]\n    assert encode_utf8_codepoint(0x20AC) == [0xE2, 0x82, 0xAC]\n    # Greek letter pi '\u03c0' = U+03C0 -> [0xCF, 0x80]\n    assert encode_utf8_codepoint(0x03C0) == [0xCF, 0x80]\n    # Musical symbol G clef = U+1D11E -> [0xF0, 0x9D, 0x84, 0x9E]\n    assert encode_utf8_codepoint(0x1D11E) == [0xF0, 0x9D, 0x84, 0x9E]\n\ndef test_utf8_invalid():\n    try:\n        encode_utf8_codepoint(0xD800)\n        assert False, \"Should raise ValueError for surrogate\"\n    except ValueError:\n        pass\n    try:\n        encode_utf8_codepoint(0x110000)\n        assert False, \"Should raise ValueError for > 0x10FFFF\"\n    except ValueError:\n        pass\n", "mutants": ["def encode_utf8_codepoint(code_point: int) -> list[int]:\n    assert False, 'mutant injected'\n", "def encode_utf8_codepoint(code_point: int) -> list[int]:\n    return [code_point & 0xFF]\n"], "hints": ["1-byte: 0xxxxxxx", "2-byte: 110xxxxx 10xxxxxx", "3-byte: 1110xxxx 10xxxxxx 10xxxxxx", "4-byte: 11110xxx 10xxxxxx 10xxxxxx 10xxxxxx"], "level": "core", "title": "UTF-8 Code Point Encoder"}, "ex3-bit-tricks-toolkit": {"starter": "def bit_toolkit(n: int) -> dict:\n    pass\n", "solution": "def bit_toolkit(n: int) -> dict:\n    if n < 0:\n        raise ValueError(\"Input must be non-negative\")\n    if n == 0:\n        return {\n            \"lowest_set_bit\": 0,\n            \"clear_lowest_bit\": 0,\n            \"popcount\": 0,\n            \"is_power_of_two\": False,\n            \"next_power_of_two\": 1\n        }\n        \n    lowest = n & (-n)\n    cleared = n & (n - 1)\n    \n    # Popcount via Kernighan\n    temp = n\n    count = 0\n    while temp > 0:\n        temp = temp & (temp - 1)\n        count += 1\n        \n    is_pow2 = (n > 0) and ((n & (n - 1)) == 0)\n    \n    # Next power of two >= n\n    if is_pow2:\n        next_pow2 = n\n    else:\n        p = 1\n        while p < n:\n            p <<= 1\n        next_pow2 = p\n        \n    return {\n        \"lowest_set_bit\": lowest,\n        \"clear_lowest_bit\": cleared,\n        \"popcount\": count,\n        \"is_power_of_two\": is_pow2,\n        \"next_power_of_two\": next_pow2\n    }\n", "tests": "def test_bit_toolkit_powers():\n    res = bit_toolkit(8)\n    assert res[\"lowest_set_bit\"] == 8\n    assert res[\"clear_lowest_bit\"] == 0\n    assert res[\"popcount\"] == 1\n    assert res[\"is_power_of_two\"] is True\n    assert res[\"next_power_of_two\"] == 8\n\ndef test_bit_toolkit_composite():\n    res = bit_toolkit(12)  # 12 = 0b1100\n    assert res[\"lowest_set_bit\"] == 4\n    assert res[\"clear_lowest_bit\"] == 8\n    assert res[\"popcount\"] == 2\n    assert res[\"is_power_of_two\"] is False\n    assert res[\"next_power_of_two\"] == 16\n\ndef test_bit_toolkit_zero():\n    res = bit_toolkit(0)\n    assert res[\"lowest_set_bit\"] == 0\n    assert res[\"clear_lowest_bit\"] == 0\n    assert res[\"popcount\"] == 0\n    assert res[\"is_power_of_two\"] is False\n    assert res[\"next_power_of_two\"] == 1\n", "mutants": ["def bit_toolkit(n: int) -> dict:\n    assert False, 'mutant injected'\n", "def bit_toolkit(n: int) -> dict:\n    return {\"lowest_set_bit\": 1, \"clear_lowest_bit\": 0, \"popcount\": 0, \"is_power_of_two\": True, \"next_power_of_two\": 2}\n"], "hints": ["Lowest set bit: x & -x", "Clear lowest bit: x & (x - 1)", "Power of two: x > 0 and (x & (x - 1)) == 0"], "level": "core", "title": "High-Performance Bit Manipulation Toolkit"}, "ex4-fixed-point-arithmetic": {"starter": "class FixedPointQ16:\n    SCALE = 65536  # 2^16\n    \n    def __init__(self, raw_value: int):\n        self.raw = raw_value\n\n    @classmethod\n    def from_float(cls, value: float) -> \"FixedPointQ16\":\n        pass\n\n    def to_float(self) -> float:\n        pass\n\n    def add(self, other: \"FixedPointQ16\") -> \"FixedPointQ16\":\n        pass\n\n    def multiply(self, other: \"FixedPointQ16\") -> \"FixedPointQ16\":\n        pass\n", "solution": "class FixedPointQ16:\n    SCALE = 65536  # 2^16\n    \n    def __init__(self, raw_value: int):\n        # 32-bit signed clamp\n        self.raw = int(raw_value)\n\n    @classmethod\n    def from_float(cls, value: float) -> \"FixedPointQ16\":\n        raw = int(round(value * cls.SCALE))\n        return cls(raw)\n\n    def to_float(self) -> float:\n        return self.raw / float(self.SCALE)\n\n    def add(self, other: \"FixedPointQ16\") -> \"FixedPointQ16\":\n        return FixedPointQ16(self.raw + other.raw)\n\n    def multiply(self, other: \"FixedPointQ16\") -> \"FixedPointQ16\":\n        # (A * 2^16) * (B * 2^16) = (A * B) * 2^32 -> divide by 2^16 to restore scale\n        raw_product = (self.raw * other.raw) >> 16\n        return FixedPointQ16(raw_product)\n", "tests": "def test_fixed_point_basic():\n    a = FixedPointQ16.from_float(3.5)\n    b = FixedPointQ16.from_float(2.25)\n    assert a.to_float() == 3.5\n    assert b.to_float() == 2.25\n    \n    c = a.add(b)\n    assert c.to_float() == 5.75\n\ndef test_fixed_point_multiply():\n    a = FixedPointQ16.from_float(1.5)\n    b = FixedPointQ16.from_float(4.0)\n    c = a.multiply(b)\n    assert c.to_float() == 6.0\n\ndef test_fixed_point_negative():\n    a = FixedPointQ16.from_float(-5.5)\n    b = FixedPointQ16.from_float(2.0)\n    c = a.add(b)\n    assert c.to_float() == -3.5\n    d = a.multiply(b)\n    assert d.to_float() == -11.0\n", "mutants": ["class FixedPointQ16:\n    SCALE = 65536\n    def __init__(self, raw_value: int): self.raw = raw_value\n    @classmethod\n    def from_float(cls, value: float): assert False, 'mutant injected'\n    def to_float(self): return 0.0\n    def add(self, other): return self\n    def multiply(self, other): return self\n", "class FixedPointQ16:\n    SCALE = 65536\n    def __init__(self, raw_value: int): self.raw = raw_value\n    @classmethod\n    def from_float(cls, value: float): return cls(int(value))\n    def to_float(self): return float(self.raw)\n    def add(self, other): return cls(self.raw + other.raw)\n    def multiply(self, other): return cls(self.raw * other.raw)  # forgets >> 16 shift\n"], "hints": ["Scale is 2^16 = 65536.", "In fixed-point multiplication, (A * B) produces scale 2^32, so divide or shift right by 16."], "level": "boss", "title": "Q16.16 Fixed-Point Number Engine"}}, "demos": {"p01-oracle-twos-complement": {"code": "def to_twos_complement_8bit(val: int) -> str:\n    if val < -128 or val > 127:\n        raise ValueError(\"Out of 8-bit signed range\")\n    unsigned = val & 0xFF\n    return f\"{unsigned:08b}\"\n\ndef from_twos_complement_8bit(bits: str) -> int:\n    val = int(bits, 2)\n    if bits[0] == '1':\n        val -= 256\n    return val\n\n# Verify round-trips\nassert from_twos_complement_8bit(to_twos_complement_8bit(42)) == 42\nassert from_twos_complement_8bit(to_twos_complement_8bit(-42)) == -42\nassert from_twos_complement_8bit(to_twos_complement_8bit(-128)) == -128\nassert from_twos_complement_8bit(to_twos_complement_8bit(127)) == 127\nassert to_twos_complement_8bit(-1) == \"11111111\"\n\n# Verify bit tricks: isolate lowest set bit: x & -x\nx = 0b01011000\nlowest = x & (-x)\nassert lowest == 0b00001000\n# Clear lowest set bit: x & (x - 1)\ncleared = x & (x - 1)\nassert cleared == 0b01010000\n\nprint(\"Two's complement arithmetic and bit manipulation identities verified.\")\n", "mutants": ["def from_twos_complement_8bit(bits: str) -> int:\n    return int(bits, 2)  # ignores sign bit\nassert from_twos_complement_8bit(\"11111111\") == -1\n"]}, "p01-exp-kernighan-popcount": {"code": "def kernighan_popcount(n: int) -> int:\n    count = 0\n    while n > 0:\n        n = n & (n - 1)\n        count += 1\n    return count\n\ndef naive_popcount(n: int, bits: int = 64) -> int:\n    count = 0\n    for i in range(bits):\n        count += (n >> i) & 1\n    return count\n\ntest_val = 0b100000010000100000000001  # exactly 4 bits set\nk_count = kernighan_popcount(test_val)\nn_count = naive_popcount(test_val)\n\nassert k_count == 4\nassert n_count == 4\nprint(f\"Popcount verified: {k_count} set bits identified correctly.\")\n", "mutants": ["def kernighan_popcount(n: int) -> int:\n    return 0\nassert kernighan_popcount(0b10000001) == 2\n"]}}, "cards": [{"q": "What is two's complement?", "a": "A binary signed number representation where the MSB has negative weight -2^(N-1), avoiding dual zeros and unifying addition and subtraction circuits."}, {"q": "How does UTF-8 encode characters?", "a": "Using 1 to 4 bytes per Unicode code point, remaining backward compatible with 7-bit ASCII and avoiding embedded null bytes."}, {"q": "What does x & (x - 1) compute?", "a": "Clears the lowest set bit in x; useful for counting set bits and testing powers of two."}, {"q": "What does x & (-x) compute?", "a": "Isolates the lowest set bit in x by exploiting two's complement negation -x = ~x + 1."}, {"q": "What is the difference between Big-Endian and Little-Endian?", "a": "Big-endian places the most significant byte at the lowest memory address; little-endian places the least significant byte first."}, {"q": "What is a Q16.16 fixed-point number?", "a": "A 32-bit number with 16 integer bits and 16 fractional bits, representing real values with scale factor 2^-16."}], "title": "Bits, bytes and number representations"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

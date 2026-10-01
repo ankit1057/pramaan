@@ -1,0 +1,1088 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M35 Floating point and numerical methods</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M35">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-2 · ~5h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M35</p><h1>Floating point and numerical methods</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M04.html">M04</a> <a href="M22.html">M22</a></div><div><b>Covers:</b> CS2023 MSF, CS2023 AR, numerical analysis</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>IEEE 754: sign, exponent, mantissa, subnormals, infinities, NaN</li><li>machine epsilon and ulp</li><li>rounding modes</li><li>catastrophic cancellation (1-cos x, e^x-1, expm1, log1p)</li><li>non-associativity of addition</li><li>Kahan summation</li><li>conditioning vs stability</li><li>root finding: bisection, Newton, secant and their convergence orders</li><li>interpolation and Runge&#x27;s phenomenon</li><li>error propagation</li><li>why money uses decimals</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Ravi is reconciling a day's billing. The system charged 2,431 customers, and the ledger total is off by four paise.</p>
+<p>Four paise is nothing. Four paise is also impossible — every individual charge is correct, he checks a hundred of them by hand. Correct numbers that add up to a wrong total.</p>
+<p>He tries the obvious thing: add them again. Same answer. He adds them in a different order, sorted by customer id instead of by time. <strong>Different answer.</strong> Off by three paise this time.</p>
+<p>This is the moment worth stopping on. Addition is associative. $(a+b)+c = a+(b+c)$ is not a convention or a convenience; it is one of the first facts anyone learns about numbers, and it is true for integers, for rationals, for reals. Ravi's computer is adding the same 2,431 numbers and getting different totals depending on the order.</p>
+<p>Nothing is broken. The machine is not storing his numbers. It is storing the nearest number it <em>can</em> represent, and 0.01 is not one of them — in binary, one hundredth is a recurring fraction exactly as one third is in decimal. Every charge is slightly wrong before any addition happens, and the order decides how those tiny errors stack.</p>
+<p>The fix is not more precision. Doubling the precision would move the error to the fifteenth decimal place instead of the eleventh, and he would find it again next quarter with more customers. The fix is to know which operations amplify error and which do not — and, for money, not to use binary floats at all.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A computer stores a real number as <strong>sign, exponent and mantissa</strong> — scientific notation in binary, with a fixed budget of digits. Most numbers do not fit, so what gets stored is the nearest one that does.</p>
+<p>That rounding is tiny: about one part in $10^{16}$ for a 64-bit double, a quantity called <strong>machine epsilon</strong>. The danger is never the single rounding. It is <strong>amplification</strong>: operations that take a small relative error and make it large.</p>
+<p>The worst offender is <strong>cancellation</strong> — subtracting two nearly equal numbers. The leading digits agree and annihilate, leaving the error promoted to the front.</p>
+<p>Two different words describe what can go wrong. A <strong>problem</strong> is ill-<strong>conditioned</strong> when its true answer is hypersensitive to its input. An <strong>algorithm</strong> is un<strong>stable</strong> when it adds error the problem did not require. The first is the question's fault; the second is yours.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>IEEE 754</h2>
+<p>A binary64 <strong>double</strong> occupies 64 bits: 1 sign $s$, 11 exponent $e$, 52 mantissa $m$. For a <strong>normal</strong> number ($1\le e\le2046$) the value is</p>
+<p>$$(-1)^s \times 1.m_2 \times 2^{e-1023}$$</p>
+<p>The leading 1 is implicit, buying a free 53rd bit of precision. Special cases use the reserved exponents:</p>
+<table>
+<thead>
+<tr>
+<th>$e$</th>
+<th>$m$</th>
+<th>meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td>0</td>
+<td>$\pm0$ (two of them)</td>
+</tr>
+<tr>
+<td>0</td>
+<td>$\ne0$</td>
+<td><strong>subnormal</strong>: $0.m_2\times2^{-1022}$, gradual underflow</td>
+</tr>
+<tr>
+<td>2047</td>
+<td>0</td>
+<td>$\pm\infty$</td>
+</tr>
+<tr>
+<td>2047</td>
+<td>$\ne0$</td>
+<td><strong>NaN</strong></td>
+</tr>
+</tbody>
+</table>
+<p>NaN is not equal to itself, which is the standard's way of saying "no answer", and is why <code>x != x</code> is a NaN test.</p>
+<p><strong>Machine epsilon</strong> $\varepsilon = 2^{-52}\approx2.22\times10^{-16}$ is the gap between 1.0 and the next double. An <strong>ulp</strong> (unit in the last place) is the local gap, which scales with magnitude: near $2^k$ it is $2^{k-52}$. The relative error of a correctly rounded operation is at most $\frac{\varepsilon}{2}$, so</p>
+<p>$$\mathrm{fl}(a\circ b) = (a\circ b)(1+\delta), \qquad |\delta|\le\frac{\varepsilon}{2}$$</p>
+<p><strong>Rounding modes.</strong> The default is <strong>round half to even</strong>, which breaks ties towards an even last digit so that rounding errors do not accumulate in one direction. This is why <code>round(0.5)</code> is 0 and <code>round(2.5)</code> is 2 in Python — not a bug, but statistical hygiene. The standard also defines round towards zero, towards $+\infty$ and towards $-\infty$.</p>
+<h2>Cancellation and conditioning</h2>
+<p>Subtracting nearby quantities is exact at the bit level (Sterbenz: if $\frac{y}{2}\le x\le2y$ then $x-y$ is exact) — the damage is that the <em>inputs</em> already carried error, and the subtraction strips away the agreeing digits that were hiding it. If $x$ and $y$ each have relative error $\delta$, then $x-y$ has relative error about</p>
+<p>$$\delta\cdot\frac{|x|+|y|}{|x-y|}$$</p>
+<p>and the fraction blows up as $x\to y$.</p>
+<p>The standard repairs replace the subtraction with an algebraically equal expression that has none:</p>
+<table>
+<thead>
+<tr>
+<th>Unstable</th>
+<th>Stable</th>
+<th>Why</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>$1-\cos x$</td>
+<td>$2\sin^2\frac{x}{2}$</td>
+<td>no subtraction of nearby values</td>
+</tr>
+<tr>
+<td>$e^x-1$</td>
+<td><code>expm1(x)</code></td>
+<td>the series is computed directly</td>
+</tr>
+<tr>
+<td>$\ln(1+x)$</td>
+<td><code>log1p(x)</code></td>
+<td>likewise</td>
+</tr>
+<tr>
+<td>$\sqrt{x+1}-\sqrt{x}$</td>
+<td>$\frac{1}{\sqrt{x+1}+\sqrt{x}}$</td>
+<td>multiply by the conjugate</td>
+</tr>
+<tr>
+<td>$\frac{-b\pm\sqrt{b^2-4ac}}{2a}$</td>
+<td>$q=-\frac{b+\operatorname{sign}(b)\sqrt{D}}{2}$, roots $\frac{q}{a},\frac{c}{q}$</td>
+<td>one root always cancels</td>
+</tr>
+</tbody>
+</table>
+<p>The <strong>condition number</strong> measures how much a problem amplifies input error. For evaluating $f$ at $x$,</p>
+<p>$$\kappa(x) = \left|\frac{x f&#x27;(x)}{f(x)}\right|$$</p>
+<p>For subtraction $f(x)=x-y$ with $y$ fixed, $\kappa=\left|\frac{x}{x-y}\right|$, which is enormous near $x=y$ — the same statement again, now as a number.</p>
+<p><strong>Conditioning belongs to the problem; stability belongs to the algorithm.</strong> A stable algorithm on an ill-conditioned problem still gives a bad answer, and there is no algorithm that fixes it. That is the honest limit, and M31's condition number for matrices is the same idea.</p>
+<h2>Summation</h2>
+<p>Adding $n$ numbers naively has a worst-case error bound of $O(n\varepsilon)\sum|x_i|$: the error grows with the count. <strong>Kahan summation</strong> carries the lost low-order bits in a compensation term:</p>
+<pre><code>s = 0; c = 0
+for x in values:
+    y = x - c
+    t = s + y
+    c = (t - s) - y     # what was lost when y was added
+    s = t
+</code></pre>
+<p>and achieves $O(\varepsilon)\sum|x_i|$ — a bound independent of $n$. The line <code>c = (t - s) - y</code> looks like it must be zero, and in exact arithmetic it is. It is exactly the rounding error, recovered.</p>
+<p>Sorting by increasing magnitude before summing also helps, because it stops a large running total from swallowing small addends.</p>
+<h2>Root finding</h2>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Needs</th>
+<th>Order</th>
+<th>Guaranteed?</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bisection</td>
+<td>a sign change</td>
+<td>1 (halves each step)</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Newton</td>
+<td>$f&#x27;$, a good start</td>
+<td>2</td>
+<td>no</td>
+</tr>
+<tr>
+<td>Secant</td>
+<td>two starts</td>
+<td>$\varphi\approx1.618$</td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Bisection</strong>: the interval halves, so the error after $k$ steps is $\frac{b-a}{2^k}$ — about 50 steps for full double precision, every time, with no surprises.</p>
+<p><strong>Newton</strong>: $x_{n+1}=x_n-\frac{f(x_n)}{f&#x27;(x_n)}$. Near a simple root the error squares, so the correct digits double each step. At a <strong>multiple</strong> root the order drops to 1, and a bad start can cycle or diverge.</p>
+<p><strong>Secant</strong>: replaces $f&#x27;$ with a finite difference. The order $\varphi=\frac{1+\sqrt5}{2}$ is the golden ratio, which falls out of the error recurrence $e_{n+1}\approx Ce_ne_{n-1}$.</p>
+<h2>Interpolation and Runge's phenomenon</h2>
+<p>Through $n+1$ points there is exactly one polynomial of degree $\le n$. It is tempting to conclude that more points give a better fit. For <strong>equispaced</strong> nodes this is false. <strong>Runge's function</strong> $f(x)=\frac{1}{1+25x^2}$ on $[-1,1]$ interpolated at equispaced points <strong>diverges</strong> near the ends as $n$ grows, with the error growing without bound.</p>
+<p>The cure is the node placement. <strong>Chebyshev nodes</strong> $x_k=\cos\left(\frac{k\pi}{n}\right)$ cluster near the endpoints and make the error converge. The problem was never the degree; it was the uniform spacing.</p>
+<h2>A pinch of history</h2>
+<p>Before 1985 every manufacturer had its own floating-point format, and a program's answers changed when it moved machines. William Kahan drove the IEEE 754 standard through, earning the 1989 Turing Award; gradual underflow via subnormals was among its most contested features. Kahan's compensated summation dates from 1965.</p>
+<p>Carl Runge published his phenomenon in 1901. Newton described his method around 1669 and Raphson simplified it in 1690; the modern iterative form is due to Simpson in 1740. The costs of getting it wrong are documented: in 1991 a Patriot missile battery at Dhahran failed to intercept because its clock accumulated a 0.34 s drift from representing 0.1 in 24 bits, and in 1992 the Vancouver Stock Exchange index had drifted from 1000 to 520 over 22 months by truncating rather than rounding on every recalculation.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: 0.1 is not representable.</strong> A binary fraction terminates only when its denominator is a power of two. $\frac{1}{10}=\frac{1}{2\cdot5}$ has a factor of 5, so in binary it recurs: $0.0\overline{0011}_2$. The nearest double is</p>
+<p>$$0.1000000000000000055511151231257827021181583404541015625$$</p>
+<p>exactly — which you can print, because the stored value is a dyadic rational and therefore has a finite decimal expansion. The same argument shows $\frac13$ recurs in decimal, which nobody finds surprising; the only novelty is which denominators are privileged.</p>
+<p><strong>Result 2: why cancellation promotes error.</strong> Let $\hat x = x(1+\delta_1)$ and $\hat y=y(1+\delta_2)$ with $|\delta_i|\le u$. Then</p>
+<p>$$\hat x-\hat y = (x-y)\left(1 + \frac{x\delta_1-y\delta_2}{x-y}\right)$$</p>
+<p>so the relative error of the difference is bounded by $u\cdot\frac{|x|+|y|}{|x-y|}$. Nothing about the subtraction is inaccurate — the factor is simply the ratio of what you started with to what survived. When $x-y$ is a thousand times smaller than $x$, the relative error is a thousand times larger, and three more digits of the answer are noise.</p>
+<p><strong>Result 3: Kahan's compensation recovers the exact error.</strong> Suppose $|s|\ge|y|$ and let $t = \mathrm{fl}(s+y)$. Write $t = s+y-e$ where $e$ is the rounding error. Then $t-s$ is computed <strong>exactly</strong> — this is Sterbenz's lemma, since $t$ and $s$ are within a factor of 2 — giving $y-e$. Subtracting $y$ yields $-e$... and the code stores $c=(t-s)-y=-e$, then subtracts $c$ from the next addend, feeding the lost bits back in. The algorithm works because of an exactness result, not in spite of rounding.</p>
+<p><strong>Result 4: Newton's order is 2.</strong> Let $r$ be a simple root and $e_n=x_n-r$. Taylor-expanding $f$ about $x_n$ and evaluating at $r$:</p>
+<p>$$0 = f(r) = f(x_n) - e_nf&#x27;(x_n) + \frac{e_n^2}{2}f&#x27;&#x27;(\xi)$$</p>
+<p>Dividing by $f&#x27;(x_n)$ and rearranging with $x_{n+1}=x_n-\frac{f(x_n)}{f&#x27;(x_n)}$ gives</p>
+<p>$$e_{n+1} = \frac{f&#x27;&#x27;(\xi)}{2f&#x27;(x_n)}e_n^2$$</p>
+<p>So $|e_{n+1}|\le C|e_n|^2$: the number of correct digits doubles. The hypothesis $f&#x27;(r)\ne0$ is load-bearing — at a double root $f&#x27;(r)=0$, the constant blows up, and convergence degrades to linear.</p>
+<p><strong>Result 5: Runge's divergence.</strong> The interpolation error is</p>
+<p>$$f(x)-p_n(x) = \frac{f^{(n+1)}(\xi)}{(n+1)!}\prod_{k=0}^{n}(x-x_k)$$</p>
+<p>Two factors fight. For equispaced nodes the product $\prod|x-x_k|$ is far larger near the endpoints than in the middle — by a factor that grows like $2^n$ — while $\frac{f^{(n+1)}}{(n+1)!}$ for Runge's function does not shrink fast enough to compensate, because the function has poles at $x=\pm\frac{i}{5}$ in the complex plane, close to the interval. The product wins and the error diverges. Chebyshev nodes are precisely the placement that <strong>minimises</strong> $\max\prod|x-x_k|$, flattening the term that was growing.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle checks float arithmetic against two independent exact references: <code>fractions.Fraction</code>, which is exact rational arithmetic, and <code>decimal.Decimal</code>, which is exact for the decimal fractions money is made of.</p>
+<p>Neither consults the float result. Whenever they disagree with the float, the exact answers are right and the float is the approximation — which is the only way to measure an error honestly.</p>
+<p>The mutant replaces Kahan summation with naive summation while still claiming the compensated bound, which is a real and common slip: the compensation variable is computed and then never used.</p>
+<div class="lab demo" data-demo="m35-exact-reference">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Floats measured against exact arithmetic</h3></div>
+
+<textarea class="code" spellcheck="false">from fractions import Fraction
+from decimal import Decimal, getcontext
+
+# --- 0.1 is not 0.1 ---
+exact = Fraction(0.1)                     # the EXACT value of the stored double
+print(&quot;the double nearest 0.1 is exactly:&quot;)
+print(&quot;  &quot;, Decimal(0.1))
+print(&quot;   as a fraction:&quot;, exact.numerator, &quot;/&quot;, exact.denominator)
+assert exact != Fraction(1, 10), &quot;the stored value is not one tenth&quot;
+assert abs(exact - Fraction(1, 10)) &lt; Fraction(1, 10 ** 17)
+print(&quot;   it differs from 1/10 by about&quot;, float(exact - Fraction(1, 10)))
+
+# the denominator is a power of two, which is the whole story
+d = exact.denominator
+assert d &amp; (d - 1) == 0, &quot;every double is a dyadic rational&quot;
+print(&quot;   denominator is 2 **&quot;, d.bit_length() - 1)
+
+print()
+print(&quot;0.1 + 0.2 == 0.3 ?&quot;, 0.1 + 0.2 == 0.3)
+print(&quot;  0.1 + 0.2 =&quot;, Decimal(0.1 + 0.2))
+print(&quot;  0.3       =&quot;, Decimal(0.3))
+assert 0.1 + 0.2 != 0.3
+
+# --- addition is not associative ---
+a, b, c = 1.0, 1e16, -1e16
+left = (a + b) + c
+right = a + (b + c)
+print()
+print(f&quot;(1 + 1e16) + -1e16 = {left}&quot;)
+print(f&quot;1 + (1e16 + -1e16) = {right}&quot;)
+assert left != right, &quot;float addition is not associative&quot;
+assert right == 1.0 and left == 0.0
+# the exact answer is 1; the left grouping lost it entirely
+assert Fraction(a) + Fraction(b) + Fraction(c) == 1
+
+# --- summation, three ways, against an exact total ---
+values = [0.1] * 10 + [1e8, -1e8] + [0.01] * 500
+
+
+def naive_sum(xs):
+    total = 0.0
+    for x in xs:
+        total += x
+    return total
+
+
+def kahan_sum(xs):
+    total = 0.0
+    comp = 0.0
+    for x in xs:
+        y = x - comp
+        t = total + y
+        comp = (t - total) - y
+        total = t
+    return total
+
+
+truth = sum(Fraction(x) for x in values)       # exact, by construction
+naive = naive_sum(values)
+kahan = kahan_sum(values)
+sorted_naive = naive_sum(sorted(values, key=abs))
+
+print()
+print(&quot;summing 512 values whose exact total is&quot;, float(truth))
+for name, got in ((&quot;naive&quot;, naive), (&quot;sorted by magnitude&quot;, sorted_naive),
+                  (&quot;Kahan&quot;, kahan)):
+    err = abs(Fraction(got) - truth)
+    print(f&quot;  {name:&gt;20}: {got!r:&lt;22} error {float(err):.3e}&quot;)
+
+err_naive = abs(Fraction(naive) - truth)
+err_kahan = abs(Fraction(kahan) - truth)
+assert err_kahan &lt;= err_naive, &quot;compensation must not make things worse&quot;
+assert err_kahan &lt; Fraction(1, 10 ** 12), &quot;Kahan should be near-exact here&quot;
+assert err_naive &gt; err_kahan, &quot;and naive summation must actually be worse&quot;
+
+# --- Kahan&#x27;s bound does not grow with n; naive&#x27;s does ---
+print()
+print(&quot;error against exact, as the number of addends grows&quot;)
+print(f&quot;{&#x27;n&#x27;:&gt;8} {&#x27;naive&#x27;:&gt;14} {&#x27;Kahan&#x27;:&gt;14}&quot;)
+for n in (1000, 10000, 100000):
+    xs = [0.1] * n
+    t = Fraction(1, 10) * n
+    en = abs(Fraction(naive_sum(xs)) - t)
+    ek = abs(Fraction(kahan_sum(xs)) - t)
+    print(f&quot;{n:&gt;8} {float(en):&gt;14.3e} {float(ek):&gt;14.3e}&quot;)
+    assert ek &lt;= en
+# at 100000 terms the naive error is visible and Kahan&#x27;s is still at the floor
+xs = [0.1] * 100000
+assert abs(Fraction(naive_sum(xs)) - Fraction(1, 10) * 100000) &gt; Fraction(1, 10 ** 10)
+assert abs(Fraction(kahan_sum(xs)) - Fraction(1, 10) * 100000) &lt; Fraction(1, 10 ** 10)
+
+# --- money: Ravi&#x27;s ledger ---
+print()
+getcontext().prec = 28
+charges_paise = [1234, 99, 4567, 1, 88888, 250] * 400       # exact integers
+float_total = naive_sum([p / 100.0 for p in charges_paise])
+decimal_total = sum((Decimal(p) / 100 for p in charges_paise), Decimal(0))
+exact_total = Fraction(sum(charges_paise), 100)
+print(f&quot;  {len(charges_paise)} charges&quot;)
+print(f&quot;  exact total   : {float(exact_total):.2f}&quot;)
+print(f&quot;  Decimal total : {decimal_total}&quot;)
+print(f&quot;  float total   : {float_total!r}&quot;)
+assert Fraction(decimal_total) == exact_total, &quot;Decimal is exact for money&quot;
+assert Fraction(float_total) != exact_total, &quot;the float total is not exact&quot;
+print(f&quot;  float is off by {float(abs(Fraction(float_total) - exact_total)):.3e}&quot;)
+
+# rounding to paise hides it here, but the drift is real and grows
+print(&quot;  rounded, the float total still agrees today:&quot;,
+      round(float_total, 2) == float(exact_total))
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Four predictions, each measured.</p>
+<p><strong>First, the machine's own constants.</strong> Theory says $\varepsilon=2^{-52}$ and that the gap between neighbouring doubles scales with magnitude. We find epsilon by search rather than by lookup.</p>
+<p><strong>Second, cancellation.</strong> Theory says the relative error of $1-\cos x$ grows like $\frac{1}{x^2}$ as $x\to0$ while $2\sin^2\frac{x}{2}$ stays at the rounding floor. We measure both against exact arithmetic.</p>
+<p><strong>Third, convergence orders.</strong> Bisection should need about 50 iterations for full precision whatever the problem, Newton about 5, secant in between.</p>
+<p><strong>Fourth, Runge.</strong> Equispaced interpolation of $\frac{1}{1+25x^2}$ should get <em>worse</em> with more points, and Chebyshev nodes should get better.</p>
+<div class="lab demo" data-demo="m35-measure-the-machine">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Epsilon, cancellation, convergence and Runge</h3></div>
+
+<textarea class="code" spellcheck="false">from fractions import Fraction
+from math import cos, sin, sqrt, pi, cosh, log, isclose
+
+# --- 1. find machine epsilon by search ---
+eps = 1.0
+while 1.0 + eps / 2.0 != 1.0:
+    eps /= 2.0
+print(f&quot;machine epsilon found by search : {eps:.17e}&quot;)
+print(f&quot;2 ** -52                        : {2.0 ** -52:.17e}&quot;)
+assert eps == 2.0 ** -52, &quot;epsilon is 2^-52 for a binary64 double&quot;
+
+# the gap between neighbouring doubles scales with magnitude
+print()
+print(f&quot;{&#x27;x&#x27;:&gt;12} {&#x27;gap to the next double&#x27;:&gt;26} {&#x27;x * eps&#x27;:&gt;14}&quot;)
+for x in (1.0, 2.0, 1024.0, 1e6):
+    g = 0.0
+    step = x * eps
+    while x + step == x:
+        step *= 2
+    print(f&quot;{x:&gt;12} {step:&gt;26.6e} {x * eps:&gt;14.6e}&quot;)
+    assert step &lt;= 2 * x * eps, &quot;the ulp scales with the magnitude&quot;
+print(&quot;predicted: the absolute gap grows with x; the RELATIVE gap is constant&quot;)
+
+# subnormals and the specials
+print()
+tiny = 5e-324
+print(f&quot;smallest subnormal      : {tiny}&quot;)
+assert tiny / 2 == 0.0, &quot;below the smallest subnormal everything flushes to zero&quot;
+assert tiny &gt; 0.0
+nan = float(&quot;nan&quot;)
+assert nan != nan, &quot;NaN is not equal to itself&quot;
+assert float(&quot;inf&quot;) - float(&quot;inf&quot;) != float(&quot;inf&quot;) - float(&quot;inf&quot;)
+print(&quot;NaN == NaN ?&quot;, nan == nan, &quot;  (this is how you detect one)&quot;)
+
+# round half to even, the default mode
+print()
+print(&quot;round half to even:&quot;, [round(v) for v in (0.5, 1.5, 2.5, 3.5, 4.5)])
+assert [round(v) for v in (0.5, 1.5, 2.5, 3.5)] == [0, 2, 2, 4]
+print(&quot;predicted: ties go to the EVEN neighbour, so errors do not drift one way&quot;)
+
+# --- 2. cancellation in 1 - cos x ---
+print()
+print(&quot;relative error of 1 - cos(x), two algebraically identical formulas&quot;)
+print(f&quot;{&#x27;x&#x27;:&gt;10} {&#x27;naive 1-cos&#x27;:&gt;16} {&#x27;2 sin^2(x/2)&#x27;:&gt;16} &quot;
+      f&quot;{&#x27;naive rel err&#x27;:&gt;15} {&#x27;stable rel err&#x27;:&gt;15}&quot;)
+worst_naive = 0.0
+worst_stable = 0.0
+for k in (2, 4, 6, 8):
+    x = 10.0 ** (-k)
+    naive = 1 - cos(x)
+    stable = 2 * sin(x / 2) ** 2
+    # an independent high-precision reference: the series, summed in Fraction
+    xf = Fraction(x)
+    truth = Fraction(0)
+    term = xf * xf / 2
+    n = 2
+    while abs(term) &gt; Fraction(1, 10 ** 40):
+        truth += term
+        term = -term * xf * xf / ((n + 1) * (n + 2))
+        n += 2
+    rn = float(abs(Fraction(naive) - truth) / truth)
+    rs = float(abs(Fraction(stable) - truth) / truth)
+    worst_naive = max(worst_naive, rn)
+    worst_stable = max(worst_stable, rs)
+    print(f&quot;{x:&gt;10.0e} {naive:&gt;16.8e} {stable:&gt;16.8e} {rn:&gt;15.2e} {rs:&gt;15.2e}&quot;)
+
+print()
+print(&quot;predicted: the naive form loses roughly two digits every time x shrinks&quot;)
+print(&quot;           tenfold, while the stable form stays at the rounding floor&quot;)
+print(f&quot;measured : worst naive relative error {worst_naive:.2e}, &quot;
+      f&quot;worst stable {worst_stable:.2e}&quot;)
+assert worst_stable &lt; 1e-15, &quot;the stable form must stay near machine precision&quot;
+assert worst_naive &gt; 1e-9, &quot;the naive form must lose many digits&quot;
+assert worst_naive &gt; 1e5 * worst_stable, &quot;and be vastly worse&quot;
+
+# --- 3. convergence orders ---
+print()
+
+
+def bisect_count(f, lo, hi, tol=1e-14):
+    steps = 0
+    while hi - lo &gt; tol:
+        mid = (lo + hi) / 2
+        if f(lo) * f(mid) &lt;= 0:
+            hi = mid
+        else:
+            lo = mid
+        steps += 1
+        if steps &gt; 200:
+            break
+    return (lo + hi) / 2, steps
+
+
+def newton_count(f, df, x0, tol=1e-14):
+    x = x0
+    steps = 0
+    while steps &lt; 200:
+        fx = f(x)
+        if abs(fx) &lt; tol:
+            break
+        x = x - fx / df(x)
+        steps += 1
+    return x, steps
+
+
+def secant_count(f, x0, x1, tol=1e-14):
+    steps = 0
+    while steps &lt; 200:
+        f1 = f(x1)
+        if abs(f1) &lt; tol:
+            break
+        f0 = f(x0)
+        if f1 == f0:
+            break
+        x0, x1 = x1, x1 - f1 * (x1 - x0) / (f1 - f0)
+        steps += 1
+    return x1, steps
+
+
+# find sqrt(2) as a root of x^2 - 2
+f = lambda x: x * x - 2
+df = lambda x: 2 * x
+rb, sb = bisect_count(f, 1.0, 2.0)
+rn, sn = newton_count(f, df, 2.0)
+rs, ss = secant_count(f, 1.0, 2.0)
+print(f&quot;root of x^2 - 2 (true value {sqrt(2):.15f})&quot;)
+print(f&quot;  bisection: {rb:.15f} in {sb:&gt;3} steps&quot;)
+print(f&quot;  Newton   : {rn:.15f} in {sn:&gt;3} steps&quot;)
+print(f&quot;  secant   : {rs:.15f} in {ss:&gt;3} steps&quot;)
+for r in (rb, rn, rs):
+    assert abs(r - sqrt(2)) &lt; 1e-7, &quot;all three must find the root&quot;
+print()
+print(&quot;predicted: bisection is linear (one bit a step, so ~50 for full precision),&quot;)
+print(&quot;           Newton is quadratic (digits double), secant is in between&quot;)
+assert sb &gt; 40, &quot;bisection needs about one step per bit&quot;
+assert sn &lt; 10, &quot;Newton needs a handful&quot;
+assert sn &lt;= ss &lt; sb, &quot;secant sits between Newton and bisection&quot;
+
+# watch Newton&#x27;s digits double
+print()
+print(&quot;Newton&#x27;s error, step by step (the exponent should roughly double)&quot;)
+x = 2.0
+prev = None
+for i in range(5):
+    err = abs(x - sqrt(2))
+    if err &gt; 0:
+        print(f&quot;  step {i}: error {err:.3e}&quot;)
+        if prev is not None and prev &lt; 1e-2 and err &gt; 0:
+            # quadratic: err ~ C * prev^2
+            ratio = err / (prev * prev)
+            assert ratio &lt; 10, f&quot;error must fall quadratically, ratio {ratio}&quot;
+    prev = err
+    x = x - f(x) / df(x)
+
+# bisection is guaranteed where Newton is not
+print()
+bad, steps_bad = newton_count(lambda t: t ** 3 - 2 * t + 2, lambda t: 3 * t * t - 2, 0.0)
+print(f&quot;Newton on x^3 - 2x + 2 from x0 = 0 took {steps_bad} steps &quot;
+      f&quot;(it cycles between 0 and 1)&quot;)
+assert steps_bad &gt;= 200, &quot;Newton has no guarantee; this start cycles forever&quot;
+_, steps_ok = bisect_count(lambda t: t ** 3 - 2 * t + 2, -3.0, 0.0)
+print(f&quot;bisection on the same function converged in {steps_ok} steps&quot;)
+assert steps_ok &lt; 60, &quot;bisection always converges given a sign change&quot;
+
+# --- 4. Runge&#x27;s phenomenon ---
+print()
+
+
+def lagrange(nodes, values, x):
+    total = 0.0
+    for i, xi in enumerate(nodes):
+        term = values[i]
+        for j, xj in enumerate(nodes):
+            if i != j:
+                term *= (x - xj) / (xi - xj)
+        total += term
+    return total
+
+
+runge = lambda t: 1.0 / (1.0 + 25.0 * t * t)
+test_points = [-1.0 + 2.0 * k / 400 for k in range(401)]
+
+
+def max_error(nodes):
+    vals = [runge(t) for t in nodes]
+    return max(abs(lagrange(nodes, vals, t) - runge(t)) for t in test_points)
+
+
+print(&quot;maximum error interpolating 1/(1+25x^2) on [-1, 1]&quot;)
+print(f&quot;{&#x27;degree&#x27;:&gt;8} {&#x27;equispaced&#x27;:&gt;16} {&#x27;Chebyshev&#x27;:&gt;16}&quot;)
+equi_errs, cheb_errs = [], []
+for n in (4, 8, 12, 16):
+    equi = [-1.0 + 2.0 * k / n for k in range(n + 1)]
+    cheb = [cos(pi * k / n) for k in range(n + 1)]
+    e, c = max_error(equi), max_error(cheb)
+    equi_errs.append(e)
+    cheb_errs.append(c)
+    print(f&quot;{n:&gt;8} {e:&gt;16.4f} {c:&gt;16.6f}&quot;)
+
+print()
+print(&quot;predicted: more equispaced points make it WORSE; Chebyshev makes it better&quot;)
+assert equi_errs[-1] &gt; equi_errs[0], &quot;equispaced interpolation diverges&quot;
+assert equi_errs[-1] &gt; 1.0, &quot;and the error exceeds the function&#x27;s own range&quot;
+assert cheb_errs[-1] &lt; cheb_errs[0], &quot;Chebyshev nodes converge&quot;
+assert cheb_errs[-1] &lt; 0.1, &quot;and reach a small error&quot;
+print(f&quot;measured : equispaced went {equi_errs[0]:.3f} -&gt; {equi_errs[-1]:.3f}, &quot;
+      f&quot;Chebyshev {cheb_errs[0]:.3f} -&gt; {cheb_errs[-1]:.5f}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the Runge table is the one that overturns an intuition. Going from degree 4 to degree 16 made the equispaced fit roughly a hundred times <strong>worse</strong>, and at degree 16 the error exceeds the full range of the function being fitted — the interpolant oscillates wildly near $\pm1$ while passing exactly through every data point. Every one of those points is fitted perfectly. The curve between them is garbage.</p>
+<p>The cancellation table is the other one to sit with. At $x=10^{-8}$ the naive $1-\cos x$ retains essentially no correct digits, while $2\sin^2\frac{x}{2}$ — the same quantity by a trigonometric identity you learned in school — is accurate to the last bit. The difference is not precision, effort or language. It is the choice of algebraically equivalent expression.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m35-ex1-anatomy" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>The anatomy of a double</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>float_parts(x)</code> returning <code>(sign, exponent_bits, mantissa_bits)</code> as integers, using <code>struct</code>. Write <code>classify(x)</code> returning one of <code>"zero"</code>, <code>"subnormal"</code>, <code>"normal"</code>, <code>"infinity"</code>, <code>"nan"</code>. Write <code>ulp_of(x)</code> returning the gap to the next representable double above <code>abs(x)</code>. Write <code>next_float(x)</code> returning the next double above <code>x</code>. Write <code>is_power_of_two(x)</code> returning <code>True</code> when a positive finite float is exactly a power of two.</p></div>
+<textarea class="code" spellcheck="false">def float_parts(x):
+    &quot;&quot;&quot;(sign, exponent bits, mantissa bits) of a double.&quot;&quot;&quot;
+    return (0, 0, 0)
+
+
+def classify(x):
+    &quot;&quot;&quot;One of zero, subnormal, normal, infinity, nan.&quot;&quot;&quot;
+    return &quot;&quot;
+
+
+def ulp_of(x):
+    &quot;&quot;&quot;The gap to the next double above abs(x).&quot;&quot;&quot;
+    return 0.0
+
+
+def next_float(x):
+    &quot;&quot;&quot;The next double above x.&quot;&quot;&quot;
+    return 0.0
+
+
+def is_power_of_two(x):
+    &quot;&quot;&quot;True when x is exactly a power of two.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_parts_and_classification():
+    # 1.0 is sign 0, exponent 1023 (the bias), mantissa 0
+    assert float_parts(1.0) == (0, 1023, 0)
+    assert float_parts(-1.0) == (1, 1023, 0)
+    assert float_parts(2.0) == (0, 1024, 0)
+    assert float_parts(0.5) == (0, 1022, 0)
+    assert classify(0.0) == &quot;zero&quot;
+    assert classify(-0.0) == &quot;zero&quot;
+    assert classify(1.0) == &quot;normal&quot;
+    assert classify(1e-310) == &quot;subnormal&quot;        # below 2^-1022
+    assert classify(5e-324) == &quot;subnormal&quot;        # the smallest one
+    assert classify(float(&quot;inf&quot;)) == &quot;infinity&quot;
+    assert classify(float(&quot;-inf&quot;)) == &quot;infinity&quot;
+    assert classify(float(&quot;nan&quot;)) == &quot;nan&quot;
+    # the two zeros differ only in the sign bit
+    assert float_parts(0.0)[0] == 0 and float_parts(-0.0)[0] == 1
+
+
+def test_ulp_scales_with_magnitude():
+    eps = 2.0 ** -52
+    assert ulp_of(1.0) == eps
+    # the gap doubles with each binade
+    assert ulp_of(2.0) == 2 * eps
+    assert ulp_of(4.0) == 4 * eps
+    assert ulp_of(1024.0) == 1024 * eps
+    # just below a power of two the gap is still the smaller one
+    assert ulp_of(1.5) == eps
+    # adding half an ulp to 1.0 changes nothing; adding a whole one does
+    assert 1.0 + ulp_of(1.0) / 2 == 1.0
+    assert 1.0 + ulp_of(1.0) != 1.0
+    try:
+        ulp_of(float(&quot;inf&quot;))
+        assert False, &quot;infinity must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_next_float_and_powers():
+    assert next_float(1.0) == 1.0 + 2.0 ** -52
+    assert next_float(0.0) == 5e-324
+    assert next_float(-0.0) == 5e-324
+    # stepping up from a negative number moves towards zero
+    assert next_float(-1.0) &gt; -1.0
+    assert next_float(-1.0) &lt; 0
+    # exactly one step: nothing lies strictly between
+    a = 1.0
+    b = next_float(a)
+    assert b &gt; a
+    assert (a + b) / 2 in (a, b), &quot;no double lies strictly between neighbours&quot;
+    assert is_power_of_two(1.0) and is_power_of_two(2.0) and is_power_of_two(0.25)
+    assert not is_power_of_two(3.0)
+    assert not is_power_of_two(0.1)
+    assert not is_power_of_two(0.0)
+    assert not is_power_of_two(-2.0)
+    try:
+        next_float(float(&quot;inf&quot;))
+        assert False, &quot;infinity must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m35-ex2-cancellation" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Catastrophic cancellation and its repairs</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>machine_epsilon()</code> finding it by search, not by lookup. Write <code>stable_one_minus_cos(x)</code> using <code>2*sin(x/2)**2</code>. Write <code>stable_expm1(x)</code> and <code>stable_log1p(x)</code> <strong>without</strong> calling <code>math.expm1</code> or <code>math.log1p</code>. Write <code>stable_quadratic(a, b, c)</code> returning both roots in increasing order, raising <code>ValueError</code> when <code>a</code> is zero or the discriminant is negative. Write <code>relative_error(approx, exact)</code>.</p></div>
+<textarea class="code" spellcheck="false">def machine_epsilon():
+    &quot;&quot;&quot;The gap between 1.0 and the next double, found by search.&quot;&quot;&quot;
+    return 0.0
+
+
+def stable_one_minus_cos(x):
+    &quot;&quot;&quot;1 - cos(x) without cancellation.&quot;&quot;&quot;
+    return 0.0
+
+
+def stable_expm1(x):
+    &quot;&quot;&quot;exp(x) - 1 without cancellation.&quot;&quot;&quot;
+    return 0.0
+
+
+def stable_log1p(x):
+    &quot;&quot;&quot;log(1 + x) without cancellation.&quot;&quot;&quot;
+    return 0.0
+
+
+def stable_quadratic(a, b, c):
+    &quot;&quot;&quot;Both real roots, in increasing order.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def relative_error(approx, exact):
+    &quot;&quot;&quot;|approx - exact| / |exact|.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_epsilon_and_relative_error():
+    eps = machine_epsilon()
+    assert eps == 2.0 ** -52
+    assert 1.0 + eps != 1.0
+    assert 1.0 + eps / 2 == 1.0
+    assert abs(relative_error(1.01, 1.0) - 0.01) &lt; 1e-12
+    assert relative_error(5.0, 5.0) == 0.0
+    try:
+        relative_error(1.0, 0.0)
+        assert False, &quot;a zero reference must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_stable_forms_beat_the_naive_ones():
+    from fractions import Fraction
+    from math import cos, exp, log
+    # 1 - cos x, measured against an exact series
+    for k in (4, 6, 8):
+        x = 10.0 ** (-k)
+        xf = Fraction(x)
+        truth = Fraction(0)
+        term = xf * xf / 2
+        n = 2
+        while abs(term) &gt; Fraction(1, 10 ** 40):
+            truth += term
+            term = -term * xf * xf / ((n + 1) * (n + 2))
+            n += 2
+        stable = Fraction(stable_one_minus_cos(x))
+        naive = Fraction(1 - cos(x))
+        assert abs(stable - truth) / truth &lt; Fraction(1, 10 ** 14), k
+        assert abs(naive - truth) &gt; abs(stable - truth), &quot;the naive form is worse&quot;
+    # expm1 and log1p at tiny arguments, where the naive forms return 0
+    for x in (1e-16, 1e-18, 1e-20):
+        assert (exp(x) - 1.0) == 0.0, &quot;the naive form has lost everything&quot;
+        assert abs(relative_error(stable_expm1(x), x)) &lt; 1e-12
+        assert log(1.0 + x) == 0.0
+        assert abs(relative_error(stable_log1p(x), x)) &lt; 1e-12
+    # and they agree with the library at ordinary arguments
+    import math
+    for x in (0.5, 1.0, -0.5, 2.0, 1e-3):
+        assert abs(relative_error(stable_expm1(x), math.expm1(x))) &lt; 1e-13, x
+        assert abs(relative_error(stable_log1p(x), math.log1p(x))) &lt; 1e-13, x
+
+
+def test_quadratic_avoids_the_cancelling_root():
+    from fractions import Fraction
+    # the classic hard case: b is enormous next to a and c, so -b + sqrt(disc)
+    # cancels to nothing
+    a, b, c = 1.0, 1e9, 1.0
+    r1, r2 = stable_quadratic(a, b, c)
+    # the small root is very close to -1e-9; the naive formula returns 0
+    naive_small = (-b + (b * b - 4 * a * c) ** 0.5) / (2 * a)
+    assert naive_small == 0.0, &quot;the naive formula loses this root entirely&quot;
+    assert r2 != 0.0, &quot;the stable one must not&quot;
+    assert abs(relative_error(r2, -1e-9)) &lt; 1e-6
+    # both roots satisfy the equation
+    for r in (r1, r2):
+        assert abs(a * r * r + b * r + c) &lt; 1e-6 * max(1.0, abs(b * r))
+    # and the product of the roots is c/a
+    assert abs(relative_error(r1 * r2, c / a)) &lt; 1e-9
+    # ordinary cases still work, and come back sorted
+    assert stable_quadratic(1.0, -3.0, 2.0) == (1.0, 2.0)
+    assert stable_quadratic(1.0, 0.0, -4.0) == (-2.0, 2.0)
+    for bad in (lambda: stable_quadratic(0.0, 1.0, 1.0),
+                lambda: stable_quadratic(1.0, 0.0, 1.0)):
+        try:
+            bad()
+            assert False, &quot;an invalid quadratic must raise ValueError&quot;
+        except ValueError:
+            pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m35-ex3-summation" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Non-associativity and Kahan summation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>naive_sum(values)</code> adding left to right. Write <code>kahan_sum(values)</code> using compensated summation. Write <code>sorted_sum(values)</code> adding in increasing order of magnitude. Write <code>exact_sum(values)</code> using <code>fractions.Fraction</code>. Write <code>summation_error(method, values)</code> returning the absolute error of a method against the exact total. Write <code>find_non_associative()</code> returning a triple <code>(a, b, c)</code> of floats for which <code>(a+b)+c != a+(b+c)</code>.</p></div>
+<textarea class="code" spellcheck="false">def naive_sum(values):
+    &quot;&quot;&quot;Left-to-right summation.&quot;&quot;&quot;
+    return 0.0
+
+
+def kahan_sum(values):
+    &quot;&quot;&quot;Compensated summation.&quot;&quot;&quot;
+    return 0.0
+
+
+def sorted_sum(values):
+    &quot;&quot;&quot;Summation in increasing order of magnitude.&quot;&quot;&quot;
+    return 0.0
+
+
+def exact_sum(values):
+    &quot;&quot;&quot;The exact total, as a Fraction.&quot;&quot;&quot;
+    return 0
+
+
+def summation_error(method, values):
+    &quot;&quot;&quot;Absolute error of a summation method against the exact total.&quot;&quot;&quot;
+    return 0.0
+
+
+def find_non_associative():
+    &quot;&quot;&quot;A triple where float addition is not associative.&quot;&quot;&quot;
+    return (0.0, 0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_non_associativity_is_real():
+    a, b, c = find_non_associative()
+    assert (a + b) + c != a + (b + c), &quot;the triple must actually differ&quot;
+    # all three are ordinary finite floats, not infinities or NaNs
+    for v in (a, b, c):
+        assert v == v and abs(v) != float(&quot;inf&quot;)
+    # but exact arithmetic agrees with itself, as it must
+    assert exact_sum([a, b, c]) == exact_sum([c, b, a])
+    # a concrete instance of the same effect
+    assert (0.1 + 0.2) + 0.3 != 0.1 + (0.2 + 0.3)
+
+
+def test_kahan_beats_naive_and_the_gap_grows():
+    # one tenth, many times over: the exact total is n/10
+    for n in (1000, 50000):
+        xs = [0.1] * n
+        en = summation_error(naive_sum, xs)
+        ek = summation_error(kahan_sum, xs)
+        assert ek &lt;= en, n
+    xs = [0.1] * 50000
+    en = summation_error(naive_sum, xs)
+    ek = summation_error(kahan_sum, xs)
+    assert en &gt; 1e-10, &quot;naive summation must visibly drift&quot;
+    assert ek &lt; 1e-12, &quot;Kahan must stay near exact&quot;
+    assert en &gt; 100 * ek, &quot;and the gap must be large&quot;
+    # naive error grows with n; Kahan&#x27;s does not
+    e_small = summation_error(naive_sum, [0.1] * 1000)
+    assert en &gt; e_small, &quot;the naive error grows with the number of addends&quot;
+    assert summation_error(kahan_sum, [0.1] * 1000) &lt; 1e-12
+    try:
+        summation_error(42, [1.0])
+        assert False, &quot;a non-callable method must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_ordering_matters_and_exact_is_exact():
+    from fractions import Fraction
+    # a big value surrounded by many small ones: order decides the answer
+    values = [1e9] + [1e-9] * 20000
+    # The exact total is the sum of the STORED doubles, which is not the same
+    # as the decimal literal: 1e-9 is no more exactly one billionth than 0.1 is
+    # exactly one tenth. exact_sum must report the former.
+    assert Fraction(1e-9) != Fraction(1, 10 ** 9), &quot;the literal is not exact either&quot;
+    assert exact_sum(values) == Fraction(1e9) + 20000 * Fraction(1e-9)
+    assert exact_sum(values) != Fraction(10 ** 9) + Fraction(20000, 10 ** 9)
+    naive = naive_sum(values)
+    srt = sorted_sum(values)
+    assert naive != srt, &quot;the order changes the answer&quot;
+    assert summation_error(sorted_sum, values) &lt; summation_error(naive_sum, values)
+    assert summation_error(kahan_sum, values) &lt;= summation_error(sorted_sum, values)
+    # exact_sum really is exact, so it has zero error by construction
+    assert summation_error(lambda v: float(exact_sum(v)), [0.5, 0.25, 0.125]) == 0
+    assert exact_sum([0.1, 0.2]) != Fraction(3, 10), &quot;the stored values are not exact&quot;
+    assert naive_sum([]) == 0.0 and kahan_sum([]) == 0.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m35-ex4-roots" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Bisection, Newton, secant and their convergence orders</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>bisect(f, lo, hi, tol=1e-12, max_steps=200)</code> returning <code>(root, steps)</code>, raising <code>ValueError</code> when <code>f(lo)</code> and <code>f(hi)</code> have the same sign. Write <code>newton(f, df, x0, tol=1e-12, max_steps=100)</code> returning <code>(root, steps)</code>, raising <code>ValueError</code> when the derivative vanishes. Write <code>secant(f, x0, x1, tol=1e-12, max_steps=100)</code> returning <code>(root, steps)</code>. Write <code>convergence_order(errors)</code> estimating the order from a sequence of errors. Each returns the step count so the orders can be compared.</p></div>
+<textarea class="code" spellcheck="false">def bisect(f, lo, hi, tol=1e-12, max_steps=200):
+    &quot;&quot;&quot;(root, steps) by bisection.&quot;&quot;&quot;
+    return (0.0, 0)
+
+
+def newton(f, df, x0, tol=1e-12, max_steps=100):
+    &quot;&quot;&quot;(root, steps) by Newton&#x27;s method.&quot;&quot;&quot;
+    return (0.0, 0)
+
+
+def secant(f, x0, x1, tol=1e-12, max_steps=100):
+    &quot;&quot;&quot;(root, steps) by the secant method.&quot;&quot;&quot;
+    return (0.0, 0)
+
+
+def convergence_order(errors):
+    &quot;&quot;&quot;Estimate the order of convergence from a sequence of errors.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_all_three_find_the_root():
+    from math import sqrt
+    f = lambda x: x * x - 2
+    df = lambda x: 2 * x
+    rb, sb = bisect(f, 1.0, 2.0)
+    rn, sn = newton(f, df, 2.0)
+    rs, ss = secant(f, 1.0, 2.0)
+    for r in (rb, rn, rs):
+        assert abs(r - sqrt(2)) &lt; 1e-6, r
+    # a root sitting exactly on an endpoint is returned immediately
+    assert bisect(lambda x: x - 1, 1.0, 5.0) == (1.0, 0)
+    try:
+        bisect(f, 2.0, 3.0)
+        assert False, &quot;no sign change must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        newton(lambda x: x * x + 1, lambda x: 2 * x, 0.0)
+        assert False, &quot;a vanishing derivative must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_the_orders_are_what_theory_says():
+    from math import sqrt
+    f = lambda x: x * x - 2
+    df = lambda x: 2 * x
+    _, sb = bisect(f, 1.0, 2.0)
+    _, sn = newton(f, df, 2.0)
+    _, ss = secant(f, 1.0, 2.0)
+    # bisection gains one bit a step, so it needs about 40 for 1e-12
+    assert 35 &lt; sb &lt; 60, sb
+    assert sn &lt; 10, sn
+    assert sn &lt;= ss &lt; sb, (sn, ss, sb)
+    # Newton&#x27;s measured order is 2
+    errs = []
+    x = 2.0
+    for _ in range(6):
+        errs.append(abs(x - sqrt(2)))
+        x = x - f(x) / df(x)
+    p = convergence_order(errs)
+    assert 1.7 &lt; p &lt; 2.4, p
+    # the secant&#x27;s order is the golden ratio, about 1.618
+    errs_s = []
+    a, b = 1.0, 2.0
+    for _ in range(8):
+        errs_s.append(abs(b - sqrt(2)))
+        fa, fb = f(a), f(b)
+        if fa == fb:
+            break
+        a, b = b, b - fb * (b - a) / (fb - fa)
+    ps = convergence_order(errs_s)
+    assert 1.3 &lt; ps &lt; 1.9, ps
+    assert ps &lt; p, &quot;the secant is slower than Newton&quot;
+    try:
+        convergence_order([0.1])
+        assert False, &quot;too few errors must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_bisection_is_guaranteed_where_newton_is_not():
+    # Newton cycles forever from this start; bisection does not care
+    g = lambda x: x ** 3 - 2 * x + 2
+    dg = lambda x: 3 * x * x - 2
+    _, steps = newton(g, dg, 0.0, max_steps=60)
+    assert steps == 60, &quot;Newton exhausts its budget without converging&quot;
+    assert abs(g(newton(g, dg, 0.0, max_steps=60)[0])) &gt; 0.1, &quot;and is nowhere near&quot;
+    r, s = bisect(g, -3.0, 0.0)
+    assert abs(g(r)) &lt; 1e-6, &quot;bisection converges regardless&quot;
+    assert s &lt; 60
+    # at a DOUBLE root Newton degrades from quadratic to linear
+    h = lambda x: (x - 1) ** 2
+    dh = lambda x: 2 * (x - 1)
+    errs = []
+    x = 2.0
+    for _ in range(12):
+        errs.append(abs(x - 1.0))
+        x = x - h(x) / dh(x)
+    p = convergence_order(errs)
+    assert p &lt; 1.4, f&quot;a double root costs the quadratic order, got {p}&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m35-ex5-interpolation" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Runge, conditioning and why money is decimal</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>lagrange_interpolate(nodes, values, x)</code>, raising <code>ValueError</code> on duplicate nodes or a length mismatch. Write <code>equispaced_nodes(n)</code> and <code>chebyshev_nodes(n)</code>, both giving <code>n+1</code> nodes on <code>[-1, 1]</code>. Write <code>max_interpolation_error(f, nodes, samples=200)</code>. Write <code>condition_number(f, df, x)</code> returning <code>|x f'(x) / f(x)|</code>. Write <code>money_total(paise_amounts)</code> returning an exact <code>Decimal</code> rupee total, and <code>float_money_total(paise_amounts)</code> returning the float one.</p></div>
+<textarea class="code" spellcheck="false">def lagrange_interpolate(nodes, values, x):
+    &quot;&quot;&quot;The interpolating polynomial evaluated at x.&quot;&quot;&quot;
+    return 0.0
+
+
+def equispaced_nodes(n):
+    &quot;&quot;&quot;n+1 equally spaced nodes on [-1, 1].&quot;&quot;&quot;
+    return []
+
+
+def chebyshev_nodes(n):
+    &quot;&quot;&quot;n+1 Chebyshev nodes on [-1, 1].&quot;&quot;&quot;
+    return []
+
+
+def max_interpolation_error(f, nodes, samples=200):
+    &quot;&quot;&quot;The largest error of the interpolant on [-1, 1].&quot;&quot;&quot;
+    return 0.0
+
+
+def condition_number(f, df, x):
+    &quot;&quot;&quot;|x f&#x27;(x) / f(x)|.&quot;&quot;&quot;
+    return 0.0
+
+
+def money_total(paise_amounts):
+    &quot;&quot;&quot;Exact rupee total as a Decimal.&quot;&quot;&quot;
+    return 0
+
+
+def float_money_total(paise_amounts):
+    &quot;&quot;&quot;Rupee total computed in floating point.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_interpolation_is_exact_at_the_nodes():
+    f = lambda x: x ** 3 - 2 * x + 1
+    nodes = equispaced_nodes(5)
+    values = [f(t) for t in nodes]
+    for t, v in zip(nodes, values):
+        assert abs(lagrange_interpolate(nodes, values, t) - v) &lt; 1e-9, t
+    # a cubic through 6 points is reproduced exactly everywhere
+    for x in (-0.7, -0.1, 0.3, 0.9):
+        assert abs(lagrange_interpolate(nodes, values, x) - f(x)) &lt; 1e-9, x
+    assert len(equispaced_nodes(4)) == 5
+    assert len(chebyshev_nodes(4)) == 5
+    assert abs(min(chebyshev_nodes(8)) + 1.0) &lt; 1e-12
+    assert abs(max(chebyshev_nodes(8)) - 1.0) &lt; 1e-12
+    # Chebyshev nodes cluster at the ends: the gap near the edge is the smaller
+    c = sorted(chebyshev_nodes(8))
+    assert c[1] - c[0] &lt; c[4] - c[3], &quot;they must cluster near the endpoints&quot;
+    for bad in (lambda: lagrange_interpolate([1.0, 1.0], [2.0, 3.0], 0.0),
+                lambda: lagrange_interpolate([1.0, 2.0], [3.0], 0.0),
+                lambda: equispaced_nodes(0)):
+        try:
+            bad()
+            assert False, &quot;an invalid argument must raise ValueError&quot;
+        except ValueError:
+            pass
+
+
+def test_runge_diverges_on_equispaced_nodes():
+    runge = lambda x: 1.0 / (1.0 + 25.0 * x * x)
+    equi = [max_interpolation_error(runge, equispaced_nodes(n)) for n in (4, 10, 16)]
+    cheb = [max_interpolation_error(runge, chebyshev_nodes(n)) for n in (4, 10, 16)]
+    # more equispaced points make it worse, not better
+    assert equi[2] &gt; equi[1] &gt; equi[0], equi
+    assert equi[2] &gt; 1.0, &quot;the error exceeds the function&#x27;s own range&quot;
+    # Chebyshev nodes converge on the same function
+    assert cheb[2] &lt; cheb[0], cheb
+    assert cheb[2] &lt; 0.1, cheb
+    assert cheb[2] &lt; equi[2] / 100, &quot;and are dramatically better&quot;
+    # on a well-behaved function both work
+    smooth = lambda x: x ** 2
+    assert max_interpolation_error(smooth, equispaced_nodes(6)) &lt; 1e-9
+
+
+def test_conditioning_and_money():
+    from decimal import Decimal
+    from fractions import Fraction
+    # subtracting nearby values is ill-conditioned: f(x) = x - 1 near x = 1
+    f = lambda x: x - 1.0
+    df = lambda x: 1.0
+    assert condition_number(f, df, 2.0) &lt; 3
+    assert condition_number(f, df, 1.0001) &gt; 1000, &quot;near the cancellation it blows up&quot;
+    # a well-conditioned problem: squaring has condition number 2 everywhere
+    assert abs(condition_number(lambda x: x * x, lambda x: 2 * x, 7.0) - 2.0) &lt; 1e-12
+    try:
+        condition_number(f, df, 1.0)
+        assert False, &quot;a vanishing f must raise ValueError&quot;
+    except ValueError:
+        pass
+    # money: the Decimal total is exact, the float total is not
+    charges = [1234, 99, 4567, 1, 88888, 250] * 300
+    exact = Fraction(sum(charges), 100)
+    assert Fraction(money_total(charges)) == exact, &quot;Decimal must be exact&quot;
+    assert Fraction(float_money_total(charges)) != exact, &quot;the float total drifts&quot;
+    assert money_total([1, 2]) == Decimal(&quot;0.03&quot;)
+    assert money_total([]) == Decimal(0)
+    try:
+        money_total([1.5])
+        assert False, &quot;non-integer paise must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Floating point is random or buggy."</strong> It is deterministic and specified to the bit. The same operations on the same inputs give the same answer on every conforming machine. What it is not is <em>exact</em>.</li>
+<li><strong>"Use more precision and the problem goes away."</strong> More precision moves the error later, it does not remove it. An ill-conditioned problem is ill-conditioned at any precision; Ravi's ledger would fail again next quarter.</li>
+<li><strong>"<code>==</code> on floats is always wrong."</strong> Not always. Comparing to zero after an exact operation, checking <code>x != x</code> for NaN, and testing for a power of two are all legitimate. What is wrong is expecting two different computations of the same quantity to agree bit for bit.</li>
+<li><strong>"Cancellation makes the subtraction inaccurate."</strong> The subtraction is usually <em>exact</em>. It merely exposes error that the inputs were already carrying.</li>
+<li><strong>"Kahan summation is slower, so it is not worth it."</strong> It is about four arithmetic operations instead of one, which is nothing against a memory-bound loop, and it converts an $O(n\varepsilon)$ error into an $O(\varepsilon)$ one.</li>
+<li><strong>"A higher-degree polynomial fits better."</strong> Runge's function at degree 16 on equispaced nodes has an error larger than the function itself. The node placement matters more than the degree.</li>
+<li><strong>"Newton's method always converges."</strong> It converges <em>quadratically near a simple root given a good start</em>. Drop any of those three and it can cycle, diverge, or crawl linearly.</li>
+<li><strong>"NaN means the computation failed."</strong> NaN propagates silently through arithmetic. A NaN at the end of a pipeline may have been born a thousand operations earlier, which is why checking early matters.</li>
+<li><strong>"0.1 + 0.2 == 0.3 is a Python quirk."</strong> It is the same in C, Java, Rust, JavaScript and on your calculator's internals. It is IEEE 754, not a language.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>The cancellation repairs are specific, not general. There is no mechanical transformation that makes an arbitrary expression stable; each one is a separate algebraic insight, which is why libraries ship <code>expm1</code> and <code>log1p</code> as primitives rather than expecting you to derive them.</p>
+<p>Kahan summation is defeated by an optimising compiler that "simplifies" <code>(t - s) - y</code> to zero, which is valid for real numbers and wrong for floats. This is exactly what <code>-ffast-math</code> does, and it silently removes the compensation. The same flag lets the compiler reassociate additions, so a parallel reduction gives a different answer from a serial one — reproducibility and performance are genuinely in tension here.</p>
+<p><code>Decimal</code> is exact for decimal fractions and no more. One third is as unrepresentable in decimal as one tenth is in binary, so <code>Decimal(1)/3</code> still rounds. Decimal is right for money because money <em>is</em> decimal, not because decimal is more accurate.</p>
+<p>Subnormals preserve the property that <code>x - y == 0</code> implies <code>x == y</code>, but on many processors they are handled in microcode and run one to two orders of magnitude slower, which is why numerical code sometimes sets flush-to-zero and accepts the loss.</p>
+<p>Newton's method on a multiple root loses its quadratic order, and the usual fix — applying Newton to $\frac{f}{f&#x27;}$ — reintroduces cancellation. And interpolation is not the same as approximation: Chebyshev nodes fix Runge, but if your data has noise, fitting a high-degree polynomial through every point is the wrong goal entirely. Use a lower-degree least-squares fit or a spline.</p>
+<p>Finally, almost none of this appears in testing. A float bug produces an answer that is <em>slightly</em> wrong, passes every smoke test, and surfaces as four paise six months later.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>The money rule is absolute and comes first: currency is stored in integer minor units — paise, cents — or in a decimal type, never in a binary float. Every payments system, ledger and tax calculation does this, and the Vancouver index is what happens when it does not.</p>
+<p>Accumulating error shows up anywhere a loop runs long. Physics integrators, running averages over a metrics stream, and any <code>total += x</code> over millions of rows are the usual places; a running mean computed with Welford's algorithm rather than by summing then dividing is the same instinct as Kahan's.</p>
+<p>Tolerance comparisons need both an absolute and a relative term — <code>abs(a-b) &lt;= atol + rtol*abs(b)</code> — because a pure relative test fails near zero and a pure absolute test fails at large magnitudes. Every numerical test suite you write will need this.</p>
+<p>In machine learning the same ideas wear different names: the log-sum-exp trick subtracts the maximum before exponentiating to avoid overflow, cross-entropy is computed from logits rather than from probabilities to avoid <code>log(0)</code>, and gradient clipping is error-propagation control. Mixed-precision training keeps a float32 master copy of the weights precisely because repeatedly accumulating small float16 updates into a large value loses them — Ravi's problem, on a GPU.</p>
+<p>And when a result looks wrong, the question to ask is the one that splits the blame: is the <em>problem</em> ill-conditioned, or is my <em>algorithm</em> unstable? The first means no algorithm will save you and the question needs reformulating. The second is a bug you can fix.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why is 0.1 not exactly representable?</p></div><div class="a" hidden><p>A binary fraction terminates only when the denominator is a power of two. One tenth has a factor of 5, so it recurs in binary just as a third recurs in decimal.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is machine epsilon, and how does it differ from an ulp?</p></div><div class="a" hidden><p>Epsilon is the gap between 1.0 and the next double, 2^-52. An ulp is the LOCAL gap, which scales with magnitude: near 2^k it is 2^(k-52).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is catastrophic cancellation?</p></div><div class="a" hidden><p>Subtracting two nearly equal numbers. The agreeing leading digits annihilate and the pre-existing error is promoted to the front. The subtraction itself is usually exact.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Give three stable replacements for cancelling expressions.</p></div><div class="a" hidden><p>1 - cos x becomes 2 sin^2(x/2); e^x - 1 becomes expm1; log(1+x) becomes log1p. Also the conjugate trick for sqrt(x+1) - sqrt(x).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the difference between conditioning and stability?</p></div><div class="a" hidden><p>Conditioning is a property of the PROBLEM — how much it amplifies input error. Stability is a property of the ALGORITHM — whether it adds error the problem did not require.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why does Kahan summation work?</p></div><div class="a" hidden><p><code>(t - s) - y</code> is computed exactly by Sterbenz's lemma, so it recovers the rounding error, which is then fed back into the next addend. The error bound becomes independent of n.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Give the convergence orders of bisection, Newton and secant.</p></div><div class="a" hidden><p>Bisection 1 (halves each step, ~50 for full precision, always converges); Newton 2 (digits double, no guarantee); secant the golden ratio, about 1.618.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>When does Newton's method lose its quadratic order?</p></div><div class="a" hidden><p>At a multiple root, where f'(r) = 0. Convergence degrades to linear.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>What is Runge's phenomenon?</p></div><div class="a" hidden><p>Interpolating 1/(1+25x^2) at equispaced nodes on [-1,1] DIVERGES near the endpoints as the degree grows. Chebyshev nodes, which cluster at the ends, converge.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>Why does money use decimals rather than floats?</p></div><div class="a" hidden><p>Money is defined in decimal units and must be exact. Binary floats cannot represent 0.01, so the error accumulates across many transactions into a real discrepancy.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="10"><div class="q"><p>How should floats be compared?</p></div><div class="a" hidden><p>With a mixed tolerance, <code>abs(a-b) &lt;= atol + rtol*abs(b)</code>. A purely relative test fails near zero; a purely absolute one fails at large magnitudes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain why 0.1 is not 0.1 without saying "floats are weird", you can look at an expression and point to the subtraction that will cancel, you can state whether a bad answer is the problem's fault or the algorithm's and justify it with a condition number, you can write Kahan summation from memory and say why the compensation line is not zero, you can pick between bisection and Newton by naming what each guarantees, you can explain Runge's phenomenon to someone who thinks more points must be better, you pass the boss exercise without hints, and you never again store a currency amount in a float.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>David Goldberg, "What Every Computer Scientist Should Know About Floating-Point Arithmetic", <em>ACM Computing Surveys</em>, 1991.</li>
+<li>Nicholas J. Higham, <em>Accuracy and Stability of Numerical Algorithms</em>, 2nd edition, SIAM, 2002.</li>
+<li>IEEE Standard for Floating-Point Arithmetic, IEEE 754-2019.</li>
+<li>Lloyd N. Trefethen, <em>Approximation Theory and Approximation Practice</em>, SIAM, 2013.</li>
+<li>Michael L. Overton, <em>Numerical Computing with IEEE Floating Point Arithmetic</em>, SIAM, 2001.</li>
+</ul></section>
+<footer class="pager"><a href="M33.html">&larr; M33 Real analysis essentials</a>
+<a href="V14.html">V14 Mutation testing and test adequacy &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M35", "packages": [], "exercises": {"m35-ex1-anatomy": {"starter": "def float_parts(x):\n    \"\"\"(sign, exponent bits, mantissa bits) of a double.\"\"\"\n    return (0, 0, 0)\n\n\ndef classify(x):\n    \"\"\"One of zero, subnormal, normal, infinity, nan.\"\"\"\n    return \"\"\n\n\ndef ulp_of(x):\n    \"\"\"The gap to the next double above abs(x).\"\"\"\n    return 0.0\n\n\ndef next_float(x):\n    \"\"\"The next double above x.\"\"\"\n    return 0.0\n\n\ndef is_power_of_two(x):\n    \"\"\"True when x is exactly a power of two.\"\"\"\n    return False\n", "solution": "import struct\n\n\ndef float_parts(x):\n    \"\"\"(sign, exponent bits, mantissa bits) of a double.\"\"\"\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", float(x)))[0]\n    sign = bits >> 63\n    exponent = (bits >> 52) & 0x7FF\n    mantissa = bits & ((1 << 52) - 1)\n    return (sign, exponent, mantissa)\n\n\ndef classify(x):\n    \"\"\"One of zero, subnormal, normal, infinity, nan.\"\"\"\n    _, e, m = float_parts(x)\n    if e == 0:\n        return \"zero\" if m == 0 else \"subnormal\"\n    if e == 0x7FF:\n        return \"infinity\" if m == 0 else \"nan\"\n    return \"normal\"\n\n\ndef ulp_of(x):\n    \"\"\"The gap to the next double above abs(x).\"\"\"\n    x = abs(float(x))\n    if classify(x) in (\"infinity\", \"nan\"):\n        raise ValueError(\"an ulp is undefined for infinity and NaN\")\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", x))[0]\n    nxt = struct.unpack(\">d\", struct.pack(\">Q\", bits + 1))[0]\n    return nxt - x\n\n\ndef next_float(x):\n    \"\"\"The next double above x.\"\"\"\n    x = float(x)\n    if classify(x) == \"nan\":\n        raise ValueError(\"NaN has no successor\")\n    if x == float(\"inf\"):\n        raise ValueError(\"infinity has no successor\")\n    if x == 0.0:\n        return struct.unpack(\">d\", struct.pack(\">Q\", 1))[0]\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", x))[0]\n    # moving away from zero adds one; moving towards zero subtracts\n    bits = bits + 1 if x > 0 else bits - 1\n    return struct.unpack(\">d\", struct.pack(\">Q\", bits))[0]\n\n\ndef is_power_of_two(x):\n    \"\"\"True when x is exactly a power of two.\"\"\"\n    if classify(x) != \"normal\" or x <= 0:\n        return False\n    _, _, m = float_parts(x)\n    return m == 0\n", "tests": "def test_parts_and_classification():\n    # 1.0 is sign 0, exponent 1023 (the bias), mantissa 0\n    assert float_parts(1.0) == (0, 1023, 0)\n    assert float_parts(-1.0) == (1, 1023, 0)\n    assert float_parts(2.0) == (0, 1024, 0)\n    assert float_parts(0.5) == (0, 1022, 0)\n    assert classify(0.0) == \"zero\"\n    assert classify(-0.0) == \"zero\"\n    assert classify(1.0) == \"normal\"\n    assert classify(1e-310) == \"subnormal\"        # below 2^-1022\n    assert classify(5e-324) == \"subnormal\"        # the smallest one\n    assert classify(float(\"inf\")) == \"infinity\"\n    assert classify(float(\"-inf\")) == \"infinity\"\n    assert classify(float(\"nan\")) == \"nan\"\n    # the two zeros differ only in the sign bit\n    assert float_parts(0.0)[0] == 0 and float_parts(-0.0)[0] == 1\n\n\ndef test_ulp_scales_with_magnitude():\n    eps = 2.0 ** -52\n    assert ulp_of(1.0) == eps\n    # the gap doubles with each binade\n    assert ulp_of(2.0) == 2 * eps\n    assert ulp_of(4.0) == 4 * eps\n    assert ulp_of(1024.0) == 1024 * eps\n    # just below a power of two the gap is still the smaller one\n    assert ulp_of(1.5) == eps\n    # adding half an ulp to 1.0 changes nothing; adding a whole one does\n    assert 1.0 + ulp_of(1.0) / 2 == 1.0\n    assert 1.0 + ulp_of(1.0) != 1.0\n    try:\n        ulp_of(float(\"inf\"))\n        assert False, \"infinity must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_next_float_and_powers():\n    assert next_float(1.0) == 1.0 + 2.0 ** -52\n    assert next_float(0.0) == 5e-324\n    assert next_float(-0.0) == 5e-324\n    # stepping up from a negative number moves towards zero\n    assert next_float(-1.0) > -1.0\n    assert next_float(-1.0) < 0\n    # exactly one step: nothing lies strictly between\n    a = 1.0\n    b = next_float(a)\n    assert b > a\n    assert (a + b) / 2 in (a, b), \"no double lies strictly between neighbours\"\n    assert is_power_of_two(1.0) and is_power_of_two(2.0) and is_power_of_two(0.25)\n    assert not is_power_of_two(3.0)\n    assert not is_power_of_two(0.1)\n    assert not is_power_of_two(0.0)\n    assert not is_power_of_two(-2.0)\n    try:\n        next_float(float(\"inf\"))\n        assert False, \"infinity must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["import struct\n\n\ndef float_parts(x):\n    \"\"\"Bug: takes 11 mantissa bits and 52 exponent bits, swapping the widths.\"\"\"\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", float(x)))[0]\n    sign = bits >> 63\n    exponent = (bits >> 52) & 0x7FF\n    mantissa = bits & ((1 << 52) - 1)\n    return (sign, mantissa, exponent)\n\n\ndef classify(x):\n    _, e, m = float_parts(x)\n    if e == 0:\n        return \"zero\" if m == 0 else \"subnormal\"\n    if e == 0x7FF:\n        return \"infinity\" if m == 0 else \"nan\"\n    return \"normal\"\n\n\ndef ulp_of(x):\n    x = abs(float(x))\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", x))[0]\n    nxt = struct.unpack(\">d\", struct.pack(\">Q\", bits + 1))[0]\n    return nxt - x\n\n\ndef next_float(x):\n    x = float(x)\n    if x == 0.0:\n        return struct.unpack(\">d\", struct.pack(\">Q\", 1))[0]\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", x))[0]\n    bits = bits + 1 if x > 0 else bits - 1\n    return struct.unpack(\">d\", struct.pack(\">Q\", bits))[0]\n\n\ndef is_power_of_two(x):\n    if classify(x) != \"normal\" or x <= 0:\n        return False\n    _, _, m = float_parts(x)\n    return m == 0\n", "import struct\n\n\ndef float_parts(x):\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", float(x)))[0]\n    sign = bits >> 63\n    exponent = (bits >> 52) & 0x7FF\n    mantissa = bits & ((1 << 52) - 1)\n    return (sign, exponent, mantissa)\n\n\ndef classify(x):\n    \"\"\"Bug: treats a zero exponent as normal, so subnormals and zero are\n    misreported.\"\"\"\n    _, e, m = float_parts(x)\n    if e == 0x7FF:\n        return \"infinity\" if m == 0 else \"nan\"\n    if x == 0:\n        return \"zero\"\n    return \"normal\"\n\n\ndef ulp_of(x):\n    \"\"\"Bug: returns a constant epsilon instead of the magnitude-dependent gap.\"\"\"\n    x = abs(float(x))\n    if x in (float(\"inf\"),) or x != x:\n        raise ValueError(\"an ulp is undefined for infinity and NaN\")\n    return 2.0 ** -52\n\n\ndef next_float(x):\n    x = float(x)\n    if x != x:\n        raise ValueError(\"NaN has no successor\")\n    if x == float(\"inf\"):\n        raise ValueError(\"infinity has no successor\")\n    if x == 0.0:\n        return struct.unpack(\">d\", struct.pack(\">Q\", 1))[0]\n    bits = struct.unpack(\">Q\", struct.pack(\">d\", x))[0]\n    bits = bits + 1 if x > 0 else bits - 1\n    return struct.unpack(\">d\", struct.pack(\">Q\", bits))[0]\n\n\ndef is_power_of_two(x):\n    if classify(x) != \"normal\" or x <= 0:\n        return False\n    _, _, m = float_parts(x)\n    return m == 0\n"], "hints": ["`struct.unpack(\">Q\", struct.pack(\">d\", x))[0]` gives the 64 bits as an integer. The sign is bit 63, the exponent the next 11, the mantissa the low 52.", "The ulp is not constant. Get it by bumping the bit pattern by one and subtracting."], "level": "warmup", "title": "The anatomy of a double"}, "m35-ex2-cancellation": {"starter": "def machine_epsilon():\n    \"\"\"The gap between 1.0 and the next double, found by search.\"\"\"\n    return 0.0\n\n\ndef stable_one_minus_cos(x):\n    \"\"\"1 - cos(x) without cancellation.\"\"\"\n    return 0.0\n\n\ndef stable_expm1(x):\n    \"\"\"exp(x) - 1 without cancellation.\"\"\"\n    return 0.0\n\n\ndef stable_log1p(x):\n    \"\"\"log(1 + x) without cancellation.\"\"\"\n    return 0.0\n\n\ndef stable_quadratic(a, b, c):\n    \"\"\"Both real roots, in increasing order.\"\"\"\n    return (0.0, 0.0)\n\n\ndef relative_error(approx, exact):\n    \"\"\"|approx - exact| / |exact|.\"\"\"\n    return 0.0\n", "solution": "from math import sin, exp, log, sqrt, copysign\n\n\ndef machine_epsilon():\n    \"\"\"The gap between 1.0 and the next double, found by search.\"\"\"\n    eps = 1.0\n    while 1.0 + eps / 2.0 != 1.0:\n        eps /= 2.0\n    return eps\n\n\ndef stable_one_minus_cos(x):\n    \"\"\"1 - cos(x) without cancellation.\n\n    The half-angle identity 1 - cos x = 2 sin^2(x/2) is algebraically the same\n    expression, but it never subtracts two nearly equal numbers.\n    \"\"\"\n    return 2.0 * sin(x / 2.0) ** 2\n\n\ndef stable_expm1(x):\n    \"\"\"exp(x) - 1 without cancellation.\n\n    The trick is that exp(x) - 1 and log(exp(x)) carry the SAME rounding error,\n    so dividing one by the other cancels it out.\n    \"\"\"\n    y = exp(x)\n    if y == 1.0:\n        return x\n    if y - 1.0 == -1.0:\n        return -1.0\n    return (y - 1.0) * x / log(y)\n\n\ndef stable_log1p(x):\n    \"\"\"log(1 + x) without cancellation.\"\"\"\n    if x <= -1.0:\n        raise ValueError(\"log1p needs x > -1\")\n    y = 1.0 + x\n    if y == 1.0:\n        return x\n    return log(y) * x / (y - 1.0)\n\n\ndef stable_quadratic(a, b, c):\n    \"\"\"Both real roots, in increasing order.\"\"\"\n    if a == 0:\n        raise ValueError(\"not a quadratic\")\n    disc = b * b - 4 * a * c\n    if disc < 0:\n        raise ValueError(\"no real roots\")\n    # One of -b +/- sqrt(disc) always cancels. Compute the safe one, then get\n    # the other from the product of the roots, which is c/a.\n    root_disc = sqrt(disc)\n    if b == 0:\n        q = -root_disc / 2.0\n    else:\n        q = -(b + copysign(root_disc, b)) / 2.0\n    if q == 0:\n        r1 = r2 = 0.0\n    else:\n        r1, r2 = q / a, c / q\n    return (min(r1, r2), max(r1, r2))\n\n\ndef relative_error(approx, exact):\n    \"\"\"|approx - exact| / |exact|.\"\"\"\n    if exact == 0:\n        raise ValueError(\"relative error is undefined against zero\")\n    return abs(approx - exact) / abs(exact)\n", "tests": "def test_epsilon_and_relative_error():\n    eps = machine_epsilon()\n    assert eps == 2.0 ** -52\n    assert 1.0 + eps != 1.0\n    assert 1.0 + eps / 2 == 1.0\n    assert abs(relative_error(1.01, 1.0) - 0.01) < 1e-12\n    assert relative_error(5.0, 5.0) == 0.0\n    try:\n        relative_error(1.0, 0.0)\n        assert False, \"a zero reference must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_stable_forms_beat_the_naive_ones():\n    from fractions import Fraction\n    from math import cos, exp, log\n    # 1 - cos x, measured against an exact series\n    for k in (4, 6, 8):\n        x = 10.0 ** (-k)\n        xf = Fraction(x)\n        truth = Fraction(0)\n        term = xf * xf / 2\n        n = 2\n        while abs(term) > Fraction(1, 10 ** 40):\n            truth += term\n            term = -term * xf * xf / ((n + 1) * (n + 2))\n            n += 2\n        stable = Fraction(stable_one_minus_cos(x))\n        naive = Fraction(1 - cos(x))\n        assert abs(stable - truth) / truth < Fraction(1, 10 ** 14), k\n        assert abs(naive - truth) > abs(stable - truth), \"the naive form is worse\"\n    # expm1 and log1p at tiny arguments, where the naive forms return 0\n    for x in (1e-16, 1e-18, 1e-20):\n        assert (exp(x) - 1.0) == 0.0, \"the naive form has lost everything\"\n        assert abs(relative_error(stable_expm1(x), x)) < 1e-12\n        assert log(1.0 + x) == 0.0\n        assert abs(relative_error(stable_log1p(x), x)) < 1e-12\n    # and they agree with the library at ordinary arguments\n    import math\n    for x in (0.5, 1.0, -0.5, 2.0, 1e-3):\n        assert abs(relative_error(stable_expm1(x), math.expm1(x))) < 1e-13, x\n        assert abs(relative_error(stable_log1p(x), math.log1p(x))) < 1e-13, x\n\n\ndef test_quadratic_avoids_the_cancelling_root():\n    from fractions import Fraction\n    # the classic hard case: b is enormous next to a and c, so -b + sqrt(disc)\n    # cancels to nothing\n    a, b, c = 1.0, 1e9, 1.0\n    r1, r2 = stable_quadratic(a, b, c)\n    # the small root is very close to -1e-9; the naive formula returns 0\n    naive_small = (-b + (b * b - 4 * a * c) ** 0.5) / (2 * a)\n    assert naive_small == 0.0, \"the naive formula loses this root entirely\"\n    assert r2 != 0.0, \"the stable one must not\"\n    assert abs(relative_error(r2, -1e-9)) < 1e-6\n    # both roots satisfy the equation\n    for r in (r1, r2):\n        assert abs(a * r * r + b * r + c) < 1e-6 * max(1.0, abs(b * r))\n    # and the product of the roots is c/a\n    assert abs(relative_error(r1 * r2, c / a)) < 1e-9\n    # ordinary cases still work, and come back sorted\n    assert stable_quadratic(1.0, -3.0, 2.0) == (1.0, 2.0)\n    assert stable_quadratic(1.0, 0.0, -4.0) == (-2.0, 2.0)\n    for bad in (lambda: stable_quadratic(0.0, 1.0, 1.0),\n                lambda: stable_quadratic(1.0, 0.0, 1.0)):\n        try:\n            bad()\n            assert False, \"an invalid quadratic must raise ValueError\"\n        except ValueError:\n            pass\n", "mutants": ["from math import sin, cos, exp, log, sqrt, copysign\n\n\ndef machine_epsilon():\n    \"\"\"Bug: stops one halving too late, returning half the true epsilon.\"\"\"\n    eps = 1.0\n    while 1.0 + eps != 1.0:\n        eps /= 2.0\n    return eps\n\n\ndef stable_one_minus_cos(x):\n    return 2.0 * sin(x / 2.0) ** 2\n\n\ndef stable_expm1(x):\n    y = exp(x)\n    if y == 1.0:\n        return x\n    if y - 1.0 == -1.0:\n        return -1.0\n    return (y - 1.0) * x / log(y)\n\n\ndef stable_log1p(x):\n    if x <= -1.0:\n        raise ValueError(\"log1p needs x > -1\")\n    y = 1.0 + x\n    if y == 1.0:\n        return x\n    return log(y) * x / (y - 1.0)\n\n\ndef stable_quadratic(a, b, c):\n    if a == 0:\n        raise ValueError(\"not a quadratic\")\n    disc = b * b - 4 * a * c\n    if disc < 0:\n        raise ValueError(\"no real roots\")\n    root_disc = sqrt(disc)\n    if b == 0:\n        q = -root_disc / 2.0\n    else:\n        q = -(b + copysign(root_disc, b)) / 2.0\n    if q == 0:\n        r1 = r2 = 0.0\n    else:\n        r1, r2 = q / a, c / q\n    return (min(r1, r2), max(r1, r2))\n\n\ndef relative_error(approx, exact):\n    if exact == 0:\n        raise ValueError(\"relative error is undefined against zero\")\n    return abs(approx - exact) / abs(exact)\n", "from math import sin, cos, exp, log, sqrt\n\n\ndef machine_epsilon():\n    eps = 1.0\n    while 1.0 + eps / 2.0 != 1.0:\n        eps /= 2.0\n    return eps\n\n\ndef stable_one_minus_cos(x):\n    \"\"\"Bug: the naive form, which cancels catastrophically for small x.\"\"\"\n    return 1.0 - cos(x)\n\n\ndef stable_expm1(x):\n    \"\"\"Bug: the naive form.\"\"\"\n    return exp(x) - 1.0\n\n\ndef stable_log1p(x):\n    \"\"\"Bug: the naive form.\"\"\"\n    if x <= -1.0:\n        raise ValueError(\"log1p needs x > -1\")\n    return log(1.0 + x)\n\n\ndef stable_quadratic(a, b, c):\n    \"\"\"Bug: the textbook formula, whose smaller root cancels away.\"\"\"\n    if a == 0:\n        raise ValueError(\"not a quadratic\")\n    disc = b * b - 4 * a * c\n    if disc < 0:\n        raise ValueError(\"no real roots\")\n    root_disc = sqrt(disc)\n    r1 = (-b + root_disc) / (2 * a)\n    r2 = (-b - root_disc) / (2 * a)\n    return (min(r1, r2), max(r1, r2))\n\n\ndef relative_error(approx, exact):\n    if exact == 0:\n        raise ValueError(\"relative error is undefined against zero\")\n    return abs(approx - exact) / abs(exact)\n"], "hints": ["`1 - cos x = 2 sin^2(x/2)` is an identity, and the right-hand side never subtracts nearby values.", "For the quadratic, compute the root whose numerator ADDS (using the sign of b), then get the other from the fact that the roots multiply to c/a."], "level": "core", "title": "Catastrophic cancellation and its repairs"}, "m35-ex3-summation": {"starter": "def naive_sum(values):\n    \"\"\"Left-to-right summation.\"\"\"\n    return 0.0\n\n\ndef kahan_sum(values):\n    \"\"\"Compensated summation.\"\"\"\n    return 0.0\n\n\ndef sorted_sum(values):\n    \"\"\"Summation in increasing order of magnitude.\"\"\"\n    return 0.0\n\n\ndef exact_sum(values):\n    \"\"\"The exact total, as a Fraction.\"\"\"\n    return 0\n\n\ndef summation_error(method, values):\n    \"\"\"Absolute error of a summation method against the exact total.\"\"\"\n    return 0.0\n\n\ndef find_non_associative():\n    \"\"\"A triple where float addition is not associative.\"\"\"\n    return (0.0, 0.0, 0.0)\n", "solution": "from fractions import Fraction\n\n\ndef naive_sum(values):\n    \"\"\"Left-to-right summation.\"\"\"\n    total = 0.0\n    for x in values:\n        total += x\n    return total\n\n\ndef kahan_sum(values):\n    \"\"\"Compensated summation.\n\n    `comp` holds the low-order bits that the previous addition dropped. The\n    line computing it would be zero in exact arithmetic; in floating point it\n    recovers the rounding error exactly, by Sterbenz's lemma.\n    \"\"\"\n    total = 0.0\n    comp = 0.0\n    for x in values:\n        y = x - comp\n        t = total + y\n        comp = (t - total) - y\n        total = t\n    return total\n\n\ndef sorted_sum(values):\n    \"\"\"Summation in increasing order of magnitude.\"\"\"\n    return naive_sum(sorted(values, key=abs))\n\n\ndef exact_sum(values):\n    \"\"\"The exact total, as a Fraction.\"\"\"\n    return sum((Fraction(x) for x in values), Fraction(0))\n\n\ndef summation_error(method, values):\n    \"\"\"Absolute error of a summation method against the exact total.\"\"\"\n    if not callable(method):\n        raise ValueError(\"method must be callable\")\n    return abs(Fraction(method(values)) - exact_sum(values))\n\n\ndef find_non_associative():\n    \"\"\"A triple where float addition is not associative.\n\n    1e16 is large enough that adding 1 to it rounds straight back, so grouping\n    the big pair first annihilates them and keeps the 1, while grouping the\n    small pair first loses it.\n    \"\"\"\n    a, b, c = 1.0, 1e16, -1e16\n    assert (a + b) + c != a + (b + c)\n    return (a, b, c)\n", "tests": "def test_non_associativity_is_real():\n    a, b, c = find_non_associative()\n    assert (a + b) + c != a + (b + c), \"the triple must actually differ\"\n    # all three are ordinary finite floats, not infinities or NaNs\n    for v in (a, b, c):\n        assert v == v and abs(v) != float(\"inf\")\n    # but exact arithmetic agrees with itself, as it must\n    assert exact_sum([a, b, c]) == exact_sum([c, b, a])\n    # a concrete instance of the same effect\n    assert (0.1 + 0.2) + 0.3 != 0.1 + (0.2 + 0.3)\n\n\ndef test_kahan_beats_naive_and_the_gap_grows():\n    # one tenth, many times over: the exact total is n/10\n    for n in (1000, 50000):\n        xs = [0.1] * n\n        en = summation_error(naive_sum, xs)\n        ek = summation_error(kahan_sum, xs)\n        assert ek <= en, n\n    xs = [0.1] * 50000\n    en = summation_error(naive_sum, xs)\n    ek = summation_error(kahan_sum, xs)\n    assert en > 1e-10, \"naive summation must visibly drift\"\n    assert ek < 1e-12, \"Kahan must stay near exact\"\n    assert en > 100 * ek, \"and the gap must be large\"\n    # naive error grows with n; Kahan's does not\n    e_small = summation_error(naive_sum, [0.1] * 1000)\n    assert en > e_small, \"the naive error grows with the number of addends\"\n    assert summation_error(kahan_sum, [0.1] * 1000) < 1e-12\n    try:\n        summation_error(42, [1.0])\n        assert False, \"a non-callable method must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_ordering_matters_and_exact_is_exact():\n    from fractions import Fraction\n    # a big value surrounded by many small ones: order decides the answer\n    values = [1e9] + [1e-9] * 20000\n    # The exact total is the sum of the STORED doubles, which is not the same\n    # as the decimal literal: 1e-9 is no more exactly one billionth than 0.1 is\n    # exactly one tenth. exact_sum must report the former.\n    assert Fraction(1e-9) != Fraction(1, 10 ** 9), \"the literal is not exact either\"\n    assert exact_sum(values) == Fraction(1e9) + 20000 * Fraction(1e-9)\n    assert exact_sum(values) != Fraction(10 ** 9) + Fraction(20000, 10 ** 9)\n    naive = naive_sum(values)\n    srt = sorted_sum(values)\n    assert naive != srt, \"the order changes the answer\"\n    assert summation_error(sorted_sum, values) < summation_error(naive_sum, values)\n    assert summation_error(kahan_sum, values) <= summation_error(sorted_sum, values)\n    # exact_sum really is exact, so it has zero error by construction\n    assert summation_error(lambda v: float(exact_sum(v)), [0.5, 0.25, 0.125]) == 0\n    assert exact_sum([0.1, 0.2]) != Fraction(3, 10), \"the stored values are not exact\"\n    assert naive_sum([]) == 0.0 and kahan_sum([]) == 0.0\n", "mutants": ["from fractions import Fraction\n\n\ndef naive_sum(values):\n    total = 0.0\n    for x in values:\n        total += x\n    return total\n\n\ndef kahan_sum(values):\n    \"\"\"Bug: adds the compensation back instead of subtracting it, which\n    doubles the error rather than removing it.\"\"\"\n    total = 0.0\n    comp = 0.0\n    for x in values:\n        y = x + comp\n        t = total + y\n        comp = (t - total) - y\n        total = t\n    return total\n\n\ndef sorted_sum(values):\n    return naive_sum(sorted(values, key=abs))\n\n\ndef exact_sum(values):\n    return sum((Fraction(x) for x in values), Fraction(0))\n\n\ndef summation_error(method, values):\n    if not callable(method):\n        raise ValueError(\"method must be callable\")\n    return abs(Fraction(method(values)) - exact_sum(values))\n\n\ndef find_non_associative():\n    a, b, c = 1.0, 1e16, -1e16\n    return (a, b, c)\n", "from fractions import Fraction\n\n\ndef naive_sum(values):\n    total = 0.0\n    for x in values:\n        total += x\n    return total\n\n\ndef kahan_sum(values):\n    total = 0.0\n    comp = 0.0\n    for x in values:\n        y = x - comp\n        t = total + y\n        comp = (t - total) - y\n        total = t\n    return total\n\n\ndef sorted_sum(values):\n    \"\"\"Bug: sorts in DECREASING magnitude, which is the worse order.\"\"\"\n    return naive_sum(sorted(values, key=abs, reverse=True))\n\n\ndef exact_sum(values):\n    \"\"\"Bug: converts the running total through float, destroying exactness.\"\"\"\n    return Fraction(float(sum(Fraction(x) for x in values)))\n\n\ndef summation_error(method, values):\n    if not callable(method):\n        raise ValueError(\"method must be callable\")\n    return abs(Fraction(method(values)) - exact_sum(values))\n\n\ndef find_non_associative():\n    \"\"\"Bug: returns a triple where addition IS associative.\"\"\"\n    return (1.0, 2.0, 3.0)\n"], "hints": ["Kahan subtracts the compensation from the incoming value: `y = x - comp`.", "Small addends vanish into a large running total, so add the small ones first."], "level": "core", "title": "Non-associativity and Kahan summation"}, "m35-ex4-roots": {"starter": "def bisect(f, lo, hi, tol=1e-12, max_steps=200):\n    \"\"\"(root, steps) by bisection.\"\"\"\n    return (0.0, 0)\n\n\ndef newton(f, df, x0, tol=1e-12, max_steps=100):\n    \"\"\"(root, steps) by Newton's method.\"\"\"\n    return (0.0, 0)\n\n\ndef secant(f, x0, x1, tol=1e-12, max_steps=100):\n    \"\"\"(root, steps) by the secant method.\"\"\"\n    return (0.0, 0)\n\n\ndef convergence_order(errors):\n    \"\"\"Estimate the order of convergence from a sequence of errors.\"\"\"\n    return 0.0\n", "solution": "from math import log\n\n\ndef bisect(f, lo, hi, tol=1e-12, max_steps=200):\n    \"\"\"(root, steps) by bisection.\"\"\"\n    if lo > hi:\n        lo, hi = hi, lo\n    flo, fhi = f(lo), f(hi)\n    if flo == 0:\n        return (lo, 0)\n    if fhi == 0:\n        return (hi, 0)\n    if flo * fhi > 0:\n        raise ValueError(\"the endpoints must bracket a sign change\")\n    steps = 0\n    while hi - lo > tol and steps < max_steps:\n        mid = (lo + hi) / 2\n        fmid = f(mid)\n        if fmid == 0:\n            return (mid, steps + 1)\n        if flo * fmid < 0:\n            hi, fhi = mid, fmid\n        else:\n            lo, flo = mid, fmid\n        steps += 1\n    return ((lo + hi) / 2, steps)\n\n\ndef newton(f, df, x0, tol=1e-12, max_steps=100):\n    \"\"\"(root, steps) by Newton's method.\"\"\"\n    x = float(x0)\n    steps = 0\n    while steps < max_steps:\n        fx = f(x)\n        if abs(fx) < tol:\n            break\n        d = df(x)\n        if d == 0:\n            raise ValueError(\"the derivative vanished; Newton cannot continue\")\n        x = x - fx / d\n        steps += 1\n    return (x, steps)\n\n\ndef secant(f, x0, x1, tol=1e-12, max_steps=100):\n    \"\"\"(root, steps) by the secant method.\"\"\"\n    x0, x1 = float(x0), float(x1)\n    steps = 0\n    while steps < max_steps:\n        f1 = f(x1)\n        if abs(f1) < tol:\n            break\n        f0 = f(x0)\n        if f1 == f0:\n            raise ValueError(\"the secant is horizontal; the method stalls\")\n        x0, x1 = x1, x1 - f1 * (x1 - x0) / (f1 - f0)\n        steps += 1\n    return (x1, steps)\n\n\ndef convergence_order(errors):\n    \"\"\"Estimate the order of convergence from a sequence of errors.\n\n    If e_{n+1} ~ C e_n^p then log e_{n+1} / log e_n tends to p. Pairs are only\n    informative while the errors are small and above the rounding floor.\n    \"\"\"\n    usable = [e for e in errors if 1e-14 < e < 0.5]\n    if len(usable) < 3:\n        raise ValueError(\"need at least three usable errors\")\n    ratios = []\n    for a, b in zip(usable, usable[1:]):\n        if b <= 0 or a <= 0:\n            continue\n        ratios.append(log(b) / log(a))\n    if not ratios:\n        raise ValueError(\"could not estimate an order\")\n    return sum(ratios) / len(ratios)\n", "tests": "def test_all_three_find_the_root():\n    from math import sqrt\n    f = lambda x: x * x - 2\n    df = lambda x: 2 * x\n    rb, sb = bisect(f, 1.0, 2.0)\n    rn, sn = newton(f, df, 2.0)\n    rs, ss = secant(f, 1.0, 2.0)\n    for r in (rb, rn, rs):\n        assert abs(r - sqrt(2)) < 1e-6, r\n    # a root sitting exactly on an endpoint is returned immediately\n    assert bisect(lambda x: x - 1, 1.0, 5.0) == (1.0, 0)\n    try:\n        bisect(f, 2.0, 3.0)\n        assert False, \"no sign change must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        newton(lambda x: x * x + 1, lambda x: 2 * x, 0.0)\n        assert False, \"a vanishing derivative must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_the_orders_are_what_theory_says():\n    from math import sqrt\n    f = lambda x: x * x - 2\n    df = lambda x: 2 * x\n    _, sb = bisect(f, 1.0, 2.0)\n    _, sn = newton(f, df, 2.0)\n    _, ss = secant(f, 1.0, 2.0)\n    # bisection gains one bit a step, so it needs about 40 for 1e-12\n    assert 35 < sb < 60, sb\n    assert sn < 10, sn\n    assert sn <= ss < sb, (sn, ss, sb)\n    # Newton's measured order is 2\n    errs = []\n    x = 2.0\n    for _ in range(6):\n        errs.append(abs(x - sqrt(2)))\n        x = x - f(x) / df(x)\n    p = convergence_order(errs)\n    assert 1.7 < p < 2.4, p\n    # the secant's order is the golden ratio, about 1.618\n    errs_s = []\n    a, b = 1.0, 2.0\n    for _ in range(8):\n        errs_s.append(abs(b - sqrt(2)))\n        fa, fb = f(a), f(b)\n        if fa == fb:\n            break\n        a, b = b, b - fb * (b - a) / (fb - fa)\n    ps = convergence_order(errs_s)\n    assert 1.3 < ps < 1.9, ps\n    assert ps < p, \"the secant is slower than Newton\"\n    try:\n        convergence_order([0.1])\n        assert False, \"too few errors must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_bisection_is_guaranteed_where_newton_is_not():\n    # Newton cycles forever from this start; bisection does not care\n    g = lambda x: x ** 3 - 2 * x + 2\n    dg = lambda x: 3 * x * x - 2\n    _, steps = newton(g, dg, 0.0, max_steps=60)\n    assert steps == 60, \"Newton exhausts its budget without converging\"\n    assert abs(g(newton(g, dg, 0.0, max_steps=60)[0])) > 0.1, \"and is nowhere near\"\n    r, s = bisect(g, -3.0, 0.0)\n    assert abs(g(r)) < 1e-6, \"bisection converges regardless\"\n    assert s < 60\n    # at a DOUBLE root Newton degrades from quadratic to linear\n    h = lambda x: (x - 1) ** 2\n    dh = lambda x: 2 * (x - 1)\n    errs = []\n    x = 2.0\n    for _ in range(12):\n        errs.append(abs(x - 1.0))\n        x = x - h(x) / dh(x)\n    p = convergence_order(errs)\n    assert p < 1.4, f\"a double root costs the quadratic order, got {p}\"\n", "mutants": ["from math import log\n\n\ndef bisect(f, lo, hi, tol=1e-12, max_steps=200):\n    \"\"\"Bug: always keeps the left half, so it does not track the sign change.\"\"\"\n    if lo > hi:\n        lo, hi = hi, lo\n    flo, fhi = f(lo), f(hi)\n    if flo == 0:\n        return (lo, 0)\n    if fhi == 0:\n        return (hi, 0)\n    if flo * fhi > 0:\n        raise ValueError(\"the endpoints must bracket a sign change\")\n    steps = 0\n    while hi - lo > tol and steps < max_steps:\n        hi = (lo + hi) / 2\n        steps += 1\n    return ((lo + hi) / 2, steps)\n\n\ndef newton(f, df, x0, tol=1e-12, max_steps=100):\n    x = float(x0)\n    steps = 0\n    while steps < max_steps:\n        fx = f(x)\n        if abs(fx) < tol:\n            break\n        d = df(x)\n        if d == 0:\n            raise ValueError(\"the derivative vanished; Newton cannot continue\")\n        x = x - fx / d\n        steps += 1\n    return (x, steps)\n\n\ndef secant(f, x0, x1, tol=1e-12, max_steps=100):\n    x0, x1 = float(x0), float(x1)\n    steps = 0\n    while steps < max_steps:\n        f1 = f(x1)\n        if abs(f1) < tol:\n            break\n        f0 = f(x0)\n        if f1 == f0:\n            raise ValueError(\"the secant is horizontal; the method stalls\")\n        x0, x1 = x1, x1 - f1 * (x1 - x0) / (f1 - f0)\n        steps += 1\n    return (x1, steps)\n\n\ndef convergence_order(errors):\n    usable = [e for e in errors if 1e-14 < e < 0.5]\n    if len(usable) < 3:\n        raise ValueError(\"need at least three usable errors\")\n    ratios = []\n    for a, b in zip(usable, usable[1:]):\n        if b <= 0 or a <= 0:\n            continue\n        ratios.append(log(b) / log(a))\n    if not ratios:\n        raise ValueError(\"could not estimate an order\")\n    return sum(ratios) / len(ratios)\n", "from math import log\n\n\ndef bisect(f, lo, hi, tol=1e-12, max_steps=200):\n    if lo > hi:\n        lo, hi = hi, lo\n    flo, fhi = f(lo), f(hi)\n    if flo == 0:\n        return (lo, 0)\n    if fhi == 0:\n        return (hi, 0)\n    if flo * fhi > 0:\n        raise ValueError(\"the endpoints must bracket a sign change\")\n    steps = 0\n    while hi - lo > tol and steps < max_steps:\n        mid = (lo + hi) / 2\n        fmid = f(mid)\n        if fmid == 0:\n            return (mid, steps + 1)\n        if flo * fmid < 0:\n            hi, fhi = mid, fmid\n        else:\n            lo, flo = mid, fmid\n        steps += 1\n    return ((lo + hi) / 2, steps)\n\n\ndef newton(f, df, x0, tol=1e-12, max_steps=100):\n    \"\"\"Bug: adds the correction instead of subtracting it, so it runs away\n    from the root rather than towards it.\"\"\"\n    x = float(x0)\n    steps = 0\n    while steps < max_steps:\n        fx = f(x)\n        if abs(fx) < tol:\n            break\n        d = df(x)\n        if d == 0:\n            raise ValueError(\"the derivative vanished; Newton cannot continue\")\n        x = x + fx / d\n        steps += 1\n    return (x, steps)\n\n\ndef secant(f, x0, x1, tol=1e-12, max_steps=100):\n    \"\"\"Bug: uses the wrong difference quotient, giving a bisection-like crawl.\"\"\"\n    x0, x1 = float(x0), float(x1)\n    steps = 0\n    while steps < max_steps:\n        f1 = f(x1)\n        if abs(f1) < tol:\n            break\n        f0 = f(x0)\n        if f1 == f0:\n            raise ValueError(\"the secant is horizontal; the method stalls\")\n        x0, x1 = x1, (x0 + x1) / 2\n        steps += 1\n    return (x1, steps)\n\n\ndef convergence_order(errors):\n    usable = [e for e in errors if 1e-14 < e < 0.5]\n    if len(usable) < 3:\n        raise ValueError(\"need at least three usable errors\")\n    ratios = []\n    for a, b in zip(usable, usable[1:]):\n        if b <= 0 or a <= 0:\n            continue\n        ratios.append(log(b) / log(a))\n    if not ratios:\n        raise ValueError(\"could not estimate an order\")\n    return sum(ratios) / len(ratios)\n"], "hints": ["Bisection must keep the half that still contains the sign change: compare `f(lo) * f(mid)`.", "Newton's step SUBTRACTS `f(x)/f'(x)`. Adding it walks uphill."], "level": "core", "title": "Bisection, Newton, secant and their convergence orders"}, "m35-ex5-interpolation": {"starter": "def lagrange_interpolate(nodes, values, x):\n    \"\"\"The interpolating polynomial evaluated at x.\"\"\"\n    return 0.0\n\n\ndef equispaced_nodes(n):\n    \"\"\"n+1 equally spaced nodes on [-1, 1].\"\"\"\n    return []\n\n\ndef chebyshev_nodes(n):\n    \"\"\"n+1 Chebyshev nodes on [-1, 1].\"\"\"\n    return []\n\n\ndef max_interpolation_error(f, nodes, samples=200):\n    \"\"\"The largest error of the interpolant on [-1, 1].\"\"\"\n    return 0.0\n\n\ndef condition_number(f, df, x):\n    \"\"\"|x f'(x) / f(x)|.\"\"\"\n    return 0.0\n\n\ndef money_total(paise_amounts):\n    \"\"\"Exact rupee total as a Decimal.\"\"\"\n    return 0\n\n\ndef float_money_total(paise_amounts):\n    \"\"\"Rupee total computed in floating point.\"\"\"\n    return 0.0\n", "solution": "from math import cos, pi\nfrom decimal import Decimal\n\n\ndef lagrange_interpolate(nodes, values, x):\n    \"\"\"The interpolating polynomial evaluated at x.\"\"\"\n    if len(nodes) != len(values):\n        raise ValueError(\"nodes and values must have the same length\")\n    if len(set(nodes)) != len(nodes):\n        raise ValueError(\"nodes must be distinct\")\n    if not nodes:\n        raise ValueError(\"need at least one node\")\n    total = 0.0\n    for i, xi in enumerate(nodes):\n        term = values[i]\n        for j, xj in enumerate(nodes):\n            if i != j:\n                term *= (x - xj) / (xi - xj)\n        total += term\n    return total\n\n\ndef equispaced_nodes(n):\n    \"\"\"n+1 equally spaced nodes on [-1, 1].\"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [-1.0 + 2.0 * k / n for k in range(n + 1)]\n\n\ndef chebyshev_nodes(n):\n    \"\"\"n+1 Chebyshev nodes on [-1, 1].\n\n    They are the projections of equally spaced points on a semicircle, which\n    clusters them near the endpoints - exactly where equispaced nodes fail.\n    \"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [cos(pi * k / n) for k in range(n + 1)]\n\n\ndef max_interpolation_error(f, nodes, samples=200):\n    \"\"\"The largest error of the interpolant on [-1, 1].\"\"\"\n    values = [f(t) for t in nodes]\n    worst = 0.0\n    for k in range(samples + 1):\n        x = -1.0 + 2.0 * k / samples\n        worst = max(worst, abs(lagrange_interpolate(nodes, values, x) - f(x)))\n    return worst\n\n\ndef condition_number(f, df, x):\n    \"\"\"|x f'(x) / f(x)|.\"\"\"\n    fx = f(x)\n    if fx == 0:\n        raise ValueError(\"the condition number is undefined where f vanishes\")\n    return abs(x * df(x) / fx)\n\n\ndef money_total(paise_amounts):\n    \"\"\"Exact rupee total as a Decimal.\"\"\"\n    for p in paise_amounts:\n        if not isinstance(p, int):\n            raise ValueError(\"paise amounts must be integers\")\n    # sum the integers FIRST, then convert once: no rounding can occur\n    return Decimal(sum(paise_amounts)) / Decimal(100)\n\n\ndef float_money_total(paise_amounts):\n    \"\"\"Rupee total computed in floating point.\"\"\"\n    total = 0.0\n    for p in paise_amounts:\n        total += p / 100.0\n    return total\n", "tests": "def test_interpolation_is_exact_at_the_nodes():\n    f = lambda x: x ** 3 - 2 * x + 1\n    nodes = equispaced_nodes(5)\n    values = [f(t) for t in nodes]\n    for t, v in zip(nodes, values):\n        assert abs(lagrange_interpolate(nodes, values, t) - v) < 1e-9, t\n    # a cubic through 6 points is reproduced exactly everywhere\n    for x in (-0.7, -0.1, 0.3, 0.9):\n        assert abs(lagrange_interpolate(nodes, values, x) - f(x)) < 1e-9, x\n    assert len(equispaced_nodes(4)) == 5\n    assert len(chebyshev_nodes(4)) == 5\n    assert abs(min(chebyshev_nodes(8)) + 1.0) < 1e-12\n    assert abs(max(chebyshev_nodes(8)) - 1.0) < 1e-12\n    # Chebyshev nodes cluster at the ends: the gap near the edge is the smaller\n    c = sorted(chebyshev_nodes(8))\n    assert c[1] - c[0] < c[4] - c[3], \"they must cluster near the endpoints\"\n    for bad in (lambda: lagrange_interpolate([1.0, 1.0], [2.0, 3.0], 0.0),\n                lambda: lagrange_interpolate([1.0, 2.0], [3.0], 0.0),\n                lambda: equispaced_nodes(0)):\n        try:\n            bad()\n            assert False, \"an invalid argument must raise ValueError\"\n        except ValueError:\n            pass\n\n\ndef test_runge_diverges_on_equispaced_nodes():\n    runge = lambda x: 1.0 / (1.0 + 25.0 * x * x)\n    equi = [max_interpolation_error(runge, equispaced_nodes(n)) for n in (4, 10, 16)]\n    cheb = [max_interpolation_error(runge, chebyshev_nodes(n)) for n in (4, 10, 16)]\n    # more equispaced points make it worse, not better\n    assert equi[2] > equi[1] > equi[0], equi\n    assert equi[2] > 1.0, \"the error exceeds the function's own range\"\n    # Chebyshev nodes converge on the same function\n    assert cheb[2] < cheb[0], cheb\n    assert cheb[2] < 0.1, cheb\n    assert cheb[2] < equi[2] / 100, \"and are dramatically better\"\n    # on a well-behaved function both work\n    smooth = lambda x: x ** 2\n    assert max_interpolation_error(smooth, equispaced_nodes(6)) < 1e-9\n\n\ndef test_conditioning_and_money():\n    from decimal import Decimal\n    from fractions import Fraction\n    # subtracting nearby values is ill-conditioned: f(x) = x - 1 near x = 1\n    f = lambda x: x - 1.0\n    df = lambda x: 1.0\n    assert condition_number(f, df, 2.0) < 3\n    assert condition_number(f, df, 1.0001) > 1000, \"near the cancellation it blows up\"\n    # a well-conditioned problem: squaring has condition number 2 everywhere\n    assert abs(condition_number(lambda x: x * x, lambda x: 2 * x, 7.0) - 2.0) < 1e-12\n    try:\n        condition_number(f, df, 1.0)\n        assert False, \"a vanishing f must raise ValueError\"\n    except ValueError:\n        pass\n    # money: the Decimal total is exact, the float total is not\n    charges = [1234, 99, 4567, 1, 88888, 250] * 300\n    exact = Fraction(sum(charges), 100)\n    assert Fraction(money_total(charges)) == exact, \"Decimal must be exact\"\n    assert Fraction(float_money_total(charges)) != exact, \"the float total drifts\"\n    assert money_total([1, 2]) == Decimal(\"0.03\")\n    assert money_total([]) == Decimal(0)\n    try:\n        money_total([1.5])\n        assert False, \"non-integer paise must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import cos, pi\nfrom decimal import Decimal\n\n\ndef lagrange_interpolate(nodes, values, x):\n    if len(nodes) != len(values):\n        raise ValueError(\"nodes and values must have the same length\")\n    if len(set(nodes)) != len(nodes):\n        raise ValueError(\"nodes must be distinct\")\n    if not nodes:\n        raise ValueError(\"need at least one node\")\n    total = 0.0\n    for i, xi in enumerate(nodes):\n        term = values[i]\n        for j, xj in enumerate(nodes):\n            if i != j:\n                term *= (x - xj) / (xi - xj)\n        total += term\n    return total\n\n\ndef equispaced_nodes(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [-1.0 + 2.0 * k / n for k in range(n + 1)]\n\n\ndef chebyshev_nodes(n):\n    \"\"\"Bug: returns equispaced nodes, so Runge's phenomenon is not cured.\"\"\"\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [-1.0 + 2.0 * k / n for k in range(n + 1)]\n\n\ndef max_interpolation_error(f, nodes, samples=200):\n    values = [f(t) for t in nodes]\n    worst = 0.0\n    for k in range(samples + 1):\n        x = -1.0 + 2.0 * k / samples\n        worst = max(worst, abs(lagrange_interpolate(nodes, values, x) - f(x)))\n    return worst\n\n\ndef condition_number(f, df, x):\n    fx = f(x)\n    if fx == 0:\n        raise ValueError(\"the condition number is undefined where f vanishes\")\n    return abs(x * df(x) / fx)\n\n\ndef money_total(paise_amounts):\n    for p in paise_amounts:\n        if not isinstance(p, int):\n            raise ValueError(\"paise amounts must be integers\")\n    return Decimal(sum(paise_amounts)) / Decimal(100)\n\n\ndef float_money_total(paise_amounts):\n    total = 0.0\n    for p in paise_amounts:\n        total += p / 100.0\n    return total\n", "from math import cos, pi\nfrom decimal import Decimal\n\n\ndef lagrange_interpolate(nodes, values, x):\n    if len(nodes) != len(values):\n        raise ValueError(\"nodes and values must have the same length\")\n    if len(set(nodes)) != len(nodes):\n        raise ValueError(\"nodes must be distinct\")\n    if not nodes:\n        raise ValueError(\"need at least one node\")\n    total = 0.0\n    for i, xi in enumerate(nodes):\n        term = values[i]\n        for j, xj in enumerate(nodes):\n            if i != j:\n                term *= (x - xj) / (xi - xj)\n        total += term\n    return total\n\n\ndef equispaced_nodes(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [-1.0 + 2.0 * k / n for k in range(n + 1)]\n\n\ndef chebyshev_nodes(n):\n    if not isinstance(n, int) or n < 1:\n        raise ValueError(\"n must be a positive integer\")\n    return [cos(pi * k / n) for k in range(n + 1)]\n\n\ndef max_interpolation_error(f, nodes, samples=200):\n    values = [f(t) for t in nodes]\n    worst = 0.0\n    for k in range(samples + 1):\n        x = -1.0 + 2.0 * k / samples\n        worst = max(worst, abs(lagrange_interpolate(nodes, values, x) - f(x)))\n    return worst\n\n\ndef condition_number(f, df, x):\n    \"\"\"Bug: omits the x, so it reports an absolute sensitivity rather than a\n    relative one and never flags an ill-conditioned subtraction.\"\"\"\n    fx = f(x)\n    if fx == 0:\n        raise ValueError(\"the condition number is undefined where f vanishes\")\n    return abs(df(x) / fx)\n\n\ndef money_total(paise_amounts):\n    \"\"\"Bug: converts each amount to Decimal through a float first, which\n    reintroduces exactly the error Decimal exists to avoid.\"\"\"\n    for p in paise_amounts:\n        if not isinstance(p, int):\n            raise ValueError(\"paise amounts must be integers\")\n    total = Decimal(0)\n    for p in paise_amounts:\n        total += Decimal(p / 100.0)\n    return total\n\n\ndef float_money_total(paise_amounts):\n    total = 0.0\n    for p in paise_amounts:\n        total += p / 100.0\n    return total\n"], "hints": ["Chebyshev nodes are `cos(k pi / n)` \u2014 cosines, not a uniform grid.", "For money, add the integer paise first and divide once at the end. `Decimal(p / 100.0)` has already lost the battle."], "level": "boss", "title": "Runge, conditioning and why money is decimal"}}, "demos": {"m35-exact-reference": {"code": "from fractions import Fraction\nfrom decimal import Decimal, getcontext\n\n# --- 0.1 is not 0.1 ---\nexact = Fraction(0.1)                     # the EXACT value of the stored double\nprint(\"the double nearest 0.1 is exactly:\")\nprint(\"  \", Decimal(0.1))\nprint(\"   as a fraction:\", exact.numerator, \"/\", exact.denominator)\nassert exact != Fraction(1, 10), \"the stored value is not one tenth\"\nassert abs(exact - Fraction(1, 10)) < Fraction(1, 10 ** 17)\nprint(\"   it differs from 1/10 by about\", float(exact - Fraction(1, 10)))\n\n# the denominator is a power of two, which is the whole story\nd = exact.denominator\nassert d & (d - 1) == 0, \"every double is a dyadic rational\"\nprint(\"   denominator is 2 **\", d.bit_length() - 1)\n\nprint()\nprint(\"0.1 + 0.2 == 0.3 ?\", 0.1 + 0.2 == 0.3)\nprint(\"  0.1 + 0.2 =\", Decimal(0.1 + 0.2))\nprint(\"  0.3       =\", Decimal(0.3))\nassert 0.1 + 0.2 != 0.3\n\n# --- addition is not associative ---\na, b, c = 1.0, 1e16, -1e16\nleft = (a + b) + c\nright = a + (b + c)\nprint()\nprint(f\"(1 + 1e16) + -1e16 = {left}\")\nprint(f\"1 + (1e16 + -1e16) = {right}\")\nassert left != right, \"float addition is not associative\"\nassert right == 1.0 and left == 0.0\n# the exact answer is 1; the left grouping lost it entirely\nassert Fraction(a) + Fraction(b) + Fraction(c) == 1\n\n# --- summation, three ways, against an exact total ---\nvalues = [0.1] * 10 + [1e8, -1e8] + [0.01] * 500\n\n\ndef naive_sum(xs):\n    total = 0.0\n    for x in xs:\n        total += x\n    return total\n\n\ndef kahan_sum(xs):\n    total = 0.0\n    comp = 0.0\n    for x in xs:\n        y = x - comp\n        t = total + y\n        comp = (t - total) - y\n        total = t\n    return total\n\n\ntruth = sum(Fraction(x) for x in values)       # exact, by construction\nnaive = naive_sum(values)\nkahan = kahan_sum(values)\nsorted_naive = naive_sum(sorted(values, key=abs))\n\nprint()\nprint(\"summing 512 values whose exact total is\", float(truth))\nfor name, got in ((\"naive\", naive), (\"sorted by magnitude\", sorted_naive),\n                  (\"Kahan\", kahan)):\n    err = abs(Fraction(got) - truth)\n    print(f\"  {name:>20}: {got!r:<22} error {float(err):.3e}\")\n\nerr_naive = abs(Fraction(naive) - truth)\nerr_kahan = abs(Fraction(kahan) - truth)\nassert err_kahan <= err_naive, \"compensation must not make things worse\"\nassert err_kahan < Fraction(1, 10 ** 12), \"Kahan should be near-exact here\"\nassert err_naive > err_kahan, \"and naive summation must actually be worse\"\n\n# --- Kahan's bound does not grow with n; naive's does ---\nprint()\nprint(\"error against exact, as the number of addends grows\")\nprint(f\"{'n':>8} {'naive':>14} {'Kahan':>14}\")\nfor n in (1000, 10000, 100000):\n    xs = [0.1] * n\n    t = Fraction(1, 10) * n\n    en = abs(Fraction(naive_sum(xs)) - t)\n    ek = abs(Fraction(kahan_sum(xs)) - t)\n    print(f\"{n:>8} {float(en):>14.3e} {float(ek):>14.3e}\")\n    assert ek <= en\n# at 100000 terms the naive error is visible and Kahan's is still at the floor\nxs = [0.1] * 100000\nassert abs(Fraction(naive_sum(xs)) - Fraction(1, 10) * 100000) > Fraction(1, 10 ** 10)\nassert abs(Fraction(kahan_sum(xs)) - Fraction(1, 10) * 100000) < Fraction(1, 10 ** 10)\n\n# --- money: Ravi's ledger ---\nprint()\ngetcontext().prec = 28\ncharges_paise = [1234, 99, 4567, 1, 88888, 250] * 400       # exact integers\nfloat_total = naive_sum([p / 100.0 for p in charges_paise])\ndecimal_total = sum((Decimal(p) / 100 for p in charges_paise), Decimal(0))\nexact_total = Fraction(sum(charges_paise), 100)\nprint(f\"  {len(charges_paise)} charges\")\nprint(f\"  exact total   : {float(exact_total):.2f}\")\nprint(f\"  Decimal total : {decimal_total}\")\nprint(f\"  float total   : {float_total!r}\")\nassert Fraction(decimal_total) == exact_total, \"Decimal is exact for money\"\nassert Fraction(float_total) != exact_total, \"the float total is not exact\"\nprint(f\"  float is off by {float(abs(Fraction(float_total) - exact_total)):.3e}\")\n\n# rounding to paise hides it here, but the drift is real and grows\nprint(\"  rounded, the float total still agrees today:\",\n      round(float_total, 2) == float(exact_total))\n", "mutants": ["from fractions import Fraction\n\n\ndef naive_sum(xs):\n    total = 0.0\n    for x in xs:\n        total += x\n    return total\n\n\ndef kahan_sum(xs):\n    \"\"\"Bug: computes the compensation and then never applies it, so this is\n    naive summation wearing a Kahan costume.\"\"\"\n    total = 0.0\n    comp = 0.0\n    for x in xs:\n        y = x\n        t = total + y\n        comp = (t - total) - y\n        total = t\n    return total\n\n\nprint(f\"{'n':>8} {'naive':>14} {'Kahan':>14}\")\nfor n in (1000, 10000, 100000):\n    xs = [0.1] * n\n    t = Fraction(1, 10) * n\n    en = abs(Fraction(naive_sum(xs)) - t)\n    ek = abs(Fraction(kahan_sum(xs)) - t)\n    print(f\"{n:>8} {float(en):>14.3e} {float(ek):>14.3e}\")\n\nxs = [0.1] * 100000\nassert abs(Fraction(kahan_sum(xs)) - Fraction(1, 10) * 100000) < Fraction(1, 10 ** 10)\n"]}, "m35-measure-the-machine": {"code": "from fractions import Fraction\nfrom math import cos, sin, sqrt, pi, cosh, log, isclose\n\n# --- 1. find machine epsilon by search ---\neps = 1.0\nwhile 1.0 + eps / 2.0 != 1.0:\n    eps /= 2.0\nprint(f\"machine epsilon found by search : {eps:.17e}\")\nprint(f\"2 ** -52                        : {2.0 ** -52:.17e}\")\nassert eps == 2.0 ** -52, \"epsilon is 2^-52 for a binary64 double\"\n\n# the gap between neighbouring doubles scales with magnitude\nprint()\nprint(f\"{'x':>12} {'gap to the next double':>26} {'x * eps':>14}\")\nfor x in (1.0, 2.0, 1024.0, 1e6):\n    g = 0.0\n    step = x * eps\n    while x + step == x:\n        step *= 2\n    print(f\"{x:>12} {step:>26.6e} {x * eps:>14.6e}\")\n    assert step <= 2 * x * eps, \"the ulp scales with the magnitude\"\nprint(\"predicted: the absolute gap grows with x; the RELATIVE gap is constant\")\n\n# subnormals and the specials\nprint()\ntiny = 5e-324\nprint(f\"smallest subnormal      : {tiny}\")\nassert tiny / 2 == 0.0, \"below the smallest subnormal everything flushes to zero\"\nassert tiny > 0.0\nnan = float(\"nan\")\nassert nan != nan, \"NaN is not equal to itself\"\nassert float(\"inf\") - float(\"inf\") != float(\"inf\") - float(\"inf\")\nprint(\"NaN == NaN ?\", nan == nan, \"  (this is how you detect one)\")\n\n# round half to even, the default mode\nprint()\nprint(\"round half to even:\", [round(v) for v in (0.5, 1.5, 2.5, 3.5, 4.5)])\nassert [round(v) for v in (0.5, 1.5, 2.5, 3.5)] == [0, 2, 2, 4]\nprint(\"predicted: ties go to the EVEN neighbour, so errors do not drift one way\")\n\n# --- 2. cancellation in 1 - cos x ---\nprint()\nprint(\"relative error of 1 - cos(x), two algebraically identical formulas\")\nprint(f\"{'x':>10} {'naive 1-cos':>16} {'2 sin^2(x/2)':>16} \"\n      f\"{'naive rel err':>15} {'stable rel err':>15}\")\nworst_naive = 0.0\nworst_stable = 0.0\nfor k in (2, 4, 6, 8):\n    x = 10.0 ** (-k)\n    naive = 1 - cos(x)\n    stable = 2 * sin(x / 2) ** 2\n    # an independent high-precision reference: the series, summed in Fraction\n    xf = Fraction(x)\n    truth = Fraction(0)\n    term = xf * xf / 2\n    n = 2\n    while abs(term) > Fraction(1, 10 ** 40):\n        truth += term\n        term = -term * xf * xf / ((n + 1) * (n + 2))\n        n += 2\n    rn = float(abs(Fraction(naive) - truth) / truth)\n    rs = float(abs(Fraction(stable) - truth) / truth)\n    worst_naive = max(worst_naive, rn)\n    worst_stable = max(worst_stable, rs)\n    print(f\"{x:>10.0e} {naive:>16.8e} {stable:>16.8e} {rn:>15.2e} {rs:>15.2e}\")\n\nprint()\nprint(\"predicted: the naive form loses roughly two digits every time x shrinks\")\nprint(\"           tenfold, while the stable form stays at the rounding floor\")\nprint(f\"measured : worst naive relative error {worst_naive:.2e}, \"\n      f\"worst stable {worst_stable:.2e}\")\nassert worst_stable < 1e-15, \"the stable form must stay near machine precision\"\nassert worst_naive > 1e-9, \"the naive form must lose many digits\"\nassert worst_naive > 1e5 * worst_stable, \"and be vastly worse\"\n\n# --- 3. convergence orders ---\nprint()\n\n\ndef bisect_count(f, lo, hi, tol=1e-14):\n    steps = 0\n    while hi - lo > tol:\n        mid = (lo + hi) / 2\n        if f(lo) * f(mid) <= 0:\n            hi = mid\n        else:\n            lo = mid\n        steps += 1\n        if steps > 200:\n            break\n    return (lo + hi) / 2, steps\n\n\ndef newton_count(f, df, x0, tol=1e-14):\n    x = x0\n    steps = 0\n    while steps < 200:\n        fx = f(x)\n        if abs(fx) < tol:\n            break\n        x = x - fx / df(x)\n        steps += 1\n    return x, steps\n\n\ndef secant_count(f, x0, x1, tol=1e-14):\n    steps = 0\n    while steps < 200:\n        f1 = f(x1)\n        if abs(f1) < tol:\n            break\n        f0 = f(x0)\n        if f1 == f0:\n            break\n        x0, x1 = x1, x1 - f1 * (x1 - x0) / (f1 - f0)\n        steps += 1\n    return x1, steps\n\n\n# find sqrt(2) as a root of x^2 - 2\nf = lambda x: x * x - 2\ndf = lambda x: 2 * x\nrb, sb = bisect_count(f, 1.0, 2.0)\nrn, sn = newton_count(f, df, 2.0)\nrs, ss = secant_count(f, 1.0, 2.0)\nprint(f\"root of x^2 - 2 (true value {sqrt(2):.15f})\")\nprint(f\"  bisection: {rb:.15f} in {sb:>3} steps\")\nprint(f\"  Newton   : {rn:.15f} in {sn:>3} steps\")\nprint(f\"  secant   : {rs:.15f} in {ss:>3} steps\")\nfor r in (rb, rn, rs):\n    assert abs(r - sqrt(2)) < 1e-7, \"all three must find the root\"\nprint()\nprint(\"predicted: bisection is linear (one bit a step, so ~50 for full precision),\")\nprint(\"           Newton is quadratic (digits double), secant is in between\")\nassert sb > 40, \"bisection needs about one step per bit\"\nassert sn < 10, \"Newton needs a handful\"\nassert sn <= ss < sb, \"secant sits between Newton and bisection\"\n\n# watch Newton's digits double\nprint()\nprint(\"Newton's error, step by step (the exponent should roughly double)\")\nx = 2.0\nprev = None\nfor i in range(5):\n    err = abs(x - sqrt(2))\n    if err > 0:\n        print(f\"  step {i}: error {err:.3e}\")\n        if prev is not None and prev < 1e-2 and err > 0:\n            # quadratic: err ~ C * prev^2\n            ratio = err / (prev * prev)\n            assert ratio < 10, f\"error must fall quadratically, ratio {ratio}\"\n    prev = err\n    x = x - f(x) / df(x)\n\n# bisection is guaranteed where Newton is not\nprint()\nbad, steps_bad = newton_count(lambda t: t ** 3 - 2 * t + 2, lambda t: 3 * t * t - 2, 0.0)\nprint(f\"Newton on x^3 - 2x + 2 from x0 = 0 took {steps_bad} steps \"\n      f\"(it cycles between 0 and 1)\")\nassert steps_bad >= 200, \"Newton has no guarantee; this start cycles forever\"\n_, steps_ok = bisect_count(lambda t: t ** 3 - 2 * t + 2, -3.0, 0.0)\nprint(f\"bisection on the same function converged in {steps_ok} steps\")\nassert steps_ok < 60, \"bisection always converges given a sign change\"\n\n# --- 4. Runge's phenomenon ---\nprint()\n\n\ndef lagrange(nodes, values, x):\n    total = 0.0\n    for i, xi in enumerate(nodes):\n        term = values[i]\n        for j, xj in enumerate(nodes):\n            if i != j:\n                term *= (x - xj) / (xi - xj)\n        total += term\n    return total\n\n\nrunge = lambda t: 1.0 / (1.0 + 25.0 * t * t)\ntest_points = [-1.0 + 2.0 * k / 400 for k in range(401)]\n\n\ndef max_error(nodes):\n    vals = [runge(t) for t in nodes]\n    return max(abs(lagrange(nodes, vals, t) - runge(t)) for t in test_points)\n\n\nprint(\"maximum error interpolating 1/(1+25x^2) on [-1, 1]\")\nprint(f\"{'degree':>8} {'equispaced':>16} {'Chebyshev':>16}\")\nequi_errs, cheb_errs = [], []\nfor n in (4, 8, 12, 16):\n    equi = [-1.0 + 2.0 * k / n for k in range(n + 1)]\n    cheb = [cos(pi * k / n) for k in range(n + 1)]\n    e, c = max_error(equi), max_error(cheb)\n    equi_errs.append(e)\n    cheb_errs.append(c)\n    print(f\"{n:>8} {e:>16.4f} {c:>16.6f}\")\n\nprint()\nprint(\"predicted: more equispaced points make it WORSE; Chebyshev makes it better\")\nassert equi_errs[-1] > equi_errs[0], \"equispaced interpolation diverges\"\nassert equi_errs[-1] > 1.0, \"and the error exceeds the function's own range\"\nassert cheb_errs[-1] < cheb_errs[0], \"Chebyshev nodes converge\"\nassert cheb_errs[-1] < 0.1, \"and reach a small error\"\nprint(f\"measured : equispaced went {equi_errs[0]:.3f} -> {equi_errs[-1]:.3f}, \"\n      f\"Chebyshev {cheb_errs[0]:.3f} -> {cheb_errs[-1]:.5f}\")\n", "mutants": ["from math import cos, pi\n\n# Wrong theory: \"a higher-degree polynomial through more points always fits\n# better\", which is the intuition Runge destroyed.\n\n\ndef lagrange(nodes, values, x):\n    total = 0.0\n    for i, xi in enumerate(nodes):\n        term = values[i]\n        for j, xj in enumerate(nodes):\n            if i != j:\n                term *= (x - xj) / (xi - xj)\n        total += term\n    return total\n\n\nrunge = lambda t: 1.0 / (1.0 + 25.0 * t * t)\ntest_points = [-1.0 + 2.0 * k / 400 for k in range(401)]\n\n\ndef max_error(nodes):\n    vals = [runge(t) for t in nodes]\n    return max(abs(lagrange(nodes, vals, t) - runge(t)) for t in test_points)\n\n\nerrs = []\nfor n in (4, 8, 12, 16):\n    equi = [-1.0 + 2.0 * k / n for k in range(n + 1)]\n    e = max_error(equi)\n    errs.append(e)\n    print(f\"degree {n:>3}: equispaced error {e:.4f}\")\n\nassert errs[-1] < errs[0], \"more points must give a better fit\"\n"]}}, "cards": [{"q": "Why is 0.1 not exactly representable?", "a": "A binary fraction terminates only when the denominator is a power of two. One tenth has a factor of 5, so it recurs in binary just as a third recurs in decimal."}, {"q": "What is machine epsilon, and how does it differ from an ulp?", "a": "Epsilon is the gap between 1.0 and the next double, 2^-52. An ulp is the LOCAL gap, which scales with magnitude: near 2^k it is 2^(k-52)."}, {"q": "What is catastrophic cancellation?", "a": "Subtracting two nearly equal numbers. The agreeing leading digits annihilate and the pre-existing error is promoted to the front. The subtraction itself is usually exact."}, {"q": "Give three stable replacements for cancelling expressions.", "a": "1 - cos x becomes 2 sin^2(x/2); e^x - 1 becomes expm1; log(1+x) becomes log1p. Also the conjugate trick for sqrt(x+1) - sqrt(x)."}, {"q": "What is the difference between conditioning and stability?", "a": "Conditioning is a property of the PROBLEM \u2014 how much it amplifies input error. Stability is a property of the ALGORITHM \u2014 whether it adds error the problem did not require."}, {"q": "Why does Kahan summation work?", "a": "`(t - s) - y` is computed exactly by Sterbenz's lemma, so it recovers the rounding error, which is then fed back into the next addend. The error bound becomes independent of n."}, {"q": "Give the convergence orders of bisection, Newton and secant.", "a": "Bisection 1 (halves each step, ~50 for full precision, always converges); Newton 2 (digits double, no guarantee); secant the golden ratio, about 1.618."}, {"q": "When does Newton's method lose its quadratic order?", "a": "At a multiple root, where f'(r) = 0. Convergence degrades to linear."}, {"q": "What is Runge's phenomenon?", "a": "Interpolating 1/(1+25x^2) at equispaced nodes on [-1,1] DIVERGES near the endpoints as the degree grows. Chebyshev nodes, which cluster at the ends, converge."}, {"q": "Why does money use decimals rather than floats?", "a": "Money is defined in decimal units and must be exact. Binary floats cannot represent 0.01, so the error accumulates across many transactions into a real discrepancy."}, {"q": "How should floats be compared?", "a": "With a mixed tolerance, `abs(a-b) <= atol + rtol*abs(b)`. A purely relative test fails near zero; a purely absolute one fails at large magnitudes."}], "title": "Floating point and numerical methods"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

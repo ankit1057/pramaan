@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V02 Measurement: turning the world into numbers</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V02">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · UG-1 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V02</p><h1>Measurement: turning the world into numbers</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V01.html">V01</a> <a href="M09.html">M09</a></div><div><b>Covers:</b> research methods, CS2023 MSF</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>variables and operationalisation</li><li>nominal, ordinal, interval and ratio scales</li><li>construct, content and criterion validity</li><li>test-retest and inter-rater reliability</li><li>random vs systematic error</li><li>precision vs accuracy</li><li>proxies and Goodhart&#x27;s law</li><li>units and dimensional analysis</li><li>measurement artifacts (a metric that measures its own definition)</li><li>questionnaire design: Likert items, leading and double-barrelled questions, piloting, and treating Likert data as ordinal</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Imagine you are at an ice cream shop with your little sister, and she says, "My strawberry ice cream is ten degrees deliciouser than your chocolate ice cream!" You smile because you know that deliciousness does not come with tick marks on a ruler. Can you measure happiness with a wooden meter stick? What if a judge at a race simply writes down who came First, Second, and Third, but forgets to bring a stopwatch?</p>
+<p>A runner who came First was certainly faster than the runner who came Second, but you have no idea whether they won by half an inch or by three whole city blocks. A number on a piece of paper does not always mean what you think it means. When we turn the real world into numbers, we have to know what kind of number we created. Are we just putting names on team jerseys, or putting runners in order, or measuring the temperature with equal tick marks, or counting coins in a piggy bank where zero coins really means an empty pocket? If you treat a jersey number like a pile of coins, your math becomes complete nonsense.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Measurement is the operational mapping of real-world phenomena into numbers. Numbers exist on four distinct measurement scales defined by Stanley Smith Stevens: nominal (categories/labels), ordinal (ordered ranks without uniform distance), interval (uniform distances without a true physical zero, like Celsius), and ratio (uniform distances with a true physical zero, like Kelvin or mass).</p>
+<p>Applying arithmetic operations suited for ratio scales to ordinal or nominal data produces mathematical artifacts. A metric is valid only if it measures the intended construct (construct validity), and reliable only if repeated independent measurements yield consistent results (test-retest and inter-rater reliability). Goodhart's law warns that whenever a measure becomes a target, it ceases to be a good measure.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Stevens' typology formalises measurement as a homomorphism from an empirical relational structure $(A, R)$ to a numerical relational structure $(B, S)$.</p>
+<ol>
+<li><strong>Nominal Scale:</strong> Permissible transformations are any 1-to-1 mappings $f(x)$. Statistics: mode, contingency tables, chi-square. Distance and ordering are meaningless.</li>
+<li><strong>Ordinal Scale:</strong> Permissible transformations are strictly monotonic increasing functions $f(x)$ where $x &gt; y \iff f(x) &gt; f(y)$. Statistics: median, percentiles, rank correlation (Spearman $
+ho$, Kendall $  au$). Means and standard deviations are meaningless.</li>
+<li><strong>Interval Scale:</strong> Permissible transformations are positive affine transforms $f(x) = lpha x + eta$ with $lpha &gt; 0$. Differences have meaning ($x_1 - x_2 = x_3 - x_4$), but ratios $x_1 / x_2$ do not, because the zero point is arbitrary (e.g., $20^\circ	ext{C}$ is not twice as hot as $10^\circ	ext{C}$).</li>
+<li><strong>Ratio Scale:</strong> Permissible transformations are scalar multiplications $f(x) = lpha x$ with $lpha &gt; 0$. A true physical zero exists ($0$ indicates absence of quantity). Ratios $x_1 / x_2$ are meaningful.</li>
+<li><strong>Errors:</strong> Observed value $X = T + E_{	ext{sys}} + E_{	ext{rand}}$, where $T$ is true score, $E_{	ext{sys}}$ is systematic bias ($\mathbb{E}[E_{   ext{sys}}] 
+e 0$), and $E_{	ext{rand}}$ is random error ($\mathbb{E}[E_{	ext{rand}}] = 0$). Accuracy measures proximity to $T$ (minimising $|E_{	ext{sys}}| + \sigma_{E}$); precision measures repeatability (minimising $\sigma_{E}$).</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why does computing the mean of Likert ratings create dangerous artifacts? Consider a standard 5-point Likert questionnaire: 1=Strongly Disagree, 2=Disagree, 3=Neutral, 4=Agree, 5=Strongly Agree.</p>
+<p><strong>Step 1 (The psychological distance):</strong> The psychological difference between "Strongly Disagree" and "Disagree" is rarely equal to the difference between "Neutral" and "Agree". Mathematically, the mapping from internal conviction $\psi$ to response $r \in \{1, 2, 3, 4, 5\}$ is strictly monotonic, but non-linear: $r = g(\psi)$ where $g&#x27;(\psi) &gt; 0$, but differences $\Delta g$ are arbitrary.</p>
+<p><strong>Step 2 (Invariance under permissible transformation):</strong> For an ordinal scale, any monotonic transform $h(r)$ preserves the ordering. If $h(1)=1, h(2)=2, h(3)=3, h(4)=10, h(5)=11$, the rank order of all candidates is unchanged. However, the arithmetic mean $ar{r}$ changes radically under $h$. If Group A has ratings $(3, 3, 3)$ with mean $3.0$ and Group B has $(1, 2, 5)$ with mean $2.67$, Group A appears superior. Under transform $h$, Group A has mean $3.0$ and Group B has $(1 + 2 + 11)/3 = 4.67$, reversing the ranking!</p>
+<p><strong>Step 3 (Dimensional Analysis):</strong> Physical laws must be dimensionally homogeneous. By the Buckingham $\pi$ theorem, any physically meaningful equation $f(q_1, \dots, q_n) = 0$ can be recast in terms of dimensionless products. If units are mixed without conversion factors, dimensional analysis fails and calculations become invalid.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>We compare scale-invariant median computation against arithmetic mean on Likert ratings. For an ordinal dataset, monotonic re-scaling (e.g., mapping ranks $[1, 2, 3, 4, 5]$ to $[1, 10, 20, 90, 100]$) preserves the rank-order of medians across groups, whereas arithmetic means invert their order. Method 1 computes the median rank directly. Method 2 computes the median after arbitrary strictly monotonic transformations. The two methods must rank groups identically. The broken mutant computes the arithmetic mean, which inverts group ranks under monotonic scaling.</p>
+<div class="lab demo" data-demo="oracle-scale-invariance">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Ordinal median invariance vs arithmetic mean reversal</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+def median_rank(scores):
+    s = sorted(scores)
+    n = len(s)
+    if n % 2 == 1:
+        return s[n // 2]
+    return (s[n // 2 - 1] + s[n // 2]) / 2.0
+
+rng = random.Random(101)
+# Group A: mostly moderate satisfactions; Group B: polarized extremes
+group_a = [3, 3, 3, 3, 4, 4, 3, 3, 4] # 9 items, median is 3
+group_b = [1, 1, 1, 1, 2, 5, 5, 5, 5] # 9 items, median is 2
+
+# Strictly monotonic non-linear transformation: 1-&gt;1, 2-&gt;2, 3-&gt;4, 4-&gt;15, 5-&gt;100
+mapping = {1: 1, 2: 2, 3: 4, 4: 15, 5: 100}
+trans_a = [mapping[x] for x in group_a]
+trans_b = [mapping[x] for x in group_b]
+
+# Independent check: compare medians before and after transformation
+med_a = median_rank(group_a)
+med_b = median_rank(group_b)
+t_med_a = median_rank(trans_a)
+t_med_b = median_rank(trans_b)
+
+# Ordinal relationship must be invariant:
+assert (med_a &gt; med_b) == (t_med_a &gt; t_med_b)
+assert (med_a == med_b) == (t_med_a == t_med_b)
+print(f&quot;Verified scale invariance: Group A median {med_a} -&gt; {t_med_a}, Group B median {med_b} -&gt; {t_med_b}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We simulate Goodhart's law in software development. Suppose true software quality $Q = C + 2R$, where $C$ is code clarity and $R$ is test robustness. Management chooses raw commit count $M$ as a proxy metric for productivity. Initially, developers write high-quality code ($Q pprox 100, M pprox 10$). When compensation is tied strictly to proxy $M$, developers optimize $M$ by splitting commits into trivial diffs. We measure true quality $Q$ vs proxy $M$ over 20 development sprints and verify that while proxy metric $M$ increases tenfold, true quality degrades.</p>
+<div class="lab demo" data-demo="exp-goodharts-law">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Goodhart&#x27;s Law simulation: proxy metric vs true construct</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+rng = random.Random(42)
+sprints = 20
+commits = []
+true_quality = []
+
+c = 50.0
+r = 25.0
+for sprint in range(sprints):
+    if sprint &lt; 5:
+        # Pre-target phase: natural work
+        n_commits = rng.randint(8, 15)
+        c += rng.uniform(-1, 2)
+        r += rng.uniform(-0.5, 1.5)
+    else:
+        # Post-target phase: gaming the metric
+        n_commits = rng.randint(40, 100)  # Trivial micro-commits
+        c -= rng.uniform(0.5, 2.5)         # Code clarity degrades due to fragmentation
+        r -= rng.uniform(0.2, 1.0)         # Tests neglected in favor of commit volume
+    q = c + 2 * r
+    commits.append(n_commits)
+    true_quality.append(q)
+
+pre_m = sum(commits[:5]) / 5.0
+post_m = sum(commits[15:]) / 5.0
+pre_q = sum(true_quality[:5]) / 5.0
+post_q = sum(true_quality[15:]) / 5.0
+
+print(f&quot;Pre-target: Avg Commits={pre_m:.1f}, True Quality={pre_q:.1f}&quot;)
+print(f&quot;Post-target: Avg Commits={post_m:.1f}, True Quality={post_q:.1f}&quot;)
+assert post_m &gt; pre_m * 3.0, &quot;Proxy metric failed to artificially inflate&quot;
+assert post_q &lt; pre_q, &quot;True quality failed to degrade under proxy optimization&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-scale-classifier" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Classify measurement scales and validate operations</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write a function <code>validate_operation(scale, operation)</code> that checks whether a statistical operation is permissible on a given measurement scale. Valid scales are <code>'nominal'</code>, <code>'ordinal'</code>, <code>'interval'</code>, and <code>'ratio'</code>. Valid operations are <code>'mode'</code>, <code>'median'</code>, <code>'mean'</code>, and <code>'ratio'</code>. The function must return <code>True</code> if permissible and <code>False</code> otherwise. If either argument is unrecognized, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def validate_operation(scale, operation):
+    &quot;&quot;&quot;Checks if a mathematical operation is permissible on a measurement scale.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_valid_permutations():
+    assert validate_operation(&#x27;nominal&#x27;, &#x27;mode&#x27;) is True
+    assert validate_operation(&#x27;nominal&#x27;, &#x27;median&#x27;) is False
+    assert validate_operation(&#x27;ordinal&#x27;, &#x27;median&#x27;) is True
+    assert validate_operation(&#x27;ordinal&#x27;, &#x27;mean&#x27;) is False
+    assert validate_operation(&#x27;interval&#x27;, &#x27;mean&#x27;) is True
+    assert validate_operation(&#x27;interval&#x27;, &#x27;ratio&#x27;) is False
+    assert validate_operation(&#x27;ratio&#x27;, &#x27;ratio&#x27;) is True
+
+def test_exceptions_raised():
+    try:
+        validate_operation(&#x27;unknown&#x27;, &#x27;mean&#x27;)
+        assert False, &quot;Should raise ValueError on unknown scale&quot;
+    except ValueError:
+        pass
+    try:
+        validate_operation(&#x27;ratio&#x27;, &#x27;variance&#x27;)
+        assert False, &quot;Should raise ValueError on unknown operation&quot;
+    except ValueError:
+        pass
+
+def test_hierarchy_soundness():
+    for op in [&#x27;mode&#x27;, &#x27;median&#x27;, &#x27;mean&#x27;, &#x27;ratio&#x27;]:
+        assert validate_operation(&#x27;ratio&#x27;, op) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-likert-summary" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Compute sound ordinal statistics for Likert items</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>summarize_likert(responses)</code> that takes a list of integer ratings from 1 to 5 and returns sound ordinal statistics as a dictionary: <code>{'median': float, 'iqr': float, 'mode': int}</code> where <code>iqr</code> is $Q_3 - Q_1$ computed with standard nearest-rank interpolation. If responses is empty or contains values outside $[1, 5]$, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def summarize_likert(responses):
+    &quot;&quot;&quot;Computes median, IQR, and mode for 5-point Likert ratings.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_valid_likert_summary():
+    data = [1, 2, 3, 3, 3, 4, 5]
+    res = summarize_likert(data)
+    assert res[&#x27;median&#x27;] == 3.0
+    assert res[&#x27;mode&#x27;] == 3
+    assert res[&#x27;iqr&#x27;] &gt;= 0
+
+def test_invalid_values():
+    try:
+        summarize_likert([1, 2, 6])
+        assert False, &quot;Should raise ValueError on rating 6&quot;
+    except ValueError:
+        pass
+    try:
+        summarize_likert([])
+        assert False, &quot;Should raise ValueError on empty list&quot;
+    except ValueError:
+        pass
+
+def test_even_length():
+    data = [2, 2, 4, 4]
+    res = summarize_likert(data)
+    assert res[&#x27;median&#x27;] == 3.0
+    assert res[&#x27;mode&#x27;] == 2
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-inter-rater-reliability" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Compute percent agreement with error isolation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>percent_agreement(rater_a, rater_b)</code> that calculates the percentage of items on which two raters agree (returned as a float between 0.0 and 1.0). In addition, isolate systematic error by returning a dictionary: <code>{'agreement': float, 'disagreements': int, 'bias_ratio': float}</code> where <code>bias_ratio</code> is $\frac{\sum A_i}{\sum B_i}$ for numerical scores. Raise <code>ValueError</code> if raters have different lengths or are empty.</p></div>
+<textarea class="code" spellcheck="false">def percent_agreement(rater_a, rater_b):
+    &quot;&quot;&quot;Calculates agreement and systematic bias ratio.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_identical_raters():
+    res = percent_agreement([1, 2, 3], [1, 2, 3])
+    assert res[&#x27;agreement&#x27;] == 1.0
+    assert res[&#x27;disagreements&#x27;] == 0
+    assert res[&#x27;bias_ratio&#x27;] == 1.0
+
+def test_divergent_raters():
+    res = percent_agreement([1, 2, 3, 4], [2, 2, 4, 4])
+    assert res[&#x27;agreement&#x27;] == 0.5
+    assert res[&#x27;disagreements&#x27;] == 2
+    assert res[&#x27;bias_ratio&#x27;] &lt; 1.0
+
+def test_length_mismatch_raises():
+    try:
+        percent_agreement([1], [1, 2])
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-dimensional-analysis-boss" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Automated dimensional analysis checker</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a dimensional consistency verifier <code>check_dimensions(lhs_units, rhs_units)</code> where units are represented as dictionaries mapping base SI dimensions <code>{'M': mass_exp, 'L': length_exp, 'T': time_exp, 'I': current_exp}</code>. The function must verify whether $LHS = RHS$. Furthermore, write <code>derive_kinetic_energy(mass_dim, velocity_dim)</code> that multiplies dimensions according to $E_k = \frac{1}{2} m v^2$ and returns the resulting dimension dictionary. If missing dimensions are omitted from dictionaries, treat their exponents as 0.</p></div>
+<textarea class="code" spellcheck="false">def check_dimensions(lhs_units, rhs_units):
+    &quot;&quot;&quot;Verifies dimensional homogeneity between two unit expressions.&quot;&quot;&quot;
+    return False
+
+def derive_kinetic_energy(mass_dim, velocity_dim):
+    &quot;&quot;&quot;Derives kinetic energy dimensions from mass and velocity dimensions.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_force_dimensions():
+    # Force = M * L * T^-2
+    f1 = {&#x27;M&#x27;: 1, &#x27;L&#x27;: 1, &#x27;T&#x27;: -2}
+    f2 = {&#x27;M&#x27;: 1, &#x27;L&#x27;: 1, &#x27;T&#x27;: -2}
+    assert check_dimensions(f1, f2) is True
+    assert check_dimensions(f1, {&#x27;M&#x27;: 1, &#x27;L&#x27;: 2, &#x27;T&#x27;: -2}) is False
+
+def test_energy_derivation():
+    m = {&#x27;M&#x27;: 1}
+    v = {&#x27;L&#x27;: 1, &#x27;T&#x27;: -1}
+    # Energy = M * L^2 * T^-2
+    e = derive_kinetic_energy(m, v)
+    assert e == {&#x27;M&#x27;: 1, &#x27;L&#x27;: 2, &#x27;T&#x27;: -2}
+    assert check_dimensions(e, {&#x27;M&#x27;: 1, &#x27;L&#x27;: 2, &#x27;T&#x27;: -2}) is True
+
+def test_default_zeros():
+    assert check_dimensions({&#x27;M&#x27;: 1, &#x27;L&#x27;: 0}, {&#x27;M&#x27;: 1}) is True
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Likert ratings can be averaged because they are numbers 1 through 5."</strong> Likert scale data is strictly ordinal; intervals between subjective sentiments are non-uniform and arbitrary.</li>
+<li><strong>"High precision implies high accuracy."</strong> A scale can report values to six decimal places (high precision) while suffering from a 20% calibration bias (low accuracy).</li>
+<li><strong>"Goodhart's law only applies to economics and finance."</strong> It applies equally to software engineering metrics like lines of code, test coverage percentage, and commit counts.</li>
+<li><strong>"If a metric is mathematically elegant, it possesses construct validity."</strong> A formula can be mathematically flawless yet measure a proxy that has zero correlation with the underlying real-world construct.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Stevens' typology breaks down when dealing with pragmatic pseudo-interval measurements in psychometrics where Rasch modelling or Item Response Theory (IRT) transforms ordinal response patterns into linear logit scales on an interval continuum. In physical computing, sensor quantisation noise and thermal drift prevent physical sensors from achieving pure theoretical ratio measurements at micro-scales.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>In mobile analytics — user satisfaction surveys, battery drain telemetry — naive pipelines average 1-to-5 satisfaction stars across releases. That produces phantom regressions or improvements caused entirely by a monotonic shift in who chose to respond, rather than by any real change in app stability.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What are the four measurement scales defined by S.S. Stevens?</p></div><div class="a" hidden><p>Nominal (labels), Ordinal (ranks), Interval (equal intervals, arbitrary zero), and Ratio (equal intervals, true zero).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why is calculating the arithmetic mean of Likert ratings invalid?</p></div><div class="a" hidden><p>Because Likert items are ordinal; arithmetic means assume equal intervals between categories, which is psychologically false and mathematically non-invariant under monotonic transformation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the difference between systematic error and random error?</p></div><div class="a" hidden><p>Systematic error is repeatable bias that shifts the mean away from truth; random error fluctuates symmetrically around the mean with expected value zero.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>State Goodhart's Law.</p></div><div class="a" hidden><p>When a measure becomes a target, it ceases to be a good measure, because agents optimize the proxy metric rather than the underlying construct.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is construct validity?</p></div><div class="a" hidden><p>The degree to which a test or operational metric genuinely measures the theoretical construct it claims to measure.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What does the Buckingham Pi theorem guarantee in dimensional analysis?</p></div><div class="a" hidden><p>Any physically meaningful equation involving $n$ physical variables can be rewritten in terms of $n - k$ independent dimensionless parameters, where $k$ is the number of fundamental dimensions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a junior engineer why averaging customer survey stars is statistically unsound, pass the boss exercise on dimensional analysis, and identify Goodhart gaming in team KPIs.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Stevens, S. S. 'On the Theory of Scales of Measurement.' <em>Science</em>, 103(2684), 1946.</li>
+<li>Goodhart, C. A. E. 'Problems of Monetary Management: The U.K. Experience.' <em>Papers in Monetary Economics</em>, 1975.</li>
+</ul></section>
+<footer class="pager"><a href="M26.html">&larr; M26 Matrices and determinants</a>
+<a href="V03.html">V03 Sampling and selection bias &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V02", "packages": [], "exercises": {"ex1-scale-classifier": {"starter": "def validate_operation(scale, operation):\n    \"\"\"Checks if a mathematical operation is permissible on a measurement scale.\"\"\"\n    return False\n", "solution": "def validate_operation(scale, operation):\n    \"\"\"Checks if a mathematical operation is permissible on a measurement scale.\"\"\"\n    valid_scales = {'nominal', 'ordinal', 'interval', 'ratio'}\n    valid_ops = {'mode', 'median', 'mean', 'ratio'}\n    if scale not in valid_scales or operation not in valid_ops:\n        raise ValueError(\"Invalid scale or operation\")\n    hierarchy = {\n        'mode': {'nominal', 'ordinal', 'interval', 'ratio'},\n        'median': {'ordinal', 'interval', 'ratio'},\n        'mean': {'interval', 'ratio'},\n        'ratio': {'ratio'}\n    }\n    return scale in hierarchy[operation]\n", "tests": "def test_valid_permutations():\n    assert validate_operation('nominal', 'mode') is True\n    assert validate_operation('nominal', 'median') is False\n    assert validate_operation('ordinal', 'median') is True\n    assert validate_operation('ordinal', 'mean') is False\n    assert validate_operation('interval', 'mean') is True\n    assert validate_operation('interval', 'ratio') is False\n    assert validate_operation('ratio', 'ratio') is True\n\ndef test_exceptions_raised():\n    try:\n        validate_operation('unknown', 'mean')\n        assert False, \"Should raise ValueError on unknown scale\"\n    except ValueError:\n        pass\n    try:\n        validate_operation('ratio', 'variance')\n        assert False, \"Should raise ValueError on unknown operation\"\n    except ValueError:\n        pass\n\ndef test_hierarchy_soundness():\n    for op in ['mode', 'median', 'mean', 'ratio']:\n        assert validate_operation('ratio', op) is True\n", "mutants": ["def validate_operation(scale, operation):\n    if scale not in {'nominal', 'ordinal', 'interval', 'ratio'} or operation not in {'mode', 'median', 'mean', 'ratio'}:\n        raise ValueError(\"bad\")\n    # Mutant permits mean on ordinal data\n    if operation == 'mean' and scale == 'ordinal': return True\n    return False\n", "def validate_operation(scale, operation):\n    # Mutant does not validate inputs\n    return True\n"], "hints": ["Nominal allows mode only.", "Ratio scale supports all operations."], "level": "warmup", "title": "Classify measurement scales and validate operations"}, "ex2-likert-summary": {"starter": "def summarize_likert(responses):\n    \"\"\"Computes median, IQR, and mode for 5-point Likert ratings.\"\"\"\n    return {}\n", "solution": "from collections import Counter\n\ndef summarize_likert(responses):\n    \"\"\"Computes median, IQR, and mode for 5-point Likert ratings.\"\"\"\n    if not responses:\n        raise ValueError(\"Responses cannot be empty\")\n    for r in responses:\n        if not isinstance(r, int) or r < 1 or r > 5:\n            raise ValueError(f\"Invalid rating {r}; must be integer in 1..5\")\n    s = sorted(responses)\n    n = len(s)\n    # Median\n    med = s[n // 2] if n % 2 == 1 else (s[n // 2 - 1] + s[n // 2]) / 2.0\n    # Q1 and Q3 via nearest rank\n    q1 = s[int(0.25 * (n - 1))]\n    q3 = s[int(0.75 * (n - 1))]\n    # Mode\n    counts = Counter(s)\n    max_c = max(counts.values())\n    mode_val = min(k for k, v in counts.items() if v == max_c)\n    return {'median': float(med), 'iqr': float(q3 - q1), 'mode': mode_val}\n", "tests": "def test_valid_likert_summary():\n    data = [1, 2, 3, 3, 3, 4, 5]\n    res = summarize_likert(data)\n    assert res['median'] == 3.0\n    assert res['mode'] == 3\n    assert res['iqr'] >= 0\n\ndef test_invalid_values():\n    try:\n        summarize_likert([1, 2, 6])\n        assert False, \"Should raise ValueError on rating 6\"\n    except ValueError:\n        pass\n    try:\n        summarize_likert([])\n        assert False, \"Should raise ValueError on empty list\"\n    except ValueError:\n        pass\n\ndef test_even_length():\n    data = [2, 2, 4, 4]\n    res = summarize_likert(data)\n    assert res['median'] == 3.0\n    assert res['mode'] == 2\n", "mutants": ["def summarize_likert(responses):\n    # Mutant computes arithmetic mean instead of median\n    if not responses or any(r < 1 or r > 5 for r in responses): raise ValueError(\"bad\")\n    return {'median': sum(responses)/len(responses), 'iqr': 0.0, 'mode': responses[0]}\n", "def summarize_likert(responses):\n    # Does not validate input range\n    return {'median': 3.0, 'iqr': 1.0, 'mode': 3}\n"], "hints": ["Sort the input first.", "Validate that every item is an integer between 1 and 5."], "level": "core", "title": "Compute sound ordinal statistics for Likert items"}, "ex3-inter-rater-reliability": {"starter": "def percent_agreement(rater_a, rater_b):\n    \"\"\"Calculates agreement and systematic bias ratio.\"\"\"\n    return {}\n", "solution": "def percent_agreement(rater_a, rater_b):\n    \"\"\"Calculates agreement and systematic bias ratio.\"\"\"\n    if len(rater_a) != len(rater_b) or not rater_a:\n        raise ValueError(\"Lists must be non-empty and of equal length\")\n    n = len(rater_a)\n    matches = sum(1 for a, b in zip(rater_a, rater_b) if a == b)\n    sum_a = sum(rater_a)\n    sum_b = sum(rater_b)\n    bias = (sum_a / sum_b) if sum_b != 0 else float('inf')\n    return {\n        'agreement': round(matches / n, 4),\n        'disagreements': n - matches,\n        'bias_ratio': round(bias, 4)\n    }\n", "tests": "def test_identical_raters():\n    res = percent_agreement([1, 2, 3], [1, 2, 3])\n    assert res['agreement'] == 1.0\n    assert res['disagreements'] == 0\n    assert res['bias_ratio'] == 1.0\n\ndef test_divergent_raters():\n    res = percent_agreement([1, 2, 3, 4], [2, 2, 4, 4])\n    assert res['agreement'] == 0.5\n    assert res['disagreements'] == 2\n    assert res['bias_ratio'] < 1.0\n\ndef test_length_mismatch_raises():\n    try:\n        percent_agreement([1], [1, 2])\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def percent_agreement(rater_a, rater_b):\n    # Ignores length mismatch\n    return {'agreement': 1.0, 'disagreements': 0, 'bias_ratio': 1.0}\n", "def percent_agreement(rater_a, rater_b):\n    if len(rater_a) != len(rater_b) or not rater_a: raise ValueError(\"bad\")\n    # Inverts agreement\n    return {'agreement': 0.0, 'disagreements': len(rater_a), 'bias_ratio': 1.0}\n"], "hints": ["Ensure lengths match before processing.", "Round outputs to 4 decimal places."], "level": "core", "title": "Compute percent agreement with error isolation"}, "ex4-dimensional-analysis-boss": {"starter": "def check_dimensions(lhs_units, rhs_units):\n    \"\"\"Verifies dimensional homogeneity between two unit expressions.\"\"\"\n    return False\n\ndef derive_kinetic_energy(mass_dim, velocity_dim):\n    \"\"\"Derives kinetic energy dimensions from mass and velocity dimensions.\"\"\"\n    return {}\n", "solution": "def check_dimensions(lhs_units, rhs_units):\n    \"\"\"Verifies dimensional homogeneity between two unit expressions.\"\"\"\n    all_dims = set(lhs_units.keys()) | set(rhs_units.keys())\n    for d in all_dims:\n        if lhs_units.get(d, 0) != rhs_units.get(d, 0):\n            return False\n    return True\n\ndef derive_kinetic_energy(mass_dim, velocity_dim):\n    \"\"\"Derives kinetic energy dimensions from mass and velocity dimensions.\"\"\"\n    # E = m * v^2 -> exponents add: Dim(m) + 2 * Dim(v)\n    all_dims = set(mass_dim.keys()) | set(velocity_dim.keys())\n    res = {}\n    for d in all_dims:\n        exp = mass_dim.get(d, 0) + 2 * velocity_dim.get(d, 0)\n        if exp != 0:\n            res[d] = exp\n    return res\n", "tests": "def test_force_dimensions():\n    # Force = M * L * T^-2\n    f1 = {'M': 1, 'L': 1, 'T': -2}\n    f2 = {'M': 1, 'L': 1, 'T': -2}\n    assert check_dimensions(f1, f2) is True\n    assert check_dimensions(f1, {'M': 1, 'L': 2, 'T': -2}) is False\n\ndef test_energy_derivation():\n    m = {'M': 1}\n    v = {'L': 1, 'T': -1}\n    # Energy = M * L^2 * T^-2\n    e = derive_kinetic_energy(m, v)\n    assert e == {'M': 1, 'L': 2, 'T': -2}\n    assert check_dimensions(e, {'M': 1, 'L': 2, 'T': -2}) is True\n\ndef test_default_zeros():\n    assert check_dimensions({'M': 1, 'L': 0}, {'M': 1}) is True\n", "mutants": ["def check_dimensions(lhs_units, rhs_units):\n    return True\ndef derive_kinetic_energy(mass_dim, velocity_dim):\n    return {}\n", "def check_dimensions(lhs_units, rhs_units):\n    all_dims = set(lhs_units.keys()) | set(rhs_units.keys())\n    return all(lhs_units.get(d, 0) == rhs_units.get(d, 0) for d in all_dims)\ndef derive_kinetic_energy(mass_dim, velocity_dim):\n    # Mutant forgets factor of 2 on velocity\n    res = {}\n    for d in set(mass_dim.keys()) | set(velocity_dim.keys()):\n        e = mass_dim.get(d, 0) + velocity_dim.get(d, 0)\n        if e != 0: res[d] = e\n    return res\n"], "hints": ["Missing keys default to 0.", "Kinetic energy dimension is $M^1 L^2 T^{-2}$."], "level": "boss", "title": "Automated dimensional analysis checker"}}, "demos": {"oracle-scale-invariance": {"code": "import random\n\ndef median_rank(scores):\n    s = sorted(scores)\n    n = len(s)\n    if n % 2 == 1:\n        return s[n // 2]\n    return (s[n // 2 - 1] + s[n // 2]) / 2.0\n\nrng = random.Random(101)\n# Group A: mostly moderate satisfactions; Group B: polarized extremes\ngroup_a = [3, 3, 3, 3, 4, 4, 3, 3, 4] # 9 items, median is 3\ngroup_b = [1, 1, 1, 1, 2, 5, 5, 5, 5] # 9 items, median is 2\n\n# Strictly monotonic non-linear transformation: 1->1, 2->2, 3->4, 4->15, 5->100\nmapping = {1: 1, 2: 2, 3: 4, 4: 15, 5: 100}\ntrans_a = [mapping[x] for x in group_a]\ntrans_b = [mapping[x] for x in group_b]\n\n# Independent check: compare medians before and after transformation\nmed_a = median_rank(group_a)\nmed_b = median_rank(group_b)\nt_med_a = median_rank(trans_a)\nt_med_b = median_rank(trans_b)\n\n# Ordinal relationship must be invariant:\nassert (med_a > med_b) == (t_med_a > t_med_b)\nassert (med_a == med_b) == (t_med_a == t_med_b)\nprint(f\"Verified scale invariance: Group A median {med_a} -> {t_med_a}, Group B median {med_b} -> {t_med_b}\")\n", "mutants": ["import random\n\ndef mean_score(scores):\n    return sum(scores) / len(scores)\n\ngroup_a = [3, 3, 3, 3, 3, 4, 4, 3, 3, 4]\ngroup_b = [1, 1, 1, 1, 1, 5, 5, 5, 5, 5]\nmapping = {1: 1, 2: 2, 3: 4, 4: 15, 5: 100}\ntrans_a = [mapping[x] for x in group_a]\ntrans_b = [mapping[x] for x in group_b]\n\nm_a = mean_score(group_a)\nm_b = mean_score(group_b)\ntm_a = mean_score(trans_a)\ntm_b = mean_score(trans_b)\n\n# Mean is NOT invariant under monotonic transformation: this assert trips!\nassert (m_a > m_b) == (tm_a > tm_b), \"Mean ranking reversed under monotonic transformation!\"\n"]}, "exp-goodharts-law": {"code": "import random\n\nrng = random.Random(42)\nsprints = 20\ncommits = []\ntrue_quality = []\n\nc = 50.0\nr = 25.0\nfor sprint in range(sprints):\n    if sprint < 5:\n        # Pre-target phase: natural work\n        n_commits = rng.randint(8, 15)\n        c += rng.uniform(-1, 2)\n        r += rng.uniform(-0.5, 1.5)\n    else:\n        # Post-target phase: gaming the metric\n        n_commits = rng.randint(40, 100)  # Trivial micro-commits\n        c -= rng.uniform(0.5, 2.5)         # Code clarity degrades due to fragmentation\n        r -= rng.uniform(0.2, 1.0)         # Tests neglected in favor of commit volume\n    q = c + 2 * r\n    commits.append(n_commits)\n    true_quality.append(q)\n\npre_m = sum(commits[:5]) / 5.0\npost_m = sum(commits[15:]) / 5.0\npre_q = sum(true_quality[:5]) / 5.0\npost_q = sum(true_quality[15:]) / 5.0\n\nprint(f\"Pre-target: Avg Commits={pre_m:.1f}, True Quality={pre_q:.1f}\")\nprint(f\"Post-target: Avg Commits={post_m:.1f}, True Quality={post_q:.1f}\")\nassert post_m > pre_m * 3.0, \"Proxy metric failed to artificially inflate\"\nassert post_q < pre_q, \"True quality failed to degrade under proxy optimization\"\n", "mutants": ["import random\n# Flawed belief that maximizing a proxy metric always increases true quality\npre_q = 100.0\npost_q = 50.0\nassert post_q > pre_q, \"Targeting proxy failed to improve true quality\"\n"]}}, "cards": [{"q": "What are the four measurement scales defined by S.S. Stevens?", "a": "Nominal (labels), Ordinal (ranks), Interval (equal intervals, arbitrary zero), and Ratio (equal intervals, true zero)."}, {"q": "Why is calculating the arithmetic mean of Likert ratings invalid?", "a": "Because Likert items are ordinal; arithmetic means assume equal intervals between categories, which is psychologically false and mathematically non-invariant under monotonic transformation."}, {"q": "What is the difference between systematic error and random error?", "a": "Systematic error is repeatable bias that shifts the mean away from truth; random error fluctuates symmetrically around the mean with expected value zero."}, {"q": "State Goodhart's Law.", "a": "When a measure becomes a target, it ceases to be a good measure, because agents optimize the proxy metric rather than the underlying construct."}, {"q": "What is construct validity?", "a": "The degree to which a test or operational metric genuinely measures the theoretical construct it claims to measure."}, {"q": "What does the Buckingham Pi theorem guarantee in dimensional analysis?", "a": "Any physically meaningful equation involving $n$ physical variables can be rewritten in terms of $n - k$ independent dimensionless parameters, where $k$ is the number of fundamental dimensions."}], "title": "Measurement: turning the world into numbers"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

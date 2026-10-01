@@ -1,0 +1,403 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P08 Concurrency</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P08">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P08</p><h1>Concurrency</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P06.html">P06</a></div><div><b>Covers:</b> CS2023 PDC, CS2023 OS</div>
+<details><summary>Everything this module teaches (16 items)</summary><ul class="must"><li>race conditions and interleavings</li><li>critical sections</li><li>mutexes</li><li>semaphores</li><li>condition variables</li><li>monitors</li><li>deadlock: Coffman conditions, prevention, Banker&#x27;s avoidance and its assumptions</li><li>livelock and starvation</li><li>atomics and compare-and-swap</li><li>a correct lock-free SPSC ring buffer</li><li>memory models: happens-before, acquire/release</li><li>false sharing</li><li>producer-consumer</li><li>message passing (actors, Dart isolates)</li><li>spinlocks vs blocking locks, reentrancy, and barriers and joins</li><li>read-write locks, sequence locks and read-copy-update</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1965, Dutch computer scientist Edsger W. Dijkstra published a landmark paper titled "Cooperating Sequential Processes," introducing the world to semaphores, critical sections, and the famous Dining Philosophers problem. Dijkstra proved that concurrent execution without explicit synchronization leads to non-deterministic race conditions where the correctness of a calculation depends arbitrarily on the relative speed of independent processors.</p>
+<p>Twenty years later, between 1985 and 1987, the tragic real-world consequences of concurrent programming bugs were laid bare by the Therac-25 radiation therapy machine. The computer-controlled medical linear accelerator had eliminated hardware interlocks in favor of software control. A race condition existed between the keyboard polling routine and the magnet positioner. If a technician quickly corrected an accidental typing mistake within an eight-second timing window, the software switched the electron beam to full high-power mode (25 MeV) without rotating the tungsten conversion target into place. Six cancer patients received massive, lethal radiation overdoses thousands of times higher than therapeutic limits. In 1978, Leslie Lamport formalized the "happens-before" relation and sequential consistency, establishing that memory models, mutual exclusion, and atomic synchronization are not optional performance optimizations—they are life-critical mathematical imperatives.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Concurrency is what happens when multiple parts of a program run at the same time, sharing the same computer memory. If two threads try to update your bank account balance at the exact same millisecond, they can overwrite each other's math in a race condition. To prevent chaos, we use locks (mutexes) that allow only one thread into a critical section at a time, semaphores to manage pools of resources, and condition variables to put threads to sleep until work is ready. But if locks are acquired in the wrong order, threads can freeze forever waiting on each other in a deadly embrace called a deadlock.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and hardware primitives of concurrent programming are defined by:</p>
+<ol>
+<li>
+<p><strong>Race Conditions &amp; The Critical Section Problem</strong>:
+A data race occurs when two concurrent threads access the same memory location, at least one access is a write, and no synchronization establishes a <strong>happens-before</strong> relation ($\to_{hb}$) between them.
+A valid mutual exclusion mechanism must satisfy:
+- <strong>Mutual Exclusion</strong>: At most one thread executes within the critical section at any time.
+- <strong>Progress</strong>: If no thread is in the critical section, selection of the next entering thread cannot be postponed indefinitely.
+- <strong>Bounded Waiting</strong>: There exists a bound on the number of times other threads can enter after a thread has requested entry.</p>
+</li>
+<li>
+<p><strong>The Coffman Deadlock Conditions</strong>:
+A deadlock exists if and only if all four conditions hold simultaneously:
+- <strong>Mutual Exclusion</strong>: Resources cannot be shared simultaneously.
+- <strong>Hold and Wait</strong>: A process holds resources while requesting additional allocated resources.
+- <strong>No Preemption</strong>: Resources cannot be forcibly revoked before release.
+- <strong>Circular Wait</strong>: There exists a closed cycle in the Resource Allocation Graph: $P_0 \to R_0 \to P_1 \dots \to P_0$.</p>
+</li>
+<li>
+<p><strong>Banker's Algorithm for Deadlock Avoidance</strong>:
+Given Available vector $A$, Max matrix $M$, Allocation matrix $C$, and Need matrix $N = M - C$:
+A state is safe if there exists a sequence $\langle P_1, P_2, \dots, P_n \rangle$ such that:
+$$N_i \le A + \sum_{j &lt; i} C_j$$</p>
+</li>
+<li>
+<p><strong>Lock-Free Synchronization &amp; Atomics</strong>:
+- Compare-And-Swap (CAS): Atomically evaluates if memory equals expected value, updating to new value if true.
+- Single-Producer Single-Consumer (SPSC) Ring Buffer: Lock-free FIFO queue using circular array with power-of-two masking $(idx \ \&amp; \ (\text{capacity} - 1))$, using separate cache-line padded atomic head and tail pointers to prevent <strong>false sharing</strong>.</p>
+</li>
+<li>
+<p><strong>Memory Models &amp; Happens-Before</strong>:
+- Acquire semantics: Prevents reads/writes following the acquire from being reordered before it.
+- Release semantics: Prevents reads/writes preceding the release from being reordered after it.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why hardware memory models allow instruction reordering and why lock-free programming requires explicit memory fences requires examining CPU out-of-order execution and store buffers. On modern multi-core processors, each CPU core has its own private L1/L2 caches and a private Store Buffer. When a processor core executes a memory write instruction, writing directly to L1 cache or DRAM would stall the core for several clock cycles.</p>
+<p>To maximize throughput, the CPU places the write into a FIFO Store Buffer and immediately continues executing subsequent instructions before the write is visible to other CPU cores. Consequently, from the perspective of another processor core, <strong>memory writes appear out of order</strong>.</p>
+<p>Consider Peterson's mutual exclusion algorithm or the classic Dekker algorithm:
+- Core 1 writes <code>flag1 = true</code>, then reads <code>flag2</code>.
+- Core 2 writes <code>flag2 = true</code>, then reads <code>flag1</code>.
+Due to store buffers, both cores can buffer their writes locally and read the un-updated values from other cores simultaneously, causing <strong>both cores to enter the critical section at the same time</strong>.</p>
+<p>Acquire and release memory fences (or atomic instructions with <code>std::memory_order_seq_cst</code>) force the processor to drain its store buffer and stall instruction reordering across the fence. Lock-free data structures are therefore fundamentally bound to hardware memory models: without explicit memory barriers, compiler optimizations and CPU store buffers destroy concurrent correctness.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The bounded-buffer producer-consumer synchronization oracle simulates concurrent queue dynamics using counting semaphores and mutual exclusion locks. The interactive oracle verifies that producers block when the buffer is full, consumers block when the buffer is empty, and items are transferred strictly in FIFO order without data loss or race corruption across interleaved execution cycles. This verifies that semaphore accounting accurately prevents buffer overflows and underflows in concurrent pipeline architectures.</p>
+<div class="lab demo" data-demo="p08-oracle-bounded-buffer">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Bounded Buffer Semaphore Producer-Consumer Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class BoundedBuffer:
+    def __init__(self, capacity: int):
+        self.capacity = capacity
+        self.buffer = []
+        self.empty_slots = capacity
+        self.full_slots = 0
+
+    def produce(self, item) -&gt; bool:
+        if self.empty_slots &lt;= 0:
+            return False  # Producer blocked: buffer full
+        self.buffer.append(item)
+        self.empty_slots -= 1
+        self.full_slots += 1
+        return True
+
+    def consume(self):
+        if self.full_slots &lt;= 0:
+            return None  # Consumer blocked: buffer empty
+        item = self.buffer.pop(0)
+        self.full_slots -= 1
+        self.empty_slots += 1
+        return item
+
+bb = BoundedBuffer(capacity=2)
+# Produce 2 items (fills buffer)
+assert bb.produce(&quot;item1&quot;) is True
+assert bb.produce(&quot;item2&quot;) is True
+# 3rd item should be blocked
+assert bb.produce(&quot;item3&quot;) is False
+
+# Consume items in FIFO order
+assert bb.consume() == &quot;item1&quot;
+# Now buffer has 1 empty slot, produce succeeds!
+assert bb.produce(&quot;item3&quot;) is True
+assert bb.consume() == &quot;item2&quot;
+assert bb.consume() == &quot;item3&quot;
+# Buffer is now empty, consume blocks
+assert bb.consume() is None
+
+print(&quot;Bounded buffer semaphore producer-consumer synchronization verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the safety detection accuracy of Dijkstra's Banker's Algorithm for deadlock avoidance across multi-resource systems. Given resource allocation matrices, the algorithm searches for a safe topological execution order. If no process can complete with currently available resources, the state is proven to be unsafe and the resource allocation request is safely rejected before deadlock can occur in production.</p>
+<div class="lab demo" data-demo="p08-exp-bankers-safety">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Banker&#x27;s Algorithm Deadlock Safety Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def check_banker_safe(avail: list, max_m: list, alloc_m: list) -&gt; bool:
+    n = len(max_m)
+    m = len(avail)
+    work = list(avail)
+    finish = [False] * n
+    
+    # Need matrix: need[i][j] = max_m[i][j] - alloc_m[i][j]
+    need = [[max_m[i][j] - alloc_m[i][j] for j in range(m)] for i in range(n)]
+    
+    while True:
+        found = False
+        for i in range(n):
+            if not finish[i] and all(need[i][j] &lt;= work[j] for j in range(m)):
+                for j in range(m):
+                    work[j] += alloc_m[i][j]
+                finish[i] = True
+                found = True
+                break
+        if not found:
+            break
+            
+    return all(finish)
+
+# Safe system with 3 processes, 1 resource type (available = 3)
+avail = [3]
+max_m = [[7], [3], [2]]
+alloc_m = [[2], [1], [1]]
+assert check_banker_safe(avail, max_m, alloc_m) is True
+
+# Unsafe system (all resources held, need &gt; 0 for all, avail = 0)
+unsafe_alloc = [[3], [2], [1]]  # P0 needs 4, P1 needs 1, P2 needs 1
+assert check_banker_safe([0], max_m, unsafe_alloc) is False
+
+print(&quot;Banker&#x27;s algorithm safe sequence and unsafe deadlock avoidance verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-bankers-deadlock-avoidance" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Dijkstra&#x27;s Banker&#x27;s Algorithm Safety Checker</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement is_state_safe(available: list[int], max_matrix: list[list[int]], alloc_matrix: list[list[int]]) -&gt; tuple[bool, list[int]] that determines whether a system resource allocation state is safe and returns a valid completion sequence if safe.</p></div>
+<textarea class="code" spellcheck="false">def is_state_safe(available: list[int], max_matrix: list[list[int]], alloc_matrix: list[list[int]]) -&gt; tuple[bool, list[int]]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_banker_safe():
+    avail = [3, 3, 2]
+    max_m = [
+        [7, 5, 3],
+        [3, 2, 2],
+        [9, 0, 2],
+        [2, 2, 2],
+        [4, 3, 3]
+    ]
+    alloc_m = [
+        [0, 1, 0],
+        [2, 0, 0],
+        [3, 0, 2],
+        [2, 1, 1],
+        [0, 0, 2]
+    ]
+    is_safe, seq = is_state_safe(avail, max_m, alloc_m)
+    assert is_safe is True
+    assert len(seq) == 5
+    assert set(seq) == {0, 1, 2, 3, 4}
+
+def test_banker_unsafe():
+    avail = [0, 0, 0]
+    max_m = [[2, 2, 2]]
+    alloc_m = [[1, 1, 1]]  # needs [1, 1, 1], but avail is [0, 0, 0]
+    is_safe, seq = is_state_safe(avail, max_m, alloc_m)
+    assert is_safe is False
+    assert seq == []
+
+def test_banker_empty():
+    is_safe, seq = is_state_safe([], [], [])
+    assert is_safe is True
+    assert seq == []
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-spsc-ring-buffer" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Lock-Free Single-Producer Single-Consumer (SPSC) Queue</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a class LockFreeSPSCQueue(capacity: int) modeling a lock-free Single-Producer Single-Consumer circular ring buffer supporting enqueue(item) -&gt; bool and dequeue() -&gt; item with power-of-two masking and capacity bounds.</p></div>
+<textarea class="code" spellcheck="false">class LockFreeSPSCQueue:
+    def __init__(self, capacity: int):
+        pass
+
+    def enqueue(self, item) -&gt; bool:
+        pass
+
+    def dequeue(self):
+        pass
+
+    def is_empty(self) -&gt; bool:
+        pass
+
+    def is_full(self) -&gt; bool:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_spsc_queue_basic():
+    q = LockFreeSPSCQueue(capacity=4)
+    assert q.is_empty() is True
+    assert q.enqueue(&quot;A&quot;) is True
+    assert q.enqueue(&quot;B&quot;) is True
+    assert q.enqueue(&quot;C&quot;) is True
+    assert q.enqueue(&quot;D&quot;) is True
+    # Capacity is 4, 5th should fail
+    assert q.is_full() is True
+    assert q.enqueue(&quot;E&quot;) is False
+    
+    assert q.dequeue() == &quot;A&quot;
+    assert q.is_full() is False
+    assert q.enqueue(&quot;E&quot;) is True
+    
+    assert q.dequeue() == &quot;B&quot;
+    assert q.dequeue() == &quot;C&quot;
+    assert q.dequeue() == &quot;D&quot;
+    assert q.dequeue() == &quot;E&quot;
+    assert q.dequeue() is None
+    assert q.is_empty() is True
+
+def test_spsc_queue_wraparound():
+    q = LockFreeSPSCQueue(capacity=2)
+    for i in range(10):
+        assert q.enqueue(i) is True
+        assert q.dequeue() == i
+    assert q.is_empty() is True
+
+def test_spsc_queue_empty_dequeue():
+    q = LockFreeSPSCQueue(capacity=4)
+    assert q.dequeue() is None
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-producer-consumer-semaphore" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Producer-Consumer Synchronization with Semaphores</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_producer_consumer(capacity: int, operations: list[tuple]) -&gt; dict simulating counting semaphores (empty_slots, full_slots) and mutex locks across an operation stream of ('PRODUCE', item) and ('CONSUME',).</p></div>
+<textarea class="code" spellcheck="false">def simulate_producer_consumer(capacity: int, operations: list[tuple]) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_prod_cons_basic():
+    ops = [
+        (&quot;PRODUCE&quot;, 1),
+        (&quot;PRODUCE&quot;, 2),
+        (&quot;CONSUME&quot;,),
+        (&quot;PRODUCE&quot;, 3),
+        (&quot;CONSUME&quot;,),
+        (&quot;CONSUME&quot;,)
+    ]
+    res = simulate_producer_consumer(capacity=2, operations=ops)
+    assert res[&quot;produced&quot;] == [1, 2, 3]
+    assert res[&quot;consumed&quot;] == [1, 2, 3]
+    assert res[&quot;blocked_producers&quot;] == 0
+    assert res[&quot;blocked_consumers&quot;] == 0
+    assert res[&quot;final_buffer&quot;] == []
+
+def test_prod_cons_blocking():
+    ops = [
+        (&quot;PRODUCE&quot;, &quot;A&quot;),
+        (&quot;PRODUCE&quot;, &quot;B&quot;),
+        (&quot;PRODUCE&quot;, &quot;C&quot;),  # Blocked! buffer full
+        (&quot;CONSUME&quot;,),
+        (&quot;CONSUME&quot;,),
+        (&quot;CONSUME&quot;,)   # Blocked! buffer empty
+    ]
+    res = simulate_producer_consumer(capacity=2, operations=ops)
+    assert res[&quot;produced&quot;] == [&quot;A&quot;, &quot;B&quot;]
+    assert res[&quot;consumed&quot;] == [&quot;A&quot;, &quot;B&quot;]
+    assert res[&quot;blocked_producers&quot;] == 1
+    assert res[&quot;blocked_consumers&quot;] == 1
+
+def test_prod_cons_empty():
+    res = simulate_producer_consumer(capacity=5, operations=[])
+    assert res[&quot;final_buffer&quot;] == []
+    assert res[&quot;blocked_producers&quot;] == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-rwlock-fair-mediator" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Fair Read-Write Lock Mediator with Writer Starvation Prevention</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a class FairRWLockMediator supporting acquire_read(reader_id) -&gt; bool, release_read(reader_id), acquire_write(writer_id) -&gt; bool, and release_write(writer_id) that enforces writer priority to prevent reader starvation of writers.</p></div>
+<textarea class="code" spellcheck="false">class FairRWLockMediator:
+    def __init__(self):
+        pass
+
+    def acquire_read(self, reader_id: str) -&gt; bool:
+        pass
+
+    def release_read(self, reader_id: str):
+        pass
+
+    def acquire_write(self, writer_id: str) -&gt; bool:
+        pass
+
+    def release_write(self, writer_id: str):
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_rwlock_concurrent_readers():
+    lock = FairRWLockMediator()
+    assert lock.acquire_read(&quot;R1&quot;) is True
+    assert lock.acquire_read(&quot;R2&quot;) is True
+    assert len(lock.active_readers) == 2
+    
+    # Writer blocked
+    assert lock.acquire_write(&quot;W1&quot;) is False
+    assert &quot;W1&quot; in lock.waiting_writers
+    
+    # New reader R3 blocked because a writer is waiting! (Fairness)
+    assert lock.acquire_read(&quot;R3&quot;) is False
+    
+    lock.release_read(&quot;R1&quot;)
+    lock.release_read(&quot;R2&quot;)
+    
+    # Now writer W1 can acquire
+    assert lock.acquire_write(&quot;W1&quot;) is True
+    assert lock.active_writer == &quot;W1&quot;
+    assert len(lock.waiting_writers) == 0
+    
+    lock.release_write(&quot;W1&quot;)
+    assert lock.active_writer is None
+    # Now R3 can read
+    assert lock.acquire_read(&quot;R3&quot;) is True
+
+def test_rwlock_mutual_exclusion():
+    lock = FairRWLockMediator()
+    assert lock.acquire_write(&quot;W1&quot;) is True
+    assert lock.acquire_read(&quot;R1&quot;) is False
+    assert lock.acquire_write(&quot;W2&quot;) is False
+    lock.release_write(&quot;W1&quot;)
+    assert lock.acquire_write(&quot;W2&quot;) is True
+
+def test_rwlock_release_idempotent():
+    lock = FairRWLockMediator()
+    lock.acquire_read(&quot;R1&quot;)
+    lock.release_read(&quot;R1&quot;)
+    lock.release_read(&quot;R1&quot;)  # extra release safe
+    assert len(lock.active_readers) == 0
+    assert lock.acquire_write(&quot;W1&quot;) is True
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Deadlock and livelock are identical phenomena."</strong> In a deadlock, processes are asleep/blocked waiting for resources that will never be released; in a livelock, processes actively change state and consume CPU cycles in response to each other without making progress.</li>
+<li><strong>"Using atomic operations guarantees your entire program is thread-safe."</strong> Atomics guarantee individual memory operations are indivisible; composing multiple atomic operations (e.g. read then write) still requires higher-level locks or CAS loops to avoid race conditions.</li>
+<li><strong>"Spinlocks are always more efficient than blocking mutexes."</strong> Spinlocks avoid context-switch overhead only if the wait time is shorter than a context switch; on single-core CPUs or during long waits, spinlocks waste 100% of CPU cycles spinning.</li>
+<li><strong>"False sharing causes logical data corruption in concurrent algorithms."</strong> False sharing does not cause data corruption; it causes severe performance degradation as multiple cores invalidate each other's L1 cache lines when accessing independent variables on the same 64-byte block.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Concurrency systems fail catastrophically under deadlock cycles when locks are acquired in inconsistent orders across execution threads. Furthermore, lock-free algorithms collapse under the ABA problem if a memory location changes from A to B and back to A between CAS checks, corrupting pointer-linked node structures unless generational tagged pointers are used.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Concurrency control, lock-free queues, and actor architectures power high-frequency financial matching engines (LMAX Disruptor), cross-platform mobile frameworks (Flutter isolate channels and Dart event loops), and scalable distributed database storage engines (PostgreSQL MVCC and RocksDB concurrent memtables) handling millions of transactions per second.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is a race condition?</p></div><div class="a" hidden><p>A bug where program correctness depends unpredictably on the relative scheduling or timing of concurrent execution threads.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What are the four Coffman deadlock conditions?</p></div><div class="a" hidden><p>Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait; all four must hold simultaneously for a deadlock to exist.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>How does Dijkstra's Banker's Algorithm avoid deadlocks?</p></div><div class="a" hidden><p>By simulating resource allocation to verify whether a safe execution sequence exists before granting resource requests.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is false sharing in multicore systems?</p></div><div class="a" hidden><p>Performance degradation when threads on different cores update independent variables residing on the same 64-byte CPU cache line.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does an SPSC lock-free ring buffer work?</p></div><div class="a" hidden><p>Uses separate atomic head and tail pointers with power-of-two masking to enqueue and dequeue without mutex contention.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the happens-before relationship?</p></div><div class="a" hidden><p>A formal partial ordering defining when memory writes by one thread are guaranteed to be visible to reads by another thread.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can identify data races and Coffman deadlock conditions, verify state safety with the Banker's algorithm, implement lock-free SPSC ring buffers, and design starvation-free read-write locks.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Dijkstra, E. W. (1965). Cooperating sequential processes. Technological University, Eindhoven.</li>
+<li>Lamport, L. (1978). Time, clocks, and the ordering of events in a distributed system. Communications of the ACM, 21(7), 558-565.</li>
+<li>Leveson, N. G., &amp; Turner, C. S. (1993). An investigation of the Therac-25 accidents. Computer, 26(7), 18-41.</li>
+</ul></section>
+<footer class="pager"><a href="P06.html">&larr; P06 Operating systems I: processes, threads and scheduling</a>
+<a href="P07.html">P07 Operating systems II: memory and storage &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P08", "packages": ["numpy"], "exercises": {"ex1-bankers-deadlock-avoidance": {"starter": "def is_state_safe(available: list[int], max_matrix: list[list[int]], alloc_matrix: list[list[int]]) -> tuple[bool, list[int]]:\n    pass\n", "solution": "def is_state_safe(available: list[int], max_matrix: list[list[int]], alloc_matrix: list[list[int]]) -> tuple[bool, list[int]]:\n    n = len(max_matrix)\n    m = len(available)\n    work = list(available)\n    finish = [False] * n\n    safe_seq = []\n    \n    need = [[max_matrix[i][j] - alloc_matrix[i][j] for j in range(m)] for i in range(n)]\n    \n    while len(safe_seq) < n:\n        found = False\n        for i in range(n):\n            if not finish[i] and all(need[i][j] <= work[j] for j in range(m)):\n                for j in range(m):\n                    work[j] += alloc_matrix[i][j]\n                finish[i] = True\n                safe_seq.append(i)\n                found = True\n                break\n        if not found:\n            break\n            \n    is_safe = (len(safe_seq) == n)\n    return is_safe, safe_seq if is_safe else []\n", "tests": "def test_banker_safe():\n    avail = [3, 3, 2]\n    max_m = [\n        [7, 5, 3],\n        [3, 2, 2],\n        [9, 0, 2],\n        [2, 2, 2],\n        [4, 3, 3]\n    ]\n    alloc_m = [\n        [0, 1, 0],\n        [2, 0, 0],\n        [3, 0, 2],\n        [2, 1, 1],\n        [0, 0, 2]\n    ]\n    is_safe, seq = is_state_safe(avail, max_m, alloc_m)\n    assert is_safe is True\n    assert len(seq) == 5\n    assert set(seq) == {0, 1, 2, 3, 4}\n\ndef test_banker_unsafe():\n    avail = [0, 0, 0]\n    max_m = [[2, 2, 2]]\n    alloc_m = [[1, 1, 1]]  # needs [1, 1, 1], but avail is [0, 0, 0]\n    is_safe, seq = is_state_safe(avail, max_m, alloc_m)\n    assert is_safe is False\n    assert seq == []\n\ndef test_banker_empty():\n    is_safe, seq = is_state_safe([], [], [])\n    assert is_safe is True\n    assert seq == []\n", "mutants": ["def is_state_safe(available, max_matrix, alloc_matrix): assert False, 'mutant injected'\n", "def is_state_safe(available, max_matrix, alloc_matrix):\n    return False, []\n"], "hints": ["Need[i][j] = Max[i][j] - Alloc[i][j].", "Find an unfinished process whose Need <= Work, add its Alloc to Work, mark finished."], "level": "warmup", "title": "Dijkstra's Banker's Algorithm Safety Checker"}, "ex2-spsc-ring-buffer": {"starter": "class LockFreeSPSCQueue:\n    def __init__(self, capacity: int):\n        pass\n\n    def enqueue(self, item) -> bool:\n        pass\n\n    def dequeue(self):\n        pass\n\n    def is_empty(self) -> bool:\n        pass\n\n    def is_full(self) -> bool:\n        pass\n", "solution": "class LockFreeSPSCQueue:\n    def __init__(self, capacity: int):\n        if capacity <= 0:\n            raise ValueError(\"Capacity must be positive\")\n        # Round up capacity to next power of two\n        cap = 1\n        while cap < capacity:\n            cap <<= 1\n        self.capacity = cap\n        self.mask = cap - 1\n        self.buffer = [None] * cap\n        self.head = 0  # Read pointer (Consumer)\n        self.tail = 0  # Write pointer (Producer)\n\n    def is_empty(self) -> bool:\n        return self.head == self.tail\n\n    def is_full(self) -> bool:\n        return (self.tail - self.head) >= self.capacity\n\n    def enqueue(self, item) -> bool:\n        if self.is_full():\n            return False\n        idx = self.tail & self.mask\n        self.buffer[idx] = item\n        self.tail += 1\n        return True\n\n    def dequeue(self):\n        if self.is_empty():\n            return None\n        idx = self.head & self.mask\n        item = self.buffer[idx]\n        self.buffer[idx] = None\n        self.head += 1\n        return item\n", "tests": "def test_spsc_queue_basic():\n    q = LockFreeSPSCQueue(capacity=4)\n    assert q.is_empty() is True\n    assert q.enqueue(\"A\") is True\n    assert q.enqueue(\"B\") is True\n    assert q.enqueue(\"C\") is True\n    assert q.enqueue(\"D\") is True\n    # Capacity is 4, 5th should fail\n    assert q.is_full() is True\n    assert q.enqueue(\"E\") is False\n    \n    assert q.dequeue() == \"A\"\n    assert q.is_full() is False\n    assert q.enqueue(\"E\") is True\n    \n    assert q.dequeue() == \"B\"\n    assert q.dequeue() == \"C\"\n    assert q.dequeue() == \"D\"\n    assert q.dequeue() == \"E\"\n    assert q.dequeue() is None\n    assert q.is_empty() is True\n\ndef test_spsc_queue_wraparound():\n    q = LockFreeSPSCQueue(capacity=2)\n    for i in range(10):\n        assert q.enqueue(i) is True\n        assert q.dequeue() == i\n    assert q.is_empty() is True\n\ndef test_spsc_queue_empty_dequeue():\n    q = LockFreeSPSCQueue(capacity=4)\n    assert q.dequeue() is None\n", "mutants": ["class LockFreeSPSCQueue:\n    def __init__(self, capacity): pass\n    def enqueue(self, item): assert False, 'mutant injected'\n    def dequeue(self): assert False, 'mutant injected'\n", "class LockFreeSPSCQueue:\n    def __init__(self, capacity): self.b = []\n    def enqueue(self, item): self.b.append(item); return True  # ignores capacity limit!\n    def dequeue(self): return self.b.pop(0) if self.b else None\n    def is_empty(self): return len(self.b) == 0\n    def is_full(self): return False\n"], "hints": ["Use power-of-two capacity for fast bitwise masking: idx = pointer & (capacity - 1).", "Queue is full when tail - head >= capacity; empty when head == tail."], "level": "core", "title": "Lock-Free Single-Producer Single-Consumer (SPSC) Queue"}, "ex3-producer-consumer-semaphore": {"starter": "def simulate_producer_consumer(capacity: int, operations: list[tuple]) -> dict:\n    pass\n", "solution": "def simulate_producer_consumer(capacity: int, operations: list[tuple]) -> dict:\n    buffer = []\n    empty_slots = capacity\n    full_slots = 0\n    \n    produced_items = []\n    consumed_items = []\n    blocked_producers = 0\n    blocked_consumers = 0\n    \n    for op in operations:\n        action = op[0]\n        if action == \"PRODUCE\":\n            item = op[1]\n            if empty_slots > 0:\n                buffer.append(item)\n                empty_slots -= 1\n                full_slots += 1\n                produced_items.append(item)\n            else:\n                blocked_producers += 1\n        elif action == \"CONSUME\":\n            if full_slots > 0:\n                item = buffer.pop(0)\n                full_slots -= 1\n                empty_slots += 1\n                consumed_items.append(item)\n            else:\n                blocked_consumers += 1\n                \n    return {\n        \"final_buffer\": buffer,\n        \"produced\": produced_items,\n        \"consumed\": consumed_items,\n        \"blocked_producers\": blocked_producers,\n        \"blocked_consumers\": blocked_consumers\n    }\n", "tests": "def test_prod_cons_basic():\n    ops = [\n        (\"PRODUCE\", 1),\n        (\"PRODUCE\", 2),\n        (\"CONSUME\",),\n        (\"PRODUCE\", 3),\n        (\"CONSUME\",),\n        (\"CONSUME\",)\n    ]\n    res = simulate_producer_consumer(capacity=2, operations=ops)\n    assert res[\"produced\"] == [1, 2, 3]\n    assert res[\"consumed\"] == [1, 2, 3]\n    assert res[\"blocked_producers\"] == 0\n    assert res[\"blocked_consumers\"] == 0\n    assert res[\"final_buffer\"] == []\n\ndef test_prod_cons_blocking():\n    ops = [\n        (\"PRODUCE\", \"A\"),\n        (\"PRODUCE\", \"B\"),\n        (\"PRODUCE\", \"C\"),  # Blocked! buffer full\n        (\"CONSUME\",),\n        (\"CONSUME\",),\n        (\"CONSUME\",)   # Blocked! buffer empty\n    ]\n    res = simulate_producer_consumer(capacity=2, operations=ops)\n    assert res[\"produced\"] == [\"A\", \"B\"]\n    assert res[\"consumed\"] == [\"A\", \"B\"]\n    assert res[\"blocked_producers\"] == 1\n    assert res[\"blocked_consumers\"] == 1\n\ndef test_prod_cons_empty():\n    res = simulate_producer_consumer(capacity=5, operations=[])\n    assert res[\"final_buffer\"] == []\n    assert res[\"blocked_producers\"] == 0\n", "mutants": ["def simulate_producer_consumer(capacity, operations): assert False, 'mutant injected'\n", "def simulate_producer_consumer(capacity, operations):\n    return {\"final_buffer\": [], \"produced\": [], \"consumed\": [], \"blocked_producers\": 0, \"blocked_consumers\": 0}\n"], "hints": ["Maintain empty_slots and full_slots counts.", "Increment blocked_producers when empty_slots == 0; blocked_consumers when full_slots == 0."], "level": "core", "title": "Producer-Consumer Synchronization with Semaphores"}, "ex4-rwlock-fair-mediator": {"starter": "class FairRWLockMediator:\n    def __init__(self):\n        pass\n\n    def acquire_read(self, reader_id: str) -> bool:\n        pass\n\n    def release_read(self, reader_id: str):\n        pass\n\n    def acquire_write(self, writer_id: str) -> bool:\n        pass\n\n    def release_write(self, writer_id: str):\n        pass\n", "solution": "class FairRWLockMediator:\n    def __init__(self):\n        self.active_readers = set()\n        self.active_writer = None\n        self.waiting_writers = []\n\n    def acquire_read(self, reader_id: str) -> bool:\n        # Readers can acquire only if no active writer AND no waiting writers (prevent writer starvation!)\n        if self.active_writer is not None or len(self.waiting_writers) > 0:\n            return False\n        self.active_readers.add(reader_id)\n        return True\n\n    def release_read(self, reader_id: str):\n        self.active_readers.discard(reader_id)\n\n    def acquire_write(self, writer_id: str) -> bool:\n        # Writer can acquire only if no active readers and no active writer\n        if len(self.active_readers) == 0 and self.active_writer is None:\n            self.active_writer = writer_id\n            if writer_id in self.waiting_writers:\n                self.waiting_writers.remove(writer_id)\n            return True\n        else:\n            if writer_id not in self.waiting_writers:\n                self.waiting_writers.append(writer_id)\n            return False\n\n    def release_write(self, writer_id: str):\n        if self.active_writer == writer_id:\n            self.active_writer = None\n", "tests": "def test_rwlock_concurrent_readers():\n    lock = FairRWLockMediator()\n    assert lock.acquire_read(\"R1\") is True\n    assert lock.acquire_read(\"R2\") is True\n    assert len(lock.active_readers) == 2\n    \n    # Writer blocked\n    assert lock.acquire_write(\"W1\") is False\n    assert \"W1\" in lock.waiting_writers\n    \n    # New reader R3 blocked because a writer is waiting! (Fairness)\n    assert lock.acquire_read(\"R3\") is False\n    \n    lock.release_read(\"R1\")\n    lock.release_read(\"R2\")\n    \n    # Now writer W1 can acquire\n    assert lock.acquire_write(\"W1\") is True\n    assert lock.active_writer == \"W1\"\n    assert len(lock.waiting_writers) == 0\n    \n    lock.release_write(\"W1\")\n    assert lock.active_writer is None\n    # Now R3 can read\n    assert lock.acquire_read(\"R3\") is True\n\ndef test_rwlock_mutual_exclusion():\n    lock = FairRWLockMediator()\n    assert lock.acquire_write(\"W1\") is True\n    assert lock.acquire_read(\"R1\") is False\n    assert lock.acquire_write(\"W2\") is False\n    lock.release_write(\"W1\")\n    assert lock.acquire_write(\"W2\") is True\n\ndef test_rwlock_release_idempotent():\n    lock = FairRWLockMediator()\n    lock.acquire_read(\"R1\")\n    lock.release_read(\"R1\")\n    lock.release_read(\"R1\")  # extra release safe\n    assert len(lock.active_readers) == 0\n    assert lock.acquire_write(\"W1\") is True\n", "mutants": ["class FairRWLockMediator:\n    def __init__(self):\n        self.active_readers = set()\n        self.active_writer = None\n        self.waiting_writers = []\n    def acquire_read(self, r): assert False, 'mutant injected'\n    def release_read(self, r): pass\n    def acquire_write(self, w): assert False, 'mutant injected'\n    def release_write(self, w): pass\n", "class FairRWLockMediator:\n    def __init__(self):\n        self.active_readers = set()\n        self.active_writer = None\n        self.waiting_writers = []\n    def acquire_read(self, reader_id: str) -> bool:\n        # Mutant: ignores waiting_writers (allows reader starvation of writers)\n        if self.active_writer is not None:\n            return False\n        self.active_readers.add(reader_id)\n        return True\n    def release_read(self, reader_id: str):\n        self.active_readers.discard(reader_id)\n    def acquire_write(self, writer_id: str) -> bool:\n        if len(self.active_readers) == 0 and self.active_writer is None:\n            self.active_writer = writer_id\n            if writer_id in self.waiting_writers:\n                self.waiting_writers.remove(writer_id)\n            return True\n        else:\n            if writer_id not in self.waiting_writers:\n                self.waiting_writers.append(writer_id)\n            return False\n    def release_write(self, writer_id: str):\n        if self.active_writer == writer_id:\n            self.active_writer = None\n"], "hints": ["Track active_readers, active_writer, and waiting_writers.", "Reject acquire_read if len(waiting_writers) > 0 to guarantee writer fairness."], "level": "boss", "title": "Fair Read-Write Lock Mediator with Writer Starvation Prevention"}}, "demos": {"p08-oracle-bounded-buffer": {"code": "class BoundedBuffer:\n    def __init__(self, capacity: int):\n        self.capacity = capacity\n        self.buffer = []\n        self.empty_slots = capacity\n        self.full_slots = 0\n\n    def produce(self, item) -> bool:\n        if self.empty_slots <= 0:\n            return False  # Producer blocked: buffer full\n        self.buffer.append(item)\n        self.empty_slots -= 1\n        self.full_slots += 1\n        return True\n\n    def consume(self):\n        if self.full_slots <= 0:\n            return None  # Consumer blocked: buffer empty\n        item = self.buffer.pop(0)\n        self.full_slots -= 1\n        self.empty_slots += 1\n        return item\n\nbb = BoundedBuffer(capacity=2)\n# Produce 2 items (fills buffer)\nassert bb.produce(\"item1\") is True\nassert bb.produce(\"item2\") is True\n# 3rd item should be blocked\nassert bb.produce(\"item3\") is False\n\n# Consume items in FIFO order\nassert bb.consume() == \"item1\"\n# Now buffer has 1 empty slot, produce succeeds!\nassert bb.produce(\"item3\") is True\nassert bb.consume() == \"item2\"\nassert bb.consume() == \"item3\"\n# Buffer is now empty, consume blocks\nassert bb.consume() is None\n\nprint(\"Bounded buffer semaphore producer-consumer synchronization verified.\")\n", "mutants": ["class BoundedBuffer:\n    def __init__(self, capacity): pass\n    def produce(self, item): return False\n    def consume(self): return None\nbb = BoundedBuffer(2)\nassert bb.produce(\"item1\") is True\n"]}, "p08-exp-bankers-safety": {"code": "def check_banker_safe(avail: list, max_m: list, alloc_m: list) -> bool:\n    n = len(max_m)\n    m = len(avail)\n    work = list(avail)\n    finish = [False] * n\n    \n    # Need matrix: need[i][j] = max_m[i][j] - alloc_m[i][j]\n    need = [[max_m[i][j] - alloc_m[i][j] for j in range(m)] for i in range(n)]\n    \n    while True:\n        found = False\n        for i in range(n):\n            if not finish[i] and all(need[i][j] <= work[j] for j in range(m)):\n                for j in range(m):\n                    work[j] += alloc_m[i][j]\n                finish[i] = True\n                found = True\n                break\n        if not found:\n            break\n            \n    return all(finish)\n\n# Safe system with 3 processes, 1 resource type (available = 3)\navail = [3]\nmax_m = [[7], [3], [2]]\nalloc_m = [[2], [1], [1]]\nassert check_banker_safe(avail, max_m, alloc_m) is True\n\n# Unsafe system (all resources held, need > 0 for all, avail = 0)\nunsafe_alloc = [[3], [2], [1]]  # P0 needs 4, P1 needs 1, P2 needs 1\nassert check_banker_safe([0], max_m, unsafe_alloc) is False\n\nprint(\"Banker's algorithm safe sequence and unsafe deadlock avoidance verified.\")\n", "mutants": ["def check_banker_safe(avail, max_m, alloc_m): return True\nassert check_banker_safe([0], [[7], [3], [2]], [[3], [2], [1]]) is False\n"]}}, "cards": [{"q": "What is a race condition?", "a": "A bug where program correctness depends unpredictably on the relative scheduling or timing of concurrent execution threads."}, {"q": "What are the four Coffman deadlock conditions?", "a": "Mutual Exclusion, Hold and Wait, No Preemption, and Circular Wait; all four must hold simultaneously for a deadlock to exist."}, {"q": "How does Dijkstra's Banker's Algorithm avoid deadlocks?", "a": "By simulating resource allocation to verify whether a safe execution sequence exists before granting resource requests."}, {"q": "What is false sharing in multicore systems?", "a": "Performance degradation when threads on different cores update independent variables residing on the same 64-byte CPU cache line."}, {"q": "How does an SPSC lock-free ring buffer work?", "a": "Uses separate atomic head and tail pointers with power-of-two masking to enqueue and dequeue without mutex contention."}, {"q": "What is the happens-before relationship?", "a": "A formal partial ordering defining when memory writes by one thread are guaranteed to be visible to reads by another thread."}], "title": "Concurrency"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M27 Probability II: conditional probability and random variables</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M27">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~4h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M27</p><h1>Probability II: conditional probability and random variables</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M10.html">M10</a> <a href="M18.html">M18</a></div><div><b>Covers:</b> NCERT 11: Probability, NCERT 12: Probability, CS2023 MSF</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>axiomatic probability</li><li>the addition rule</li><li>conditional probability</li><li>the multiplication rule</li><li>independent vs mutually exclusive events</li><li>the law of total probability</li><li>Bayes&#x27; theorem</li><li>random variables and their distributions</li><li>expectation and variance</li><li>Bernoulli trials and the binomial distribution</li><li>exhaustive events and the algebra of events (A or B, A and B, A but not B)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>A doctor tells Kavita that her test came back positive. The disease is rare — about one person in a hundred has it. The test is good: it catches ninety-nine out of a hundred people who have the disease, and it wrongly flags only five healthy people in a hundred.</p>
+<p>Kavita is terrified. The test is ninety-nine per cent accurate and it says she has it.</p>
+<p>Her uncle, who sells insurance and thinks in numbers all day, takes a sheet of paper and does something very simple. He does not argue. He just imagines ten thousand people.</p>
+<p>Of the ten thousand, a hundred have the disease and nine thousand nine hundred do not.</p>
+<p>Of the hundred who have it, the test catches ninety-nine.</p>
+<p>Of the nine thousand nine hundred who do not, the test wrongly flags five per cent — four hundred and ninety-five people.</p>
+<p>So the people holding a positive result are ninety-nine who are ill and four hundred and ninety-five who are not. Five hundred and ninety-four envelopes, and only ninety-nine of them contain bad news.</p>
+<p>Kavita's chance of actually having the disease is ninety-nine out of five hundred and ninety-four. About one in six.</p>
+<p>Here is the surprise: nothing about the test was bad. The test really is ninety-nine per cent sensitive. What Kavita forgot — what almost everybody forgets — is that there are <em>so many more</em> healthy people that even a small error rate among them produces more false alarms than the disease produces true ones. The question "how good is the test" and the question "what does my result mean" have completely different answers, and the gap between them is this module.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p><strong>Conditional probability</strong> asks: given that $B$ happened, how likely is $A$? Written $P(A|B)$, it narrows the world to the cases where $B$ is true and asks what fraction of <em>those</em> also have $A$.</p>
+<p>The crucial point is that $P(A|B)$ and $P(B|A)$ are <strong>different numbers</strong>. "The test is positive given you are ill" is 0.99. "You are ill given the test is positive" is 0.17. Confusing the two is the single most consequential error in applied probability, and it has a name: the <strong>base rate fallacy</strong>.</p>
+<p><strong>Bayes' theorem</strong> is the machinery for turning one into the other. It is just the multiplication rule rearranged, but it is the formal version of the uncle's ten thousand people.</p>
+<p>A <strong>random variable</strong> then attaches a number to each outcome, so you can talk about its average (<strong>expectation</strong>) and its spread (<strong>variance</strong>) — and the descriptive statistics of M09 reappear, now as properties of a model rather than of data.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Axioms and the algebra of events</h2>
+<p>Kolmogorov's axioms: for a sample space $S$,</p>
+<p>$$P(E)\ge0, \qquad P(S)=1, \qquad P(A\cup B) = P(A)+P(B) \text{ when } A\cap B=\varnothing$$</p>
+<p>Everything else follows. <strong>Algebra of events:</strong> $A\cup B$ is "A or B (or both)", $A\cap B$ is "A and B", $A&#x27;$ is "not A", and $A\cap B&#x27;$ is "A but not B". Events are <strong>mutually exclusive</strong> when $A\cap B=\varnothing$, and <strong>exhaustive</strong> when $A\cup B = S$.</p>
+<p><strong>Addition rule</strong>, with no disjointness assumed:</p>
+<p>$$P(A\cup B) = P(A)+P(B)-P(A\cap B)$$</p>
+<p>This is inclusion-exclusion from M18, and the subtraction is there because the overlap was counted twice.</p>
+<h2>Conditional probability</h2>
+<p>For $P(B)&gt;0$,</p>
+<p>$$P(A|B) = \frac{P(A\cap B)}{P(B)}$$</p>
+<p>Rearranged, this is the <strong>multiplication rule</strong>:</p>
+<p>$$P(A\cap B) = P(B)\,P(A|B) = P(A)\,P(B|A)$$</p>
+<p><strong>Independence.</strong> $A$ and $B$ are independent when $P(A\cap B)=P(A)P(B)$, equivalently $P(A|B)=P(A)$ — knowing $B$ tells you nothing about $A$.</p>
+<p><strong>Independent and mutually exclusive are opposites, not synonyms.</strong> If $A$ and $B$ are mutually exclusive with non-zero probabilities, then knowing $B$ happened tells you $A$ certainly did <em>not</em>, so $P(A|B)=0\neq P(A)$: they are maximally <em>dependent</em>.</p>
+<h2>Total probability and Bayes</h2>
+<p>If $B_1,\dots,B_n$ are mutually exclusive, exhaustive and each of positive probability, then for any event $A$:</p>
+<p>$$P(A) = \sum_{i} P(B_i)\,P(A|B_i)$$</p>
+<p>That is the <strong>law of total probability</strong> — split the world into cases and weight each by how likely it is.</p>
+<p><strong>Bayes' theorem:</strong></p>
+<p>$$P(B_k|A) = \frac{P(B_k)P(A|B_k)}{\sum_i P(B_i)P(A|B_i)} = \frac{P(B_k)P(A|B_k)}{P(A)}$$</p>
+<p>The vocabulary: $P(B_k)$ is the <strong>prior</strong>, $P(A|B_k)$ the <strong>likelihood</strong>, $P(A)$ the <strong>evidence</strong>, and $P(B_k|A)$ the <strong>posterior</strong>. In Kavita's case the prior is 1%, the likelihood 99%, and the posterior about 17%. The prior is doing enormous work, and ignoring it is the base rate fallacy.</p>
+<h2>Random variables</h2>
+<p>A <strong>random variable</strong> $X$ assigns a real number to each outcome. A <strong>discrete</strong> $X$ has a probability mass function $p(x)=P(X=x)$ with $p(x)\ge0$ and $\sum p(x)=1$.</p>
+<p>$$E[X] = \sum_x x\,p(x), \qquad \operatorname{Var}(X) = E\left[(X-\mu)^2\right] = E[X^2]-\left(E[X]\right)^2$$</p>
+<p><strong>Linearity of expectation:</strong> $E[aX+b] = aE[X]+b$, and $E[X+Y]=E[X]+E[Y]$ <strong>whether or not</strong> $X$ and $Y$ are independent. That last clause is remarkable and is the workhorse of M34.</p>
+<p><strong>Variance</strong> is <em>not</em> linear: $\operatorname{Var}(aX+b) = a^2\operatorname{Var}(X)$, and $\operatorname{Var}(X+Y)=\operatorname{Var}(X)+\operatorname{Var}(Y)$ only when $X$ and $Y$ are independent.</p>
+<h2>Bernoulli and binomial</h2>
+<p>A <strong>Bernoulli trial</strong> has two outcomes with probability $p$ and $1-p$. For $X\sim\text{Bernoulli}(p)$: $E[X]=p$, $\operatorname{Var}(X)=p(1-p)$.</p>
+<p>$n$ independent Bernoulli trials with the same $p$ give the <strong>binomial distribution</strong>:</p>
+<p>$$P(X=k) = \binom{n}{k}p^k(1-p)^{n-k}, \qquad E[X]=np, \qquad \operatorname{Var}(X)=np(1-p)$$</p>
+<p>The binomial coefficient is M18's: it counts which $k$ of the $n$ trials succeeded.</p>
+<h2>A pinch of history</h2>
+<p>Thomas Bayes' essay was published posthumously in 1763 by Richard Price, who had found it among Bayes' papers and added substantially to it. Pierre-Simon Laplace independently developed the result in more general form from 1774 and did far more with it than Bayes did; the "principle of inverse probability" was Laplace's name for it, and the modern name is arguably misattributed.</p>
+<p>Andrey Kolmogorov's <em>Grundbegriffe der Wahrscheinlichkeitsrechnung</em> (1933) put probability on the measure-theoretic axiomatic footing used today, finally making it a branch of mathematics rather than a collection of techniques.</p>
+<p>The base rate fallacy was demonstrated experimentally by Amos Tversky and Daniel Kahneman from the early 1970s, and the medical-test version was put to practising doctors by David Eddy in 1982, who found that the large majority gave the answer Kavita gave rather than her uncle's.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: the conditional probability formula is a renormalisation.</strong></p>
+<ol>
+<li>Learning that $B$ occurred means the sample space is no longer $S$ but $B$.</li>
+<li>Within that smaller world, the outcomes favourable to $A$ are exactly those in $A\cap B$.</li>
+<li>For equally likely outcomes this gives $\frac{|A\cap B|}{|B|}$.</li>
+<li>Dividing numerator and denominator by $|S|$ turns counts into probabilities: $\frac{P(A\cap B)}{P(B)}$.</li>
+<li>This is taken as the <em>definition</em> in the general case, and it reduces correctly to the counting version.</li>
+</ol>
+<p>The division by $P(B)$ is the renormalisation that makes the conditional probabilities sum to 1 over the restricted space. That is also why $P(B)&gt;0$ is required.</p>
+<p><strong>Result 2: Bayes' theorem in two lines.</strong></p>
+<ol>
+<li>The multiplication rule, written both ways: $P(A\cap B) = P(A|B)P(B)$ and $P(A\cap B) = P(B|A)P(A)$.</li>
+<li>The left sides are the same, so $P(A|B)P(B) = P(B|A)P(A)$.</li>
+<li>Divide by $P(B)$: $P(A|B) = \frac{P(B|A)P(A)}{P(B)}$.</li>
+<li>Expand the denominator by the law of total probability: $P(B) = P(B|A)P(A) + P(B|A&#x27;)P(A&#x27;)$.</li>
+</ol>
+<p><strong>The whole content is step 2</strong> — $P(A|B)$ and $P(B|A)$ are connected through the <em>same</em> joint probability, but they divide it by different things. That asymmetry of denominators is why the two numbers differ so wildly when $P(A)$ and $P(B)$ are very different, which is exactly Kavita's situation.</p>
+<p><strong>Result 3: why the base rate dominates.</strong> Put the numbers in symbolically. With prevalence $\pi$, sensitivity $s$ and false-positive rate $f$:</p>
+<p>$$P(D|+) = \frac{\pi s}{\pi s + (1-\pi)f}$$</p>
+<p>If $\pi$ is small, the term $(1-\pi)f \approx f$ and the ratio is roughly $\frac{\pi s}{\pi s + f}$. So the posterior is governed by the ratio $\frac{\pi s}{f}$ — the prevalence times the sensitivity, against the false-positive rate. Make the disease ten times rarer and the posterior falls by roughly a factor of ten. No improvement in sensitivity can rescue that; only reducing $f$ can.</p>
+<p><strong>Result 4: the mean and variance of the binomial, by linearity.</strong></p>
+<ol>
+<li>Write $X = X_1+\dots+X_n$ where $X_i$ is 1 if trial $i$ succeeds and 0 otherwise.</li>
+<li>$E[X_i] = 1\cdot p + 0\cdot(1-p) = p$.</li>
+<li>By linearity of expectation, $E[X] = \sum E[X_i] = np$. <strong>Linearity needs no independence</strong>, which is why this is so easy.</li>
+<li>$E[X_i^2] = 1^2\cdot p = p$, so $\operatorname{Var}(X_i) = p - p^2 = p(1-p)$.</li>
+<li>The trials <em>are</em> independent, so variances add: $\operatorname{Var}(X) = np(1-p)$.</li>
+</ol>
+<p>Step 5 is where independence is genuinely required; step 3 is not. Keeping that distinction straight is the single most useful habit in this material.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes conditional probabilities two genuinely independent ways.</p>
+<p>The <strong>formula</strong> route applies Bayes' theorem directly, with the law of total probability in the denominator. It manipulates five numbers.</p>
+<p>The <strong>population</strong> route builds the uncle's table: it enumerates a large synthetic population, counts how many fall into each cell, and reports the ratio of counts. It never divides a probability by a probability — it only ever counts people.</p>
+<p>If a formula were wrong, or a conditional inverted, the counts would disagree. The mutant below returns $P(+|D)$ where $P(D|+)$ was asked for — the base rate fallacy, implemented.</p>
+<div class="lab demo" data-demo="m27-bayes-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Bayes&#x27; theorem against counting a population</h3></div>
+
+<textarea class="code" spellcheck="false">from fractions import Fraction
+
+PREVALENCE = Fraction(1, 100)
+SENSITIVITY = Fraction(99, 100)      # P(+ | disease)
+FALSE_POSITIVE = Fraction(5, 100)    # P(+ | no disease)
+
+
+def posterior_by_formula(prior, sens, fpr):
+    &quot;&quot;&quot;Bayes&#x27; theorem, with total probability in the denominator.&quot;&quot;&quot;
+    evidence = prior * sens + (1 - prior) * fpr
+    return prior * sens / evidence
+
+
+def posterior_by_counting(prior, sens, fpr, population=1000000):
+    &quot;&quot;&quot;Build the uncle&#x27;s table and divide counts. No probability algebra.&quot;&quot;&quot;
+    ill = int(population * prior)
+    healthy = population - ill
+    true_positive = int(ill * sens)
+    false_positive = int(healthy * fpr)
+    return Fraction(true_positive, true_positive + false_positive)
+
+
+a = posterior_by_formula(PREVALENCE, SENSITIVITY, FALSE_POSITIVE)
+b = posterior_by_counting(PREVALENCE, SENSITIVITY, FALSE_POSITIVE)
+print(&quot;Kavita&#x27;s test&quot;)
+print(&quot;  P(disease)            =&quot;, float(PREVALENCE))
+print(&quot;  P(positive | disease) =&quot;, float(SENSITIVITY))
+print(&quot;  P(positive | healthy) =&quot;, float(FALSE_POSITIVE))
+print(&quot;  P(disease | positive) by formula  =&quot;, float(a), &quot;=&quot;, a)
+print(&quot;  P(disease | positive) by counting =&quot;, float(b))
+assert abs(float(a) - float(b)) &lt; 1e-6, &quot;both routes must agree&quot;
+assert abs(float(a) - 99 / 594) &lt; 1e-12, &quot;the exact answer is 99/594&quot;
+assert float(a) &lt; 0.2, &quot;the posterior is far below the sensitivity&quot;
+
+# The uncle&#x27;s ten thousand, exactly as he counted them.
+ill = 100
+healthy = 9900
+caught = 99
+false_alarms = 495
+print()
+print(f&quot;  of 10000: {ill} ill, {healthy} healthy&quot;)
+print(f&quot;  positives: {caught} true + {false_alarms} false = {caught + false_alarms}&quot;)
+assert caught + false_alarms == 594
+assert Fraction(caught, caught + false_alarms) == a
+
+# Many scenarios, both ways.
+print()
+print(f&quot;{&#x27;prior&#x27;:&gt;10} {&#x27;sens&#x27;:&gt;8} {&#x27;fpr&#x27;:&gt;8} {&#x27;formula&#x27;:&gt;12} {&#x27;counting&#x27;:&gt;12}&quot;)
+for pr, se, fp in ((Fraction(1, 2), Fraction(9, 10), Fraction(1, 10)),
+                   (Fraction(1, 1000), Fraction(99, 100), Fraction(1, 100)),
+                   (Fraction(3, 10), Fraction(8, 10), Fraction(2, 10)),
+                   (Fraction(1, 10000), Fraction(999, 1000), Fraction(1, 1000))):
+    f = posterior_by_formula(pr, se, fp)
+    c = posterior_by_counting(pr, se, fp, population=10000000)
+    print(f&quot;{float(pr):&gt;10.5f} {float(se):&gt;8.3f} {float(fp):&gt;8.3f} {float(f):&gt;12.6f} {float(c):&gt;12.6f}&quot;)
+    assert abs(float(f) - float(c)) &lt; 1e-4
+
+# The two conditionals are genuinely different numbers.
+print()
+print(&quot;P(positive | disease) =&quot;, float(SENSITIVITY), &quot; P(disease | positive) =&quot;, round(float(a), 6))
+assert SENSITIVITY != a, &quot;the two conditionals must not be confused&quot;
+assert float(SENSITIVITY) / float(a) &gt; 5, &quot;they differ by a large factor here&quot;
+
+# The law of total probability must reproduce the overall positive rate.
+p_positive = PREVALENCE * SENSITIVITY + (1 - PREVALENCE) * FALSE_POSITIVE
+counted = (99 + 495) / 10000
+print(&quot;P(positive) by total probability =&quot;, float(p_positive), &quot; by counting =&quot;, counted)
+assert abs(float(p_positive) - counted) &lt; 1e-12
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Three predictions.</p>
+<p><strong>First, the base rate.</strong> Theory says the posterior is governed by prevalence, not by the test's accuracy alone, and that making the disease ten times rarer divides the posterior by roughly ten while the test is unchanged. We sweep the prevalence and measure.</p>
+<p><strong>Second, the binomial moments.</strong> Theory says $E[X]=np$ and $\operatorname{Var}(X)=np(1-p)$. We simulate many binomial experiments and measure both.</p>
+<p><strong>Third, variance and independence.</strong> Theory says expectations always add, but variances add <em>only</em> for independent variables. We construct a dependent pair and show that the variance rule breaks while the expectation rule does not.</p>
+<div class="lab demo" data-demo="m27-base-rate-and-moments">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Sweeping the base rate, and testing where independence is needed</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import comb
+
+SENS, FPR = 0.99, 0.05
+
+
+def posterior(prior):
+    return prior * SENS / (prior * SENS + (1 - prior) * FPR)
+
+
+print(&quot;the test never changes: sensitivity 0.99, false-positive rate 0.05&quot;)
+print(f&quot;{&#x27;prevalence&#x27;:&gt;12} {&#x27;P(disease | positive)&#x27;:&gt;24} {&#x27;ratio to previous&#x27;:&gt;20}&quot;)
+prev_post = None
+ratios = []
+for prior in (0.5, 0.1, 0.01, 0.001, 0.0001):
+    post = posterior(prior)
+    ratio = (prev_post / post) if prev_post else float(&quot;nan&quot;)
+    if prev_post:
+        ratios.append(ratio)
+    print(f&quot;{prior:&gt;12.5f} {post:&gt;24.8f} {ratio:&gt;20.2f}&quot;)
+    prev_post = post
+
+print()
+print(&quot;predicted: for a RARE disease, dividing prevalence by 10 divides the posterior&quot;)
+print(&quot;           by about 10 -- but only once (1-prior)*fpr dominates the denominator,&quot;)
+print(&quot;           so the ratio approaches 10 from below as the disease gets rarer.&quot;)
+for a, b in zip(ratios, ratios[1:]):
+    assert b &gt; a, &quot;the ratio must approach 10 from below as the prior shrinks&quot;
+assert ratios[-1] &gt; 9.0, f&quot;in the rare regime the ratio must be close to 10, got {ratios[-1]}&quot;
+assert ratios[-1] &lt; 11.0
+assert ratios[0] &lt; 6.0, &quot;at a 10% prior the tenfold rule does NOT yet hold&quot;
+assert posterior(0.5) &gt; 0.9, &quot;for a 50% prior the test is very informative&quot;
+assert posterior(0.01) &lt; 0.2, &quot;for a 1% prior the same test is not&quot;
+assert posterior(0.0001) &lt; 0.01, &quot;and for a very rare disease it is nearly useless&quot;
+
+# --- binomial moments, measured ---
+rng = random.Random(1763)
+print()
+print(f&quot;{&#x27;n&#x27;:&gt;5} {&#x27;p&#x27;:&gt;6} {&#x27;E[X] pred&#x27;:&gt;12} {&#x27;measured&#x27;:&gt;12} {&#x27;Var pred&#x27;:&gt;12} {&#x27;measured&#x27;:&gt;12}&quot;)
+for n, p in ((10, 0.5), (20, 0.3), (50, 0.1), (100, 0.8)):
+    trials = 40000
+    samples = [sum(1 for _ in range(n) if rng.random() &lt; p) for _ in range(trials)]
+    mean = sum(samples) / trials
+    var = sum((x - mean) ** 2 for x in samples) / (trials - 1)
+    print(f&quot;{n:&gt;5} {p:&gt;6.2f} {n * p:&gt;12.4f} {mean:&gt;12.4f} {n * p * (1 - p):&gt;12.4f} {var:&gt;12.4f}&quot;)
+    assert abs(mean - n * p) &lt; 0.05 * max(1.0, n * p), &quot;E[X] must be np&quot;
+    assert abs(var - n * p * (1 - p)) &lt; 0.08 * n * p * (1 - p), &quot;Var must be np(1-p)&quot;
+
+# the pmf sums to 1 and matches the simulated frequencies
+n, p = 10, 0.4
+pmf = [comb(n, k) * p ** k * (1 - p) ** (n - k) for k in range(n + 1)]
+print()
+print(&quot;binomial(10, 0.4) pmf sums to&quot;, round(sum(pmf), 12))
+assert abs(sum(pmf) - 1.0) &lt; 1e-12
+counts = [0] * (n + 1)
+for _ in range(100000):
+    counts[sum(1 for _ in range(n) if rng.random() &lt; p)] += 1
+for k in range(n + 1):
+    assert abs(counts[k] / 100000 - pmf[k]) &lt; 0.01, f&quot;frequency at k={k} must match the pmf&quot;
+print(&quot;simulated frequencies matched the pmf at every k&quot;)
+
+# --- expectation always adds; variance needs independence ---
+print()
+print(&quot;predicted: E[X+Y] = E[X]+E[Y] ALWAYS, but Var(X+Y) = Var(X)+Var(Y) only if independent&quot;)
+# Dependent pair: Y = X, perfectly correlated.
+xs = [rng.randint(1, 6) for _ in range(200000)]
+ys_dep = xs[:]                                 # Y = X exactly
+ys_ind = [rng.randint(1, 6) for _ in range(200000)]
+
+
+def mean_of(v):
+    return sum(v) / len(v)
+
+
+def var_of(v):
+    m = mean_of(v)
+    return sum((x - m) ** 2 for x in v) / (len(v) - 1)
+
+
+for label, ys in ((&quot;dependent (Y = X)&quot;, ys_dep), (&quot;independent&quot;, ys_ind)):
+    sums = [a + b for a, b in zip(xs, ys)]
+    e_sum, e_parts = mean_of(sums), mean_of(xs) + mean_of(ys)
+    v_sum, v_parts = var_of(sums), var_of(xs) + var_of(ys)
+    print(f&quot;  {label:&gt;18}: E[X+Y]={e_sum:7.4f} vs {e_parts:7.4f}   &quot;
+          f&quot;Var[X+Y]={v_sum:8.4f} vs {v_parts:8.4f}&quot;)
+    assert abs(e_sum - e_parts) &lt; 1e-9, &quot;expectation must add in both cases&quot;
+    if &quot;independent&quot; in label:
+        assert abs(v_sum - v_parts) &lt; 0.1, &quot;variances add when independent&quot;
+    else:
+        assert v_sum &gt; 3 * v_parts / 2, &quot;variances must NOT add when dependent&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the simulated binomial frequencies match the formula to within sampling noise, and the tolerances above are set from that noise rather than chosen to pass. The more interesting disagreement is conceptual. In the dependent case the measured variance of $X+Y$ is <em>four times</em> each individual variance rather than twice — because $Y=X$ makes $X+Y=2X$, and variance scales by the square of a constant. That is not an edge case; positive correlation inflating variance is exactly why a portfolio of correlated assets, or a fleet of servers sharing one dependency, is far riskier than the independent calculation suggests. Expectation is indifferent to all of this, which is precisely what makes it so useful.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m27-ex1-axioms" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Axioms, the addition rule and the algebra of events</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Events are Python sets of outcomes drawn from a finite equally likely sample space. Write <code>prob(event, space)</code> returning <code>|event| / |space|</code>, raising <code>ValueError</code> when the event is not a subset of the space or the space is empty. Write <code>p_union(a, b, space)</code>, <code>p_intersection(a, b, space)</code>, <code>p_complement(a, space)</code> and <code>p_a_not_b(a, b, space)</code>. Write <code>addition_rule_holds(a, b, space)</code> returning <code>True</code> when <code>P(A or B) == P(A) + P(B) - P(A and B)</code>.</p></div>
+<textarea class="code" spellcheck="false">def prob(event, space):
+    &quot;&quot;&quot;Probability of an event in an equally likely space.&quot;&quot;&quot;
+    return 0.0
+
+
+def p_union(a, b, space):
+    &quot;&quot;&quot;P(A or B).&quot;&quot;&quot;
+    return 0.0
+
+
+def p_intersection(a, b, space):
+    &quot;&quot;&quot;P(A and B).&quot;&quot;&quot;
+    return 0.0
+
+
+def p_complement(a, space):
+    &quot;&quot;&quot;P(not A).&quot;&quot;&quot;
+    return 0.0
+
+
+def p_a_not_b(a, b, space):
+    &quot;&quot;&quot;P(A but not B).&quot;&quot;&quot;
+    return 0.0
+
+
+def addition_rule_holds(a, b, space):
+    &quot;&quot;&quot;True when the addition rule is satisfied.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_axioms_on_a_die():
+    space = set(range(1, 7))
+    even = {2, 4, 6}
+    assert abs(prob(even, space) - 0.5) &lt; 1e-12
+    assert abs(prob(set(), space)) &lt; 1e-12          # impossible event
+    assert abs(prob(space, space) - 1.0) &lt; 1e-12    # certain event
+    assert abs(p_complement(even, space) - 0.5) &lt; 1e-12
+    assert abs(prob(even, space) + p_complement(even, space) - 1.0) &lt; 1e-12
+    try:
+        prob({7}, space)
+        assert False, &quot;an outcome outside the space must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_addition_rule_with_and_without_overlap():
+    space = set(range(1, 7))
+    even = {2, 4, 6}
+    high = {5, 6}
+    # overlapping: P(even or high) = 1/2 + 1/3 - 1/6 = 2/3
+    assert abs(p_union(even, high, space) - 4 / 6) &lt; 1e-12
+    assert addition_rule_holds(even, high, space) is True
+    # mutually exclusive: the overlap term is zero
+    low = {1, 2}
+    top = {5, 6}
+    assert abs(p_intersection(low, top, space)) &lt; 1e-12
+    assert abs(p_union(low, top, space) - (prob(low, space) + prob(top, space))) &lt; 1e-12
+    assert addition_rule_holds(low, top, space) is True
+
+
+def test_event_algebra():
+    space = set(range(1, 11))
+    a = {1, 2, 3, 4, 5}
+    b = {4, 5, 6, 7}
+    assert abs(p_intersection(a, b, space) - 0.2) &lt; 1e-12      # {4,5}
+    assert abs(p_a_not_b(a, b, space) - 0.3) &lt; 1e-12           # {1,2,3}
+    assert abs(p_a_not_b(b, a, space) - 0.2) &lt; 1e-12           # {6,7}
+    # A = (A and B) union (A but not B), so the probabilities add
+    assert abs(prob(a, space)
+               - (p_intersection(a, b, space) + p_a_not_b(a, b, space))) &lt; 1e-12
+    # exhaustive events cover the space
+    assert abs(p_union(a, space - a, space) - 1.0) &lt; 1e-12
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m27-ex2-conditional" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Conditional probability and independence</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>conditional(a, b, space)</code> returning <code>P(A | B)</code>, raising <code>ValueError</code> when <code>P(B)</code> is zero. Write <code>multiplication_rule_holds(a, b, space)</code> checking <code>P(A and B) == P(B) * P(A|B)</code>. Write <code>are_independent(a, b, space)</code> returning <code>True</code> when <code>P(A and B) == P(A) * P(B)</code> within 1e-12. Write <code>are_mutually_exclusive(a, b)</code> returning <code>True</code> when the events are disjoint. Write <code>exclusive_implies_dependent(a, b, space)</code> returning <code>True</code> when two mutually exclusive events of positive probability are shown to be dependent.</p></div>
+<textarea class="code" spellcheck="false">def conditional(a, b, space):
+    &quot;&quot;&quot;P(A | B).&quot;&quot;&quot;
+    return 0.0
+
+
+def multiplication_rule_holds(a, b, space):
+    &quot;&quot;&quot;True when P(A and B) = P(B) P(A|B).&quot;&quot;&quot;
+    return False
+
+
+def are_independent(a, b, space):
+    &quot;&quot;&quot;True when the events are independent.&quot;&quot;&quot;
+    return False
+
+
+def are_mutually_exclusive(a, b):
+    &quot;&quot;&quot;True when the events cannot both happen.&quot;&quot;&quot;
+    return False
+
+
+def exclusive_implies_dependent(a, b, space):
+    &quot;&quot;&quot;True when disjoint events of positive probability are dependent.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_conditional_on_a_die():
+    space = set(range(1, 7))
+    even = {2, 4, 6}
+    high = {4, 5, 6}
+    # P(even | high) = |{4,6}| / |{4,5,6}| = 2/3
+    assert abs(conditional(even, high, space) - 2 / 3) &lt; 1e-12
+    # P(high | even) = |{4,6}| / |{2,4,6}| = 2/3 as well, by coincidence
+    assert abs(conditional(high, even, space) - 2 / 3) &lt; 1e-12
+    # but in general the two differ
+    small = {1, 2}
+    assert abs(conditional(even, small, space) - 0.5) &lt; 1e-12
+    assert abs(conditional(small, even, space) - 1 / 3) &lt; 1e-12
+    assert conditional(even, small, space) != conditional(small, even, space)
+    try:
+        conditional(even, set(), space)
+        assert False, &quot;conditioning on an impossible event must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_independence_on_two_dice():
+    space = {(i, j) for i in range(1, 7) for j in range(1, 7)}
+    first_even = {(i, j) for i, j in space if i % 2 == 0}
+    second_six = {(i, j) for i, j in space if j == 6}
+    # the two dice are independent
+    assert are_independent(first_even, second_six, space) is True
+    assert abs(conditional(first_even, second_six, space)
+               - (len(first_even) / len(space))) &lt; 1e-12
+    # the sum being 7 is NOT independent of the first die being even
+    sum_seven = {(i, j) for i, j in space if i + j == 7}
+    assert are_independent(first_even, sum_seven, space) is True   # a famous coincidence
+    sum_eight = {(i, j) for i, j in space if i + j == 8}
+    assert are_independent(first_even, sum_eight, space) is False
+    assert multiplication_rule_holds(first_even, sum_eight, space) is True
+
+
+def test_exclusive_is_the_opposite_of_independent():
+    space = set(range(1, 7))
+    low = {1, 2}
+    high = {5, 6}
+    assert are_mutually_exclusive(low, high) is True
+    assert are_independent(low, high, space) is False
+    assert exclusive_implies_dependent(low, high, space) is True
+    # knowing one happened tells you the other certainly did not
+    assert abs(conditional(low, high, space)) &lt; 1e-12
+    # overlapping events are not mutually exclusive
+    assert are_mutually_exclusive({1, 2, 3}, {3, 4}) is False
+    assert exclusive_implies_dependent({1, 2, 3}, {3, 4}, space) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m27-ex3-bayes" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Total probability and Bayes&#x27; theorem</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>total_probability(priors, likelihoods)</code> returning <code>sum(prior * likelihood)</code>, raising <code>ValueError</code> when the lists differ in length or the priors do not sum to 1 within 1e-9. Write <code>bayes(priors, likelihoods, k)</code> returning the posterior for hypothesis <code>k</code>. Write <code>posteriors(priors, likelihoods)</code> returning the whole posterior list, which must sum to 1. Write <code>medical_test(prevalence, sensitivity, false_positive_rate)</code> returning <code>P(disease | positive)</code>.</p></div>
+<textarea class="code" spellcheck="false">def total_probability(priors, likelihoods):
+    &quot;&quot;&quot;P(A) by splitting into cases.&quot;&quot;&quot;
+    return 0.0
+
+
+def bayes(priors, likelihoods, k):
+    &quot;&quot;&quot;Posterior probability of hypothesis k.&quot;&quot;&quot;
+    return 0.0
+
+
+def posteriors(priors, likelihoods):
+    &quot;&quot;&quot;All posteriors, summing to 1.&quot;&quot;&quot;
+    return []
+
+
+def medical_test(prevalence, sensitivity, false_positive_rate):
+    &quot;&quot;&quot;P(disease | positive).&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_kavitas_test():
+    # prevalence 1%, sensitivity 99%, false-positive rate 5%
+    post = medical_test(0.01, 0.99, 0.05)
+    assert abs(post - 99 / 594) &lt; 1e-12
+    assert post &lt; 0.2, &quot;the posterior is far below the sensitivity&quot;
+    # the total positive rate is 5.94%
+    assert abs(total_probability([0.01, 0.99], [0.99, 0.05]) - 0.0594) &lt; 1e-12
+    # a 50% prior makes the same test far more informative
+    assert medical_test(0.5, 0.99, 0.05) &gt; 0.9
+
+
+def test_posteriors_sum_to_one_and_errors():
+    priors = [0.2, 0.3, 0.5]
+    likelihoods = [0.9, 0.4, 0.1]
+    post = posteriors(priors, likelihoods)
+    assert abs(sum(post) - 1.0) &lt; 1e-12
+    assert len(post) == 3
+    # the hypothesis with the highest prior*likelihood wins
+    assert post.index(max(post)) == 0
+    # hand-check: evidence = 0.18 + 0.12 + 0.05 = 0.35, so post[0] = 0.18/0.35
+    assert abs(post[0] - 0.18 / 0.35) &lt; 1e-12
+    try:
+        bayes([0.5, 0.4], [0.9, 0.1], 0)
+        assert False, &quot;priors that do not sum to 1 must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        bayes([0.5, 0.5], [0.9, 0.1], 5)
+        assert False, &quot;an out-of-range k must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_the_base_rate_dominates():
+    # the same test applied to rarer and rarer diseases
+    results = [medical_test(p, 0.99, 0.05) for p in (0.5, 0.1, 0.01, 0.001)]
+    assert all(a &gt; b for a, b in zip(results, results[1:]))
+    assert results[0] &gt; 0.9
+    assert results[3] &lt; 0.02
+    # improving sensitivity barely helps a rare disease
+    poor = medical_test(0.001, 0.90, 0.05)
+    perfect = medical_test(0.001, 1.00, 0.05)
+    assert perfect - poor &lt; 0.01
+    # but cutting the false-positive rate helps enormously
+    better_fpr = medical_test(0.001, 0.90, 0.001)
+    assert better_fpr &gt; 10 * poor
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m27-ex4-random-variables" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Random variables, expectation and variance</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>A distribution is a dict mapping values to probabilities. Write <code>is_valid(dist)</code> returning <code>True</code> when every probability is non-negative and they sum to 1 within 1e-9. Write <code>expectation(dist)</code> and <code>variance(dist)</code> using <code>E[X^2] - E[X]^2</code>, raising <code>ValueError</code> for an invalid distribution. Write <code>transform(dist, a, b)</code> returning the distribution of <code>aX + b</code>. Write <code>linearity_holds(dist, a, b)</code> checking <code>E[aX+b] == a E[X] + b</code>, and <code>variance_scaling_holds(dist, a, b)</code> checking <code>Var(aX+b) == a^2 Var(X)</code>.</p></div>
+<textarea class="code" spellcheck="false">def is_valid(dist):
+    &quot;&quot;&quot;True when the distribution is a valid pmf.&quot;&quot;&quot;
+    return False
+
+
+def expectation(dist):
+    &quot;&quot;&quot;E[X].&quot;&quot;&quot;
+    return 0.0
+
+
+def variance(dist):
+    &quot;&quot;&quot;Var(X).&quot;&quot;&quot;
+    return 0.0
+
+
+def transform(dist, a, b):
+    &quot;&quot;&quot;The distribution of aX + b.&quot;&quot;&quot;
+    return {}
+
+
+def linearity_holds(dist, a, b):
+    &quot;&quot;&quot;True when E[aX+b] = a E[X] + b.&quot;&quot;&quot;
+    return False
+
+
+def variance_scaling_holds(dist, a, b):
+    &quot;&quot;&quot;True when Var(aX+b) = a^2 Var(X).&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_fair_die_moments():
+    die = {k: 1 / 6 for k in range(1, 7)}
+    assert is_valid(die) is True
+    assert abs(expectation(die) - 3.5) &lt; 1e-12
+    # variance of a fair die is 35/12
+    assert abs(variance(die) - 35 / 12) &lt; 1e-12
+    # a constant has zero variance
+    assert abs(variance({5: 1.0})) &lt; 1e-12
+    assert abs(expectation({5: 1.0}) - 5.0) &lt; 1e-12
+    assert is_valid({1: 0.5, 2: 0.4}) is False          # does not sum to 1
+    assert is_valid({1: 1.5, 2: -0.5}) is False         # a negative probability
+
+
+def test_linearity_and_variance_scaling():
+    die = {k: 1 / 6 for k in range(1, 7)}
+    bern = {0: 0.7, 1: 0.3}
+    for dist in (die, bern):
+        for a, b in ((2.0, 3.0), (-1.0, 0.0), (0.5, -4.0)):
+            assert linearity_holds(dist, a, b) is True
+            assert variance_scaling_holds(dist, a, b) is True
+    # shifting does not change the variance
+    assert abs(variance(transform(die, 1.0, 100.0)) - variance(die)) &lt; 1e-9
+    # doubling quadruples it
+    assert abs(variance(transform(die, 2.0, 0.0)) - 4 * variance(die)) &lt; 1e-9
+
+
+def test_bernoulli_and_errors():
+    for p in (0.0, 0.1, 0.5, 0.9, 1.0):
+        bern = {0: 1 - p, 1: p}
+        assert abs(expectation(bern) - p) &lt; 1e-12
+        assert abs(variance(bern) - p * (1 - p)) &lt; 1e-12
+    # the variance is largest at p = 0.5
+    vs = [variance({0: 1 - p, 1: p}) for p in (0.1, 0.3, 0.5, 0.7, 0.9)]
+    assert vs[2] == max(vs)
+    # transform can merge values that collide
+    merged = transform({1: 0.5, -1: 0.5}, 0.0, 7.0)
+    assert merged == {7.0: 1.0}
+    try:
+        expectation({1: 0.5, 2: 0.2})
+        assert False, &quot;an invalid distribution must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m27-ex5-binomial" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Bernoulli trials and the binomial distribution</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>binomial_pmf(n, p, k)</code> returning <code>C(n,k) p^k (1-p)^(n-k)</code>, raising <code>ValueError</code> unless <code>0 &lt;= p &lt;= 1</code>, <code>n</code> is a positive integer and <code>0 &lt;= k &lt;= n</code>. Write <code>binomial_distribution(n, p)</code> returning the dict over all <code>k</code>. Write <code>binomial_mean(n, p)</code> and <code>binomial_variance(n, p)</code> from the closed forms. Write <code>binomial_cdf(n, p, k)</code> returning <code>P(X &lt;= k)</code>. Write <code>at_least_one(n, p)</code> returning <code>1 - (1-p)^n</code> and check it agrees with <code>1 - binomial_pmf(n, p, 0)</code>.</p></div>
+<textarea class="code" spellcheck="false">def binomial_pmf(n, p, k):
+    &quot;&quot;&quot;P(X = k) for a binomial.&quot;&quot;&quot;
+    return 0.0
+
+
+def binomial_distribution(n, p):
+    &quot;&quot;&quot;The whole pmf as a dict.&quot;&quot;&quot;
+    return {}
+
+
+def binomial_mean(n, p):
+    &quot;&quot;&quot;np.&quot;&quot;&quot;
+    return 0.0
+
+
+def binomial_variance(n, p):
+    &quot;&quot;&quot;np(1-p).&quot;&quot;&quot;
+    return 0.0
+
+
+def binomial_cdf(n, p, k):
+    &quot;&quot;&quot;P(X &lt;= k).&quot;&quot;&quot;
+    return 0.0
+
+
+def at_least_one(n, p):
+    &quot;&quot;&quot;P(X &gt;= 1).&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pmf_is_a_distribution_and_matches_by_hand():
+    for n, p in ((1, 0.5), (5, 0.3), (10, 0.7), (20, 0.1)):
+        dist = binomial_distribution(n, p)
+        assert len(dist) == n + 1
+        assert abs(sum(dist.values()) - 1.0) &lt; 1e-12
+        assert all(v &gt;= 0 for v in dist.values())
+    # hand-checked: three fair coins, exactly two heads, C(3,2)/8 = 3/8
+    assert abs(binomial_pmf(3, 0.5, 2) - 3 / 8) &lt; 1e-12
+    assert abs(binomial_pmf(3, 0.5, 0) - 1 / 8) &lt; 1e-12
+    # a certain success
+    assert abs(binomial_pmf(5, 1.0, 5) - 1.0) &lt; 1e-12
+    assert abs(binomial_pmf(5, 0.0, 0) - 1.0) &lt; 1e-12
+
+
+def test_moments_match_the_distribution():
+    for n, p in ((5, 0.3), (10, 0.5), (20, 0.8), (50, 0.1)):
+        dist = binomial_distribution(n, p)
+        mean = sum(k * v for k, v in dist.items())
+        second = sum(k * k * v for k, v in dist.items())
+        var = second - mean * mean
+        assert abs(mean - binomial_mean(n, p)) &lt; 1e-9, (n, p)
+        assert abs(var - binomial_variance(n, p)) &lt; 1e-9, (n, p)
+    # the variance is maximised at p = 0.5
+    vs = [binomial_variance(20, p) for p in (0.1, 0.3, 0.5, 0.7, 0.9)]
+    assert vs[2] == max(vs)
+
+
+def test_cdf_at_least_one_and_errors():
+    n, p = 10, 0.2
+    assert abs(binomial_cdf(n, p, n) - 1.0) &lt; 1e-12
+    assert abs(binomial_cdf(n, p, 0) - binomial_pmf(n, p, 0)) &lt; 1e-12
+    # the cdf is non-decreasing
+    vals = [binomial_cdf(n, p, k) for k in range(n + 1)]
+    assert all(a &lt;= b + 1e-15 for a, b in zip(vals, vals[1:]))
+    # &quot;at least one&quot; is the complement of &quot;none&quot;, as in M10
+    for n2, p2 in ((4, 0.5), (10, 0.2), (3, 1 / 6)):
+        assert abs(at_least_one(n2, p2) - (1 - binomial_pmf(n2, p2, 0))) &lt; 1e-12
+    assert abs(at_least_one(4, 0.5) - 15 / 16) &lt; 1e-12
+    try:
+        binomial_pmf(5, 0.5, 6)
+        assert False, &quot;k above n must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        binomial_pmf(5, 1.5, 2)
+        assert False, &quot;p above 1 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"$P(A|B)$ and $P(B|A)$ are much the same."</strong> They can differ by an order of magnitude, as Kavita's 0.99 versus 0.17 shows. This confusion — the <strong>prosecutor's fallacy</strong> in court, the base rate fallacy in medicine — is the most costly error in applied probability.</li>
+<li><strong>"A 99% accurate test means a positive result is 99% likely to be right."</strong> Only if the condition is common. For a rare condition most positives are false, however good the test, because there are so many more candidates to be wrong about.</li>
+<li><strong>"Mutually exclusive means independent."</strong> They are near-opposites. Disjoint events with positive probability are maximally dependent: if one happened, the other definitely did not.</li>
+<li><strong>"Variance adds, like expectation."</strong> Expectation adds <em>always</em>. Variance adds only under independence, and positive correlation inflates it — the experiment measured $\operatorname{Var}(X+X)=4\operatorname{Var}(X)$, not $2$.</li>
+<li><strong>"$E[X^2] = (E[X])^2$."</strong> Never, unless the variance is zero. The gap between them <em>is</em> the variance.</li>
+<li><strong>"Improving the test is the way to fix a high false-alarm rate."</strong> For a rare condition, raising sensitivity from 0.90 to 1.00 barely moves the posterior; cutting the false-positive rate moves it enormously. The exercise measures exactly that.</li>
+<li><strong>"The binomial applies to any sequence of yes/no outcomes."</strong> It needs a <em>fixed</em> number of trials, a <em>constant</em> $p$ and <em>independence</em>. Sampling without replacement violates the last two, and the right model there is hypergeometric.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Conditioning on a probability-zero event is undefined, and for continuous variables <em>every</em> single outcome has probability zero — so "the probability that the waiting time is exactly 3 seconds given that it is at least 2" needs densities and a limiting definition, which is M34's job. The naive formula divides by zero.</p>
+<p>Bayes' theorem is only as good as its prior. Garbage in, garbage out: a confidently wrong prior produces a confidently wrong posterior, and when no honest prior is available the whole Bayesian apparatus is doing less work than it appears to. Equally, the likelihoods must come from somewhere; quoting a test's sensitivity from the manufacturer's study on a different population is a real and common error.</p>
+<p>Independence is an assumption about the world, not a mathematical convenience, and it is routinely false in exactly the situations where it matters most. Correlated failures — servers sharing a rack, loans sharing an economy, tests sharing a laboratory — make joint disasters far more likely than the independent calculation suggests. That mis-modelling was central to the 2008 financial crisis and to many outage post-mortems.</p>
+<p>Finally, the whole module assumes a well-defined sample space agreed in advance. Real problems often have ambiguous ones — Bertrand's paradox gives three different "correct" answers to a single innocuous question about a random chord — and no amount of correct arithmetic rescues an ill-posed question.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>This is the mathematics of every alert and every classifier. An anomaly detector with a 1% false-positive rate, run against a mostly-healthy fleet, produces a flood of false alarms — and the team learns to ignore it. That is Kavita's test, and the fix is the one the exercise measures: reduce the false-positive rate, because improving the detection rate barely helps when the base rate is low.</p>
+<p>Precision and recall are conditional probabilities in different directions: recall is $P(\text{flagged}|\text{bad})$ and precision is $P(\text{bad}|\text{flagged})$. Quoting one when asked about the other is the same error in different clothes, and it is why a model with 99% accuracy on a 1%-positive dataset may be worthless.</p>
+<p>Independence assumptions underpin retry logic, redundancy and SLO arithmetic. "Three replicas each with 99.9% availability gives nine nines" is true only if the failures are independent — and replicas in one availability zone, or depending on one config service, are not. Expectation's indifference to dependence is what makes it safe to reason about average load by summing; variance's sensitivity to it is why tail behaviour needs much more care.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does conditioning on B do to the sample space?</p></div><div class="a" hidden><p>It narrows it to B, and renormalises by dividing by P(B) so the new probabilities sum to 1.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why are P(A|B) and P(B|A) different?</p></div><div class="a" hidden><p>They divide the same joint probability by different things. When P(A) and P(B) differ greatly, so do the two conditionals.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>State Bayes' theorem and name its four parts.</p></div><div class="a" hidden><p>Posterior equals prior times likelihood divided by evidence, where the evidence is the total probability of the observation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>A test is 99% sensitive with a 5% false-positive rate, applied to a 1%-prevalent disease. What is P(disease | positive)?</p></div><div class="a" hidden><p>About 1 in 6, because 99 true positives are swamped by 495 false ones out of 10,000 people.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Are mutually exclusive events independent?</p></div><div class="a" hidden><p>No, the opposite. Disjoint events of positive probability are maximally dependent, since one occurring rules out the other.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Which adds without conditions, expectation or variance?</p></div><div class="a" hidden><p>Expectation always adds. Variance adds only when the variables are independent.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Give the mean and variance of a binomial, and say where independence is needed.</p></div><div class="a" hidden><p>np and np(1-p). The mean follows from linearity alone; the variance needs the trials to be independent.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>What is the relation between Var(X) and E[X^2]?</p></div><div class="a" hidden><p>Var(X) = E[X^2] - (E[X])^2, so the two square-quantities differ by exactly the variance.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>For a rare condition, is it better to improve sensitivity or reduce the false-positive rate?</p></div><div class="a" hidden><p>Reduce the false-positive rate. The posterior is governed by prevalence times sensitivity against the false-positive rate, and sensitivity is already near its ceiling.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>How do precision and recall relate to conditional probability?</p></div><div class="a" hidden><p>Recall is P(flagged | bad) and precision is P(bad | flagged) — the two directions of the same conditional, and not interchangeable.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain the ten-thousand-people argument to a child, you can derive Bayes' theorem from the multiplication rule in two lines, you never confuse P(A|B) with P(B|A) and can say why they differ, you can state exactly where independence is needed in deriving the binomial moments and where it is not, you pass the boss exercise without hints, and you can explain to a colleague why their 99%-accurate alert is firing mostly false alarms.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 12, chapter on Probability.</li>
+<li>Sheldon Ross, <em>A First Course in Probability</em>, Pearson.</li>
+<li>A. N. Kolmogorov, <em>Foundations of the Theory of Probability</em>, 1933 (English edition Chelsea, 1956).</li>
+<li>David M. Eddy, "Probabilistic reasoning in clinical medicine", in Kahneman, Slovic and Tversky (eds), <em>Judgment Under Uncertainty</em>, Cambridge University Press, 1982.</li>
+<li>Daniel Kahneman, <em>Thinking, Fast and Slow</em>, Farrar, Straus and Giroux, 2011.</li>
+</ul></section>
+<footer class="pager"><a href="M18.html">&larr; M18 Counting: permutations, combinations and the binomial theorem</a>
+<a href="M19.html">M19 Complex numbers &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M27", "packages": [], "exercises": {"m27-ex1-axioms": {"starter": "def prob(event, space):\n    \"\"\"Probability of an event in an equally likely space.\"\"\"\n    return 0.0\n\n\ndef p_union(a, b, space):\n    \"\"\"P(A or B).\"\"\"\n    return 0.0\n\n\ndef p_intersection(a, b, space):\n    \"\"\"P(A and B).\"\"\"\n    return 0.0\n\n\ndef p_complement(a, space):\n    \"\"\"P(not A).\"\"\"\n    return 0.0\n\n\ndef p_a_not_b(a, b, space):\n    \"\"\"P(A but not B).\"\"\"\n    return 0.0\n\n\ndef addition_rule_holds(a, b, space):\n    \"\"\"True when the addition rule is satisfied.\"\"\"\n    return False\n", "solution": "def prob(event, space):\n    \"\"\"Probability of an event in an equally likely space.\"\"\"\n    space = set(space)\n    event = set(event)\n    if not space:\n        raise ValueError(\"the sample space must not be empty\")\n    if not event <= space:\n        raise ValueError(\"the event must be a subset of the sample space\")\n    return len(event) / len(space)\n\n\ndef p_union(a, b, space):\n    \"\"\"P(A or B).\"\"\"\n    return prob(set(a) | set(b), space)\n\n\ndef p_intersection(a, b, space):\n    \"\"\"P(A and B).\"\"\"\n    return prob(set(a) & set(b), space)\n\n\ndef p_complement(a, space):\n    \"\"\"P(not A).\"\"\"\n    return prob(set(space) - set(a), space)\n\n\ndef p_a_not_b(a, b, space):\n    \"\"\"P(A but not B).\"\"\"\n    return prob(set(a) - set(b), space)\n\n\ndef addition_rule_holds(a, b, space):\n    \"\"\"True when the addition rule is satisfied.\"\"\"\n    lhs = p_union(a, b, space)\n    rhs = prob(a, space) + prob(b, space) - p_intersection(a, b, space)\n    return abs(lhs - rhs) < 1e-12\n", "tests": "def test_axioms_on_a_die():\n    space = set(range(1, 7))\n    even = {2, 4, 6}\n    assert abs(prob(even, space) - 0.5) < 1e-12\n    assert abs(prob(set(), space)) < 1e-12          # impossible event\n    assert abs(prob(space, space) - 1.0) < 1e-12    # certain event\n    assert abs(p_complement(even, space) - 0.5) < 1e-12\n    assert abs(prob(even, space) + p_complement(even, space) - 1.0) < 1e-12\n    try:\n        prob({7}, space)\n        assert False, \"an outcome outside the space must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_addition_rule_with_and_without_overlap():\n    space = set(range(1, 7))\n    even = {2, 4, 6}\n    high = {5, 6}\n    # overlapping: P(even or high) = 1/2 + 1/3 - 1/6 = 2/3\n    assert abs(p_union(even, high, space) - 4 / 6) < 1e-12\n    assert addition_rule_holds(even, high, space) is True\n    # mutually exclusive: the overlap term is zero\n    low = {1, 2}\n    top = {5, 6}\n    assert abs(p_intersection(low, top, space)) < 1e-12\n    assert abs(p_union(low, top, space) - (prob(low, space) + prob(top, space))) < 1e-12\n    assert addition_rule_holds(low, top, space) is True\n\n\ndef test_event_algebra():\n    space = set(range(1, 11))\n    a = {1, 2, 3, 4, 5}\n    b = {4, 5, 6, 7}\n    assert abs(p_intersection(a, b, space) - 0.2) < 1e-12      # {4,5}\n    assert abs(p_a_not_b(a, b, space) - 0.3) < 1e-12           # {1,2,3}\n    assert abs(p_a_not_b(b, a, space) - 0.2) < 1e-12           # {6,7}\n    # A = (A and B) union (A but not B), so the probabilities add\n    assert abs(prob(a, space)\n               - (p_intersection(a, b, space) + p_a_not_b(a, b, space))) < 1e-12\n    # exhaustive events cover the space\n    assert abs(p_union(a, space - a, space) - 1.0) < 1e-12\n", "mutants": ["def prob(event, space):\n    space = set(space)\n    event = set(event)\n    if not space:\n        raise ValueError(\"the sample space must not be empty\")\n    if not event <= space:\n        raise ValueError(\"the event must be a subset of the sample space\")\n    return len(event) / len(space)\n\n\ndef p_union(a, b, space):\n    \"\"\"Bug: adds the two probabilities, double-counting the overlap.\"\"\"\n    return prob(a, space) + prob(b, space)\n\n\ndef p_intersection(a, b, space):\n    return prob(set(a) & set(b), space)\n\n\ndef p_complement(a, space):\n    return prob(set(space) - set(a), space)\n\n\ndef p_a_not_b(a, b, space):\n    return prob(set(a) - set(b), space)\n\n\ndef addition_rule_holds(a, b, space):\n    lhs = p_union(a, b, space)\n    rhs = prob(a, space) + prob(b, space) - p_intersection(a, b, space)\n    return abs(lhs - rhs) < 1e-12\n", "def prob(event, space):\n    space = set(space)\n    event = set(event)\n    if not space:\n        raise ValueError(\"the sample space must not be empty\")\n    if not event <= space:\n        raise ValueError(\"the event must be a subset of the sample space\")\n    return len(event) / len(space)\n\n\ndef p_union(a, b, space):\n    return prob(set(a) | set(b), space)\n\n\ndef p_intersection(a, b, space):\n    \"\"\"Bug: uses the union, so 'and' and 'or' are swapped.\"\"\"\n    return prob(set(a) | set(b), space)\n\n\ndef p_complement(a, space):\n    return prob(set(space) - set(a), space)\n\n\ndef p_a_not_b(a, b, space):\n    \"\"\"Bug: symmetric difference instead of set difference.\"\"\"\n    return prob(set(a) ^ set(b), space)\n\n\ndef addition_rule_holds(a, b, space):\n    lhs = p_union(a, b, space)\n    rhs = prob(a, space) + prob(b, space) - p_intersection(a, b, space)\n    return abs(lhs - rhs) < 1e-12\n"], "hints": ["\"A or B\" is the set union, and the addition rule subtracts the overlap because it was counted in both terms.", "\"A but not B\" is the set difference `a - b`, which is not the same as the symmetric difference."], "level": "warmup", "title": "Axioms, the addition rule and the algebra of events"}, "m27-ex2-conditional": {"starter": "def conditional(a, b, space):\n    \"\"\"P(A | B).\"\"\"\n    return 0.0\n\n\ndef multiplication_rule_holds(a, b, space):\n    \"\"\"True when P(A and B) = P(B) P(A|B).\"\"\"\n    return False\n\n\ndef are_independent(a, b, space):\n    \"\"\"True when the events are independent.\"\"\"\n    return False\n\n\ndef are_mutually_exclusive(a, b):\n    \"\"\"True when the events cannot both happen.\"\"\"\n    return False\n\n\ndef exclusive_implies_dependent(a, b, space):\n    \"\"\"True when disjoint events of positive probability are dependent.\"\"\"\n    return False\n", "solution": "def _prob(event, space):\n    space = set(space)\n    event = set(event)\n    if not space:\n        raise ValueError(\"the sample space must not be empty\")\n    if not event <= space:\n        raise ValueError(\"the event must be a subset of the sample space\")\n    return len(event) / len(space)\n\n\ndef conditional(a, b, space):\n    \"\"\"P(A | B).\"\"\"\n    pb = _prob(b, space)\n    if pb == 0:\n        raise ValueError(\"cannot condition on an event of probability zero\")\n    return _prob(set(a) & set(b), space) / pb\n\n\ndef multiplication_rule_holds(a, b, space):\n    \"\"\"True when P(A and B) = P(B) P(A|B).\"\"\"\n    if _prob(b, space) == 0:\n        return True\n    lhs = _prob(set(a) & set(b), space)\n    rhs = _prob(b, space) * conditional(a, b, space)\n    return abs(lhs - rhs) < 1e-12\n\n\ndef are_independent(a, b, space):\n    \"\"\"True when the events are independent.\"\"\"\n    joint = _prob(set(a) & set(b), space)\n    return abs(joint - _prob(a, space) * _prob(b, space)) < 1e-12\n\n\ndef are_mutually_exclusive(a, b):\n    \"\"\"True when the events cannot both happen.\"\"\"\n    return len(set(a) & set(b)) == 0\n\n\ndef exclusive_implies_dependent(a, b, space):\n    \"\"\"True when disjoint events of positive probability are dependent.\"\"\"\n    if not are_mutually_exclusive(a, b):\n        return False\n    if _prob(a, space) == 0 or _prob(b, space) == 0:\n        return False\n    return not are_independent(a, b, space)\n", "tests": "def test_conditional_on_a_die():\n    space = set(range(1, 7))\n    even = {2, 4, 6}\n    high = {4, 5, 6}\n    # P(even | high) = |{4,6}| / |{4,5,6}| = 2/3\n    assert abs(conditional(even, high, space) - 2 / 3) < 1e-12\n    # P(high | even) = |{4,6}| / |{2,4,6}| = 2/3 as well, by coincidence\n    assert abs(conditional(high, even, space) - 2 / 3) < 1e-12\n    # but in general the two differ\n    small = {1, 2}\n    assert abs(conditional(even, small, space) - 0.5) < 1e-12\n    assert abs(conditional(small, even, space) - 1 / 3) < 1e-12\n    assert conditional(even, small, space) != conditional(small, even, space)\n    try:\n        conditional(even, set(), space)\n        assert False, \"conditioning on an impossible event must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_independence_on_two_dice():\n    space = {(i, j) for i in range(1, 7) for j in range(1, 7)}\n    first_even = {(i, j) for i, j in space if i % 2 == 0}\n    second_six = {(i, j) for i, j in space if j == 6}\n    # the two dice are independent\n    assert are_independent(first_even, second_six, space) is True\n    assert abs(conditional(first_even, second_six, space)\n               - (len(first_even) / len(space))) < 1e-12\n    # the sum being 7 is NOT independent of the first die being even\n    sum_seven = {(i, j) for i, j in space if i + j == 7}\n    assert are_independent(first_even, sum_seven, space) is True   # a famous coincidence\n    sum_eight = {(i, j) for i, j in space if i + j == 8}\n    assert are_independent(first_even, sum_eight, space) is False\n    assert multiplication_rule_holds(first_even, sum_eight, space) is True\n\n\ndef test_exclusive_is_the_opposite_of_independent():\n    space = set(range(1, 7))\n    low = {1, 2}\n    high = {5, 6}\n    assert are_mutually_exclusive(low, high) is True\n    assert are_independent(low, high, space) is False\n    assert exclusive_implies_dependent(low, high, space) is True\n    # knowing one happened tells you the other certainly did not\n    assert abs(conditional(low, high, space)) < 1e-12\n    # overlapping events are not mutually exclusive\n    assert are_mutually_exclusive({1, 2, 3}, {3, 4}) is False\n    assert exclusive_implies_dependent({1, 2, 3}, {3, 4}, space) is False\n", "mutants": ["def _prob(event, space):\n    space = set(space)\n    event = set(event)\n    if not space:\n        raise ValueError(\"the sample space must not be empty\")\n    if not event <= space:\n        raise ValueError(\"the event must be a subset of the sample space\")\n    return len(event) / len(space)\n\n\ndef conditional(a, b, space):\n    \"\"\"Bug: divides by P(A) instead of P(B), inverting the conditional.\"\"\"\n    pa = _prob(a, space)\n    if _prob(b, space) == 0:\n        raise ValueError(\"cannot condition on an event of probability zero\")\n    if pa == 0:\n        raise ValueError(\"zero probability\")\n    return _prob(set(a) & set(b), space) / pa\n\n\ndef multiplication_rule_holds(a, b, space):\n    if _prob(b, space) == 0:\n        return True\n    lhs = _prob(set(a) & set(b), space)\n    rhs = _prob(b, space) * conditional(a, b, space)\n    return abs(lhs - rhs) < 1e-12\n\n\ndef are_independent(a, b, space):\n    joint = _prob(set(a) & set(b), space)\n    return abs(joint - _prob(a, space) * _prob(b, space)) < 1e-12\n\n\ndef are_mutually_exclusive(a, b):\n    return len(set(a) & set(b)) == 0\n\n\ndef exclusive_implies_dependent(a, b, space):\n    if not are_mutually_exclusive(a, b):\n        return False\n    if _prob(a, space) == 0 or _prob(b, space) == 0:\n        return False\n    return not are_independent(a, b, space)\n", "def _prob(event, space):\n    space = set(space)\n    event = set(event)\n    if not space:\n        raise ValueError(\"the sample space must not be empty\")\n    if not event <= space:\n        raise ValueError(\"the event must be a subset of the sample space\")\n    return len(event) / len(space)\n\n\ndef conditional(a, b, space):\n    pb = _prob(b, space)\n    if pb == 0:\n        raise ValueError(\"cannot condition on an event of probability zero\")\n    return _prob(set(a) & set(b), space) / pb\n\n\ndef multiplication_rule_holds(a, b, space):\n    if _prob(b, space) == 0:\n        return True\n    lhs = _prob(set(a) & set(b), space)\n    rhs = _prob(b, space) * conditional(a, b, space)\n    return abs(lhs - rhs) < 1e-12\n\n\ndef are_independent(a, b, space):\n    \"\"\"Bug: calls disjoint events independent, the classic confusion.\"\"\"\n    return len(set(a) & set(b)) == 0\n\n\ndef are_mutually_exclusive(a, b):\n    return len(set(a) & set(b)) == 0\n\n\ndef exclusive_implies_dependent(a, b, space):\n    if not are_mutually_exclusive(a, b):\n        return False\n    if _prob(a, space) == 0 or _prob(b, space) == 0:\n        return False\n    return not are_independent(a, b, space)\n"], "hints": ["`P(A|B)` narrows the world to B, so the denominator is `P(B)`, not `P(A)`.", "Mutually exclusive events of positive probability are maximally *dependent*: if one happens, the other certainly did not."], "level": "core", "title": "Conditional probability and independence"}, "m27-ex3-bayes": {"starter": "def total_probability(priors, likelihoods):\n    \"\"\"P(A) by splitting into cases.\"\"\"\n    return 0.0\n\n\ndef bayes(priors, likelihoods, k):\n    \"\"\"Posterior probability of hypothesis k.\"\"\"\n    return 0.0\n\n\ndef posteriors(priors, likelihoods):\n    \"\"\"All posteriors, summing to 1.\"\"\"\n    return []\n\n\ndef medical_test(prevalence, sensitivity, false_positive_rate):\n    \"\"\"P(disease | positive).\"\"\"\n    return 0.0\n", "solution": "def _check(priors, likelihoods):\n    if len(priors) != len(likelihoods):\n        raise ValueError(\"priors and likelihoods must have the same length\")\n    if not priors:\n        raise ValueError(\"there must be at least one hypothesis\")\n    if abs(sum(priors) - 1.0) > 1e-9:\n        raise ValueError(\"the priors must sum to 1\")\n    for p in priors:\n        if p < 0:\n            raise ValueError(\"priors must be non-negative\")\n\n\ndef total_probability(priors, likelihoods):\n    \"\"\"P(A) by splitting into cases.\"\"\"\n    _check(priors, likelihoods)\n    return sum(p * l for p, l in zip(priors, likelihoods))\n\n\ndef bayes(priors, likelihoods, k):\n    \"\"\"Posterior probability of hypothesis k.\"\"\"\n    _check(priors, likelihoods)\n    if not 0 <= k < len(priors):\n        raise ValueError(\"k is out of range\")\n    evidence = total_probability(priors, likelihoods)\n    if evidence == 0:\n        raise ValueError(\"the evidence has probability zero\")\n    return priors[k] * likelihoods[k] / evidence\n\n\ndef posteriors(priors, likelihoods):\n    \"\"\"All posteriors, summing to 1.\"\"\"\n    return [bayes(priors, likelihoods, k) for k in range(len(priors))]\n\n\ndef medical_test(prevalence, sensitivity, false_positive_rate):\n    \"\"\"P(disease | positive).\"\"\"\n    if not 0 <= prevalence <= 1:\n        raise ValueError(\"the prevalence must lie in [0, 1]\")\n    return bayes([prevalence, 1 - prevalence],\n                 [sensitivity, false_positive_rate], 0)\n", "tests": "def test_kavitas_test():\n    # prevalence 1%, sensitivity 99%, false-positive rate 5%\n    post = medical_test(0.01, 0.99, 0.05)\n    assert abs(post - 99 / 594) < 1e-12\n    assert post < 0.2, \"the posterior is far below the sensitivity\"\n    # the total positive rate is 5.94%\n    assert abs(total_probability([0.01, 0.99], [0.99, 0.05]) - 0.0594) < 1e-12\n    # a 50% prior makes the same test far more informative\n    assert medical_test(0.5, 0.99, 0.05) > 0.9\n\n\ndef test_posteriors_sum_to_one_and_errors():\n    priors = [0.2, 0.3, 0.5]\n    likelihoods = [0.9, 0.4, 0.1]\n    post = posteriors(priors, likelihoods)\n    assert abs(sum(post) - 1.0) < 1e-12\n    assert len(post) == 3\n    # the hypothesis with the highest prior*likelihood wins\n    assert post.index(max(post)) == 0\n    # hand-check: evidence = 0.18 + 0.12 + 0.05 = 0.35, so post[0] = 0.18/0.35\n    assert abs(post[0] - 0.18 / 0.35) < 1e-12\n    try:\n        bayes([0.5, 0.4], [0.9, 0.1], 0)\n        assert False, \"priors that do not sum to 1 must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        bayes([0.5, 0.5], [0.9, 0.1], 5)\n        assert False, \"an out-of-range k must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_the_base_rate_dominates():\n    # the same test applied to rarer and rarer diseases\n    results = [medical_test(p, 0.99, 0.05) for p in (0.5, 0.1, 0.01, 0.001)]\n    assert all(a > b for a, b in zip(results, results[1:]))\n    assert results[0] > 0.9\n    assert results[3] < 0.02\n    # improving sensitivity barely helps a rare disease\n    poor = medical_test(0.001, 0.90, 0.05)\n    perfect = medical_test(0.001, 1.00, 0.05)\n    assert perfect - poor < 0.01\n    # but cutting the false-positive rate helps enormously\n    better_fpr = medical_test(0.001, 0.90, 0.001)\n    assert better_fpr > 10 * poor\n", "mutants": ["def _check(priors, likelihoods):\n    if len(priors) != len(likelihoods):\n        raise ValueError(\"priors and likelihoods must have the same length\")\n    if not priors:\n        raise ValueError(\"there must be at least one hypothesis\")\n    if abs(sum(priors) - 1.0) > 1e-9:\n        raise ValueError(\"the priors must sum to 1\")\n    for p in priors:\n        if p < 0:\n            raise ValueError(\"priors must be non-negative\")\n\n\ndef total_probability(priors, likelihoods):\n    \"\"\"Bug: adds the likelihoods without weighting by the priors.\"\"\"\n    _check(priors, likelihoods)\n    return sum(likelihoods)\n\n\ndef bayes(priors, likelihoods, k):\n    _check(priors, likelihoods)\n    if not 0 <= k < len(priors):\n        raise ValueError(\"k is out of range\")\n    evidence = total_probability(priors, likelihoods)\n    if evidence == 0:\n        raise ValueError(\"the evidence has probability zero\")\n    return priors[k] * likelihoods[k] / evidence\n\n\ndef posteriors(priors, likelihoods):\n    return [bayes(priors, likelihoods, k) for k in range(len(priors))]\n\n\ndef medical_test(prevalence, sensitivity, false_positive_rate):\n    if not 0 <= prevalence <= 1:\n        raise ValueError(\"the prevalence must lie in [0, 1]\")\n    return bayes([prevalence, 1 - prevalence],\n                 [sensitivity, false_positive_rate], 0)\n", "def _check(priors, likelihoods):\n    if len(priors) != len(likelihoods):\n        raise ValueError(\"priors and likelihoods must have the same length\")\n    if not priors:\n        raise ValueError(\"there must be at least one hypothesis\")\n    if abs(sum(priors) - 1.0) > 1e-9:\n        raise ValueError(\"the priors must sum to 1\")\n    for p in priors:\n        if p < 0:\n            raise ValueError(\"priors must be non-negative\")\n\n\ndef total_probability(priors, likelihoods):\n    _check(priors, likelihoods)\n    return sum(p * l for p, l in zip(priors, likelihoods))\n\n\ndef bayes(priors, likelihoods, k):\n    \"\"\"Bug: ignores the prior in the numerator, the base rate fallacy.\"\"\"\n    _check(priors, likelihoods)\n    if not 0 <= k < len(priors):\n        raise ValueError(\"k is out of range\")\n    evidence = total_probability(priors, likelihoods)\n    if evidence == 0:\n        raise ValueError(\"the evidence has probability zero\")\n    return likelihoods[k] / sum(likelihoods)\n\n\ndef posteriors(priors, likelihoods):\n    return [bayes(priors, likelihoods, k) for k in range(len(priors))]\n\n\ndef medical_test(prevalence, sensitivity, false_positive_rate):\n    if not 0 <= prevalence <= 1:\n        raise ValueError(\"the prevalence must lie in [0, 1]\")\n    return bayes([prevalence, 1 - prevalence],\n                 [sensitivity, false_positive_rate], 0)\n"], "hints": ["The evidence is the *weighted* sum: each likelihood multiplied by its own prior.", "The numerator of Bayes' theorem is prior times likelihood. Dropping the prior is exactly the base rate fallacy."], "level": "core", "title": "Total probability and Bayes' theorem"}, "m27-ex4-random-variables": {"starter": "def is_valid(dist):\n    \"\"\"True when the distribution is a valid pmf.\"\"\"\n    return False\n\n\ndef expectation(dist):\n    \"\"\"E[X].\"\"\"\n    return 0.0\n\n\ndef variance(dist):\n    \"\"\"Var(X).\"\"\"\n    return 0.0\n\n\ndef transform(dist, a, b):\n    \"\"\"The distribution of aX + b.\"\"\"\n    return {}\n\n\ndef linearity_holds(dist, a, b):\n    \"\"\"True when E[aX+b] = a E[X] + b.\"\"\"\n    return False\n\n\ndef variance_scaling_holds(dist, a, b):\n    \"\"\"True when Var(aX+b) = a^2 Var(X).\"\"\"\n    return False\n", "solution": "def is_valid(dist):\n    \"\"\"True when the distribution is a valid pmf.\"\"\"\n    if not dist:\n        return False\n    if any(p < 0 for p in dist.values()):\n        return False\n    return abs(sum(dist.values()) - 1.0) < 1e-9\n\n\ndef _check(dist):\n    if not is_valid(dist):\n        raise ValueError(\"not a valid probability distribution\")\n\n\ndef expectation(dist):\n    \"\"\"E[X].\"\"\"\n    _check(dist)\n    return sum(x * p for x, p in dist.items())\n\n\ndef variance(dist):\n    \"\"\"Var(X).\"\"\"\n    _check(dist)\n    mean = expectation(dist)\n    second = sum(x * x * p for x, p in dist.items())\n    return second - mean * mean\n\n\ndef transform(dist, a, b):\n    \"\"\"The distribution of aX + b.\"\"\"\n    _check(dist)\n    out = {}\n    for x, p in dist.items():\n        key = a * x + b\n        out[key] = out.get(key, 0.0) + p\n    return out\n\n\ndef linearity_holds(dist, a, b):\n    \"\"\"True when E[aX+b] = a E[X] + b.\"\"\"\n    lhs = expectation(transform(dist, a, b))\n    rhs = a * expectation(dist) + b\n    return abs(lhs - rhs) < 1e-9\n\n\ndef variance_scaling_holds(dist, a, b):\n    \"\"\"True when Var(aX+b) = a^2 Var(X).\"\"\"\n    lhs = variance(transform(dist, a, b))\n    rhs = a * a * variance(dist)\n    return abs(lhs - rhs) < 1e-9\n", "tests": "def test_fair_die_moments():\n    die = {k: 1 / 6 for k in range(1, 7)}\n    assert is_valid(die) is True\n    assert abs(expectation(die) - 3.5) < 1e-12\n    # variance of a fair die is 35/12\n    assert abs(variance(die) - 35 / 12) < 1e-12\n    # a constant has zero variance\n    assert abs(variance({5: 1.0})) < 1e-12\n    assert abs(expectation({5: 1.0}) - 5.0) < 1e-12\n    assert is_valid({1: 0.5, 2: 0.4}) is False          # does not sum to 1\n    assert is_valid({1: 1.5, 2: -0.5}) is False         # a negative probability\n\n\ndef test_linearity_and_variance_scaling():\n    die = {k: 1 / 6 for k in range(1, 7)}\n    bern = {0: 0.7, 1: 0.3}\n    for dist in (die, bern):\n        for a, b in ((2.0, 3.0), (-1.0, 0.0), (0.5, -4.0)):\n            assert linearity_holds(dist, a, b) is True\n            assert variance_scaling_holds(dist, a, b) is True\n    # shifting does not change the variance\n    assert abs(variance(transform(die, 1.0, 100.0)) - variance(die)) < 1e-9\n    # doubling quadruples it\n    assert abs(variance(transform(die, 2.0, 0.0)) - 4 * variance(die)) < 1e-9\n\n\ndef test_bernoulli_and_errors():\n    for p in (0.0, 0.1, 0.5, 0.9, 1.0):\n        bern = {0: 1 - p, 1: p}\n        assert abs(expectation(bern) - p) < 1e-12\n        assert abs(variance(bern) - p * (1 - p)) < 1e-12\n    # the variance is largest at p = 0.5\n    vs = [variance({0: 1 - p, 1: p}) for p in (0.1, 0.3, 0.5, 0.7, 0.9)]\n    assert vs[2] == max(vs)\n    # transform can merge values that collide\n    merged = transform({1: 0.5, -1: 0.5}, 0.0, 7.0)\n    assert merged == {7.0: 1.0}\n    try:\n        expectation({1: 0.5, 2: 0.2})\n        assert False, \"an invalid distribution must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def is_valid(dist):\n    if not dist:\n        return False\n    if any(p < 0 for p in dist.values()):\n        return False\n    return abs(sum(dist.values()) - 1.0) < 1e-9\n\n\ndef _check(dist):\n    if not is_valid(dist):\n        raise ValueError(\"not a valid probability distribution\")\n\n\ndef expectation(dist):\n    \"\"\"Bug: averages the values, ignoring their probabilities.\"\"\"\n    _check(dist)\n    return sum(dist.keys()) / len(dist)\n\n\ndef variance(dist):\n    _check(dist)\n    mean = expectation(dist)\n    second = sum(x * x * p for x, p in dist.items())\n    return second - mean * mean\n\n\ndef transform(dist, a, b):\n    _check(dist)\n    out = {}\n    for x, p in dist.items():\n        key = a * x + b\n        out[key] = out.get(key, 0.0) + p\n    return out\n\n\ndef linearity_holds(dist, a, b):\n    lhs = expectation(transform(dist, a, b))\n    rhs = a * expectation(dist) + b\n    return abs(lhs - rhs) < 1e-9\n\n\ndef variance_scaling_holds(dist, a, b):\n    lhs = variance(transform(dist, a, b))\n    rhs = a * a * variance(dist)\n    return abs(lhs - rhs) < 1e-9\n", "def is_valid(dist):\n    if not dist:\n        return False\n    if any(p < 0 for p in dist.values()):\n        return False\n    return abs(sum(dist.values()) - 1.0) < 1e-9\n\n\ndef _check(dist):\n    if not is_valid(dist):\n        raise ValueError(\"not a valid probability distribution\")\n\n\ndef expectation(dist):\n    _check(dist)\n    return sum(x * p for x, p in dist.items())\n\n\ndef variance(dist):\n    \"\"\"Bug: forgets to subtract the square of the mean.\"\"\"\n    _check(dist)\n    return sum(x * x * p for x, p in dist.items())\n\n\ndef transform(dist, a, b):\n    \"\"\"Bug: scales but forgets to shift.\"\"\"\n    _check(dist)\n    out = {}\n    for x, p in dist.items():\n        key = a * x\n        out[key] = out.get(key, 0.0) + p\n    return out\n\n\ndef linearity_holds(dist, a, b):\n    lhs = expectation(transform(dist, a, b))\n    rhs = a * expectation(dist) + b\n    return abs(lhs - rhs) < 1e-9\n\n\ndef variance_scaling_holds(dist, a, b):\n    lhs = variance(transform(dist, a, b))\n    rhs = a * a * variance(dist)\n    return abs(lhs - rhs) < 1e-9\n"], "hints": ["Expectation weights each value by its probability, so it is a weighted average, not a plain one.", "`Var(X) = E[X^2] - (E[X])^2`. The subtraction is what makes a constant have zero variance."], "level": "core", "title": "Random variables, expectation and variance"}, "m27-ex5-binomial": {"starter": "def binomial_pmf(n, p, k):\n    \"\"\"P(X = k) for a binomial.\"\"\"\n    return 0.0\n\n\ndef binomial_distribution(n, p):\n    \"\"\"The whole pmf as a dict.\"\"\"\n    return {}\n\n\ndef binomial_mean(n, p):\n    \"\"\"np.\"\"\"\n    return 0.0\n\n\ndef binomial_variance(n, p):\n    \"\"\"np(1-p).\"\"\"\n    return 0.0\n\n\ndef binomial_cdf(n, p, k):\n    \"\"\"P(X <= k).\"\"\"\n    return 0.0\n\n\ndef at_least_one(n, p):\n    \"\"\"P(X >= 1).\"\"\"\n    return 0.0\n", "solution": "from math import comb\n\n\ndef _check(n, p):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n\n\ndef binomial_pmf(n, p, k):\n    \"\"\"P(X = k) for a binomial.\"\"\"\n    _check(n, p)\n    if not isinstance(k, int) or k < 0 or k > n:\n        raise ValueError(\"k must lie between 0 and n\")\n    return comb(n, k) * (p ** k) * ((1 - p) ** (n - k))\n\n\ndef binomial_distribution(n, p):\n    \"\"\"The whole pmf as a dict.\"\"\"\n    _check(n, p)\n    return {k: binomial_pmf(n, p, k) for k in range(n + 1)}\n\n\ndef binomial_mean(n, p):\n    \"\"\"np.\"\"\"\n    _check(n, p)\n    return n * p\n\n\ndef binomial_variance(n, p):\n    \"\"\"np(1-p).\"\"\"\n    _check(n, p)\n    return n * p * (1 - p)\n\n\ndef binomial_cdf(n, p, k):\n    \"\"\"P(X <= k).\"\"\"\n    _check(n, p)\n    if not isinstance(k, int) or k < 0 or k > n:\n        raise ValueError(\"k must lie between 0 and n\")\n    return sum(binomial_pmf(n, p, j) for j in range(k + 1))\n\n\ndef at_least_one(n, p):\n    \"\"\"P(X >= 1).\"\"\"\n    _check(n, p)\n    return 1 - (1 - p) ** n\n", "tests": "def test_pmf_is_a_distribution_and_matches_by_hand():\n    for n, p in ((1, 0.5), (5, 0.3), (10, 0.7), (20, 0.1)):\n        dist = binomial_distribution(n, p)\n        assert len(dist) == n + 1\n        assert abs(sum(dist.values()) - 1.0) < 1e-12\n        assert all(v >= 0 for v in dist.values())\n    # hand-checked: three fair coins, exactly two heads, C(3,2)/8 = 3/8\n    assert abs(binomial_pmf(3, 0.5, 2) - 3 / 8) < 1e-12\n    assert abs(binomial_pmf(3, 0.5, 0) - 1 / 8) < 1e-12\n    # a certain success\n    assert abs(binomial_pmf(5, 1.0, 5) - 1.0) < 1e-12\n    assert abs(binomial_pmf(5, 0.0, 0) - 1.0) < 1e-12\n\n\ndef test_moments_match_the_distribution():\n    for n, p in ((5, 0.3), (10, 0.5), (20, 0.8), (50, 0.1)):\n        dist = binomial_distribution(n, p)\n        mean = sum(k * v for k, v in dist.items())\n        second = sum(k * k * v for k, v in dist.items())\n        var = second - mean * mean\n        assert abs(mean - binomial_mean(n, p)) < 1e-9, (n, p)\n        assert abs(var - binomial_variance(n, p)) < 1e-9, (n, p)\n    # the variance is maximised at p = 0.5\n    vs = [binomial_variance(20, p) for p in (0.1, 0.3, 0.5, 0.7, 0.9)]\n    assert vs[2] == max(vs)\n\n\ndef test_cdf_at_least_one_and_errors():\n    n, p = 10, 0.2\n    assert abs(binomial_cdf(n, p, n) - 1.0) < 1e-12\n    assert abs(binomial_cdf(n, p, 0) - binomial_pmf(n, p, 0)) < 1e-12\n    # the cdf is non-decreasing\n    vals = [binomial_cdf(n, p, k) for k in range(n + 1)]\n    assert all(a <= b + 1e-15 for a, b in zip(vals, vals[1:]))\n    # \"at least one\" is the complement of \"none\", as in M10\n    for n2, p2 in ((4, 0.5), (10, 0.2), (3, 1 / 6)):\n        assert abs(at_least_one(n2, p2) - (1 - binomial_pmf(n2, p2, 0))) < 1e-12\n    assert abs(at_least_one(4, 0.5) - 15 / 16) < 1e-12\n    try:\n        binomial_pmf(5, 0.5, 6)\n        assert False, \"k above n must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        binomial_pmf(5, 1.5, 2)\n        assert False, \"p above 1 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import comb\n\n\ndef _check(n, p):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n\n\ndef binomial_pmf(n, p, k):\n    \"\"\"Bug: the exponents of p and (1-p) are swapped.\"\"\"\n    _check(n, p)\n    if not isinstance(k, int) or k < 0 or k > n:\n        raise ValueError(\"k must lie between 0 and n\")\n    return comb(n, k) * (p ** (n - k)) * ((1 - p) ** k)\n\n\ndef binomial_distribution(n, p):\n    _check(n, p)\n    return {k: binomial_pmf(n, p, k) for k in range(n + 1)}\n\n\ndef binomial_mean(n, p):\n    _check(n, p)\n    return n * p\n\n\ndef binomial_variance(n, p):\n    _check(n, p)\n    return n * p * (1 - p)\n\n\ndef binomial_cdf(n, p, k):\n    _check(n, p)\n    if not isinstance(k, int) or k < 0 or k > n:\n        raise ValueError(\"k must lie between 0 and n\")\n    return sum(binomial_pmf(n, p, j) for j in range(k + 1))\n\n\ndef at_least_one(n, p):\n    _check(n, p)\n    return 1 - (1 - p) ** n\n", "from math import comb\n\n\ndef _check(n, p):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if not 0 <= p <= 1:\n        raise ValueError(\"p must lie in [0, 1]\")\n\n\ndef binomial_pmf(n, p, k):\n    _check(n, p)\n    if not isinstance(k, int) or k < 0 or k > n:\n        raise ValueError(\"k must lie between 0 and n\")\n    return comb(n, k) * (p ** k) * ((1 - p) ** (n - k))\n\n\ndef binomial_distribution(n, p):\n    _check(n, p)\n    return {k: binomial_pmf(n, p, k) for k in range(n + 1)}\n\n\ndef binomial_mean(n, p):\n    _check(n, p)\n    return n * p\n\n\ndef binomial_variance(n, p):\n    \"\"\"Bug: uses np^2 instead of np(1-p).\"\"\"\n    _check(n, p)\n    return n * p * p\n\n\ndef binomial_cdf(n, p, k):\n    \"\"\"Bug: excludes k itself, computing P(X < k).\"\"\"\n    _check(n, p)\n    if not isinstance(k, int) or k < 0 or k > n:\n        raise ValueError(\"k must lie between 0 and n\")\n    return sum(binomial_pmf(n, p, j) for j in range(k))\n\n\ndef at_least_one(n, p):\n    _check(n, p)\n    return 1 - (1 - p) ** n\n"], "hints": ["In `C(n,k) p^k (1-p)^(n-k)`, the exponent of `p` counts the successes, so it is `k`.", "The variance is `np(1-p)`, which vanishes at `p = 0` and `p = 1` and is largest at `p = 0.5`."], "level": "boss", "title": "Bernoulli trials and the binomial distribution"}}, "demos": {"m27-bayes-two-ways": {"code": "from fractions import Fraction\n\nPREVALENCE = Fraction(1, 100)\nSENSITIVITY = Fraction(99, 100)      # P(+ | disease)\nFALSE_POSITIVE = Fraction(5, 100)    # P(+ | no disease)\n\n\ndef posterior_by_formula(prior, sens, fpr):\n    \"\"\"Bayes' theorem, with total probability in the denominator.\"\"\"\n    evidence = prior * sens + (1 - prior) * fpr\n    return prior * sens / evidence\n\n\ndef posterior_by_counting(prior, sens, fpr, population=1000000):\n    \"\"\"Build the uncle's table and divide counts. No probability algebra.\"\"\"\n    ill = int(population * prior)\n    healthy = population - ill\n    true_positive = int(ill * sens)\n    false_positive = int(healthy * fpr)\n    return Fraction(true_positive, true_positive + false_positive)\n\n\na = posterior_by_formula(PREVALENCE, SENSITIVITY, FALSE_POSITIVE)\nb = posterior_by_counting(PREVALENCE, SENSITIVITY, FALSE_POSITIVE)\nprint(\"Kavita's test\")\nprint(\"  P(disease)            =\", float(PREVALENCE))\nprint(\"  P(positive | disease) =\", float(SENSITIVITY))\nprint(\"  P(positive | healthy) =\", float(FALSE_POSITIVE))\nprint(\"  P(disease | positive) by formula  =\", float(a), \"=\", a)\nprint(\"  P(disease | positive) by counting =\", float(b))\nassert abs(float(a) - float(b)) < 1e-6, \"both routes must agree\"\nassert abs(float(a) - 99 / 594) < 1e-12, \"the exact answer is 99/594\"\nassert float(a) < 0.2, \"the posterior is far below the sensitivity\"\n\n# The uncle's ten thousand, exactly as he counted them.\nill = 100\nhealthy = 9900\ncaught = 99\nfalse_alarms = 495\nprint()\nprint(f\"  of 10000: {ill} ill, {healthy} healthy\")\nprint(f\"  positives: {caught} true + {false_alarms} false = {caught + false_alarms}\")\nassert caught + false_alarms == 594\nassert Fraction(caught, caught + false_alarms) == a\n\n# Many scenarios, both ways.\nprint()\nprint(f\"{'prior':>10} {'sens':>8} {'fpr':>8} {'formula':>12} {'counting':>12}\")\nfor pr, se, fp in ((Fraction(1, 2), Fraction(9, 10), Fraction(1, 10)),\n                   (Fraction(1, 1000), Fraction(99, 100), Fraction(1, 100)),\n                   (Fraction(3, 10), Fraction(8, 10), Fraction(2, 10)),\n                   (Fraction(1, 10000), Fraction(999, 1000), Fraction(1, 1000))):\n    f = posterior_by_formula(pr, se, fp)\n    c = posterior_by_counting(pr, se, fp, population=10000000)\n    print(f\"{float(pr):>10.5f} {float(se):>8.3f} {float(fp):>8.3f} {float(f):>12.6f} {float(c):>12.6f}\")\n    assert abs(float(f) - float(c)) < 1e-4\n\n# The two conditionals are genuinely different numbers.\nprint()\nprint(\"P(positive | disease) =\", float(SENSITIVITY), \" P(disease | positive) =\", round(float(a), 6))\nassert SENSITIVITY != a, \"the two conditionals must not be confused\"\nassert float(SENSITIVITY) / float(a) > 5, \"they differ by a large factor here\"\n\n# The law of total probability must reproduce the overall positive rate.\np_positive = PREVALENCE * SENSITIVITY + (1 - PREVALENCE) * FALSE_POSITIVE\ncounted = (99 + 495) / 10000\nprint(\"P(positive) by total probability =\", float(p_positive), \" by counting =\", counted)\nassert abs(float(p_positive) - counted) < 1e-12\n", "mutants": ["from fractions import Fraction\n\nPREVALENCE = Fraction(1, 100)\nSENSITIVITY = Fraction(99, 100)\nFALSE_POSITIVE = Fraction(5, 100)\n\n\ndef posterior_by_formula(prior, sens, fpr):\n    \"\"\"Bug: the base rate fallacy, returning P(+|D) instead of P(D|+).\"\"\"\n    return sens\n\n\ndef posterior_by_counting(prior, sens, fpr, population=1000000):\n    ill = int(population * prior)\n    healthy = population - ill\n    true_positive = int(ill * sens)\n    false_positive = int(healthy * fpr)\n    return Fraction(true_positive, true_positive + false_positive)\n\n\na = posterior_by_formula(PREVALENCE, SENSITIVITY, FALSE_POSITIVE)\nb = posterior_by_counting(PREVALENCE, SENSITIVITY, FALSE_POSITIVE)\nprint(\"  P(disease | positive) by formula  =\", float(a))\nprint(\"  P(disease | positive) by counting =\", float(b))\nassert abs(float(a) - float(b)) < 1e-6, \"both routes must agree\"\n"]}, "m27-base-rate-and-moments": {"code": "import random\nfrom math import comb\n\nSENS, FPR = 0.99, 0.05\n\n\ndef posterior(prior):\n    return prior * SENS / (prior * SENS + (1 - prior) * FPR)\n\n\nprint(\"the test never changes: sensitivity 0.99, false-positive rate 0.05\")\nprint(f\"{'prevalence':>12} {'P(disease | positive)':>24} {'ratio to previous':>20}\")\nprev_post = None\nratios = []\nfor prior in (0.5, 0.1, 0.01, 0.001, 0.0001):\n    post = posterior(prior)\n    ratio = (prev_post / post) if prev_post else float(\"nan\")\n    if prev_post:\n        ratios.append(ratio)\n    print(f\"{prior:>12.5f} {post:>24.8f} {ratio:>20.2f}\")\n    prev_post = post\n\nprint()\nprint(\"predicted: for a RARE disease, dividing prevalence by 10 divides the posterior\")\nprint(\"           by about 10 -- but only once (1-prior)*fpr dominates the denominator,\")\nprint(\"           so the ratio approaches 10 from below as the disease gets rarer.\")\nfor a, b in zip(ratios, ratios[1:]):\n    assert b > a, \"the ratio must approach 10 from below as the prior shrinks\"\nassert ratios[-1] > 9.0, f\"in the rare regime the ratio must be close to 10, got {ratios[-1]}\"\nassert ratios[-1] < 11.0\nassert ratios[0] < 6.0, \"at a 10% prior the tenfold rule does NOT yet hold\"\nassert posterior(0.5) > 0.9, \"for a 50% prior the test is very informative\"\nassert posterior(0.01) < 0.2, \"for a 1% prior the same test is not\"\nassert posterior(0.0001) < 0.01, \"and for a very rare disease it is nearly useless\"\n\n# --- binomial moments, measured ---\nrng = random.Random(1763)\nprint()\nprint(f\"{'n':>5} {'p':>6} {'E[X] pred':>12} {'measured':>12} {'Var pred':>12} {'measured':>12}\")\nfor n, p in ((10, 0.5), (20, 0.3), (50, 0.1), (100, 0.8)):\n    trials = 40000\n    samples = [sum(1 for _ in range(n) if rng.random() < p) for _ in range(trials)]\n    mean = sum(samples) / trials\n    var = sum((x - mean) ** 2 for x in samples) / (trials - 1)\n    print(f\"{n:>5} {p:>6.2f} {n * p:>12.4f} {mean:>12.4f} {n * p * (1 - p):>12.4f} {var:>12.4f}\")\n    assert abs(mean - n * p) < 0.05 * max(1.0, n * p), \"E[X] must be np\"\n    assert abs(var - n * p * (1 - p)) < 0.08 * n * p * (1 - p), \"Var must be np(1-p)\"\n\n# the pmf sums to 1 and matches the simulated frequencies\nn, p = 10, 0.4\npmf = [comb(n, k) * p ** k * (1 - p) ** (n - k) for k in range(n + 1)]\nprint()\nprint(\"binomial(10, 0.4) pmf sums to\", round(sum(pmf), 12))\nassert abs(sum(pmf) - 1.0) < 1e-12\ncounts = [0] * (n + 1)\nfor _ in range(100000):\n    counts[sum(1 for _ in range(n) if rng.random() < p)] += 1\nfor k in range(n + 1):\n    assert abs(counts[k] / 100000 - pmf[k]) < 0.01, f\"frequency at k={k} must match the pmf\"\nprint(\"simulated frequencies matched the pmf at every k\")\n\n# --- expectation always adds; variance needs independence ---\nprint()\nprint(\"predicted: E[X+Y] = E[X]+E[Y] ALWAYS, but Var(X+Y) = Var(X)+Var(Y) only if independent\")\n# Dependent pair: Y = X, perfectly correlated.\nxs = [rng.randint(1, 6) for _ in range(200000)]\nys_dep = xs[:]                                 # Y = X exactly\nys_ind = [rng.randint(1, 6) for _ in range(200000)]\n\n\ndef mean_of(v):\n    return sum(v) / len(v)\n\n\ndef var_of(v):\n    m = mean_of(v)\n    return sum((x - m) ** 2 for x in v) / (len(v) - 1)\n\n\nfor label, ys in ((\"dependent (Y = X)\", ys_dep), (\"independent\", ys_ind)):\n    sums = [a + b for a, b in zip(xs, ys)]\n    e_sum, e_parts = mean_of(sums), mean_of(xs) + mean_of(ys)\n    v_sum, v_parts = var_of(sums), var_of(xs) + var_of(ys)\n    print(f\"  {label:>18}: E[X+Y]={e_sum:7.4f} vs {e_parts:7.4f}   \"\n          f\"Var[X+Y]={v_sum:8.4f} vs {v_parts:8.4f}\")\n    assert abs(e_sum - e_parts) < 1e-9, \"expectation must add in both cases\"\n    if \"independent\" in label:\n        assert abs(v_sum - v_parts) < 0.1, \"variances add when independent\"\n    else:\n        assert v_sum > 3 * v_parts / 2, \"variances must NOT add when dependent\"\n", "mutants": ["import random\n\nSENS, FPR = 0.99, 0.05\n\n\ndef posterior(prior):\n    return prior * SENS / (prior * SENS + (1 - prior) * FPR)\n\n\nratios = []\nprev_post = None\nfor prior in (0.5, 0.1, 0.01, 0.001, 0.0001):\n    post = posterior(prior)\n    if prev_post:\n        ratios.append(prev_post / post)\n    print(f\"  prevalence {prior:.5f} -> posterior {post:.8f}\")\n    prev_post = post\n\nprint(\"predicted under the WRONG theory: the posterior does not depend on the prior\")\n# Wrong theory: claims the base rate does not matter.\nfor r in ratios:\n    assert 0.9 < r < 1.1, \"the posterior should be unchanged by the prevalence\"\n"]}}, "cards": [{"q": "What does conditioning on B do to the sample space?", "a": "It narrows it to B, and renormalises by dividing by P(B) so the new probabilities sum to 1."}, {"q": "Why are P(A|B) and P(B|A) different?", "a": "They divide the same joint probability by different things. When P(A) and P(B) differ greatly, so do the two conditionals."}, {"q": "State Bayes' theorem and name its four parts.", "a": "Posterior equals prior times likelihood divided by evidence, where the evidence is the total probability of the observation."}, {"q": "A test is 99% sensitive with a 5% false-positive rate, applied to a 1%-prevalent disease. What is P(disease | positive)?", "a": "About 1 in 6, because 99 true positives are swamped by 495 false ones out of 10,000 people."}, {"q": "Are mutually exclusive events independent?", "a": "No, the opposite. Disjoint events of positive probability are maximally dependent, since one occurring rules out the other."}, {"q": "Which adds without conditions, expectation or variance?", "a": "Expectation always adds. Variance adds only when the variables are independent."}, {"q": "Give the mean and variance of a binomial, and say where independence is needed.", "a": "np and np(1-p). The mean follows from linearity alone; the variance needs the trials to be independent."}, {"q": "What is the relation between Var(X) and E[X^2]?", "a": "Var(X) = E[X^2] - (E[X])^2, so the two square-quantities differ by exactly the variance."}, {"q": "For a rare condition, is it better to improve sensitivity or reduce the false-positive rate?", "a": "Reduce the false-positive rate. The posterior is governed by prevalence times sensitivity against the false-positive rate, and sensitivity is already near its ceiling."}, {"q": "How do precision and recall relate to conditional probability?", "a": "Recall is P(flagged | bad) and precision is P(bad | flagged) \u2014 the two directions of the same conditional, and not interchangeable."}], "title": "Probability II: conditional probability and random variables"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P04 Boolean logic and digital circuits</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P04">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-1 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P04</p><h1>Boolean logic and digital circuits</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P01.html">P01</a> <a href="M17.html">M17</a></div><div><b>Covers:</b> CS2023 AR, CS2023 SF</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>Boolean algebra laws</li><li>truth tables to expressions</li><li>CNF and DNF</li><li>logic gates</li><li>NAND universality</li><li>half and full adders</li><li>ripple-carry addition</li><li>multiplexers</li><li>Karnaugh maps</li><li>latches and flip-flops</li><li>clocks</li><li>finite state machines in hardware</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1854, English mathematician George Boole published "An Investigation of the Laws of Thought," proposing an abstract mathematical system where variables took only two truth values—True (1) and False (0)—manipulated by algebraic operations of conjunction (AND), disjunction (OR), and negation (NOT). For eighty-three years, Boole's algebra was considered an eccentric branch of philosophical logic with no practical utility. That changed in 1937 when a twenty-one-year-old MIT graduate student named Claude Shannon published his master's thesis, "A Symbolic Analysis of Relay and Switching Circuits." Shannon demonstrated that telephone routing relays could physically execute Boolean algebra, proving that electrical switches could compute any logical or mathematical function.</p>
+<p>Three decades later, during the peak of the Apollo space program in 1966, NASA engineers designing the Apollo Guidance Computer (AGC) faced an extreme challenge: building an airborne computer compact enough to fit aboard a spacecraft traveling to the Moon. Led by Eldon Hall at the MIT Instrumentation Laboratory, the engineering team made a radical architectural decision: they built the entire guidance computer out of 5,600 identical integrated circuits, each containing two 3-input NOR gates. By exploiting the mathematical universality of NOR and NAND logic, NASA simplified silicon manufacturing, streamlined flight testing, and safely guided human astronauts to the lunar surface.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Every computer chip, graphics card, and memory module is assembled from microscopic electrical switches called logic gates. The primary gates are AND (both inputs must be 1), OR (at least one input must be 1), NOT (flips 1 to 0 and vice versa), and XOR (true when inputs differ). Miraculously, a single gate type—the NAND gate—is universal, meaning you can build any computer in the world using only NAND gates. By wiring gates together, we build adders to calculate arithmetic, multiplexers to steer signals, flip-flops to store bits, and ticking clock circuits to step through programs.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and physical implementation of digital circuits are specified by:</p>
+<ol>
+<li>
+<p><strong>Boolean Algebra Axioms &amp; De Morgan's Laws</strong>:
+- <strong>Identity &amp; Annihilation</strong>: $A \wedge 1 = A, \quad A \vee 0 = A, \quad A \wedge 0 = 0, \quad A \vee 1 = 1$
+- <strong>Complementarity</strong>: $A \wedge \neg A = 0, \quad A \vee \neg A = 1$
+- <strong>Involution</strong>: $\neg(\neg A) = A$
+- <strong>De Morgan's Duality</strong>:
+$$\neg(A \wedge B) = \neg A \vee \neg B, \quad \neg(A \vee B) = \neg A \wedge \neg B$$</p>
+</li>
+<li>
+<p><strong>Normal Forms &amp; Functional Completeness</strong>:
+- <strong>Disjunctive Normal Form (DNF / Sum-of-Products)</strong>: OR of AND minterms corresponding to truth table rows where $f=1$.
+- <strong>Conjunctive Normal Form (CNF / Product-of-Sums)</strong>: AND of OR maxterms where $f=0$.
+- <strong>NAND Universality</strong>: The Sheffer stroke ($A \uparrow B = \neg(A \wedge B)$) generates all boolean functions:
+$$\neg A = A \uparrow A, \quad A \wedge B = (A \uparrow B) \uparrow (A \uparrow B), \quad A \vee B = (A \uparrow A) \uparrow (B \uparrow B)$$</p>
+</li>
+<li>
+<p><strong>Binary Arithmetic Circuits</strong>:
+- <strong>Half Adder</strong>: Computes single-bit sum and carry:
+$$\text{Sum} = A \oplus B, \quad \text{Carry} = A \wedge B$$
+- <strong>Full Adder</strong>: Computes addition with incoming carry $C_{\text{in}}$:
+$$\text{Sum} = A \oplus B \oplus C_{\text{in}}, \quad C_{\text{out}} = (A \wedge B) \vee (C_{\text{in}} \wedge (A \oplus B))$$
+- <strong>Ripple-Carry Adder</strong>: Cascades $N$ full adders with worst-case propagation delay $T = O(N \cdot t_{\text{gate}})$.</p>
+</li>
+<li>
+<p><strong>Sequential Logic &amp; Memory</strong>:
+- <strong>Bistable SR Latch</strong>: Cross-coupled NOR or NAND gates storing one bit of state.
+- <strong>Edge-Triggered D Flip-Flop</strong>: Captures input $D$ on the rising clock edge, obeying setup time $t_{\text{setup}}$ and hold time $t_{\text{hold}}$.
+- <strong>Hardware Finite State Machines (FSMs)</strong>: Characterized by state register $S$, next-state logic $\delta(S, X)$, and output logic $\lambda(S)$ (Moore) or $\lambda(S, X)$ (Mealy).</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why modern digital computing converged upon Boolean logic and binary abstraction requires analyzing electrical noise margins and signal degradation in physical silicon. In theory, an analog computer operating with continuous voltages could compute differential equations instantaneously. In practice, electrical noise, thermal fluctuations, and voltage drops quickly corrupt analog calculations.</p>
+<p>Binary Boolean logic provides infinite noise tolerance through digital restoration:
+1. <strong>Voltage Noise Margins</strong>: Instead of measuring precise fractional voltages, digital circuits define wide tolerance bands. In $3.3\text{V}$ CMOS logic, any voltage between $0\text{V}$ and $0.8\text{V}$ is interpreted as a binary $0$, and any voltage between $2.0\text{V}$ and $3.3\text{V}$ is interpreted as a binary $1$.
+2. <strong>Signal Restoration</strong>: As a digital signal passes through an inverter gate, non-linear transistor saturation actively restores degraded voltages back to clean rails ($V_{DD}$ or Ground). Signals can traverse billions of logic gates across thousands of clock cycles without accumulating noise.
+3. <strong>NAND Gate Efficiency</strong>: In CMOS silicon, a NAND gate requires only four transistors (two PMOS in parallel, two NMOS in series), making it physically smaller, faster, and more energy-efficient than an AND gate (which requires a NAND followed by an inverter).</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The full adder and ripple-carry addition verification oracle simulates digital silicon circuitry, proving that gate-level boolean expressions produce mathematically exact binary arithmetic. The demonstration verifies half-adder truth tables, cascades multi-bit full adders with carry propagation, and verifies that hardware addition strictly matches integer arithmetic across all possible 4-bit combinations without numerical discrepancy or logic race conditions.</p>
+<div class="lab demo" data-demo="p04-oracle-full-adder">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Full Adder and Ripple-Carry Circuit Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def full_adder_logic(a: int, b: int, cin: int) -&gt; tuple:
+    s = (a ^ b) ^ cin
+    cout = (a &amp; b) | (cin &amp; (a ^ b))
+    return s, cout
+
+def ripple_carry_4bit(a: int, b: int) -&gt; int:
+    cin = 0
+    res_bits = []
+    for i in range(4):
+        bit_a = (a &gt;&gt; i) &amp; 1
+        bit_b = (b &gt;&gt; i) &amp; 1
+        s, cin = full_adder_logic(bit_a, bit_b, cin)
+        res_bits.append(s)
+    res_bits.append(cin)  # overflow carry bit
+    
+    total = 0
+    for i, bit in enumerate(res_bits):
+        total |= (bit &lt;&lt; i)
+    return total
+
+# Exhaustively verify all 4-bit additions: 0..15 + 0..15
+for x in range(16):
+    for y in range(16):
+        expected = x + y
+        actual = ripple_carry_4bit(x, y)
+        assert actual == expected, f&quot;Adder failed: {x} + {y} = {actual}, expected {expected}&quot;
+
+print(&quot;Full adder logic and 4-bit ripple-carry arithmetic exhaustively verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the functional completeness of the NAND gate by synthesizing all elementary logic gates (NOT, AND, OR, XOR) exclusively from pure two-input NAND functions. The experiment evaluates the synthesized boolean networks against standard truth tables, proving that any digital computer can be fabricated using identical NAND building blocks, matching Apollo Guidance Computer historical engineering. This empirical demonstration underscores the profound elegance and manufacturing economy of functional completeness in physical silicon design.</p>
+<div class="lab demo" data-demo="p04-exp-nand-synthesis">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>NAND Gate Universal Synthesis Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def nand_gate(a: int, b: int) -&gt; int:
+    return 1 if not (a == 1 and b == 1) else 0
+
+def not_gate(a: int) -&gt; int:
+    return nand_gate(a, a)
+
+def and_gate(a: int, b: int) -&gt; int:
+    return not_gate(nand_gate(a, b))
+
+def or_gate(a: int, b: int) -&gt; int:
+    return nand_gate(not_gate(a), not_gate(b))
+
+def xor_gate(a: int, b: int) -&gt; int:
+    # A ^ B = (A | B) &amp; ~(A &amp; B)
+    n = nand_gate(a, b)
+    return nand_gate(nand_gate(a, n), nand_gate(b, n))
+
+# Verify truth tables
+for a in (0, 1):
+    for b in (0, 1):
+        assert and_gate(a, b) == (a &amp; b)
+        assert or_gate(a, b) == (a | b)
+        assert xor_gate(a, b) == (a ^ b)
+    assert not_gate(a) == (1 - a)
+
+print(&quot;NAND universality verified across NOT, AND, OR, and XOR truth tables.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-nand-universal-synthesizer" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>NAND Gate Universal Logic Synthesizer</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement elementary logic gates using ONLY a primitive two-input NAND gate. Provide functions not_from_nand(a), and_from_nand(a, b), or_from_nand(a, b), and xor_from_nand(a, b) that rely exclusively on NAND compositions.</p></div>
+<textarea class="code" spellcheck="false">def nand_gate(a: int, b: int) -&gt; int:
+    return 1 if not (a == 1 and b == 1) else 0
+
+def not_from_nand(a: int) -&gt; int:
+    pass
+
+def and_from_nand(a: int, b: int) -&gt; int:
+    pass
+
+def or_from_nand(a: int, b: int) -&gt; int:
+    pass
+
+def xor_from_nand(a: int, b: int) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/4)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_nand_not():
+    assert not_from_nand(0) == 1
+    assert not_from_nand(1) == 0
+
+def test_nand_and_or():
+    for a in (0, 1):
+        for b in (0, 1):
+            assert and_from_nand(a, b) == (a &amp; b)
+            assert or_from_nand(a, b) == (a | b)
+
+def test_nand_xor():
+    assert xor_from_nand(0, 0) == 0
+    assert xor_from_nand(0, 1) == 1
+    assert xor_from_nand(1, 0) == 1
+    assert xor_from_nand(1, 1) == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-full-adder-circuit" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Full Adder and N-Bit Ripple-Carry Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement full_adder(a: int, b: int, cin: int) -&gt; tuple[int, int] returning (sum_bit, cout_bit), and ripple_carry_adder(a_bits: list[int], b_bits: list[int]) -&gt; tuple[list[int], int] to perform arbitrary-width binary addition with carry propagation.</p></div>
+<textarea class="code" spellcheck="false">def full_adder(a: int, b: int, cin: int) -&gt; tuple[int, int]:
+    pass
+
+def ripple_carry_adder(a_bits: list[int], b_bits: list[int]) -&gt; tuple[list[int], int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_full_adder_truth_table():
+    assert full_adder(0, 0, 0) == (0, 0)
+    assert full_adder(1, 0, 0) == (1, 0)
+    assert full_adder(0, 1, 0) == (1, 0)
+    assert full_adder(1, 1, 0) == (0, 1)
+    assert full_adder(0, 0, 1) == (1, 0)
+    assert full_adder(1, 0, 1) == (0, 1)
+    assert full_adder(0, 1, 1) == (0, 1)
+    assert full_adder(1, 1, 1) == (1, 1)
+
+def test_ripple_carry_4bit():
+    # 5 (0101) + 3 (0011) = 8 (1000)
+    a = [1, 0, 1, 0]  # LSB first
+    b = [1, 1, 0, 0]
+    sums, cout = ripple_carry_adder(a, b)
+    assert sums == [0, 0, 0, 1]
+    assert cout == 0
+
+def test_ripple_carry_overflow():
+    # 15 (1111) + 1 (0001) = 16 (0000 with carry 1)
+    a = [1, 1, 1, 1]
+    b = [1, 0, 0, 0]
+    sums, cout = ripple_carry_adder(a, b)
+    assert sums == [0, 0, 0, 0]
+    assert cout == 1
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-multiplexer-tree" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Multiplexer and Demultiplexer Routing Logic</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement mux_4to1(d0: int, d1: int, d2: int, d3: int, s0: int, s1: int) -&gt; int to select one of four inputs based on two selector lines, and demux_1to4(din: int, s0: int, s1: int) -&gt; list[int] to route a single input to one of four outputs.</p></div>
+<textarea class="code" spellcheck="false">def mux_4to1(d0: int, d1: int, d2: int, d3: int, s0: int, s1: int) -&gt; int:
+    pass
+
+def demux_1to4(din: int, s0: int, s1: int) -&gt; list[int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_mux_4to1():
+    # d0=1, d1=0, d2=1, d3=0
+    assert mux_4to1(1, 0, 1, 0, s0=0, s1=0) == 1
+    assert mux_4to1(1, 0, 1, 0, s0=1, s1=0) == 0
+    assert mux_4to1(1, 0, 1, 0, s0=0, s1=1) == 1
+    assert mux_4to1(1, 0, 1, 0, s0=1, s1=1) == 0
+
+def test_demux_1to4():
+    assert demux_1to4(1, s0=0, s1=0) == [1, 0, 0, 0]
+    assert demux_1to4(1, s0=1, s1=0) == [0, 1, 0, 0]
+    assert demux_1to4(1, s0=0, s1=1) == [0, 0, 1, 0]
+    assert demux_1to4(1, s0=1, s1=1) == [0, 0, 0, 1]
+    assert demux_1to4(0, s0=1, s1=1) == [0, 0, 0, 0]
+
+def test_mux_all_channels():
+    # Route values 10, 20, 30, 40 through channels
+    assert mux_4to1(10, 20, 30, 40, s0=0, s1=0) == 10
+    assert mux_4to1(10, 20, 30, 40, s0=1, s1=0) == 20
+    assert mux_4to1(10, 20, 30, 40, s0=0, s1=1) == 30
+    assert mux_4to1(10, 20, 30, 40, s0=1, s1=1) == 40
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-hardware-traffic-fsm" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Hardware Synchronous Finite State Machine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a synchronous hardware FSM class TrafficLightFSM with states 'GREEN', 'YELLOW', 'RED', supporting clock tick transitions, sensor-based pedestrian overrides, and enforcing safety invariants preventing illegal state transitions.</p></div>
+<textarea class="code" spellcheck="false">class TrafficLightFSM:
+    def __init__(self):
+        self.state = &quot;GREEN&quot;
+        self.timer = 0
+
+    def tick(self, pedestrian_button: bool = False) -&gt; str:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_fsm_normal_cycle():
+    fsm = TrafficLightFSM()
+    assert fsm.state == &quot;GREEN&quot;
+    # Ticks 1 to 4 remain GREEN
+    for _ in range(4):
+        assert fsm.tick(pedestrian_button=False) == &quot;GREEN&quot;
+    # Tick 5 transitions to YELLOW
+    assert fsm.tick(pedestrian_button=False) == &quot;YELLOW&quot;
+    # Tick 1 in YELLOW remains YELLOW
+    assert fsm.tick(pedestrian_button=False) == &quot;YELLOW&quot;
+    # Tick 2 transitions to RED
+    assert fsm.tick(pedestrian_button=False) == &quot;RED&quot;
+
+def test_fsm_pedestrian_override():
+    fsm = TrafficLightFSM()
+    # At timer=1, pedestrian button does not override yet (requires timer &gt;= 2)
+    assert fsm.tick(pedestrian_button=True) == &quot;GREEN&quot;
+    # At timer=2, button triggers immediate yellow transition
+    assert fsm.tick(pedestrian_button=True) == &quot;YELLOW&quot;
+
+def test_fsm_red_to_green_recovery():
+    fsm = TrafficLightFSM()
+    # Fast forward to RED
+    fsm.state = &quot;RED&quot;
+    fsm.timer = 0
+    assert fsm.tick() == &quot;RED&quot;
+    assert fsm.tick() == &quot;RED&quot;
+    assert fsm.tick() == &quot;RED&quot;
+    assert fsm.tick() == &quot;GREEN&quot;  # after 4 ticks in RED
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Digital signals change state instantaneously with zero time delay."</strong> Physical transistors take time to charge and discharge gate capacitance; gate propagation delay limits the maximum clock frequency of processors.</li>
+<li><strong>"More logic gates always make a circuit execute faster."</strong> Adding gates increases propagation delay and silicon surface area; Karnaugh maps and logic synthesis algorithms optimize circuits to minimize the critical path.</li>
+<li><strong>"Sequential circuits produce outputs determined solely by current inputs."</strong> Sequential circuits contain feedback loops (flip-flops, latches) that store internal state; their output depends on both current inputs and execution history.</li>
+<li><strong>"A flip-flop can capture input data at any arbitrary moment relative to the clock."</strong> Inputs must remain stable before the clock edge (setup time) and after the clock edge (hold time) to prevent entering an unstable, undefined metastable state.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Digital abstraction collapses when physical clock frequencies exceed transistor switching limits, causing setup and hold time violations. When flip-flop inputs change too close to the clock edge, the circuit enters metastability—an indeterminate intermediate voltage state that can persist unpredictably, causing CPU instruction pipeline corruption and catastrophic system hardware hangs.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Digital logic synthesis powers modern Hardware Description Languages (Verilog, VHDL, Chisel) used to tape out processors at TSMC, Intel, and Apple. Engineers use FPGA synthesis tools to transform RTL boolean logic into look-up tables (LUTs), routing adders, ALUs, and memory controllers for high-frequency trading engines and mobile silicon.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is De Morgan's Law?</p></div><div class="a" hidden><p>not (A and B) = (not A) or (not B), and not (A or B) = (not A) and (not B).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does it mean that NAND is a universal gate?</p></div><div class="a" hidden><p>Any boolean logic function or digital circuit can be constructed exclusively using two-input NAND gates.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the difference between a half adder and a full adder?</p></div><div class="a" hidden><p>A half adder adds two bits; a full adder adds two bits plus an incoming carry bit (Cin).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is a multiplexer (MUX)?</p></div><div class="a" hidden><p>A digital switch that directs one of 2^N input lines to a single output line based on N selector lines.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is clock setup time (t_setup)?</p></div><div class="a" hidden><p>The minimum time an input signal must remain stable before the clock edge to avoid metastability.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the difference between Moore and Mealy state machines?</p></div><div class="a" hidden><p>Moore FSM outputs depend solely on the current state; Mealy FSM outputs depend on both current state and current inputs.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can apply Boolean algebra laws and De Morgan's duality, synthesize circuits from universal NAND gates, build full adders and multiplexers, and implement hardware finite state machines.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Shannon, C. E. (1938). A symbolic analysis of relay and switching circuits. Transactions of the AIEE, 57(12), 713-723.</li>
+<li>Boole, G. (1854). An Investigation of the Laws of Thought. Walton and Maberly.</li>
+<li>Mano, M. M., &amp; Ciletti, M. D. (2017). Digital Design: With an Introduction to the Verilog HDL. Pearson.</li>
+</ul></section>
+<footer class="pager"><a href="P03.html">&larr; P03 Abstraction, types and errors</a>
+<a href="P24.html">P24 Society, ethics and the profession &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P04", "packages": ["numpy"], "exercises": {"ex1-nand-universal-synthesizer": {"starter": "def nand_gate(a: int, b: int) -> int:\n    return 1 if not (a == 1 and b == 1) else 0\n\ndef not_from_nand(a: int) -> int:\n    pass\n\ndef and_from_nand(a: int, b: int) -> int:\n    pass\n\ndef or_from_nand(a: int, b: int) -> int:\n    pass\n\ndef xor_from_nand(a: int, b: int) -> int:\n    pass\n", "solution": "def nand_gate(a: int, b: int) -> int:\n    return 1 if not (a == 1 and b == 1) else 0\n\ndef not_from_nand(a: int) -> int:\n    return nand_gate(a, a)\n\ndef and_from_nand(a: int, b: int) -> int:\n    n = nand_gate(a, b)\n    return nand_gate(n, n)\n\ndef or_from_nand(a: int, b: int) -> int:\n    na = nand_gate(a, a)\n    nb = nand_gate(b, b)\n    return nand_gate(na, nb)\n\ndef xor_from_nand(a: int, b: int) -> int:\n    n = nand_gate(a, b)\n    n1 = nand_gate(a, n)\n    n2 = nand_gate(b, n)\n    return nand_gate(n1, n2)\n", "tests": "def test_nand_not():\n    assert not_from_nand(0) == 1\n    assert not_from_nand(1) == 0\n\ndef test_nand_and_or():\n    for a in (0, 1):\n        for b in (0, 1):\n            assert and_from_nand(a, b) == (a & b)\n            assert or_from_nand(a, b) == (a | b)\n\ndef test_nand_xor():\n    assert xor_from_nand(0, 0) == 0\n    assert xor_from_nand(0, 1) == 1\n    assert xor_from_nand(1, 0) == 1\n    assert xor_from_nand(1, 1) == 0\n", "mutants": ["def nand_gate(a: int, b: int) -> int: return 0\ndef not_from_nand(a): return 0\ndef and_from_nand(a, b): return 0\ndef or_from_nand(a, b): return 0\ndef xor_from_nand(a, b): return 0\n", "def nand_gate(a: int, b: int) -> int: return 1 if not (a == 1 and b == 1) else 0\ndef not_from_nand(a): return a\ndef and_from_nand(a, b): return a | b  # returns OR instead of AND\ndef or_from_nand(a, b): return a & b\ndef xor_from_nand(a, b): return 0\n"], "hints": ["NOT: nand(a, a)", "AND: not(nand(a, b))", "OR: nand(not(a), not(b))", "XOR: nand(nand(a, n), nand(b, n)) where n = nand(a, b)"], "level": "warmup", "title": "NAND Gate Universal Logic Synthesizer"}, "ex2-full-adder-circuit": {"starter": "def full_adder(a: int, b: int, cin: int) -> tuple[int, int]:\n    pass\n\ndef ripple_carry_adder(a_bits: list[int], b_bits: list[int]) -> tuple[list[int], int]:\n    pass\n", "solution": "def full_adder(a: int, b: int, cin: int) -> tuple[int, int]:\n    s = (a ^ b) ^ cin\n    cout = (a & b) | (cin & (a ^ b))\n    return s, cout\n\ndef ripple_carry_adder(a_bits: list[int], b_bits: list[int]) -> tuple[list[int], int]:\n    if len(a_bits) != len(b_bits):\n        raise ValueError(\"Bit width mismatch\")\n    cin = 0\n    sum_bits = []\n    for a, b in zip(a_bits, b_bits):\n        s, cin = full_adder(a, b, cin)\n        sum_bits.append(s)\n    return sum_bits, cin\n", "tests": "def test_full_adder_truth_table():\n    assert full_adder(0, 0, 0) == (0, 0)\n    assert full_adder(1, 0, 0) == (1, 0)\n    assert full_adder(0, 1, 0) == (1, 0)\n    assert full_adder(1, 1, 0) == (0, 1)\n    assert full_adder(0, 0, 1) == (1, 0)\n    assert full_adder(1, 0, 1) == (0, 1)\n    assert full_adder(0, 1, 1) == (0, 1)\n    assert full_adder(1, 1, 1) == (1, 1)\n\ndef test_ripple_carry_4bit():\n    # 5 (0101) + 3 (0011) = 8 (1000)\n    a = [1, 0, 1, 0]  # LSB first\n    b = [1, 1, 0, 0]\n    sums, cout = ripple_carry_adder(a, b)\n    assert sums == [0, 0, 0, 1]\n    assert cout == 0\n\ndef test_ripple_carry_overflow():\n    # 15 (1111) + 1 (0001) = 16 (0000 with carry 1)\n    a = [1, 1, 1, 1]\n    b = [1, 0, 0, 0]\n    sums, cout = ripple_carry_adder(a, b)\n    assert sums == [0, 0, 0, 0]\n    assert cout == 1\n", "mutants": ["def full_adder(a: int, b: int, cin: int) -> tuple[int, int]:\n    assert False, 'mutant injected'\ndef ripple_carry_adder(a_bits: list[int], b_bits: list[int]):\n    assert False, 'mutant injected'\n", "def full_adder(a: int, b: int, cin: int) -> tuple[int, int]:\n    return (a ^ b), (a & b)  # forgets cin\ndef ripple_carry_adder(a_bits: list[int], b_bits: list[int]):\n    return [0] * len(a_bits), 0\n"], "hints": ["Full adder sum: (a ^ b) ^ cin.", "Full adder cout: (a & b) | (cin & (a ^ b)).", "Ripple carry chains cout of bit i into cin of bit i+1."], "level": "core", "title": "Full Adder and N-Bit Ripple-Carry Engine"}, "ex3-multiplexer-tree": {"starter": "def mux_4to1(d0: int, d1: int, d2: int, d3: int, s0: int, s1: int) -> int:\n    pass\n\ndef demux_1to4(din: int, s0: int, s1: int) -> list[int]:\n    pass\n", "solution": "def mux_4to1(d0: int, d1: int, d2: int, d3: int, s0: int, s1: int) -> int:\n    sel = (s1 << 1) | s0\n    if sel == 0: return d0\n    elif sel == 1: return d1\n    elif sel == 2: return d2\n    else: return d3\n\ndef demux_1to4(din: int, s0: int, s1: int) -> list[int]:\n    sel = (s1 << 1) | s0\n    outputs = [0, 0, 0, 0]\n    outputs[sel] = din\n    return outputs\n", "tests": "def test_mux_4to1():\n    # d0=1, d1=0, d2=1, d3=0\n    assert mux_4to1(1, 0, 1, 0, s0=0, s1=0) == 1\n    assert mux_4to1(1, 0, 1, 0, s0=1, s1=0) == 0\n    assert mux_4to1(1, 0, 1, 0, s0=0, s1=1) == 1\n    assert mux_4to1(1, 0, 1, 0, s0=1, s1=1) == 0\n\ndef test_demux_1to4():\n    assert demux_1to4(1, s0=0, s1=0) == [1, 0, 0, 0]\n    assert demux_1to4(1, s0=1, s1=0) == [0, 1, 0, 0]\n    assert demux_1to4(1, s0=0, s1=1) == [0, 0, 1, 0]\n    assert demux_1to4(1, s0=1, s1=1) == [0, 0, 0, 1]\n    assert demux_1to4(0, s0=1, s1=1) == [0, 0, 0, 0]\n\ndef test_mux_all_channels():\n    # Route values 10, 20, 30, 40 through channels\n    assert mux_4to1(10, 20, 30, 40, s0=0, s1=0) == 10\n    assert mux_4to1(10, 20, 30, 40, s0=1, s1=0) == 20\n    assert mux_4to1(10, 20, 30, 40, s0=0, s1=1) == 30\n    assert mux_4to1(10, 20, 30, 40, s0=1, s1=1) == 40\n", "mutants": ["def mux_4to1(d0, d1, d2, d3, s0, s1): assert False, 'mutant injected'\ndef demux_1to4(din, s0, s1): assert False, 'mutant injected'\n", "def mux_4to1(d0, d1, d2, d3, s0, s1): return d0\ndef demux_1to4(din, s0, s1): return [din, 0, 0, 0]\n"], "hints": ["Selector value is (s1 << 1) | s0, mapping to index 0, 1, 2, or 3.", "Demux sets only the selected output channel to din, others remain 0."], "level": "core", "title": "Multiplexer and Demultiplexer Routing Logic"}, "ex4-hardware-traffic-fsm": {"starter": "class TrafficLightFSM:\n    def __init__(self):\n        self.state = \"GREEN\"\n        self.timer = 0\n\n    def tick(self, pedestrian_button: bool = False) -> str:\n        pass\n", "solution": "class TrafficLightFSM:\n    def __init__(self):\n        self.state = \"GREEN\"\n        self.timer = 0\n\n    def tick(self, pedestrian_button: bool = False) -> str:\n        self.timer += 1\n        \n        if self.state == \"GREEN\":\n            # Normal green lasts 5 ticks, or triggers early if pedestrian requests\n            if self.timer >= 5 or (pedestrian_button and self.timer >= 2):\n                self.state = \"YELLOW\"\n                self.timer = 0\n        elif self.state == \"YELLOW\":\n            # Yellow lasts exactly 2 ticks\n            if self.timer >= 2:\n                self.state = \"RED\"\n                self.timer = 0\n        elif self.state == \"RED\":\n            # Red lasts 4 ticks\n            if self.timer >= 4:\n                self.state = \"GREEN\"\n                self.timer = 0\n                \n        return self.state\n", "tests": "def test_fsm_normal_cycle():\n    fsm = TrafficLightFSM()\n    assert fsm.state == \"GREEN\"\n    # Ticks 1 to 4 remain GREEN\n    for _ in range(4):\n        assert fsm.tick(pedestrian_button=False) == \"GREEN\"\n    # Tick 5 transitions to YELLOW\n    assert fsm.tick(pedestrian_button=False) == \"YELLOW\"\n    # Tick 1 in YELLOW remains YELLOW\n    assert fsm.tick(pedestrian_button=False) == \"YELLOW\"\n    # Tick 2 transitions to RED\n    assert fsm.tick(pedestrian_button=False) == \"RED\"\n\ndef test_fsm_pedestrian_override():\n    fsm = TrafficLightFSM()\n    # At timer=1, pedestrian button does not override yet (requires timer >= 2)\n    assert fsm.tick(pedestrian_button=True) == \"GREEN\"\n    # At timer=2, button triggers immediate yellow transition\n    assert fsm.tick(pedestrian_button=True) == \"YELLOW\"\n\ndef test_fsm_red_to_green_recovery():\n    fsm = TrafficLightFSM()\n    # Fast forward to RED\n    fsm.state = \"RED\"\n    fsm.timer = 0\n    assert fsm.tick() == \"RED\"\n    assert fsm.tick() == \"RED\"\n    assert fsm.tick() == \"RED\"\n    assert fsm.tick() == \"GREEN\"  # after 4 ticks in RED\n", "mutants": ["class TrafficLightFSM:\n    def __init__(self): self.state = \"GREEN\"; self.timer = 0\n    def tick(self, pedestrian_button=False): assert False, 'mutant injected'\n", "class TrafficLightFSM:\n    def __init__(self): self.state = \"GREEN\"; self.timer = 0\n    def tick(self, pedestrian_button=False):\n        return \"GREEN\"  # mutant: state never changes\n"], "hints": ["GREEN lasts 5 ticks or transitions at timer >= 2 if pedestrian button is pressed.", "YELLOW lasts 2 ticks.", "RED lasts 4 ticks."], "level": "boss", "title": "Hardware Synchronous Finite State Machine"}}, "demos": {"p04-oracle-full-adder": {"code": "def full_adder_logic(a: int, b: int, cin: int) -> tuple:\n    s = (a ^ b) ^ cin\n    cout = (a & b) | (cin & (a ^ b))\n    return s, cout\n\ndef ripple_carry_4bit(a: int, b: int) -> int:\n    cin = 0\n    res_bits = []\n    for i in range(4):\n        bit_a = (a >> i) & 1\n        bit_b = (b >> i) & 1\n        s, cin = full_adder_logic(bit_a, bit_b, cin)\n        res_bits.append(s)\n    res_bits.append(cin)  # overflow carry bit\n    \n    total = 0\n    for i, bit in enumerate(res_bits):\n        total |= (bit << i)\n    return total\n\n# Exhaustively verify all 4-bit additions: 0..15 + 0..15\nfor x in range(16):\n    for y in range(16):\n        expected = x + y\n        actual = ripple_carry_4bit(x, y)\n        assert actual == expected, f\"Adder failed: {x} + {y} = {actual}, expected {expected}\"\n\nprint(\"Full adder logic and 4-bit ripple-carry arithmetic exhaustively verified.\")\n", "mutants": ["def full_adder_logic(a: int, b: int, cin: int): return 0, 0\nassert full_adder_logic(1, 0, 0) == (1, 0)\n"]}, "p04-exp-nand-synthesis": {"code": "def nand_gate(a: int, b: int) -> int:\n    return 1 if not (a == 1 and b == 1) else 0\n\ndef not_gate(a: int) -> int:\n    return nand_gate(a, a)\n\ndef and_gate(a: int, b: int) -> int:\n    return not_gate(nand_gate(a, b))\n\ndef or_gate(a: int, b: int) -> int:\n    return nand_gate(not_gate(a), not_gate(b))\n\ndef xor_gate(a: int, b: int) -> int:\n    # A ^ B = (A | B) & ~(A & B)\n    n = nand_gate(a, b)\n    return nand_gate(nand_gate(a, n), nand_gate(b, n))\n\n# Verify truth tables\nfor a in (0, 1):\n    for b in (0, 1):\n        assert and_gate(a, b) == (a & b)\n        assert or_gate(a, b) == (a | b)\n        assert xor_gate(a, b) == (a ^ b)\n    assert not_gate(a) == (1 - a)\n\nprint(\"NAND universality verified across NOT, AND, OR, and XOR truth tables.\")\n", "mutants": ["def not_gate(a: int) -> int: return a  # fails inversion\nassert not_gate(0) == 1\n"]}}, "cards": [{"q": "What is De Morgan's Law?", "a": "not (A and B) = (not A) or (not B), and not (A or B) = (not A) and (not B)."}, {"q": "What does it mean that NAND is a universal gate?", "a": "Any boolean logic function or digital circuit can be constructed exclusively using two-input NAND gates."}, {"q": "What is the difference between a half adder and a full adder?", "a": "A half adder adds two bits; a full adder adds two bits plus an incoming carry bit (Cin)."}, {"q": "What is a multiplexer (MUX)?", "a": "A digital switch that directs one of 2^N input lines to a single output line based on N selector lines."}, {"q": "What is clock setup time (t_setup)?", "a": "The minimum time an input signal must remain stable before the clock edge to avoid metastability."}, {"q": "What is the difference between Moore and Mealy state machines?", "a": "Moore FSM outputs depend solely on the current state; Mealy FSM outputs depend on both current state and current inputs."}], "title": "Boolean logic and digital circuits"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

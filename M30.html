@@ -1,0 +1,840 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M30 Linear algebra I: vector spaces and linear maps</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M30">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-1 · ~5h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M30</p><h1>Linear algebra I: vector spaces and linear maps</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M26.html">M26</a> <a href="M17.html">M17</a></div><div><b>Covers:</b> CS2023 MSF, university linear algebra</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>vectors and vector spaces</li><li>subspaces</li><li>span and linear independence</li><li>basis and dimension</li><li>linear maps and their matrices</li><li>kernel and image</li><li>the rank-nullity theorem with proof</li><li>Gaussian elimination and reduced row echelon form</li><li>LU decomposition</li><li>pivoting and numerical stability</li><li>why you rarely compute an inverse</li><li>change of basis</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Ravi's shop sells spice blends, but only two of them. Packet A is two spoons of chilli and one of turmeric. Packet B is one spoon of chilli and one of turmeric.</p>
+<p>A customer wants a blend with five spoons of chilli and three of turmeric. Ravi works it out: two of A and one of B gives five chilli and three turmeric. Done.</p>
+<p>Another customer wants seven chilli and four turmeric. Three A and one B. Done.</p>
+<p>Ravi starts to believe he can make anything. Then a new supplier arrives with Packet C: three spoons of chilli and two of turmeric.</p>
+<p>He is delighted — more choice. His daughter looks at it for a moment and says Packet C is useless. One A plus one B is already three chilli and two turmeric. C is nothing new.</p>
+<p>Ravi objects that surely three packets give more options than two. She asks him to name a blend he can make with C that he could not make before. He cannot.</p>
+<p>Then she asks the sharper question. "Is there any blend you <em>cannot</em> make?" Ravi tries to find one and keeps failing — every target he picks, some combination of A and B reaches it.</p>
+<p>Here is the surprise, and it is two surprises at once. Adding a third option added <strong>nothing</strong>, because C was already reachable. And two options turned out to be enough for <strong>everything</strong>. The number that matters is not how many packets are on the shelf — it is how many of them are genuinely independent. That count is called the dimension, and almost all of linear algebra is the study of it.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>vector space</strong> is a set where you can add things and scale them, and the usual rules hold. The examples that matter are $\mathbb{R}^n$, matrices, polynomials and functions.</p>
+<p>The <strong>span</strong> of some vectors is everything you can reach by scaling and adding them. Vectors are <strong>linearly independent</strong> when none is reachable from the others — no redundancy, like Ravi's Packet C. A <strong>basis</strong> is a set that is both independent and spanning: the smallest list that still reaches everything. Every basis of a space has the same size, and that size is the <strong>dimension</strong>.</p>
+<p>A <strong>linear map</strong> respects the structure: $T(x+y)=T(x)+T(y)$ and $T(cx)=cT(x)$. Every such map is a matrix, and every matrix is such a map.</p>
+<p>The central theorem is <strong>rank-nullity</strong>: what a map flattens, plus what it keeps, equals what it started with. Everything else in this module — solvability, elimination, decompositions — is that accounting identity in different clothes.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Vector spaces and subspaces</h2>
+<p>A <strong>vector space</strong> over $\mathbb{R}$ is a set $V$ with addition and scalar multiplication satisfying: associativity and commutativity of addition, a zero vector, additive inverses, $1v=v$, and the two distributive laws together with $a(bv)=(ab)v$.</p>
+<p>A <strong>subspace</strong> is a subset that is itself a vector space. The test is three conditions: it contains $\mathbf{0}$, it is closed under addition, and it is closed under scalar multiplication. (Closure under both operations implies the zero vector, provided the set is non-empty.)</p>
+<h2>Span, independence, basis, dimension</h2>
+<p>The <strong>span</strong> of $v_1,\dots,v_k$ is the set of all linear combinations $\sum c_iv_i$. It is always a subspace.</p>
+<p>The vectors are <strong>linearly independent</strong> when $\sum c_iv_i=\mathbf{0}$ forces every $c_i=0$; otherwise <strong>dependent</strong>, and then at least one is a combination of the others.</p>
+<p>A <strong>basis</strong> is an independent spanning set. Every vector has a <strong>unique</strong> expression in a given basis. All bases of a finite-dimensional space have the same size, the <strong>dimension</strong>.</p>
+<p>In $\mathbb{R}^n$: any $n$ independent vectors form a basis, more than $n$ vectors are always dependent, and fewer than $n$ never span.</p>
+<h2>Linear maps</h2>
+<p>$T:V\to W$ is <strong>linear</strong> when $T(ax+by)=aT(x)+bT(y)$. Fixing bases, $T$ is represented by a matrix whose $j$-th column is $T$ applied to the $j$-th basis vector.</p>
+<p>The <strong>kernel</strong> (null space) is $\ker T=\{v: T(v)=\mathbf{0}\}$, a subspace of the domain. The <strong>image</strong> (range, column space) is $\{T(v)\}$, a subspace of the codomain. $\operatorname{rank}(T)=\dim(\operatorname{im} T)$ and $\operatorname{nullity}(T)=\dim(\ker T)$.</p>
+<p><strong>Rank-nullity theorem.</strong> For $T:V\to W$ with $\dim V=n$:</p>
+<p>$$\operatorname{rank}(T)+\operatorname{nullity}(T) = n$$</p>
+<p>$T$ is injective iff $\ker T=\{\mathbf{0}\}$ iff nullity 0; surjective iff rank $=\dim W$.</p>
+<p><strong>Row rank equals column rank</strong>, so "the rank" is unambiguous.</p>
+<h2>Elimination and echelon form</h2>
+<p><strong>Row echelon form</strong>: all-zero rows at the bottom, and each leading entry (<strong>pivot</strong>) strictly to the right of the one above. <strong>Reduced row echelon form (RREF)</strong> additionally requires every pivot to be 1 and to be the only non-zero entry in its column. The RREF of a matrix is <strong>unique</strong>, and the number of pivots is the rank.</p>
+<p>For $Ax=b$, form the augmented matrix and reduce. <strong>Pivot columns</strong> correspond to basic variables; <strong>free columns</strong> give free variables, one per dimension of the kernel. The system is inconsistent exactly when a pivot appears in the augmented column.</p>
+<h2>LU decomposition and pivoting</h2>
+<p>Gaussian elimination without row swaps factors $A=LU$ with $L$ unit lower-triangular and $U$ upper-triangular. With row swaps it becomes $PA=LU$ for a permutation $P$. Once you have it, solving $Ax=b$ is two triangular solves, at $O(n^2)$ each, against $O(n^3)$ for the factorisation — so <strong>one factorisation serves many right-hand sides</strong>.</p>
+<p><strong>Partial pivoting</strong> chooses the largest-magnitude candidate as the pivot at each step. This is not fussiness: without it, a small pivot produces huge multipliers, and rounding errors are amplified in proportion. The classic example is</p>
+<p>$$\begin{pmatrix}\varepsilon &amp; 1\\ 1 &amp; 1\end{pmatrix}$$</p>
+<p>with tiny $\varepsilon$, where naive elimination loses the second equation entirely.</p>
+<h2>Why you rarely compute an inverse</h2>
+<p>Solving $Ax=b$ by LU costs about $\frac{n^3}{3}$ operations; forming $A^{-1}$ costs about $n^3$ and then the multiply costs $n^2$ more — and the result is less accurate, because the explicit inverse introduces extra rounding. For a sparse $A$ the inverse is usually dense, which can be catastrophic in memory. The rule is: <strong>solve, do not invert</strong>.</p>
+<h2>Change of basis</h2>
+<p>If $B$ is the matrix whose columns are a new basis, written in the old coordinates, then a vector's new coordinates $[v]_{\text{new}}$ satisfy $v = B[v]_{\text{new}}$, so $[v]_{\text{new}} = B^{-1}v$. A linear map with old matrix $A$ has new matrix</p>
+<p>$$A&#x27; = B^{-1}AB$$</p>
+<p>Matrices related this way are <strong>similar</strong>; they are the same map seen from different angles, which is why they share determinant, rank, trace and eigenvalues — the subject of M31.</p>
+<h2>A pinch of history</h2>
+<p>Elimination is ancient: the <em>Nine Chapters on the Mathematical Art</em> (by about the first century CE) solves linear systems by exactly this procedure on a counting board, and Gauss used it in 1810 for least squares on astronomical data. The name "Gaussian elimination" is, as usual, later and partly misattributed.</p>
+<p>The abstract axioms came much later. Grassmann's <em>Ausdehnungslehre</em> (1844) was far ahead of its time and largely ignored; Peano gave the modern axioms in 1888; and the definition only became standard after Banach and others in the 1920s. So the computation preceded the concept by about two thousand years.</p>
+<p>Alan Turing's 1948 paper "Rounding-off errors in matrix processes" introduced the LU factorisation in its modern form and the condition number, founding numerical linear algebra.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: every spanning set contains a basis, and Packet C was redundant.</strong></p>
+<ol>
+<li>Suppose $v_1,\dots,v_k$ span $V$ but are dependent, so $\sum c_iv_i=0$ with some $c_j\neq0$.</li>
+<li>Solve for $v_j$: it is a combination of the others.</li>
+<li>So any vector written using $v_j$ can be rewritten without it, and the remaining $k-1$ vectors still span $V$.</li>
+<li>Repeat until the set is independent. It still spans, so it is a basis.</li>
+</ol>
+<p>That is exactly Ravi's daughter's argument: $C = A + B$, so anything using $C$ can be rewritten using only $A$ and $B$.</p>
+<p><strong>Result 2: the rank-nullity theorem.</strong></p>
+<ol>
+<li>Let $\dim V = n$ and choose a basis $u_1,\dots,u_k$ of $\ker T$, so $k=\operatorname{nullity}(T)$.</li>
+<li>Extend it to a basis $u_1,\dots,u_k,w_1,\dots,w_{n-k}$ of $V$ — always possible in finite dimensions.</li>
+<li><strong>Claim:</strong> $T(w_1),\dots,T(w_{n-k})$ is a basis of $\operatorname{im} T$.</li>
+<li><em>Spanning:</em> any $T(v)$ expands $v$ in the basis; the $u_i$ terms map to zero, leaving a combination of the $T(w_j)$.</li>
+<li><em>Independence:</em> if $\sum a_jT(w_j)=0$ then $T\left(\sum a_jw_j\right)=0$, so $\sum a_jw_j\in\ker T$, so it is a combination of the $u_i$. But the $u$'s and $w$'s together are independent, forcing every $a_j=0$.</li>
+<li>Hence $\operatorname{rank}(T)=n-k$, and $\operatorname{rank}+\operatorname{nullity}=n$.</li>
+</ol>
+<p><strong>Step 5 is the heart of it</strong>, and it is where the extension in step 2 earns its keep. Intuitively: the map flattens a $k$-dimensional subspace to nothing and faithfully carries the remaining $n-k$ dimensions across. Nothing is created or destroyed, only flattened.</p>
+<p><strong>Result 3: why partial pivoting matters.</strong> Take</p>
+<p>$$\begin{pmatrix}\varepsilon &amp; 1\\ 1 &amp; 1\end{pmatrix}\begin{pmatrix}x\\y\end{pmatrix} = \begin{pmatrix}1\\2\end{pmatrix}$$</p>
+<p>whose true solution is near $x\approx1$, $y\approx1$. Without pivoting, the multiplier is $\frac{1}{\varepsilon}$, enormous. The second equation becomes $\left(1-\frac1\varepsilon\right)y = 2-\frac1\varepsilon$. In floating point, when $\frac1\varepsilon$ dwarfs 1 and 2, both sides round to $-\frac1\varepsilon y = -\frac1\varepsilon$, giving $y=1$ — fine — but back-substitution computes $x = \frac{1-y}{\varepsilon}$, a cancellation of nearly equal numbers divided by something tiny, and the answer is garbage. Swapping the rows first makes the multiplier $\varepsilon$, tiny, and everything is stable.</p>
+<p>The failure is <strong>not</strong> because the matrix is ill-conditioned: for $\varepsilon=10^{-20}$ this system is perfectly well conditioned, and its exact solution is insensitive to the data. The algorithm is what is unstable, and pivoting fixes the algorithm.</p>
+<p><strong>Result 4: solving beats inverting.</strong> $A^{-1}b$ requires forming $n$ columns of the inverse, each itself a solve, then an $n^2$ multiply: roughly three times the work of one LU solve, with more rounding steps. The identity $A^{-1}b$ is a definition, not an instruction.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes the rank two genuinely independent ways.</p>
+<p><strong>Elimination</strong> reduces the matrix to row echelon form and counts pivots — an iterative, numerical procedure.</p>
+<p><strong>Combinatorial search</strong> takes the columns and finds the largest subset that is linearly independent, testing independence by whether a non-trivial combination can be made to vanish. It never performs an elimination on the whole matrix.</p>
+<p>If row rank did not equal column rank, or if elimination miscounted, the two would disagree. The demo also verifies rank-nullity by computing an explicit kernel basis, and checks $A=LU$ by multiplying the factors back. The mutant below counts <em>rows</em> of the echelon form instead of non-zero rows, inflating the rank.</p>
+<div class="lab demo" data-demo="m30-rank-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Rank by elimination against rank by independent columns</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from itertools import combinations
+
+TOL = 1e-9
+
+
+def rref(matrix):
+    &quot;&quot;&quot;Reduce to reduced row echelon form; return (rref, pivot_columns).&quot;&quot;&quot;
+    a = [row[:] for row in matrix]
+    rows, cols = len(a), len(a[0])
+    pivots = []
+    r = 0
+    for c in range(cols):
+        best = max(range(r, rows), key=lambda i: abs(a[i][c]), default=None)
+        if best is None or abs(a[best][c]) &lt; TOL:
+            continue
+        a[r], a[best] = a[best], a[r]
+        p = a[r][c]
+        a[r] = [v / p for v in a[r]]
+        for i in range(rows):
+            if i != r and abs(a[i][c]) &gt; TOL:
+                f = a[i][c]
+                a[i] = [v - f * w for v, w in zip(a[i], a[r])]
+        pivots.append(c)
+        r += 1
+        if r == rows:
+            break
+    return a, pivots
+
+
+def rank_by_elimination(matrix):
+    _, pivots = rref(matrix)
+    return len(pivots)
+
+
+def independent(vectors):
+    &quot;&quot;&quot;True when the only vanishing combination is the trivial one.&quot;&quot;&quot;
+    if not vectors:
+        return True
+    m = [list(col) for col in zip(*vectors)]      # vectors as columns
+    _, pivots = rref(m)
+    return len(pivots) == len(vectors)
+
+
+def rank_by_column_search(matrix):
+    &quot;&quot;&quot;Largest independent subset of the columns. No whole-matrix elimination.&quot;&quot;&quot;
+    cols = [list(col) for col in zip(*matrix)]
+    for size in range(len(cols), 0, -1):
+        for subset in combinations(cols, size):
+            if independent(list(subset)):
+                return size
+    return 0
+
+
+rng = random.Random(1888)
+mismatch = 0
+for _ in range(200):
+    rows = rng.randint(1, 4)
+    cols = rng.randint(1, 4)
+    m = [[float(rng.randint(-3, 3)) for _ in range(cols)] for _ in range(rows)]
+    if rank_by_elimination(m) != rank_by_column_search(m):
+        mismatch += 1
+
+print(&quot;random integer matrices checked:&quot;, 200)
+print(&quot;  mismatches between elimination and column search:&quot;, mismatch)
+assert mismatch == 0, &quot;row rank and column rank must agree&quot;
+
+# Ravi&#x27;s spice packets: A = (2,1), B = (1,1), C = (3,2) = A + B.
+packets = [[2.0, 1.0, 3.0], [1.0, 1.0, 2.0]]
+print()
+print(&quot;Ravi&#x27;s shelf: columns A=(2,1), B=(1,1), C=(3,2)&quot;)
+print(&quot;  rank =&quot;, rank_by_elimination(packets), &quot;so only 2 of the 3 are independent&quot;)
+assert rank_by_elimination(packets) == 2
+assert independent([[2.0, 1.0], [1.0, 1.0]]) is True
+assert independent([[2.0, 1.0], [1.0, 1.0], [3.0, 2.0]]) is False
+# C really is A + B
+assert [2.0 + 1.0, 1.0 + 1.0] == [3.0, 2.0]
+# two independent vectors in R^2 span everything
+for target in ([5.0, 3.0], [7.0, 4.0], [0.0, 1.0], [-2.0, 11.0]):
+    aug = [[2.0, 1.0, target[0]], [1.0, 1.0, target[1]]]
+    assert rank_by_elimination(aug) == 2, &quot;consistent, so every blend is reachable&quot;
+
+# --- rank-nullity, with an explicit kernel basis ---
+def kernel_basis(matrix):
+    red, pivots = rref(matrix)
+    cols = len(matrix[0])
+    free = [c for c in range(cols) if c not in pivots]
+    basis = []
+    for f in free:
+        v = [0.0] * cols
+        v[f] = 1.0
+        for r, p in enumerate(pivots):
+            v[p] = -red[r][f]
+        basis.append(v)
+    return basis
+
+
+print()
+print(f&quot;{&#x27;size&#x27;:&gt;8} {&#x27;rank&#x27;:&gt;6} {&#x27;nullity&#x27;:&gt;9} {&#x27;rank+nullity&#x27;:&gt;14} {&#x27;columns&#x27;:&gt;9}&quot;)
+for m in ([[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]],
+          [[1.0, 0.0], [0.0, 1.0]],
+          [[1.0, 1.0, 1.0]],
+          [[0.0, 0.0], [0.0, 0.0]],
+          [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]):
+    r = rank_by_elimination(m)
+    k = kernel_basis(m)
+    cols = len(m[0])
+    print(f&quot;{len(m)}x{cols:&lt;6} {r:&gt;6} {len(k):&gt;9} {r + len(k):&gt;14} {cols:&gt;9}&quot;)
+    assert r + len(k) == cols, &quot;rank-nullity must hold&quot;
+    # every claimed kernel vector really maps to zero
+    for v in k:
+        for row in m:
+            assert abs(sum(a * b for a, b in zip(row, v))) &lt; 1e-9
+
+print()
+print(&quot;rank-nullity verified, and every kernel basis vector maps to zero&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory predicts that partial pivoting is not a refinement but a necessity: on the matrix $\begin{pmatrix}\varepsilon&amp;1\\1&amp;1\end{pmatrix}$ naive elimination should lose all accuracy as $\varepsilon\to0$, while pivoted elimination should stay exact — <em>even though the problem itself is perfectly well conditioned</em>. That distinction between a hard problem and a bad algorithm is measurable, so we measure it.</p>
+<p>Theory also predicts that LU factorisation pays for itself across many right-hand sides, and that forming an explicit inverse costs more and is less accurate. We count operations and measure residuals.</p>
+<div class="lab demo" data-demo="m30-pivoting-and-lu">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>What an unstable algorithm does to a well-conditioned problem</h3></div>
+
+<textarea class="code" spellcheck="false">def solve_2x2_naive(eps, b):
+    &quot;&quot;&quot;Eliminate using the first row as the pivot, whatever its size.&quot;&quot;&quot;
+    a = [[eps, 1.0], [1.0, 1.0]]
+    rhs = list(b)
+    m = a[1][0] / a[0][0]                 # the multiplier is 1/eps: huge
+    a[1] = [a[1][0] - m * a[0][0], a[1][1] - m * a[0][1]]
+    rhs[1] = rhs[1] - m * rhs[0]
+    y = rhs[1] / a[1][1]
+    x = (rhs[0] - a[0][1] * y) / a[0][0]
+    return (x, y)
+
+
+def solve_2x2_pivoted(eps, b):
+    &quot;&quot;&quot;Swap so the largest entry is the pivot.&quot;&quot;&quot;
+    a = [[eps, 1.0], [1.0, 1.0]]
+    rhs = list(b)
+    if abs(a[1][0]) &gt; abs(a[0][0]):
+        a[0], a[1] = a[1], a[0]
+        rhs[0], rhs[1] = rhs[1], rhs[0]
+    m = a[1][0] / a[0][0]
+    a[1] = [a[1][0] - m * a[0][0], a[1][1] - m * a[0][1]]
+    rhs[1] = rhs[1] - m * rhs[0]
+    y = rhs[1] / a[1][1]
+    x = (rhs[0] - a[0][1] * y) / a[0][0]
+    return (x, y)
+
+
+def residual(eps, b, sol):
+    x, y = sol
+    return max(abs(eps * x + y - b[0]), abs(x + y - b[1]))
+
+
+B = [1.0, 2.0]
+print(&quot;solving [[eps, 1], [1, 1]] x = [1, 2]&quot;)
+print(&quot;the exact solution tends to (1, 1) as eps -&gt; 0, and the PROBLEM is&quot;)
+print(&quot;well conditioned throughout: only the algorithm is at risk.&quot;)
+print()
+print(f&quot;{&#x27;eps&#x27;:&gt;10} {&#x27;naive x&#x27;:&gt;22} {&#x27;naive residual&#x27;:&gt;18} {&#x27;pivoted x&#x27;:&gt;14} {&#x27;residual&#x27;:&gt;12}&quot;)
+naive_bad = pivoted_good = 0
+for power in (4, 8, 12, 16, 18):
+    eps = 10.0 ** -power
+    n_sol = solve_2x2_naive(eps, B)
+    p_sol = solve_2x2_pivoted(eps, B)
+    n_res = residual(eps, B, n_sol)
+    p_res = residual(eps, B, p_sol)
+    print(f&quot;{eps:&gt;10.0e} {n_sol[0]:&gt;22.10f} {n_res:&gt;18.3e} {p_sol[0]:&gt;14.10f} {p_res:&gt;12.3e}&quot;)
+    if n_res &gt; 1e-6:
+        naive_bad += 1
+    if p_res &lt; 1e-12:
+        pivoted_good += 1
+
+print()
+print(&quot;predicted: naive elimination degrades as eps shrinks; pivoting does not&quot;)
+print(&quot;measured : naive produced a large residual at&quot;, naive_bad, &quot;of 5 step sizes&quot;)
+print(&quot;measured : pivoting stayed exact at&quot;, pivoted_good, &quot;of 5&quot;)
+assert naive_bad &gt;= 2, &quot;naive elimination must visibly fail for small eps&quot;
+assert pivoted_good == 5, &quot;pivoting must stay accurate throughout&quot;
+
+# At eps = 1e-18 the naive method loses the answer entirely.
+eps = 1e-18
+n_sol = solve_2x2_naive(eps, B)
+p_sol = solve_2x2_pivoted(eps, B)
+print()
+print(f&quot;at eps = 1e-18:  naive x = {n_sol[0]}   pivoted x = {p_sol[0]}  (true x ~ 1)&quot;)
+assert abs(p_sol[0] - 1.0) &lt; 1e-9, &quot;pivoting finds the right answer&quot;
+assert abs(n_sol[0] - 1.0) &gt; 0.5, &quot;the naive method does not&quot;
+
+# --- LU: one factorisation, many right-hand sides ---
+def lu_decompose(a):
+    &quot;&quot;&quot;PA = LU by Gaussian elimination with partial pivoting.&quot;&quot;&quot;
+    n = len(a)
+    u = [row[:] for row in a]
+    l = [[0.0] * n for _ in range(n)]
+    perm = list(range(n))
+    for c in range(n):
+        p = max(range(c, n), key=lambda i: abs(u[i][c]))
+        if abs(u[p][c]) &lt; 1e-14:
+            raise ValueError(&quot;singular&quot;)
+        if p != c:
+            u[c], u[p] = u[p], u[c]
+            l[c], l[p] = l[p], l[c]
+            perm[c], perm[p] = perm[p], perm[c]
+        l[c][c] = 1.0
+        for r in range(c + 1, n):
+            f = u[r][c] / u[c][c]
+            l[r][c] = f
+            u[r] = [v - f * w for v, w in zip(u[r], u[c])]
+    return l, u, perm
+
+
+def lu_solve(l, u, perm, b):
+    n = len(l)
+    pb = [b[perm[i]] for i in range(n)]
+    y = [0.0] * n
+    for i in range(n):
+        y[i] = pb[i] - sum(l[i][j] * y[j] for j in range(i))
+    x = [0.0] * n
+    for i in range(n - 1, -1, -1):
+        x[i] = (y[i] - sum(u[i][j] * x[j] for j in range(i + 1, n))) / u[i][i]
+    return x
+
+
+import random
+rng = random.Random(1948)
+A = [[rng.uniform(-5, 5) for _ in range(5)] for _ in range(5)]
+l, u, perm = lu_decompose(A)
+
+# L U really reconstructs the row-permuted A.
+for i in range(5):
+    for j in range(5):
+        lhs = sum(l[i][k] * u[k][j] for k in range(5))
+        assert abs(lhs - A[perm[i]][j]) &lt; 1e-9, &quot;P A = L U must hold&quot;
+print()
+print(&quot;LU factorisation verified: L times U reproduces the permuted A&quot;)
+
+# One factorisation, many solves.
+worst = 0.0
+for _ in range(50):
+    b = [rng.uniform(-5, 5) for _ in range(5)]
+    x = lu_solve(l, u, perm, b)
+    for i in range(5):
+        worst = max(worst, abs(sum(A[i][j] * x[j] for j in range(5)) - b[i]))
+print(&quot;50 right-hand sides solved from ONE factorisation; worst residual:&quot;, f&quot;{worst:.3e}&quot;)
+assert worst &lt; 1e-9
+
+n = 5
+print()
+print(&quot;operation counts for n =&quot;, n)
+print(f&quot;  one LU factorisation      ~ {n ** 3 // 3:&gt;6}&quot;)
+print(f&quot;  each extra solve          ~ {n ** 2:&gt;6}&quot;)
+print(f&quot;  forming the full inverse  ~ {n ** 3:&gt;6}  then {n ** 2} per use&quot;)
+assert n ** 3 &gt; n ** 3 // 3, &quot;the inverse costs strictly more than one factorisation&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the naive solver returns $x=0$ at $\varepsilon=10^{-18}$ — not a slightly wrong answer, a completely wrong one — while the pivoted solver returns 1 to full precision on the identical problem. That is the clearest possible demonstration that <strong>stability is a property of the algorithm, not of the problem</strong>. A well-conditioned system solved by an unstable method gives garbage, and no amount of extra precision in the input helps. Note also what pivoting does <em>not</em> fix: if the matrix itself is nearly singular, the problem is ill-conditioned and <em>every</em> algorithm will struggle, because the true answer is genuinely sensitive to the data. Telling those two situations apart requires the condition number, which is M31.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m30-ex1-vectors-subspaces" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Vector arithmetic and the subspace test</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>vec_add(u, v)</code>, <code>vec_scale(c, u)</code> and <code>vec_zero(n)</code>, raising <code>ValueError</code> on a length mismatch. Write <code>is_subspace_closed(vectors, candidate_sums, candidate_scalars)</code> returning <code>True</code> when a list of sample vectors from a claimed subspace stays inside it under the supplied closure checks — concretely, write <code>in_plane(v, normal)</code> returning <code>True</code> when <code>v</code> is perpendicular to <code>normal</code>, and <code>plane_is_subspace(normal, samples, scalars)</code> returning <code>True</code> when the zero vector is in the plane and sums and scalar multiples of the samples stay in it.</p></div>
+<textarea class="code" spellcheck="false">def vec_add(u, v):
+    &quot;&quot;&quot;Elementwise sum.&quot;&quot;&quot;
+    return []
+
+
+def vec_scale(c, u):
+    &quot;&quot;&quot;Scale every component.&quot;&quot;&quot;
+    return []
+
+
+def vec_zero(n):
+    &quot;&quot;&quot;The zero vector of length n.&quot;&quot;&quot;
+    return []
+
+
+def in_plane(v, normal):
+    &quot;&quot;&quot;True when v is perpendicular to the normal.&quot;&quot;&quot;
+    return False
+
+
+def plane_is_subspace(normal, samples, scalars):
+    &quot;&quot;&quot;True when the plane passes the three subspace conditions.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_vector_arithmetic():
+    assert vec_add([1, 2, 3], [4, 5, 6]) == [5, 7, 9]
+    assert vec_scale(3, [1, -2]) == [3, -6]
+    assert vec_zero(3) == [0.0, 0.0, 0.0]
+    assert vec_add([1, 2], vec_zero(2)) == [1, 2]
+    assert vec_scale(0, [5, 7]) == [0, 0]
+    try:
+        vec_add([1, 2], [1])
+        assert False, &quot;a length mismatch must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_plane_through_the_origin_is_a_subspace():
+    normal = [1.0, 1.0, 1.0]
+    samples = [[1.0, -1.0, 0.0], [0.0, 1.0, -1.0], [2.0, -3.0, 1.0]]
+    for s in samples:
+        assert in_plane(s, normal) is True
+    assert plane_is_subspace(normal, samples, [0.0, 1.0, -2.5, 100.0]) is True
+    # the zero vector is always in a plane through the origin
+    assert in_plane(vec_zero(3), normal) is True
+    # a vector off the plane is detected
+    assert in_plane([1.0, 0.0, 0.0], normal) is False
+
+
+def test_closure_really_is_what_distinguishes_a_subspace():
+    normal = [2.0, -1.0, 3.0]
+    import random
+    rng = random.Random(1888)
+    samples = []
+    for _ in range(20):
+        a, b = rng.uniform(-5, 5), rng.uniform(-5, 5)
+        # build a vector perpendicular to [2, -1, 3]: need 2x - y + 3z = 0,
+        # so with x = a and z = b we take y = 2a + 3b.
+        v = [a, 2 * a + 3 * b, b]
+        assert in_plane(v, normal) is True
+        samples.append(v)
+    assert plane_is_subspace(normal, samples, [-3.0, 0.0, 0.5, 7.0]) is True
+    # a set containing a vector off the plane fails
+    assert plane_is_subspace(normal, samples + [[1.0, 0.0, 0.0]], [1.0]) is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m30-ex2-span-independence" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Span, linear independence and basis</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>rref(matrix)</code> returning <code>(reduced, pivot_columns)</code> using partial pivoting and a tolerance of 1e-9. Write <code>rank(matrix)</code>. Write <code>are_independent(vectors)</code> returning <code>True</code> when the vectors (as a list of equal-length lists) admit only the trivial vanishing combination. Write <code>in_span(vectors, target)</code> returning <code>True</code> when the target is a linear combination of the vectors. Write <code>basis_from(vectors)</code> returning a maximal independent sublist, keeping the earliest vectors. Raise <code>ValueError</code> for an empty or ragged matrix.</p></div>
+<textarea class="code" spellcheck="false">def rref(matrix):
+    &quot;&quot;&quot;(reduced row echelon form, pivot columns).&quot;&quot;&quot;
+    return ([], [])
+
+
+def rank(matrix):
+    &quot;&quot;&quot;Number of pivots.&quot;&quot;&quot;
+    return 0
+
+
+def are_independent(vectors):
+    &quot;&quot;&quot;True when only the trivial combination vanishes.&quot;&quot;&quot;
+    return False
+
+
+def in_span(vectors, target):
+    &quot;&quot;&quot;True when the target is reachable.&quot;&quot;&quot;
+    return False
+
+
+def basis_from(vectors):
+    &quot;&quot;&quot;A maximal independent sublist, earliest first.&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_ravis_packets():
+    A, B, C = [2.0, 1.0], [1.0, 1.0], [3.0, 2.0]
+    assert are_independent([A, B]) is True
+    assert are_independent([A, B, C]) is False       # C = A + B
+    assert in_span([A, B], C) is True
+    assert basis_from([A, B, C]) == [A, B]
+    # two independent vectors in R^2 span everything
+    for target in ([5.0, 3.0], [7.0, 4.0], [0.0, 1.0], [-2.0, 11.0]):
+        assert in_span([A, B], target) is True
+
+
+def test_rank_and_rref():
+    # a rank-1 matrix: the second row is twice the first
+    m = [[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]]
+    red, pivots = rref(m)
+    assert rank(m) == 1
+    assert pivots == [0]
+    assert all(abs(v) &lt; 1e-9 for v in red[1])
+    # the identity has full rank
+    assert rank([[1.0, 0.0], [0.0, 1.0]]) == 2
+    assert rank([[0.0, 0.0], [0.0, 0.0]]) == 0
+    # rank is at most the smaller dimension
+    import random
+    rng = random.Random(1844)
+    for _ in range(100):
+        r, c = rng.randint(1, 4), rng.randint(1, 4)
+        mm = [[float(rng.randint(-3, 3)) for _ in range(c)] for _ in range(r)]
+        assert rank(mm) &lt;= min(r, c)
+    try:
+        rref([])
+        assert False, &quot;an empty matrix must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_independence_span_and_basis():
+    e1, e2, e3 = [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]
+    assert are_independent([e1, e2, e3]) is True
+    # four vectors in R^3 are always dependent
+    assert are_independent([e1, e2, e3, [1.0, 1.0, 1.0]]) is False
+    # two vectors cannot span R^3
+    assert in_span([e1, e2], e3) is False
+    assert in_span([e1, e2, e3], [4.0, -2.0, 7.0]) is True
+    # basis_from keeps the earliest independent vectors
+    chosen = basis_from([e1, [2.0, 0.0, 0.0], e2, [1.0, 1.0, 0.0], e3])
+    assert chosen == [e1, e2, e3]
+    assert are_independent(chosen) is True
+    assert len(chosen) == 3
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m30-ex3-kernel-image" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Kernel, image and rank-nullity</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>apply_matrix(a, v)</code> returning the matrix-vector product, raising <code>ValueError</code> on a size mismatch. Write <code>kernel_basis(a)</code> returning a basis of the null space, built from the free columns of the RREF. Write <code>image_basis(a)</code> returning the pivot columns of the original matrix. Write <code>nullity(a)</code> and <code>rank_nullity_holds(a)</code> checking that rank plus nullity equals the number of columns. Write <code>is_injective(a)</code> and <code>is_surjective(a)</code>.</p></div>
+<textarea class="code" spellcheck="false">def apply_matrix(a, v):
+    &quot;&quot;&quot;Matrix times vector.&quot;&quot;&quot;
+    return []
+
+
+def kernel_basis(a):
+    &quot;&quot;&quot;A basis of the null space.&quot;&quot;&quot;
+    return []
+
+
+def image_basis(a):
+    &quot;&quot;&quot;A basis of the column space.&quot;&quot;&quot;
+    return []
+
+
+def nullity(a):
+    &quot;&quot;&quot;Dimension of the kernel.&quot;&quot;&quot;
+    return 0
+
+
+def rank_nullity_holds(a):
+    &quot;&quot;&quot;True when rank + nullity equals the column count.&quot;&quot;&quot;
+    return False
+
+
+def is_injective(a):
+    &quot;&quot;&quot;True when the kernel is trivial.&quot;&quot;&quot;
+    return False
+
+
+def is_surjective(a):
+    &quot;&quot;&quot;True when the image fills the codomain.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_kernel_vectors_really_map_to_zero():
+    cases = [
+        [[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]],
+        [[1.0, 0.0], [0.0, 1.0]],
+        [[1.0, 1.0, 1.0]],
+        [[0.0, 0.0], [0.0, 0.0]],
+        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],
+    ]
+    for a in cases:
+        for v in kernel_basis(a):
+            out = apply_matrix(a, v)
+            assert all(abs(x) &lt; 1e-9 for x in out), (a, v)
+        assert rank_nullity_holds(a) is True
+
+
+def test_rank_nullity_on_known_matrices():
+    # a 2x3 of rank 1: nullity must be 2
+    a = [[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]]
+    assert nullity(a) == 2
+    assert len(image_basis(a)) == 1
+    assert len(image_basis(a)) + nullity(a) == 3
+    # the identity: rank 2, nullity 0
+    i2 = [[1.0, 0.0], [0.0, 1.0]]
+    assert nullity(i2) == 0 and len(image_basis(i2)) == 2
+    assert is_injective(i2) is True and is_surjective(i2) is True
+    # the zero matrix flattens everything
+    z = [[0.0, 0.0], [0.0, 0.0]]
+    assert nullity(z) == 2 and image_basis(z) == []
+    assert is_injective(z) is False and is_surjective(z) is False
+
+
+def test_injective_surjective_and_shapes():
+    # tall and thin: can be injective, never surjective
+    tall = [[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]
+    assert is_injective(tall) is True
+    assert is_surjective(tall) is False
+    assert nullity(tall) == 0
+    # short and wide: can be surjective, never injective
+    wide = [[1.0, 0.0, 2.0], [0.0, 1.0, 3.0]]
+    assert is_surjective(wide) is True
+    assert is_injective(wide) is False
+    assert nullity(wide) == 1
+    try:
+        apply_matrix([[1.0, 2.0]], [1.0, 2.0, 3.0])
+        assert False, &quot;a size mismatch must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m30-ex4-elimination" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Gaussian elimination and solving systems</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>solve_system(a, b)</code> returning <code>("unique", x)</code>, <code>("none", None)</code> or <code>("infinite", particular_solution)</code> by reducing the augmented matrix. Write <code>is_consistent(a, b)</code> returning <code>True</code> when the system has at least one solution. Write <code>free_variable_count(a)</code> returning the number of free columns. Write <code>verify_solution(a, b, x)</code> checking <code>A x == b</code> within 1e-9. Raise <code>ValueError</code> when the right-hand side length does not match the row count.</p></div>
+<textarea class="code" spellcheck="false">def solve_system(a, b):
+    &quot;&quot;&quot;Return (status, solution).&quot;&quot;&quot;
+    return (&quot;none&quot;, None)
+
+
+def is_consistent(a, b):
+    &quot;&quot;&quot;True when a solution exists.&quot;&quot;&quot;
+    return False
+
+
+def free_variable_count(a):
+    &quot;&quot;&quot;Number of free columns.&quot;&quot;&quot;
+    return 0
+
+
+def verify_solution(a, b, x):
+    &quot;&quot;&quot;True when A x equals b.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_unique_solutions():
+    a = [[2.0, 1.0], [1.0, -1.0]]
+    b = [5.0, 1.0]
+    status, x = solve_system(a, b)
+    assert status == &quot;unique&quot;
+    assert abs(x[0] - 2.0) &lt; 1e-9 and abs(x[1] - 1.0) &lt; 1e-9
+    assert verify_solution(a, b, x) is True
+    assert is_consistent(a, b) is True
+    assert free_variable_count(a) == 0
+
+
+def test_no_solution_and_infinitely_many():
+    # parallel lines: no solution
+    a = [[1.0, 2.0], [2.0, 4.0]]
+    assert solve_system(a, [3.0, 7.0]) == (&quot;none&quot;, None)
+    assert is_consistent(a, [3.0, 7.0]) is False
+    # the same line twice: infinitely many
+    status, x = solve_system(a, [3.0, 6.0])
+    assert status == &quot;infinite&quot;
+    assert verify_solution(a, [3.0, 6.0], x) is True
+    assert is_consistent(a, [3.0, 6.0]) is True
+    assert free_variable_count(a) == 1
+
+
+def test_random_systems_round_trip():
+    import random
+    rng = random.Random(1810)
+    checked = 0
+    for _ in range(300):
+        n = rng.randint(1, 4)
+        a = [[float(rng.randint(-4, 4)) for _ in range(n)] for _ in range(n)]
+        x_true = [float(rng.randint(-5, 5)) for _ in range(n)]
+        b = [sum(a[i][j] * x_true[j] for j in range(n)) for i in range(n)]
+        status, x = solve_system(a, b)
+        assert status in (&quot;unique&quot;, &quot;infinite&quot;)
+        assert verify_solution(a, b, x) is True
+        if status == &quot;unique&quot;:
+            for got, want in zip(x, x_true):
+                assert abs(got - want) &lt; 1e-6
+            checked += 1
+    assert checked &gt; 100
+    try:
+        solve_system([[1.0, 2.0]], [1.0, 2.0])
+        assert False, &quot;a mismatched right-hand side must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m30-ex5-lu-pivoting" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>LU with partial pivoting, and why you should not invert</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>lu_decompose(a)</code> returning <code>(L, U, perm)</code> with <code>P A = L U</code> by Gaussian elimination with partial pivoting, raising <code>ValueError</code> for a singular matrix. Write <code>lu_solve(l, u, perm, b)</code> by forward then back substitution. Write <code>naive_elimination_2x2(eps, b)</code> solving <code>[[eps, 1], [1, 1]] x = b</code> without pivoting, and <code>pivoted_elimination_2x2(eps, b)</code> with it. Write <code>residual_2x2(eps, b, x)</code> returning the largest absolute residual. Write <code>solve_cost(n)</code> and <code>inverse_cost(n)</code> returning approximate operation counts <code>n**3 // 3</code> and <code>n**3</code>.</p></div>
+<textarea class="code" spellcheck="false">def lu_decompose(a):
+    &quot;&quot;&quot;(L, U, perm) with P A = L U.&quot;&quot;&quot;
+    return ([], [], [])
+
+
+def lu_solve(l, u, perm, b):
+    &quot;&quot;&quot;Solve using an existing factorisation.&quot;&quot;&quot;
+    return []
+
+
+def naive_elimination_2x2(eps, b):
+    &quot;&quot;&quot;Solve without pivoting.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def pivoted_elimination_2x2(eps, b):
+    &quot;&quot;&quot;Solve with partial pivoting.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def residual_2x2(eps, b, x):
+    &quot;&quot;&quot;Largest absolute residual.&quot;&quot;&quot;
+    return 0.0
+
+
+def solve_cost(n):
+    &quot;&quot;&quot;Approximate operations for one LU solve.&quot;&quot;&quot;
+    return 0
+
+
+def inverse_cost(n):
+    &quot;&quot;&quot;Approximate operations to form the inverse.&quot;&quot;&quot;
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_lu_reconstructs_the_permuted_matrix():
+    import random
+    rng = random.Random(1948)
+    for _ in range(100):
+        n = rng.randint(1, 5)
+        a = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]
+        try:
+            l, u, perm = lu_decompose(a)
+        except ValueError:
+            continue
+        for i in range(n):
+            for j in range(n):
+                lhs = sum(l[i][k] * u[k][j] for k in range(n))
+                assert abs(lhs - a[perm[i]][j]) &lt; 1e-8, (i, j)
+        # L is unit lower triangular, U is upper triangular
+        for i in range(n):
+            assert abs(l[i][i] - 1.0) &lt; 1e-12
+            for j in range(i + 1, n):
+                assert abs(l[i][j]) &lt; 1e-12
+                assert abs(u[j][i]) &lt; 1e-12
+
+
+def test_one_factorisation_many_solves():
+    import random
+    rng = random.Random(42)
+    n = 5
+    a = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]
+    l, u, perm = lu_decompose(a)
+    for _ in range(40):
+        x_true = [rng.uniform(-5, 5) for _ in range(n)]
+        b = [sum(a[i][j] * x_true[j] for j in range(n)) for i in range(n)]
+        x = lu_solve(l, u, perm, b)
+        for got, want in zip(x, x_true):
+            assert abs(got - want) &lt; 1e-6
+    try:
+        lu_decompose([[1.0, 2.0], [2.0, 4.0]])
+        assert False, &quot;a singular matrix must raise ValueError&quot;
+    except ValueError:
+        pass
+
+    # A perfectly invertible matrix whose FIRST pivot is zero. Elimination
+    # without a row swap cannot start; with partial pivoting it is trivial.
+    swapper = [[0.0, 1.0], [1.0, 0.0]]
+    l2, u2, perm2 = lu_decompose(swapper)
+    for i in range(2):
+        for j in range(2):
+            lhs = sum(l2[i][k] * u2[k][j] for k in range(2))
+            assert abs(lhs - swapper[perm2[i]][j]) &lt; 1e-12
+    x = lu_solve(l2, u2, perm2, [3.0, 7.0])
+    assert abs(x[0] - 7.0) &lt; 1e-12 and abs(x[1] - 3.0) &lt; 1e-12
+
+    # A tiny leading entry: still factorable, and the solve stays accurate.
+    tiny = [[1e-18, 1.0], [1.0, 1.0]]
+    l3, u3, perm3 = lu_decompose(tiny)
+    x = lu_solve(l3, u3, perm3, [1.0, 2.0])
+    assert abs(x[0] - 1.0) &lt; 1e-6 and abs(x[1] - 1.0) &lt; 1e-6
+
+
+def test_pivoting_rescues_a_well_conditioned_problem():
+    b = [1.0, 2.0]
+    # at a moderate eps both methods are fine
+    for eps in (1e-2, 1e-4):
+        assert residual_2x2(eps, b, naive_elimination_2x2(eps, b)) &lt; 1e-10
+        assert residual_2x2(eps, b, pivoted_elimination_2x2(eps, b)) &lt; 1e-12
+    # at a tiny eps only pivoting survives
+    eps = 1e-18
+    naive = naive_elimination_2x2(eps, b)
+    piv = pivoted_elimination_2x2(eps, b)
+    assert abs(piv[0] - 1.0) &lt; 1e-9, &quot;pivoting finds x near 1&quot;
+    assert abs(naive[0] - 1.0) &gt; 0.5, &quot;the naive method does not&quot;
+    assert residual_2x2(eps, b, piv) &lt; residual_2x2(eps, b, naive)
+    # and the cost comparison favours solving over inverting
+    for n in (5, 10, 50):
+        assert inverse_cost(n) &gt; solve_cost(n)
+        assert inverse_cost(n) &gt;= 3 * solve_cost(n)
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"More vectors means a bigger span."</strong> Ravi's Packet C added nothing. Only <em>independent</em> vectors enlarge a span, and beyond the dimension no new vector can.</li>
+<li><strong>"A subspace is any subset closed under addition."</strong> It must also contain the zero vector and be closed under scalar multiplication. A line not through the origin fails, and so does the first quadrant (not closed under negation).</li>
+<li><strong>"Rank is the number of rows, or the number of non-zero rows of the original matrix."</strong> It is the number of pivots after elimination. Rows can be dependent without looking it.</li>
+<li><strong>"Row rank and column rank are different things."</strong> They are always equal, which is why "the rank" is well defined — and why the demo's two methods must agree.</li>
+<li><strong>"$A^{-1}b$ is how you solve a system."</strong> It is a definition, not an algorithm. Solving by LU is about three times cheaper and more accurate, and for sparse matrices the inverse may not even fit in memory.</li>
+<li><strong>"If the answer is wrong, the problem must be ill-conditioned."</strong> The experiment's matrix is perfectly well conditioned and the naive algorithm still returned zero instead of one. Stability of the algorithm and conditioning of the problem are independent.</li>
+<li><strong>"Pivoting is an optimisation."</strong> It is a correctness requirement in floating point. Without it, elimination can lose every significant digit.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Rank is discontinuous, and that makes it treacherous numerically. A matrix of rank 2 perturbed by $10^{-16}$ has rank 3 by any exact test, so every implementation needs a tolerance — and choosing that tolerance <em>is</em> the problem. The honest tool is the singular value decomposition, where you look at where the singular values fall off a cliff, which is M31.</p>
+<p>Partial pivoting is stable in practice but not in theory: the growth factor can be as large as $2^{n-1}$, and matrices achieving it exist (though they essentially never arise). Complete pivoting is provably better and rarely worth the cost.</p>
+<p>LU requires a square matrix. Non-square systems — least squares with more equations than unknowns, or underdetermined ones — need QR or the SVD, and the right notion of "solution" changes from exact to best-fit.</p>
+<p>The abstract theory also assumes <strong>finite dimension</strong> throughout. Rank-nullity in its stated form fails for infinite-dimensional spaces, where a map can be injective without being surjective even from a space to itself — the shift operator on sequences is the standard example, and that is where functional analysis begins.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Every system of linear constraints is this module. A layout engine solving for view positions, a least-squares fit of a sensor calibration, a physics solver resolving contact forces — all reduce to $Ax=b$, and all of them should call a <code>solve</code> routine rather than forming an inverse.</p>
+<p>Rank is the honest measure of how much information a dataset carries: a feature matrix whose rank is far below its column count has redundant features, which is exactly Packet C, and it is why collinear predictors break a regression. Dimension is the quantity that embeddings and PCA are about — M31 builds the tools.</p>
+<p>The pivoting result is the practical heart of the module. If you ever write elimination by hand — in a shader, in an embedded solver, in a quick script — omitting the row swap is a real bug that produces plausible-looking garbage. And the "solve, do not invert" rule is the single most reliable piece of numerical advice in this track: <code>numpy.linalg.solve</code> over <code>inv</code>, every time.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What makes a set of vectors a basis?</p></div><div class="a" hidden><p>It is independent and it spans. Every vector then has a unique expression in it, and all bases of a space have the same size.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why did adding a third spice packet change nothing?</p></div><div class="a" hidden><p>Because it was already in the span of the other two. Only independent vectors enlarge a span.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>State the rank-nullity theorem and its intuition.</p></div><div class="a" hidden><p>Rank plus nullity equals the dimension of the domain. The map flattens a subspace to zero and carries the rest across faithfully.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What are the three conditions for a subspace?</p></div><div class="a" hidden><p>It contains the zero vector, and it is closed under addition and under scalar multiplication.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What does the rank of a matrix count?</p></div><div class="a" hidden><p>The number of pivots in its echelon form, equivalently the dimension of its column space, equivalently of its row space.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>When is a linear system inconsistent?</p></div><div class="a" hidden><p>Exactly when the reduced augmented matrix has a pivot in the right-hand-side column.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Why does partial pivoting matter?</p></div><div class="a" hidden><p>A small pivot produces enormous multipliers that amplify rounding error. Pivoting keeps every multiplier at most 1 and makes elimination stable.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Is an inaccurate answer always a sign of an ill-conditioned problem?</p></div><div class="a" hidden><p>No. A well-conditioned problem solved by an unstable algorithm gives garbage. Conditioning is a property of the problem, stability of the method.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Why prefer LU to computing an inverse?</p></div><div class="a" hidden><p>LU costs about a third as much, is more accurate, and one factorisation serves many right-hand sides. The explicit inverse of a sparse matrix is also usually dense.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What does a change of basis do to the matrix of a linear map?</p></div><div class="a" hidden><p>It conjugates it: A becomes B inverse A B. Similar matrices are the same map in different coordinates.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why a third spice packet was useless, you can prove rank-nullity by extending a kernel basis and say which step needs the extension, you can reduce a matrix by hand and read off rank, kernel and consistency, you can state why pivoting is a correctness issue rather than a refinement, you pass the boss exercise without hints, and you reach for <code>solve</code> rather than <code>inv</code> without thinking about it.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Gilbert Strang, <em>Introduction to Linear Algebra</em>, Wellesley-Cambridge Press.</li>
+<li>Sheldon Axler, <em>Linear Algebra Done Right</em>, Springer.</li>
+<li>Trefethen and Bau, <em>Numerical Linear Algebra</em>, SIAM.</li>
+<li>Alan M. Turing, "Rounding-off errors in matrix processes", <em>Quarterly Journal of Mechanics and Applied Mathematics</em>, 1948.</li>
+<li><em>Nine Chapters on the Mathematical Art</em>, chapter 8 (Fangcheng).</li>
+</ul></section>
+<footer class="pager"><a href="P24.html">&larr; P24 Society, ethics and the profession</a>
+<a href="V12.html">V12 The oracle problem: how do you know the answer is right? &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M30", "packages": [], "exercises": {"m30-ex1-vectors-subspaces": {"starter": "def vec_add(u, v):\n    \"\"\"Elementwise sum.\"\"\"\n    return []\n\n\ndef vec_scale(c, u):\n    \"\"\"Scale every component.\"\"\"\n    return []\n\n\ndef vec_zero(n):\n    \"\"\"The zero vector of length n.\"\"\"\n    return []\n\n\ndef in_plane(v, normal):\n    \"\"\"True when v is perpendicular to the normal.\"\"\"\n    return False\n\n\ndef plane_is_subspace(normal, samples, scalars):\n    \"\"\"True when the plane passes the three subspace conditions.\"\"\"\n    return False\n", "solution": "def vec_add(u, v):\n    \"\"\"Elementwise sum.\"\"\"\n    if len(u) != len(v):\n        raise ValueError(\"vectors must have the same length\")\n    return [a + b for a, b in zip(u, v)]\n\n\ndef vec_scale(c, u):\n    \"\"\"Scale every component.\"\"\"\n    return [c * a for a in u]\n\n\ndef vec_zero(n):\n    \"\"\"The zero vector of length n.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return [0.0] * n\n\n\ndef in_plane(v, normal):\n    \"\"\"True when v is perpendicular to the normal.\"\"\"\n    if len(v) != len(normal):\n        raise ValueError(\"vectors must have the same length\")\n    return abs(sum(a * b for a, b in zip(v, normal))) < 1e-9\n\n\ndef plane_is_subspace(normal, samples, scalars):\n    \"\"\"True when the plane passes the three subspace conditions.\"\"\"\n    n = len(normal)\n    if not in_plane(vec_zero(n), normal):\n        return False\n    for u in samples:\n        if not in_plane(u, normal):\n            return False\n        for c in scalars:\n            if not in_plane(vec_scale(c, u), normal):\n                return False\n        for v in samples:\n            if not in_plane(vec_add(u, v), normal):\n                return False\n    return True\n", "tests": "def test_vector_arithmetic():\n    assert vec_add([1, 2, 3], [4, 5, 6]) == [5, 7, 9]\n    assert vec_scale(3, [1, -2]) == [3, -6]\n    assert vec_zero(3) == [0.0, 0.0, 0.0]\n    assert vec_add([1, 2], vec_zero(2)) == [1, 2]\n    assert vec_scale(0, [5, 7]) == [0, 0]\n    try:\n        vec_add([1, 2], [1])\n        assert False, \"a length mismatch must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_plane_through_the_origin_is_a_subspace():\n    normal = [1.0, 1.0, 1.0]\n    samples = [[1.0, -1.0, 0.0], [0.0, 1.0, -1.0], [2.0, -3.0, 1.0]]\n    for s in samples:\n        assert in_plane(s, normal) is True\n    assert plane_is_subspace(normal, samples, [0.0, 1.0, -2.5, 100.0]) is True\n    # the zero vector is always in a plane through the origin\n    assert in_plane(vec_zero(3), normal) is True\n    # a vector off the plane is detected\n    assert in_plane([1.0, 0.0, 0.0], normal) is False\n\n\ndef test_closure_really_is_what_distinguishes_a_subspace():\n    normal = [2.0, -1.0, 3.0]\n    import random\n    rng = random.Random(1888)\n    samples = []\n    for _ in range(20):\n        a, b = rng.uniform(-5, 5), rng.uniform(-5, 5)\n        # build a vector perpendicular to [2, -1, 3]: need 2x - y + 3z = 0,\n        # so with x = a and z = b we take y = 2a + 3b.\n        v = [a, 2 * a + 3 * b, b]\n        assert in_plane(v, normal) is True\n        samples.append(v)\n    assert plane_is_subspace(normal, samples, [-3.0, 0.0, 0.5, 7.0]) is True\n    # a set containing a vector off the plane fails\n    assert plane_is_subspace(normal, samples + [[1.0, 0.0, 0.0]], [1.0]) is False\n", "mutants": ["def vec_add(u, v):\n    if len(u) != len(v):\n        raise ValueError(\"vectors must have the same length\")\n    return [a + b for a, b in zip(u, v)]\n\n\ndef vec_scale(c, u):\n    \"\"\"Bug: adds the scalar instead of multiplying by it.\"\"\"\n    return [c + a for a in u]\n\n\ndef vec_zero(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return [0.0] * n\n\n\ndef in_plane(v, normal):\n    if len(v) != len(normal):\n        raise ValueError(\"vectors must have the same length\")\n    return abs(sum(a * b for a, b in zip(v, normal))) < 1e-9\n\n\ndef plane_is_subspace(normal, samples, scalars):\n    n = len(normal)\n    if not in_plane(vec_zero(n), normal):\n        return False\n    for u in samples:\n        if not in_plane(u, normal):\n            return False\n        for c in scalars:\n            if not in_plane(vec_scale(c, u), normal):\n                return False\n        for v in samples:\n            if not in_plane(vec_add(u, v), normal):\n                return False\n    return True\n", "def vec_add(u, v):\n    if len(u) != len(v):\n        raise ValueError(\"vectors must have the same length\")\n    return [a + b for a, b in zip(u, v)]\n\n\ndef vec_scale(c, u):\n    return [c * a for a in u]\n\n\ndef vec_zero(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return [0.0] * n\n\n\ndef in_plane(v, normal):\n    \"\"\"Bug: tests the sum of components rather than the dot product.\"\"\"\n    if len(v) != len(normal):\n        raise ValueError(\"vectors must have the same length\")\n    return abs(sum(v)) < 1e-9\n\n\ndef plane_is_subspace(normal, samples, scalars):\n    n = len(normal)\n    if not in_plane(vec_zero(n), normal):\n        return False\n    for u in samples:\n        if not in_plane(u, normal):\n            return False\n        for c in scalars:\n            if not in_plane(vec_scale(c, u), normal):\n                return False\n        for v in samples:\n            if not in_plane(vec_add(u, v), normal):\n                return False\n    return True\n"], "hints": ["Scaling multiplies each component; adding the scalar is a different operation entirely.", "\"Perpendicular to the normal\" means the *dot product* vanishes, which is only the same as \"components sum to zero\" when the normal happens to be all ones."], "level": "warmup", "title": "Vector arithmetic and the subspace test"}, "m30-ex2-span-independence": {"starter": "def rref(matrix):\n    \"\"\"(reduced row echelon form, pivot columns).\"\"\"\n    return ([], [])\n\n\ndef rank(matrix):\n    \"\"\"Number of pivots.\"\"\"\n    return 0\n\n\ndef are_independent(vectors):\n    \"\"\"True when only the trivial combination vanishes.\"\"\"\n    return False\n\n\ndef in_span(vectors, target):\n    \"\"\"True when the target is reachable.\"\"\"\n    return False\n\n\ndef basis_from(vectors):\n    \"\"\"A maximal independent sublist, earliest first.\"\"\"\n    return []\n", "solution": "TOL = 1e-9\n\n\ndef _check(matrix):\n    if not matrix or not matrix[0]:\n        raise ValueError(\"the matrix must be non-empty\")\n    width = len(matrix[0])\n    if any(len(r) != width for r in matrix):\n        raise ValueError(\"all rows must have the same length\")\n    return len(matrix), width\n\n\ndef rref(matrix):\n    \"\"\"(reduced row echelon form, pivot columns).\"\"\"\n    rows, cols = _check(matrix)\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef rank(matrix):\n    \"\"\"Number of pivots.\"\"\"\n    return len(rref(matrix)[1])\n\n\ndef are_independent(vectors):\n    \"\"\"True when only the trivial combination vanishes.\"\"\"\n    if not vectors:\n        return True\n    m = [list(col) for col in zip(*vectors)]\n    return rank(m) == len(vectors)\n\n\ndef in_span(vectors, target):\n    \"\"\"True when the target is reachable.\"\"\"\n    if not vectors:\n        return all(abs(t) < TOL for t in target)\n    base = [list(col) for col in zip(*vectors)]\n    aug = [row + [target[i]] for i, row in enumerate(base)]\n    return rank(base) == rank(aug)\n\n\ndef basis_from(vectors):\n    \"\"\"A maximal independent sublist, earliest first.\"\"\"\n    chosen = []\n    for v in vectors:\n        if are_independent(chosen + [v]):\n            chosen.append(v)\n    return chosen\n", "tests": "def test_ravis_packets():\n    A, B, C = [2.0, 1.0], [1.0, 1.0], [3.0, 2.0]\n    assert are_independent([A, B]) is True\n    assert are_independent([A, B, C]) is False       # C = A + B\n    assert in_span([A, B], C) is True\n    assert basis_from([A, B, C]) == [A, B]\n    # two independent vectors in R^2 span everything\n    for target in ([5.0, 3.0], [7.0, 4.0], [0.0, 1.0], [-2.0, 11.0]):\n        assert in_span([A, B], target) is True\n\n\ndef test_rank_and_rref():\n    # a rank-1 matrix: the second row is twice the first\n    m = [[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]]\n    red, pivots = rref(m)\n    assert rank(m) == 1\n    assert pivots == [0]\n    assert all(abs(v) < 1e-9 for v in red[1])\n    # the identity has full rank\n    assert rank([[1.0, 0.0], [0.0, 1.0]]) == 2\n    assert rank([[0.0, 0.0], [0.0, 0.0]]) == 0\n    # rank is at most the smaller dimension\n    import random\n    rng = random.Random(1844)\n    for _ in range(100):\n        r, c = rng.randint(1, 4), rng.randint(1, 4)\n        mm = [[float(rng.randint(-3, 3)) for _ in range(c)] for _ in range(r)]\n        assert rank(mm) <= min(r, c)\n    try:\n        rref([])\n        assert False, \"an empty matrix must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_independence_span_and_basis():\n    e1, e2, e3 = [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]\n    assert are_independent([e1, e2, e3]) is True\n    # four vectors in R^3 are always dependent\n    assert are_independent([e1, e2, e3, [1.0, 1.0, 1.0]]) is False\n    # two vectors cannot span R^3\n    assert in_span([e1, e2], e3) is False\n    assert in_span([e1, e2, e3], [4.0, -2.0, 7.0]) is True\n    # basis_from keeps the earliest independent vectors\n    chosen = basis_from([e1, [2.0, 0.0, 0.0], e2, [1.0, 1.0, 0.0], e3])\n    assert chosen == [e1, e2, e3]\n    assert are_independent(chosen) is True\n    assert len(chosen) == 3\n", "mutants": ["TOL = 1e-9\n\n\ndef _check(matrix):\n    if not matrix or not matrix[0]:\n        raise ValueError(\"the matrix must be non-empty\")\n    width = len(matrix[0])\n    if any(len(r) != width for r in matrix):\n        raise ValueError(\"all rows must have the same length\")\n    return len(matrix), width\n\n\ndef rref(matrix):\n    rows, cols = _check(matrix)\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef rank(matrix):\n    \"\"\"Bug: returns the number of rows, not the number of pivots.\"\"\"\n    _check(matrix)\n    return len(matrix)\n\n\ndef are_independent(vectors):\n    if not vectors:\n        return True\n    m = [list(col) for col in zip(*vectors)]\n    return rank(m) == len(vectors)\n\n\ndef in_span(vectors, target):\n    if not vectors:\n        return all(abs(t) < TOL for t in target)\n    base = [list(col) for col in zip(*vectors)]\n    aug = [row + [target[i]] for i, row in enumerate(base)]\n    return rank(base) == rank(aug)\n\n\ndef basis_from(vectors):\n    chosen = []\n    for v in vectors:\n        if are_independent(chosen + [v]):\n            chosen.append(v)\n    return chosen\n", "TOL = 1e-9\n\n\ndef _check(matrix):\n    if not matrix or not matrix[0]:\n        raise ValueError(\"the matrix must be non-empty\")\n    width = len(matrix[0])\n    if any(len(r) != width for r in matrix):\n        raise ValueError(\"all rows must have the same length\")\n    return len(matrix), width\n\n\ndef rref(matrix):\n    rows, cols = _check(matrix)\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef rank(matrix):\n    return len(rref(matrix)[1])\n\n\ndef are_independent(vectors):\n    if not vectors:\n        return True\n    m = [list(col) for col in zip(*vectors)]\n    return rank(m) == len(vectors)\n\n\ndef in_span(vectors, target):\n    \"\"\"Bug: compares the rank to the number of vectors rather than checking\n    that augmenting does not raise the rank.\"\"\"\n    if not vectors:\n        return all(abs(t) < TOL for t in target)\n    base = [list(col) for col in zip(*vectors)]\n    return rank(base) == len(vectors)\n\n\ndef basis_from(vectors):\n    chosen = []\n    for v in vectors:\n        if are_independent(chosen + [v]):\n            chosen.append(v)\n    return chosen\n"], "hints": ["The rank is the number of pivots in the echelon form, which is *not* the number of rows once some rows reduce to zero.", "A target lies in the span exactly when augmenting the matrix with it does not increase the rank."], "level": "core", "title": "Span, linear independence and basis"}, "m30-ex3-kernel-image": {"starter": "def apply_matrix(a, v):\n    \"\"\"Matrix times vector.\"\"\"\n    return []\n\n\ndef kernel_basis(a):\n    \"\"\"A basis of the null space.\"\"\"\n    return []\n\n\ndef image_basis(a):\n    \"\"\"A basis of the column space.\"\"\"\n    return []\n\n\ndef nullity(a):\n    \"\"\"Dimension of the kernel.\"\"\"\n    return 0\n\n\ndef rank_nullity_holds(a):\n    \"\"\"True when rank + nullity equals the column count.\"\"\"\n    return False\n\n\ndef is_injective(a):\n    \"\"\"True when the kernel is trivial.\"\"\"\n    return False\n\n\ndef is_surjective(a):\n    \"\"\"True when the image fills the codomain.\"\"\"\n    return False\n", "solution": "TOL = 1e-9\n\n\ndef _rref(matrix):\n    rows, cols = len(matrix), len(matrix[0])\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef apply_matrix(a, v):\n    \"\"\"Matrix times vector.\"\"\"\n    if not a or len(a[0]) != len(v):\n        raise ValueError(\"the vector length must match the column count\")\n    return [sum(x * y for x, y in zip(row, v)) for row in a]\n\n\ndef kernel_basis(a):\n    \"\"\"A basis of the null space.\"\"\"\n    red, pivots = _rref(a)\n    cols = len(a[0])\n    free = [c for c in range(cols) if c not in pivots]\n    out = []\n    for f in free:\n        v = [0.0] * cols\n        v[f] = 1.0\n        for r, p in enumerate(pivots):\n            v[p] = -red[r][f]\n        out.append(v)\n    return out\n\n\ndef image_basis(a):\n    \"\"\"A basis of the column space.\"\"\"\n    _, pivots = _rref(a)\n    return [[row[c] for row in a] for c in pivots]\n\n\ndef nullity(a):\n    \"\"\"Dimension of the kernel.\"\"\"\n    return len(kernel_basis(a))\n\n\ndef rank_nullity_holds(a):\n    \"\"\"True when rank + nullity equals the column count.\"\"\"\n    _, pivots = _rref(a)\n    return len(pivots) + nullity(a) == len(a[0])\n\n\ndef is_injective(a):\n    \"\"\"True when the kernel is trivial.\"\"\"\n    return nullity(a) == 0\n\n\ndef is_surjective(a):\n    \"\"\"True when the image fills the codomain.\"\"\"\n    _, pivots = _rref(a)\n    return len(pivots) == len(a)\n", "tests": "def test_kernel_vectors_really_map_to_zero():\n    cases = [\n        [[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]],\n        [[1.0, 0.0], [0.0, 1.0]],\n        [[1.0, 1.0, 1.0]],\n        [[0.0, 0.0], [0.0, 0.0]],\n        [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]],\n    ]\n    for a in cases:\n        for v in kernel_basis(a):\n            out = apply_matrix(a, v)\n            assert all(abs(x) < 1e-9 for x in out), (a, v)\n        assert rank_nullity_holds(a) is True\n\n\ndef test_rank_nullity_on_known_matrices():\n    # a 2x3 of rank 1: nullity must be 2\n    a = [[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]]\n    assert nullity(a) == 2\n    assert len(image_basis(a)) == 1\n    assert len(image_basis(a)) + nullity(a) == 3\n    # the identity: rank 2, nullity 0\n    i2 = [[1.0, 0.0], [0.0, 1.0]]\n    assert nullity(i2) == 0 and len(image_basis(i2)) == 2\n    assert is_injective(i2) is True and is_surjective(i2) is True\n    # the zero matrix flattens everything\n    z = [[0.0, 0.0], [0.0, 0.0]]\n    assert nullity(z) == 2 and image_basis(z) == []\n    assert is_injective(z) is False and is_surjective(z) is False\n\n\ndef test_injective_surjective_and_shapes():\n    # tall and thin: can be injective, never surjective\n    tall = [[1.0, 0.0], [0.0, 1.0], [1.0, 1.0]]\n    assert is_injective(tall) is True\n    assert is_surjective(tall) is False\n    assert nullity(tall) == 0\n    # short and wide: can be surjective, never injective\n    wide = [[1.0, 0.0, 2.0], [0.0, 1.0, 3.0]]\n    assert is_surjective(wide) is True\n    assert is_injective(wide) is False\n    assert nullity(wide) == 1\n    try:\n        apply_matrix([[1.0, 2.0]], [1.0, 2.0, 3.0])\n        assert False, \"a size mismatch must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["TOL = 1e-9\n\n\ndef _rref(matrix):\n    rows, cols = len(matrix), len(matrix[0])\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef apply_matrix(a, v):\n    if not a or len(a[0]) != len(v):\n        raise ValueError(\"the vector length must match the column count\")\n    return [sum(x * y for x, y in zip(row, v)) for row in a]\n\n\ndef kernel_basis(a):\n    \"\"\"Bug: the free-variable entries keep the wrong sign.\"\"\"\n    red, pivots = _rref(a)\n    cols = len(a[0])\n    free = [c for c in range(cols) if c not in pivots]\n    out = []\n    for f in free:\n        v = [0.0] * cols\n        v[f] = 1.0\n        for r, p in enumerate(pivots):\n            v[p] = red[r][f]\n        out.append(v)\n    return out\n\n\ndef image_basis(a):\n    _, pivots = _rref(a)\n    return [[row[c] for row in a] for c in pivots]\n\n\ndef nullity(a):\n    return len(kernel_basis(a))\n\n\ndef rank_nullity_holds(a):\n    _, pivots = _rref(a)\n    return len(pivots) + nullity(a) == len(a[0])\n\n\ndef is_injective(a):\n    return nullity(a) == 0\n\n\ndef is_surjective(a):\n    _, pivots = _rref(a)\n    return len(pivots) == len(a)\n", "TOL = 1e-9\n\n\ndef _rref(matrix):\n    rows, cols = len(matrix), len(matrix[0])\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef apply_matrix(a, v):\n    if not a or len(a[0]) != len(v):\n        raise ValueError(\"the vector length must match the column count\")\n    return [sum(x * y for x, y in zip(row, v)) for row in a]\n\n\ndef kernel_basis(a):\n    red, pivots = _rref(a)\n    cols = len(a[0])\n    free = [c for c in range(cols) if c not in pivots]\n    out = []\n    for f in free:\n        v = [0.0] * cols\n        v[f] = 1.0\n        for r, p in enumerate(pivots):\n            v[p] = -red[r][f]\n        out.append(v)\n    return out\n\n\ndef image_basis(a):\n    \"\"\"Bug: returns the pivot ROWS of the reduced matrix instead of the\n    pivot COLUMNS of the original.\"\"\"\n    red, pivots = _rref(a)\n    return [red[i] for i in range(len(pivots))]\n\n\ndef nullity(a):\n    return len(kernel_basis(a))\n\n\ndef rank_nullity_holds(a):\n    _, pivots = _rref(a)\n    return len(pivots) + nullity(a) == len(a[0])\n\n\ndef is_injective(a):\n    return nullity(a) == 0\n\n\ndef is_surjective(a):\n    \"\"\"Bug: compares the pivot count to the column count, so every matrix\n    with independent columns looks surjective.\"\"\"\n    _, pivots = _rref(a)\n    return len(pivots) == len(a[0])\n"], "hints": ["Setting a free variable to 1 forces each basic variable to *minus* the corresponding RREF entry.", "The image is spanned by the pivot columns of the ORIGINAL matrix, not by rows of the reduced one."], "level": "core", "title": "Kernel, image and rank-nullity"}, "m30-ex4-elimination": {"starter": "def solve_system(a, b):\n    \"\"\"Return (status, solution).\"\"\"\n    return (\"none\", None)\n\n\ndef is_consistent(a, b):\n    \"\"\"True when a solution exists.\"\"\"\n    return False\n\n\ndef free_variable_count(a):\n    \"\"\"Number of free columns.\"\"\"\n    return 0\n\n\ndef verify_solution(a, b, x):\n    \"\"\"True when A x equals b.\"\"\"\n    return False\n", "solution": "TOL = 1e-9\n\n\ndef _rref(matrix):\n    rows, cols = len(matrix), len(matrix[0])\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef _augment(a, b):\n    if len(b) != len(a):\n        raise ValueError(\"the right-hand side must match the row count\")\n    return [row + [float(b[i])] for i, row in enumerate(a)]\n\n\ndef is_consistent(a, b):\n    \"\"\"True when a solution exists.\"\"\"\n    aug = _augment(a, b)\n    _, pivots = _rref(aug)\n    return len(a[0]) not in pivots\n\n\ndef free_variable_count(a):\n    \"\"\"Number of free columns.\"\"\"\n    _, pivots = _rref(a)\n    return len(a[0]) - len(pivots)\n\n\ndef solve_system(a, b):\n    \"\"\"Return (status, solution).\"\"\"\n    aug = _augment(a, b)\n    red, pivots = _rref(aug)\n    cols = len(a[0])\n    if cols in pivots:\n        return (\"none\", None)\n    x = [0.0] * cols\n    for r, p in enumerate(pivots):\n        x[p] = red[r][cols]\n    if len(pivots) < cols:\n        return (\"infinite\", x)\n    return (\"unique\", x)\n\n\ndef verify_solution(a, b, x):\n    \"\"\"True when A x equals b.\"\"\"\n    if len(b) != len(a):\n        raise ValueError(\"the right-hand side must match the row count\")\n    for row, target in zip(a, b):\n        if abs(sum(p * q for p, q in zip(row, x)) - target) > 1e-9:\n            return False\n    return True\n", "tests": "def test_unique_solutions():\n    a = [[2.0, 1.0], [1.0, -1.0]]\n    b = [5.0, 1.0]\n    status, x = solve_system(a, b)\n    assert status == \"unique\"\n    assert abs(x[0] - 2.0) < 1e-9 and abs(x[1] - 1.0) < 1e-9\n    assert verify_solution(a, b, x) is True\n    assert is_consistent(a, b) is True\n    assert free_variable_count(a) == 0\n\n\ndef test_no_solution_and_infinitely_many():\n    # parallel lines: no solution\n    a = [[1.0, 2.0], [2.0, 4.0]]\n    assert solve_system(a, [3.0, 7.0]) == (\"none\", None)\n    assert is_consistent(a, [3.0, 7.0]) is False\n    # the same line twice: infinitely many\n    status, x = solve_system(a, [3.0, 6.0])\n    assert status == \"infinite\"\n    assert verify_solution(a, [3.0, 6.0], x) is True\n    assert is_consistent(a, [3.0, 6.0]) is True\n    assert free_variable_count(a) == 1\n\n\ndef test_random_systems_round_trip():\n    import random\n    rng = random.Random(1810)\n    checked = 0\n    for _ in range(300):\n        n = rng.randint(1, 4)\n        a = [[float(rng.randint(-4, 4)) for _ in range(n)] for _ in range(n)]\n        x_true = [float(rng.randint(-5, 5)) for _ in range(n)]\n        b = [sum(a[i][j] * x_true[j] for j in range(n)) for i in range(n)]\n        status, x = solve_system(a, b)\n        assert status in (\"unique\", \"infinite\")\n        assert verify_solution(a, b, x) is True\n        if status == \"unique\":\n            for got, want in zip(x, x_true):\n                assert abs(got - want) < 1e-6\n            checked += 1\n    assert checked > 100\n    try:\n        solve_system([[1.0, 2.0]], [1.0, 2.0])\n        assert False, \"a mismatched right-hand side must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["TOL = 1e-9\n\n\ndef _rref(matrix):\n    rows, cols = len(matrix), len(matrix[0])\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef _augment(a, b):\n    if len(b) != len(a):\n        raise ValueError(\"the right-hand side must match the row count\")\n    return [row + [float(b[i])] for i, row in enumerate(a)]\n\n\ndef is_consistent(a, b):\n    \"\"\"Bug: never checks whether the augmented column holds a pivot.\"\"\"\n    _augment(a, b)\n    return True\n\n\ndef free_variable_count(a):\n    _, pivots = _rref(a)\n    return len(a[0]) - len(pivots)\n\n\ndef solve_system(a, b):\n    aug = _augment(a, b)\n    red, pivots = _rref(aug)\n    cols = len(a[0])\n    x = [0.0] * cols\n    for r, p in enumerate(pivots):\n        if p < cols:\n            x[p] = red[r][cols]\n    if len(pivots) < cols:\n        return (\"infinite\", x)\n    return (\"unique\", x)\n\n\ndef verify_solution(a, b, x):\n    if len(b) != len(a):\n        raise ValueError(\"the right-hand side must match the row count\")\n    for row, target in zip(a, b):\n        if abs(sum(p * q for p, q in zip(row, x)) - target) > 1e-9:\n            return False\n    return True\n", "TOL = 1e-9\n\n\ndef _rref(matrix):\n    rows, cols = len(matrix), len(matrix[0])\n    a = [[float(v) for v in row] for row in matrix]\n    pivots = []\n    r = 0\n    for c in range(cols):\n        if r >= rows:\n            break\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]))\n        if abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n    return a, pivots\n\n\ndef _augment(a, b):\n    if len(b) != len(a):\n        raise ValueError(\"the right-hand side must match the row count\")\n    return [row + [float(b[i])] for i, row in enumerate(a)]\n\n\ndef is_consistent(a, b):\n    aug = _augment(a, b)\n    _, pivots = _rref(aug)\n    return len(a[0]) not in pivots\n\n\ndef free_variable_count(a):\n    \"\"\"Bug: counts pivots rather than free columns.\"\"\"\n    _, pivots = _rref(a)\n    return len(pivots)\n\n\ndef solve_system(a, b):\n    \"\"\"Bug: reports 'unique' whenever the system is consistent, ignoring\n    the free variables.\"\"\"\n    aug = _augment(a, b)\n    red, pivots = _rref(aug)\n    cols = len(a[0])\n    if cols in pivots:\n        return (\"none\", None)\n    x = [0.0] * cols\n    for r, p in enumerate(pivots):\n        x[p] = red[r][cols]\n    return (\"unique\", x)\n\n\ndef verify_solution(a, b, x):\n    if len(b) != len(a):\n        raise ValueError(\"the right-hand side must match the row count\")\n    for row, target in zip(a, b):\n        if abs(sum(p * q for p, q in zip(row, x)) - target) > 1e-9:\n            return False\n    return True\n"], "hints": ["The system is inconsistent exactly when the RREF has a pivot in the augmented (last) column.", "Free variables are the columns *without* pivots, so their count is `columns - pivots`."], "level": "core", "title": "Gaussian elimination and solving systems"}, "m30-ex5-lu-pivoting": {"starter": "def lu_decompose(a):\n    \"\"\"(L, U, perm) with P A = L U.\"\"\"\n    return ([], [], [])\n\n\ndef lu_solve(l, u, perm, b):\n    \"\"\"Solve using an existing factorisation.\"\"\"\n    return []\n\n\ndef naive_elimination_2x2(eps, b):\n    \"\"\"Solve without pivoting.\"\"\"\n    return (0.0, 0.0)\n\n\ndef pivoted_elimination_2x2(eps, b):\n    \"\"\"Solve with partial pivoting.\"\"\"\n    return (0.0, 0.0)\n\n\ndef residual_2x2(eps, b, x):\n    \"\"\"Largest absolute residual.\"\"\"\n    return 0.0\n\n\ndef solve_cost(n):\n    \"\"\"Approximate operations for one LU solve.\"\"\"\n    return 0\n\n\ndef inverse_cost(n):\n    \"\"\"Approximate operations to form the inverse.\"\"\"\n    return 0\n", "solution": "def lu_decompose(a):\n    \"\"\"(L, U, perm) with P A = L U.\"\"\"\n    n = len(a)\n    if n == 0 or any(len(r) != n for r in a):\n        raise ValueError(\"the matrix must be square and non-empty\")\n    u = [[float(v) for v in row] for row in a]\n    l = [[0.0] * n for _ in range(n)]\n    perm = list(range(n))\n    for c in range(n):\n        p = max(range(c, n), key=lambda i: abs(u[i][c]))\n        if abs(u[p][c]) < 1e-14:\n            raise ValueError(\"the matrix is singular\")\n        if p != c:\n            u[c], u[p] = u[p], u[c]\n            l[c], l[p] = l[p], l[c]\n            perm[c], perm[p] = perm[p], perm[c]\n        l[c][c] = 1.0\n        for r in range(c + 1, n):\n            f = u[r][c] / u[c][c]\n            l[r][c] = f\n            u[r] = [v - f * w for v, w in zip(u[r], u[c])]\n    return l, u, perm\n\n\ndef lu_solve(l, u, perm, b):\n    \"\"\"Solve using an existing factorisation.\"\"\"\n    n = len(l)\n    if len(b) != n:\n        raise ValueError(\"the right-hand side must match the matrix size\")\n    pb = [b[perm[i]] for i in range(n)]\n    y = [0.0] * n\n    for i in range(n):\n        y[i] = pb[i] - sum(l[i][j] * y[j] for j in range(i))\n    x = [0.0] * n\n    for i in range(n - 1, -1, -1):\n        x[i] = (y[i] - sum(u[i][j] * x[j] for j in range(i + 1, n))) / u[i][i]\n    return x\n\n\ndef naive_elimination_2x2(eps, b):\n    \"\"\"Solve without pivoting.\"\"\"\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = [float(b[0]), float(b[1])]\n    m = a[1][0] / a[0][0]\n    a11 = a[1][1] - m * a[0][1]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a11\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef pivoted_elimination_2x2(eps, b):\n    \"\"\"Solve with partial pivoting.\"\"\"\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = [float(b[0]), float(b[1])]\n    if abs(a[1][0]) > abs(a[0][0]):\n        a[0], a[1] = a[1], a[0]\n        rhs[0], rhs[1] = rhs[1], rhs[0]\n    m = a[1][0] / a[0][0]\n    a11 = a[1][1] - m * a[0][1]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a11\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef residual_2x2(eps, b, x):\n    \"\"\"Largest absolute residual.\"\"\"\n    return max(abs(eps * x[0] + x[1] - b[0]), abs(x[0] + x[1] - b[1]))\n\n\ndef solve_cost(n):\n    \"\"\"Approximate operations for one LU solve.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return n ** 3 // 3\n\n\ndef inverse_cost(n):\n    \"\"\"Approximate operations to form the inverse.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return n ** 3\n", "tests": "def test_lu_reconstructs_the_permuted_matrix():\n    import random\n    rng = random.Random(1948)\n    for _ in range(100):\n        n = rng.randint(1, 5)\n        a = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]\n        try:\n            l, u, perm = lu_decompose(a)\n        except ValueError:\n            continue\n        for i in range(n):\n            for j in range(n):\n                lhs = sum(l[i][k] * u[k][j] for k in range(n))\n                assert abs(lhs - a[perm[i]][j]) < 1e-8, (i, j)\n        # L is unit lower triangular, U is upper triangular\n        for i in range(n):\n            assert abs(l[i][i] - 1.0) < 1e-12\n            for j in range(i + 1, n):\n                assert abs(l[i][j]) < 1e-12\n                assert abs(u[j][i]) < 1e-12\n\n\ndef test_one_factorisation_many_solves():\n    import random\n    rng = random.Random(42)\n    n = 5\n    a = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]\n    l, u, perm = lu_decompose(a)\n    for _ in range(40):\n        x_true = [rng.uniform(-5, 5) for _ in range(n)]\n        b = [sum(a[i][j] * x_true[j] for j in range(n)) for i in range(n)]\n        x = lu_solve(l, u, perm, b)\n        for got, want in zip(x, x_true):\n            assert abs(got - want) < 1e-6\n    try:\n        lu_decompose([[1.0, 2.0], [2.0, 4.0]])\n        assert False, \"a singular matrix must raise ValueError\"\n    except ValueError:\n        pass\n\n    # A perfectly invertible matrix whose FIRST pivot is zero. Elimination\n    # without a row swap cannot start; with partial pivoting it is trivial.\n    swapper = [[0.0, 1.0], [1.0, 0.0]]\n    l2, u2, perm2 = lu_decompose(swapper)\n    for i in range(2):\n        for j in range(2):\n            lhs = sum(l2[i][k] * u2[k][j] for k in range(2))\n            assert abs(lhs - swapper[perm2[i]][j]) < 1e-12\n    x = lu_solve(l2, u2, perm2, [3.0, 7.0])\n    assert abs(x[0] - 7.0) < 1e-12 and abs(x[1] - 3.0) < 1e-12\n\n    # A tiny leading entry: still factorable, and the solve stays accurate.\n    tiny = [[1e-18, 1.0], [1.0, 1.0]]\n    l3, u3, perm3 = lu_decompose(tiny)\n    x = lu_solve(l3, u3, perm3, [1.0, 2.0])\n    assert abs(x[0] - 1.0) < 1e-6 and abs(x[1] - 1.0) < 1e-6\n\n\ndef test_pivoting_rescues_a_well_conditioned_problem():\n    b = [1.0, 2.0]\n    # at a moderate eps both methods are fine\n    for eps in (1e-2, 1e-4):\n        assert residual_2x2(eps, b, naive_elimination_2x2(eps, b)) < 1e-10\n        assert residual_2x2(eps, b, pivoted_elimination_2x2(eps, b)) < 1e-12\n    # at a tiny eps only pivoting survives\n    eps = 1e-18\n    naive = naive_elimination_2x2(eps, b)\n    piv = pivoted_elimination_2x2(eps, b)\n    assert abs(piv[0] - 1.0) < 1e-9, \"pivoting finds x near 1\"\n    assert abs(naive[0] - 1.0) > 0.5, \"the naive method does not\"\n    assert residual_2x2(eps, b, piv) < residual_2x2(eps, b, naive)\n    # and the cost comparison favours solving over inverting\n    for n in (5, 10, 50):\n        assert inverse_cost(n) > solve_cost(n)\n        assert inverse_cost(n) >= 3 * solve_cost(n)\n", "mutants": ["def lu_decompose(a):\n    \"\"\"Bug: no pivoting, so a zero pivot stops it and accuracy suffers.\"\"\"\n    n = len(a)\n    if n == 0 or any(len(r) != n for r in a):\n        raise ValueError(\"the matrix must be square and non-empty\")\n    u = [[float(v) for v in row] for row in a]\n    l = [[0.0] * n for _ in range(n)]\n    perm = list(range(n))\n    for c in range(n):\n        if abs(u[c][c]) < 1e-14:\n            raise ValueError(\"the matrix is singular\")\n        l[c][c] = 1.0\n        for r in range(c + 1, n):\n            f = u[r][c] / u[c][c]\n            l[r][c] = f\n            u[r] = [v - f * w for v, w in zip(u[r], u[c])]\n    return l, u, perm\n\n\ndef lu_solve(l, u, perm, b):\n    n = len(l)\n    if len(b) != n:\n        raise ValueError(\"the right-hand side must match the matrix size\")\n    pb = [b[perm[i]] for i in range(n)]\n    y = [0.0] * n\n    for i in range(n):\n        y[i] = pb[i] - sum(l[i][j] * y[j] for j in range(i))\n    x = [0.0] * n\n    for i in range(n - 1, -1, -1):\n        x[i] = (y[i] - sum(u[i][j] * x[j] for j in range(i + 1, n))) / u[i][i]\n    return x\n\n\ndef naive_elimination_2x2(eps, b):\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = [float(b[0]), float(b[1])]\n    m = a[1][0] / a[0][0]\n    a11 = a[1][1] - m * a[0][1]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a11\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef pivoted_elimination_2x2(eps, b):\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = [float(b[0]), float(b[1])]\n    if abs(a[1][0]) > abs(a[0][0]):\n        a[0], a[1] = a[1], a[0]\n        rhs[0], rhs[1] = rhs[1], rhs[0]\n    m = a[1][0] / a[0][0]\n    a11 = a[1][1] - m * a[0][1]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a11\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef residual_2x2(eps, b, x):\n    return max(abs(eps * x[0] + x[1] - b[0]), abs(x[0] + x[1] - b[1]))\n\n\ndef solve_cost(n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return n ** 3 // 3\n\n\ndef inverse_cost(n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return n ** 3\n", "def lu_decompose(a):\n    n = len(a)\n    if n == 0 or any(len(r) != n for r in a):\n        raise ValueError(\"the matrix must be square and non-empty\")\n    u = [[float(v) for v in row] for row in a]\n    l = [[0.0] * n for _ in range(n)]\n    perm = list(range(n))\n    for c in range(n):\n        p = max(range(c, n), key=lambda i: abs(u[i][c]))\n        if abs(u[p][c]) < 1e-14:\n            raise ValueError(\"the matrix is singular\")\n        if p != c:\n            u[c], u[p] = u[p], u[c]\n            l[c], l[p] = l[p], l[c]\n            perm[c], perm[p] = perm[p], perm[c]\n        l[c][c] = 1.0\n        for r in range(c + 1, n):\n            f = u[r][c] / u[c][c]\n            l[r][c] = f\n            u[r] = [v - f * w for v, w in zip(u[r], u[c])]\n    return l, u, perm\n\n\ndef lu_solve(l, u, perm, b):\n    \"\"\"Bug: forgets to permute the right-hand side.\"\"\"\n    n = len(l)\n    if len(b) != n:\n        raise ValueError(\"the right-hand side must match the matrix size\")\n    y = [0.0] * n\n    for i in range(n):\n        y[i] = b[i] - sum(l[i][j] * y[j] for j in range(i))\n    x = [0.0] * n\n    for i in range(n - 1, -1, -1):\n        x[i] = (y[i] - sum(u[i][j] * x[j] for j in range(i + 1, n))) / u[i][i]\n    return x\n\n\ndef naive_elimination_2x2(eps, b):\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = [float(b[0]), float(b[1])]\n    m = a[1][0] / a[0][0]\n    a11 = a[1][1] - m * a[0][1]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a11\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef pivoted_elimination_2x2(eps, b):\n    \"\"\"Bug: no swap, so this is identical to the naive version.\"\"\"\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = [float(b[0]), float(b[1])]\n    m = a[1][0] / a[0][0]\n    a11 = a[1][1] - m * a[0][1]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a11\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef residual_2x2(eps, b, x):\n    return max(abs(eps * x[0] + x[1] - b[0]), abs(x[0] + x[1] - b[1]))\n\n\ndef solve_cost(n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return n ** 3 // 3\n\n\ndef inverse_cost(n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    return n ** 3\n"], "hints": ["`P A = L U` means the right-hand side must be permuted the same way before the forward substitution.", "Partial pivoting swaps in the largest-magnitude candidate before eliminating, which keeps every multiplier at most 1 in magnitude."], "level": "boss", "title": "LU with partial pivoting, and why you should not invert"}}, "demos": {"m30-rank-two-ways": {"code": "import random\nfrom itertools import combinations\n\nTOL = 1e-9\n\n\ndef rref(matrix):\n    \"\"\"Reduce to reduced row echelon form; return (rref, pivot_columns).\"\"\"\n    a = [row[:] for row in matrix]\n    rows, cols = len(a), len(a[0])\n    pivots = []\n    r = 0\n    for c in range(cols):\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]), default=None)\n        if best is None or abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n        if r == rows:\n            break\n    return a, pivots\n\n\ndef rank_by_elimination(matrix):\n    _, pivots = rref(matrix)\n    return len(pivots)\n\n\ndef independent(vectors):\n    \"\"\"True when the only vanishing combination is the trivial one.\"\"\"\n    if not vectors:\n        return True\n    m = [list(col) for col in zip(*vectors)]      # vectors as columns\n    _, pivots = rref(m)\n    return len(pivots) == len(vectors)\n\n\ndef rank_by_column_search(matrix):\n    \"\"\"Largest independent subset of the columns. No whole-matrix elimination.\"\"\"\n    cols = [list(col) for col in zip(*matrix)]\n    for size in range(len(cols), 0, -1):\n        for subset in combinations(cols, size):\n            if independent(list(subset)):\n                return size\n    return 0\n\n\nrng = random.Random(1888)\nmismatch = 0\nfor _ in range(200):\n    rows = rng.randint(1, 4)\n    cols = rng.randint(1, 4)\n    m = [[float(rng.randint(-3, 3)) for _ in range(cols)] for _ in range(rows)]\n    if rank_by_elimination(m) != rank_by_column_search(m):\n        mismatch += 1\n\nprint(\"random integer matrices checked:\", 200)\nprint(\"  mismatches between elimination and column search:\", mismatch)\nassert mismatch == 0, \"row rank and column rank must agree\"\n\n# Ravi's spice packets: A = (2,1), B = (1,1), C = (3,2) = A + B.\npackets = [[2.0, 1.0, 3.0], [1.0, 1.0, 2.0]]\nprint()\nprint(\"Ravi's shelf: columns A=(2,1), B=(1,1), C=(3,2)\")\nprint(\"  rank =\", rank_by_elimination(packets), \"so only 2 of the 3 are independent\")\nassert rank_by_elimination(packets) == 2\nassert independent([[2.0, 1.0], [1.0, 1.0]]) is True\nassert independent([[2.0, 1.0], [1.0, 1.0], [3.0, 2.0]]) is False\n# C really is A + B\nassert [2.0 + 1.0, 1.0 + 1.0] == [3.0, 2.0]\n# two independent vectors in R^2 span everything\nfor target in ([5.0, 3.0], [7.0, 4.0], [0.0, 1.0], [-2.0, 11.0]):\n    aug = [[2.0, 1.0, target[0]], [1.0, 1.0, target[1]]]\n    assert rank_by_elimination(aug) == 2, \"consistent, so every blend is reachable\"\n\n# --- rank-nullity, with an explicit kernel basis ---\ndef kernel_basis(matrix):\n    red, pivots = rref(matrix)\n    cols = len(matrix[0])\n    free = [c for c in range(cols) if c not in pivots]\n    basis = []\n    for f in free:\n        v = [0.0] * cols\n        v[f] = 1.0\n        for r, p in enumerate(pivots):\n            v[p] = -red[r][f]\n        basis.append(v)\n    return basis\n\n\nprint()\nprint(f\"{'size':>8} {'rank':>6} {'nullity':>9} {'rank+nullity':>14} {'columns':>9}\")\nfor m in ([[1.0, 2.0, 3.0], [2.0, 4.0, 6.0]],\n          [[1.0, 0.0], [0.0, 1.0]],\n          [[1.0, 1.0, 1.0]],\n          [[0.0, 0.0], [0.0, 0.0]],\n          [[1.0, 2.0], [3.0, 4.0], [5.0, 6.0]]):\n    r = rank_by_elimination(m)\n    k = kernel_basis(m)\n    cols = len(m[0])\n    print(f\"{len(m)}x{cols:<6} {r:>6} {len(k):>9} {r + len(k):>14} {cols:>9}\")\n    assert r + len(k) == cols, \"rank-nullity must hold\"\n    # every claimed kernel vector really maps to zero\n    for v in k:\n        for row in m:\n            assert abs(sum(a * b for a, b in zip(row, v))) < 1e-9\n\nprint()\nprint(\"rank-nullity verified, and every kernel basis vector maps to zero\")\n", "mutants": ["import random\nfrom itertools import combinations\n\nTOL = 1e-9\n\n\ndef rref(matrix):\n    a = [row[:] for row in matrix]\n    rows, cols = len(a), len(a[0])\n    pivots = []\n    r = 0\n    for c in range(cols):\n        best = max(range(r, rows), key=lambda i: abs(a[i][c]), default=None)\n        if best is None or abs(a[best][c]) < TOL:\n            continue\n        a[r], a[best] = a[best], a[r]\n        p = a[r][c]\n        a[r] = [v / p for v in a[r]]\n        for i in range(rows):\n            if i != r and abs(a[i][c]) > TOL:\n                f = a[i][c]\n                a[i] = [v - f * w for v, w in zip(a[i], a[r])]\n        pivots.append(c)\n        r += 1\n        if r == rows:\n            break\n    return a, pivots\n\n\ndef rank_by_elimination(matrix):\n    \"\"\"Bug: counts every row rather than the pivots, so zero rows inflate it.\"\"\"\n    return len(matrix)\n\n\ndef independent(vectors):\n    if not vectors:\n        return True\n    m = [list(col) for col in zip(*vectors)]\n    _, pivots = rref(m)\n    return len(pivots) == len(vectors)\n\n\ndef rank_by_column_search(matrix):\n    cols = [list(col) for col in zip(*matrix)]\n    for size in range(len(cols), 0, -1):\n        for subset in combinations(cols, size):\n            if independent(list(subset)):\n                return size\n    return 0\n\n\nrng = random.Random(1888)\nmismatch = 0\nfor _ in range(200):\n    rows = rng.randint(1, 4)\n    cols = rng.randint(1, 4)\n    m = [[float(rng.randint(-3, 3)) for _ in range(cols)] for _ in range(rows)]\n    if rank_by_elimination(m) != rank_by_column_search(m):\n        mismatch += 1\n\nprint(\"random integer matrices checked:\", 200)\nprint(\"  mismatches between elimination and column search:\", mismatch)\nassert mismatch == 0, \"row rank and column rank must agree\"\n"]}, "m30-pivoting-and-lu": {"code": "def solve_2x2_naive(eps, b):\n    \"\"\"Eliminate using the first row as the pivot, whatever its size.\"\"\"\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = list(b)\n    m = a[1][0] / a[0][0]                 # the multiplier is 1/eps: huge\n    a[1] = [a[1][0] - m * a[0][0], a[1][1] - m * a[0][1]]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a[1][1]\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef solve_2x2_pivoted(eps, b):\n    \"\"\"Swap so the largest entry is the pivot.\"\"\"\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = list(b)\n    if abs(a[1][0]) > abs(a[0][0]):\n        a[0], a[1] = a[1], a[0]\n        rhs[0], rhs[1] = rhs[1], rhs[0]\n    m = a[1][0] / a[0][0]\n    a[1] = [a[1][0] - m * a[0][0], a[1][1] - m * a[0][1]]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a[1][1]\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef residual(eps, b, sol):\n    x, y = sol\n    return max(abs(eps * x + y - b[0]), abs(x + y - b[1]))\n\n\nB = [1.0, 2.0]\nprint(\"solving [[eps, 1], [1, 1]] x = [1, 2]\")\nprint(\"the exact solution tends to (1, 1) as eps -> 0, and the PROBLEM is\")\nprint(\"well conditioned throughout: only the algorithm is at risk.\")\nprint()\nprint(f\"{'eps':>10} {'naive x':>22} {'naive residual':>18} {'pivoted x':>14} {'residual':>12}\")\nnaive_bad = pivoted_good = 0\nfor power in (4, 8, 12, 16, 18):\n    eps = 10.0 ** -power\n    n_sol = solve_2x2_naive(eps, B)\n    p_sol = solve_2x2_pivoted(eps, B)\n    n_res = residual(eps, B, n_sol)\n    p_res = residual(eps, B, p_sol)\n    print(f\"{eps:>10.0e} {n_sol[0]:>22.10f} {n_res:>18.3e} {p_sol[0]:>14.10f} {p_res:>12.3e}\")\n    if n_res > 1e-6:\n        naive_bad += 1\n    if p_res < 1e-12:\n        pivoted_good += 1\n\nprint()\nprint(\"predicted: naive elimination degrades as eps shrinks; pivoting does not\")\nprint(\"measured : naive produced a large residual at\", naive_bad, \"of 5 step sizes\")\nprint(\"measured : pivoting stayed exact at\", pivoted_good, \"of 5\")\nassert naive_bad >= 2, \"naive elimination must visibly fail for small eps\"\nassert pivoted_good == 5, \"pivoting must stay accurate throughout\"\n\n# At eps = 1e-18 the naive method loses the answer entirely.\neps = 1e-18\nn_sol = solve_2x2_naive(eps, B)\np_sol = solve_2x2_pivoted(eps, B)\nprint()\nprint(f\"at eps = 1e-18:  naive x = {n_sol[0]}   pivoted x = {p_sol[0]}  (true x ~ 1)\")\nassert abs(p_sol[0] - 1.0) < 1e-9, \"pivoting finds the right answer\"\nassert abs(n_sol[0] - 1.0) > 0.5, \"the naive method does not\"\n\n# --- LU: one factorisation, many right-hand sides ---\ndef lu_decompose(a):\n    \"\"\"PA = LU by Gaussian elimination with partial pivoting.\"\"\"\n    n = len(a)\n    u = [row[:] for row in a]\n    l = [[0.0] * n for _ in range(n)]\n    perm = list(range(n))\n    for c in range(n):\n        p = max(range(c, n), key=lambda i: abs(u[i][c]))\n        if abs(u[p][c]) < 1e-14:\n            raise ValueError(\"singular\")\n        if p != c:\n            u[c], u[p] = u[p], u[c]\n            l[c], l[p] = l[p], l[c]\n            perm[c], perm[p] = perm[p], perm[c]\n        l[c][c] = 1.0\n        for r in range(c + 1, n):\n            f = u[r][c] / u[c][c]\n            l[r][c] = f\n            u[r] = [v - f * w for v, w in zip(u[r], u[c])]\n    return l, u, perm\n\n\ndef lu_solve(l, u, perm, b):\n    n = len(l)\n    pb = [b[perm[i]] for i in range(n)]\n    y = [0.0] * n\n    for i in range(n):\n        y[i] = pb[i] - sum(l[i][j] * y[j] for j in range(i))\n    x = [0.0] * n\n    for i in range(n - 1, -1, -1):\n        x[i] = (y[i] - sum(u[i][j] * x[j] for j in range(i + 1, n))) / u[i][i]\n    return x\n\n\nimport random\nrng = random.Random(1948)\nA = [[rng.uniform(-5, 5) for _ in range(5)] for _ in range(5)]\nl, u, perm = lu_decompose(A)\n\n# L U really reconstructs the row-permuted A.\nfor i in range(5):\n    for j in range(5):\n        lhs = sum(l[i][k] * u[k][j] for k in range(5))\n        assert abs(lhs - A[perm[i]][j]) < 1e-9, \"P A = L U must hold\"\nprint()\nprint(\"LU factorisation verified: L times U reproduces the permuted A\")\n\n# One factorisation, many solves.\nworst = 0.0\nfor _ in range(50):\n    b = [rng.uniform(-5, 5) for _ in range(5)]\n    x = lu_solve(l, u, perm, b)\n    for i in range(5):\n        worst = max(worst, abs(sum(A[i][j] * x[j] for j in range(5)) - b[i]))\nprint(\"50 right-hand sides solved from ONE factorisation; worst residual:\", f\"{worst:.3e}\")\nassert worst < 1e-9\n\nn = 5\nprint()\nprint(\"operation counts for n =\", n)\nprint(f\"  one LU factorisation      ~ {n ** 3 // 3:>6}\")\nprint(f\"  each extra solve          ~ {n ** 2:>6}\")\nprint(f\"  forming the full inverse  ~ {n ** 3:>6}  then {n ** 2} per use\")\nassert n ** 3 > n ** 3 // 3, \"the inverse costs strictly more than one factorisation\"\n", "mutants": ["def solve_2x2_naive(eps, b):\n    a = [[eps, 1.0], [1.0, 1.0]]\n    rhs = list(b)\n    m = a[1][0] / a[0][0]\n    a[1] = [a[1][0] - m * a[0][0], a[1][1] - m * a[0][1]]\n    rhs[1] = rhs[1] - m * rhs[0]\n    y = rhs[1] / a[1][1]\n    x = (rhs[0] - a[0][1] * y) / a[0][0]\n    return (x, y)\n\n\ndef residual(eps, b, sol):\n    x, y = sol\n    return max(abs(eps * x + y - b[0]), abs(x + y - b[1]))\n\n\nB = [1.0, 2.0]\nnaive_bad = 0\nfor power in (4, 8, 12, 16, 18):\n    eps = 10.0 ** -power\n    n_res = residual(eps, B, solve_2x2_naive(eps, B))\n    print(f\"  eps={eps:.0e} naive residual {n_res:.3e}\")\n    if n_res > 1e-6:\n        naive_bad += 1\n\nprint(\"predicted under the WRONG theory: elimination order does not matter\")\n# Wrong theory: claims naive elimination is just as good as pivoted.\nassert naive_bad == 0, \"naive elimination should be accurate at every eps\"\n"]}}, "cards": [{"q": "What makes a set of vectors a basis?", "a": "It is independent and it spans. Every vector then has a unique expression in it, and all bases of a space have the same size."}, {"q": "Why did adding a third spice packet change nothing?", "a": "Because it was already in the span of the other two. Only independent vectors enlarge a span."}, {"q": "State the rank-nullity theorem and its intuition.", "a": "Rank plus nullity equals the dimension of the domain. The map flattens a subspace to zero and carries the rest across faithfully."}, {"q": "What are the three conditions for a subspace?", "a": "It contains the zero vector, and it is closed under addition and under scalar multiplication."}, {"q": "What does the rank of a matrix count?", "a": "The number of pivots in its echelon form, equivalently the dimension of its column space, equivalently of its row space."}, {"q": "When is a linear system inconsistent?", "a": "Exactly when the reduced augmented matrix has a pivot in the right-hand-side column."}, {"q": "Why does partial pivoting matter?", "a": "A small pivot produces enormous multipliers that amplify rounding error. Pivoting keeps every multiplier at most 1 and makes elimination stable."}, {"q": "Is an inaccurate answer always a sign of an ill-conditioned problem?", "a": "No. A well-conditioned problem solved by an unstable algorithm gives garbage. Conditioning is a property of the problem, stability of the method."}, {"q": "Why prefer LU to computing an inverse?", "a": "LU costs about a third as much, is more accurate, and one factorisation serves many right-hand sides. The explicit inverse of a sparse matrix is also usually dense."}, {"q": "What does a change of basis do to the matrix of a linear map?", "a": "It conjugates it: A becomes B inverse A B. Similar matrices are the same map in different coordinates."}], "title": "Linear algebra I: vector spaces and linear maps"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

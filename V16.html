@@ -1,0 +1,396 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V16 Automated reasoning: SAT, SMT and model checking</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V16">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · Grad · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V16</p><h1>Automated reasoning: SAT, SMT and model checking</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V15.html">V15</a> <a href="P14.html">P14</a></div><div><b>Covers:</b> formal methods, CS2023 AL, CS2023 SE</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>SAT and CNF</li><li>the Tseitin transformation</li><li>DPLL: unit propagation, pure literals, backtracking</li><li>CDCL idea</li><li>encoding puzzles and configurations as SAT</li><li>SMT idea (theories)</li><li>explicit-state model checking by BFS</li><li>safety vs liveness</li><li>temporal logic basics</li><li>finding a concurrency bug by exploring every interleaving</li><li>TLA+ and Alloy ideas</li><li>bounded model checking</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the high towers of a fortified mountain citadel, master locksmith Nicholas designs the great royal treasury vault. The massive iron door is controlled by thirty interlocking brass levers, gears, and copper pins. If lever one is pulled downwards, lever four must rotate upwards, unless lever seven is turned sideways. Furthermore, if lever seven turns sideways while lever twelve is active, an emergency iron deadbolt shoots across the frame, locking the vault forever!</p>
+<p>The king asks anxiously: "Nicholas, can a cunning thief ever find a valid sequence of lever positions that opens the vault without triggering the deadbolt?"</p>
+<p>Nicholas frowns and calculates: "Your Majesty, with thirty independent levers, there are two to the power of thirty combinations—over one billion distinct configurations. If a thief tested one combination every second, it would take thirty-four years of continuous effort!"</p>
+<p>A visiting scholar from the academy smiles and steps forward: "A master thief does not guess combinations at random. She reasons with propositional logic. If lever one forces lever four, and lever four forces lever seven, but lever seven immediately deadbolts the door, then lever one can NEVER be pulled! With two lines of logical deduction, we eliminate five hundred million combinations in a microsecond!"</p>
+<p>That is automated reasoning. Instead of blindly testing millions of states, SAT solvers and model checkers use Boolean deduction, unit propagation, and exhaustive graph search to prove whether any forbidden path exists in the universe.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Automated reasoning converts software and hardware verification into mathematical logic. Propositional Satisfiability (SAT) determines whether a Boolean formula in Conjunctive Normal Form (CNF) has a satisfying truth assignment. The Tseitin transformation converts arbitrary logic circuits into equisatisfiable CNF in linear time. Modern SAT solvers use DPLL (backtracking with unit propagation and pure literal elimination) and CDCL (conflict-driven clause learning). Satisfiability Modulo Theories (SMT) extends SAT with theories of integers, arrays, and bit-vectors. Explicit-state model checkers explore every state transition by BFS, detecting concurrency deadlocks and safety violations.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $V = \{x_1, \dots, x_n\}$ be boolean variables. A literal $l$ is a variable $x_i$ or its negation $\neg x_i$. A clause $C_j$ is a disjunction of literals $\bigvee l_{j, k}$. A formula in Conjunctive Normal Form (CNF) is $\phi = \bigwedge_{j=1}^m C_j$.
+1. <strong>Tseitin Transformation:</strong> For any boolean expression DAG with $n$ gates, introduces an auxiliary variable $a_g$ per gate and produces an equisatisfiable CNF formula $\phi_{\text{Tseitin}}$ with $O(n)$ clauses and $O(n)$ variables.
+2. <strong>DPLL Algorithm:</strong> Given CNF formula $\phi$:
+   - <strong>Unit Propagation (BCP):</strong> If a clause contains exactly one unassigned literal $l$, assign $l = \text{True}$. Repeat until no unit clauses remain or conflict arises.
+   - <strong>Pure Literal Elimination:</strong> If literal $l$ appears with only one polarity across all unresolved clauses, assign $l = \text{True}$.
+   - <strong>Branching and Backtracking:</strong> Choose an unassigned variable, assign truth value, and recursively search; backtrack on conflict.
+3. <strong>Safety vs Liveness:</strong> Safety properties state "bad states never occur" ($\mathbf{G} \neg \text{Bad}$), disproved by a finite counterexample trace. Liveness properties state "good states eventually occur" ($\mathbf{F} \text{Good}$), disproved by an infinite lasso loop.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why is automated reasoning so extraordinarily powerful despite the Cook-Levin Theorem proving that SAT is NP-complete? In theoretical worst cases, SAT algorithms require $O(2^n)$ exponential time. However, industrial formulas arising from hardware verification, compiler optimization, package dependency resolution, and software model checking are not random coin tosses: they possess rich hidden geometric and causal structure.</p>
+<p>Modern CDCL solvers exploit this structure through three foundational breakthroughs:
+1. <strong>Unit Propagation (Boolean Constraint Propagation - BCP):</strong> Assigning a single variable triggers a cascading chain reaction of forced deductions through unit clauses, pruning exponential search subtrees without speculative branching.
+2. <strong>Conflict Analysis and Clause Learning:</strong> When a conflicting assignment falsifies a clause, the solver traverses the bipartite Implication Graph backward to the First Unique Implication Point (1-UIP). It learns an asserting conflict clause and performs non-chronological backtracking (backjumping) across dozens of decision levels, guaranteeing the exact same contradiction can never occur again.
+3. <strong>Two-Watched-Literal Scheme:</strong> Solvers monitor only two unassigned literals per clause, allowing clause status checks in $O(1)$ amortized time during variable assignments.</p>
+<p>In concurrent software, human intuition fails because $k$ threads executing $n$ atomic instructions produce $\frac{(k \cdot n)!}{(n!)^k}$ possible interleavings. Explicit-state model checking systematically explores this interleaving state space using breadth-first search. By maintaining a visited-state hash table, model checkers prove absolute absence of deadlocks and race conditions, returning minimal counterexample traces when bugs occur.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The test oracle for automated reasoning evaluates whether a DPLL SAT solver correctly determines satisfiability and returns valid truth assignments. In the demonstration below, we encode the Pigeonhole Principle ($n+1$ pigeons into $n$ holes) into CNF. For $n=3$, placing 4 pigeons into 3 holes is provably unsatisfiable. A broken mutant solver that incorrectly claims satisfiability is caught instantly by the automated assertion engine.</p>
+<div class="lab demo" data-demo="oracle-dpll-pigeonhole">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>DPLL solver verification on Pigeonhole Principle</h3></div>
+
+<textarea class="code" spellcheck="false">def dpll_solve_simple(clauses: list[list[int]], num_vars: int):
+    # Pure DPLL solver
+    def solve(cl_list, assignment):
+        # Check if all clauses satisfied
+        all_sat = True
+        for cl in cl_list:
+            sat = any(assignment.get(abs(lit)) == (lit &gt; 0) for lit in cl)
+            if not sat:
+                all_sat = False
+                break
+        if all_sat:
+            return True, assignment
+
+        # Check for empty clause (conflict)
+        for cl in cl_list:
+            falsified = all(assignment.get(abs(lit)) is not None and 
+                            assignment.get(abs(lit)) != (lit &gt; 0) for lit in cl)
+            if falsified:
+                return False, None
+
+        # Unit propagation
+        for cl in cl_list:
+            unassigned = [lit for lit in cl if assignment.get(abs(lit)) is None]
+            sat = any(assignment.get(abs(lit)) == (lit &gt; 0) for lit in cl)
+            if not sat and len(unassigned) == 1:
+                unit = unassigned[0]
+                new_assign = dict(assignment)
+                new_assign[abs(unit)] = (unit &gt; 0)
+                return solve(cl_list, new_assign)
+
+        # Pick next unassigned variable
+        var = None
+        for v in range(1, num_vars + 1):
+            if v not in assignment:
+                var = v
+                break
+        if var is None:
+            return False, None
+
+        # Try True
+        a1 = dict(assignment)
+        a1[var] = True
+        ok, res = solve(cl_list, a1)
+        if ok:
+            return True, res
+
+        # Try False
+        a2 = dict(assignment)
+        a2[var] = False
+        return solve(cl_list, a2)
+
+    return solve(clauses, {})
+
+# Pigeonhole: 4 pigeons into 3 holes (12 variables)
+# P_i,h = variable (i - 1) * 3 + h
+clauses = []
+# Every pigeon in at least one hole
+for i in range(1, 5):
+    clauses.append([(i - 1) * 3 + h for h in range(1, 4)])
+# No two pigeons in same hole
+for h in range(1, 4):
+    for p1 in range(1, 5):
+        for p2 in range(p1 + 1, 5):
+            clauses.append([-((p1 - 1) * 3 + h), -((p2 - 1) * 3 + h)])
+
+is_sat, model = dpll_solve_simple(clauses, 12)
+assert is_sat is False, &quot;Pigeonhole(4, 3) must be UNSAT!&quot;
+assert model is None
+print(&quot;Pigeonhole principle SAT oracle verified UNSAT successfully!&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct a rigorous empirical verification experiment comparing random testing against explicit-state model checking on a concurrent financial account balance model. Two threads execute concurrent transfers without mutual exclusion locks. The explicit-state model checker explores the full non-deterministic interleaving tree via breadth-first search, discovering the exact lost-update trace that violates money conservation and pinpointing the concurrency bug.</p>
+<div class="lab demo" data-demo="exp-model-check-interleaving">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Explicit-state BFS model checking for concurrency race conditions</h3></div>
+
+<textarea class="code" spellcheck="false">from collections import deque
+
+def model_check_concurrency():
+    # Initial state: Account A = 100, Account B = 100, Thread 1 at step 0, Thread 2 at step 0
+    # Thread 1 transfers 20 from A to B
+    # Thread 2 transfers 30 from B to A
+    # Buggy thread: reads A, reads B, modifies both without lock
+    initial_state = (100, 100, 0, 0, None, None) # (A, B, pc1, pc2, local1, local2)
+
+    def get_transitions(state):
+        A, B, pc1, pc2, loc1, loc2 = state
+        succs = []
+        # Thread 1 transitions (transfer 20 A -&gt; B)
+        if pc1 == 0: # read A
+            succs.append((A, B, 1, pc2, A - 20, loc2))
+        elif pc1 == 1: # write A, update B
+            succs.append((loc1, B + 20, 2, pc2, loc1, loc2))
+
+        # Thread 2 transitions (transfer 30 B -&gt; A)
+        if pc2 == 0: # read B
+            succs.append((A, B, pc1, 1, loc1, B - 30))
+        elif pc2 == 1: # write B, update A
+            succs.append((A + 30, loc2, pc1, 2, loc1, loc2))
+
+        return succs
+
+    queue = deque([(initial_state, [initial_state])])
+    visited = {initial_state}
+    counterexample = None
+
+    while queue:
+        curr, trace = queue.popleft()
+        A, B, pc1, pc2, _, _ = curr
+        # Safety invariant: Total money must always be exactly 200
+        if A + B != 200:
+            counterexample = trace
+            break
+
+        for succ in get_transitions(curr):
+            if succ not in visited:
+                visited.add(succ)
+                queue.append((succ, trace + [succ]))
+
+    return counterexample, len(visited)
+
+trace, visited_count = model_check_concurrency()
+assert trace is not None, &quot;Model checker should discover safety violation!&quot;
+print(f&quot;Discovered race condition after exploring {visited_count} states!&quot;)
+print(f&quot;Counterexample trace length: {len(trace)} steps&quot;)
+A_final, B_final = trace[-1][0], trace[-1][1]
+print(f&quot;Final corrupted balance: A={A_final}, B={B_final}, Total={A_final + B_final} (Expected 200)&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-evaluate-cnf" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Evaluate propositional CNF formula under truth assignment</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>evaluate_cnf(clauses, assignment)</code> to evaluate a Conjunctive Normal Form Boolean formula.
+Inputs:
+- <code>clauses</code>: List of clauses, where each clause is a list of non-zero integer literals (positive for variable, negative for negation). E.g. <code>[[1, -2], [2, 3]]</code> represents $(x_1 \lor \neg x_2) \land (x_2 \lor x_3)$.
+- <code>assignment</code>: Dictionary mapping integer variable IDs to booleans, e.g. <code>{1: True, 2: True, 3: False}</code>.</p>
+<p>Requirements:
+1. A clause is satisfied (<code>True</code>) if at least one of its literals evaluates to True.
+2. A clause is falsified (<code>False</code>) if all of its literals are assigned and evaluate to False.
+3. If any clause is falsified, return <code>False</code>.
+4. If all clauses are satisfied, return <code>True</code>.
+5. If some variables in unresolved clauses are missing from <code>assignment</code> and no clause is falsified, return <code>None</code> (undetermined).
+Raise <code>ValueError</code> if <code>clauses</code> contains literal 0 or invalid clause formats.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_cnf(clauses, assignment):
+    # Evaluates CNF formula under given truth assignment
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cnf_satisfied():
+    clauses = [[1, 2], [-1, 2]]
+    assign = {1: True, 2: True}
+    assert evaluate_cnf(clauses, assign) is True
+
+def test_cnf_falsified():
+    clauses = [[1, 2], [-1, -2]]
+    assign = {1: True, 2: True} # Second clause falsified: -1 is False, -2 is False
+    assert evaluate_cnf(clauses, assign) is False
+
+def test_cnf_undetermined():
+    clauses = [[1, 2], [3, 4]]
+    assign = {1: True} # First clause sat, second clause unassigned
+    assert evaluate_cnf(clauses, assign) is None
+
+def test_cnf_zero_literal():
+    try:
+        evaluate_cnf([[0, 1]], {1: True})
+        assert False, &quot;Should raise ValueError for literal 0&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-dpll-solver" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>DPLL SAT solver with unit propagation and backtracking</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>dpll_solve(clauses, num_vars)</code> to solve Boolean satisfiability using the DPLL algorithm.
+Inputs:
+- <code>clauses</code>: List of lists of non-zero integer literals representing CNF formula $\phi$.
+- <code>num_vars</code>: Number of variables (indexed $1 \dots \text{num\_vars}$).</p>
+<p>Rules:
+1. Apply <strong>Unit Propagation</strong>: Find any clause where all literals except one are falsified under current assignment and the remaining literal is unassigned. Assign it to make the clause True. Repeat until fixed point.
+2. If any clause is completely falsified under the current assignment, backtrack.
+3. If all clauses are satisfied, return <code>(True, assignment)</code>.
+4. If no unit clauses remain, choose the lowest unassigned variable index $v \in \{1 \dots \text{num\_vars}\}$, assign $v = \text{True}$, and recurse. If that fails, assign $v = \text{False}$ and recurse.
+5. If both branches fail, return <code>(False, None)</code>.
+Return tuple <code>(is_sat: bool, model: dict | None)</code>.</p></div>
+<textarea class="code" spellcheck="false">def dpll_solve(clauses, num_vars):
+    # DPLL SAT solver with unit propagation and backtracking
+    return False, None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_dpll_simple_sat():
+    clauses = [[1, 2], [-1, 2], [1, -2]]
+    sat, model = dpll_solve(clauses, 2)
+    assert sat is True
+    assert model[1] is True
+    assert model[2] is True
+
+def test_dpll_unsat():
+    # (x1) and (-x1)
+    clauses = [[1], [-1]]
+    sat, model = dpll_solve(clauses, 1)
+    assert sat is False
+    assert model is None
+
+def test_dpll_3sat():
+    # (x1 or x2 or x3) and (-x1 or -x2) and (-x2 or -x3)
+    clauses = [[1, 2, 3], [-1, -2], [-2, -3]]
+    sat, model = dpll_solve(clauses, 3)
+    assert sat is True
+    # Verify model satisfies clauses
+    for cl in clauses:
+        assert any(model[abs(lit)] == (lit &gt; 0) for lit in cl)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-tseitin-gates" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Tseitin transformation generator for boolean logic gates</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>tseitin_gate(gate_type, out_var, in_vars)</code> that generates equisatisfiable CNF clauses for standard logic gates:
+Inputs:
+- <code>gate_type</code>: String in <code>['AND', 'OR', 'NOT', 'IFF']</code>.
+- <code>out_var</code>: Integer identifier of the output variable.
+- <code>in_vars</code>: List of integer identifiers for input variables (length 1 for NOT, length 2 for AND/OR/IFF).</p>
+<p>Rules:
+1. <code>'NOT'</code>: $out \leftrightarrow \neg in_1 \equiv (\neg out \lor \neg in_1) \land (out \lor in_1)$
+   $\implies [[-out, -in_1], [out, in_1]]$.
+2. <code>'AND'</code>: $out \leftrightarrow (in_1 \land in_2) \implies [[-out, in_1], [-out, in_2], [out, -in_1, -in_2]]$.
+3. <code>'OR'</code>: $out \leftrightarrow (in_1 \lor in_2) \implies [[out, -in_1], [out, -in_2], [-out, in_1, in_2]]$.
+4. <code>'IFF'</code>: $out \leftrightarrow (in_1 \leftrightarrow in_2) \implies [[-out, -in_1, in_2], [-out, in_1, -in_2], [out, in_1, in_2], [out, -in_1, -in_2]]$.
+5. Return the list of clauses (list of lists of ints).
+Raise <code>ValueError</code> if <code>gate_type</code> is unknown or <code>in_vars</code> has incorrect length.</p></div>
+<textarea class="code" spellcheck="false">def tseitin_gate(gate_type, out_var, in_vars):
+    # Generates equisatisfiable Tseitin CNF clauses for a gate
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_tseitin_not():
+    cls = tseitin_gate(&#x27;NOT&#x27;, 3, [1])
+    assert cls == [[-3, -1], [3, 1]]
+
+def test_tseitin_and():
+    cls = tseitin_gate(&#x27;AND&#x27;, 3, [1, 2])
+    assert len(cls) == 3
+    assert [-3, 1] in cls and [-3, 2] in cls and [3, -1, -2] in cls
+
+def test_tseitin_or():
+    cls = tseitin_gate(&#x27;OR&#x27;, 3, [1, 2])
+    assert len(cls) == 3
+    assert [3, -1] in cls and [3, -2] in cls and [-3, 1, 2] in cls
+
+def test_tseitin_invalid():
+    try:
+        tseitin_gate(&#x27;XOR_UNKNOWN&#x27;, 3, [1, 2])
+        assert False, &quot;Should raise ValueError for unknown gate&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-explicit-model-checker" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Explicit-state model checker with counterexample trace reconstruction</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>model_check_bfs(initial_state, next_states_fn, safety_predicate, max_states=10000)</code>:
+Inputs:
+- <code>initial_state</code>: Hashable state representation (e.g. tuple or frozenset).
+- <code>next_states_fn(state)</code>: Returns list of successor states reachable via non-deterministic transitions.
+- <code>safety_predicate(state)</code>: Returns boolean <code>True</code> if state is safe, <code>False</code> if invariant violated.
+- <code>max_states</code>: Maximum distinct states to explore before terminating.</p>
+<p>Requirements:
+1. Check <code>safety_predicate(initial_state)</code>. If False, return:
+   <code>{'safe': False, 'counterexample_trace': [initial_state], 'explored_states': 1}</code>.
+2. Perform Breadth-First Search (BFS) using a FIFO queue and a <code>visited</code> set. Track parent pointers to reconstruct paths.
+3. If any discovered state $s$ violates <code>safety_predicate(s)</code> (returns False):
+   - Reconstruct the minimal transition trace from <code>initial_state</code> to $s$.
+   - Immediately return:
+     <code>{'safe': False, 'counterexample_trace': trace, 'explored_states': len(visited)}</code>.
+4. If the queue is exhausted and no unsafe state is found, return:
+   <code>{'safe': True, 'counterexample_trace': None, 'explored_states': len(visited)}</code>.
+5. If <code>len(visited) &gt; max_states</code>, raise <code>TimeoutError("Max state limit exceeded")</code>.</p></div>
+<textarea class="code" spellcheck="false">def model_check_bfs(initial_state, next_states_fn, safety_predicate, max_states=10000):
+    # Explicit-state BFS model checker
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_model_checker_safe():
+    # Simple ring of 5 states: 0 -&gt; 1 -&gt; 2 -&gt; 3 -&gt; 4 -&gt; 0
+    next_fn = lambda s: [(s + 1) % 5]
+    safe_pred = lambda s: s &lt; 10
+    res = model_check_bfs(0, next_fn, safe_pred)
+    assert res[&#x27;safe&#x27;] is True
+    assert res[&#x27;explored_states&#x27;] == 5
+    assert res[&#x27;counterexample_trace&#x27;] is None
+
+def test_model_checker_violation():
+    # Binary counter: states are tuples (b0, b1)
+    # Transitions: toggle bits
+    next_fn = lambda s: [((s[0] + 1) % 2, s[1]), (s[0], (s[1] + 1) % 2)]
+    # Unsafe state is (1, 1)
+    safe_pred = lambda s: s != (1, 1)
+
+    res = model_check_bfs((0, 0), next_fn, safe_pred)
+    assert res[&#x27;safe&#x27;] is False
+    assert len(res[&#x27;counterexample_trace&#x27;]) == 3 # (0, 0) -&gt; (1, 0) or (0, 1) -&gt; (1, 1)
+    assert res[&#x27;counterexample_trace&#x27;][0] == (0, 0)
+    assert res[&#x27;counterexample_trace&#x27;][-1] == (1, 1)
+
+def test_model_checker_initial_violation():
+    res = model_check_bfs(-1, lambda s: [s], lambda s: s &gt;= 0)
+    assert res[&#x27;safe&#x27;] is False
+    assert res[&#x27;counterexample_trace&#x27;] == [-1]
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"SAT is NP-complete, so automated reasoning cannot scale to practical problems."</strong> Industrial SAT solvers routinely solve formulas with millions of variables in seconds by exploiting conflict learning and structure.</li>
+<li><strong>"Model checking and testing are the same thing."</strong> Testing samples random execution paths; model checking exhaustively explores every possible state and interleaving.</li>
+<li><strong>"Tseitin transformation causes an exponential clause explosion."</strong> The naive truth-table expansion is exponential; the Tseitin transformation introduces auxiliary variables and is strictly linear $O(n)$.</li>
+<li><strong>"Safety and liveness are just different words for invariants."</strong> Safety means bad things never happen (refuted by finite traces); liveness means good things eventually happen (refuted by infinite cycles).</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Automated reasoning and explicit-state model checking break down when state spaces suffer from catastrophic combinatorial explosion (such as 100 concurrent threads or 64-bit integer registers), producing billions of states that exhaust available RAM. In these regimes, symbolic model checking (BDDs), SAT-based bounded model checking (BMC), and CEGAR abstraction are strictly required.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>In Linux package management and Swift or Dart dependency resolution, SAT and SMT engines resolve complex semantic version constraints. In a multi-isolate background worker pipeline, model checking verifies that inter-isolate message passing never enters a circular wait deadlock under high-frequency push events.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the SAT problem?</p></div><div class="a" hidden><p>The decision problem of determining whether there exists a truth assignment that satisfies a Boolean formula in CNF.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does the Tseitin transformation achieve?</p></div><div class="a" hidden><p>It converts arbitrary Boolean circuits into equisatisfiable CNF in linear time and space $O(n)$ by introducing auxiliary variables for each logic gate.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the two core deduction rules in DPLL?</p></div><div class="a" hidden><p>Unit propagation (forced assignment of unit clauses) and pure literal elimination (assigning variables with single polarities).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is Conflict-Driven Clause Learning (CDCL)?</p></div><div class="a" hidden><p>A SAT algorithm that analyzes conflicts, learns new asserting clauses, and backjumps non-chronologically to avoid repeating mistakes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the difference between safety and liveness properties?</p></div><div class="a" hidden><p>Safety: 'bad things never happen' (disproved by finite trace). Liveness: 'good things eventually happen' (disproved by infinite loop).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does explicit-state model checking find concurrency bugs?</p></div><div class="a" hidden><p>By using breadth-first search to systematically explore every possible thread scheduling interleaving until all states are validated or an unsafe state is reached.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain how CDCL solvers prune exponential search spaces, perform the Tseitin transformation by hand, and implement an explicit-state BFS model checker.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Biere, A., et al. <em>Handbook of Satisfiability</em>. IOS Press, 2009.</li>
+<li>Clarke, E. M., Henzinger, T. A., Veith, H., and Bloem, R. <em>Handbook of Model Checking</em>. Springer, 2018.</li>
+</ul></section>
+<footer class="pager"><a href="M40.html">&larr; M40 Markov chains, random walks and queues</a>
+<a href="V18.html">V18 Reading and reproducing papers &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V16", "packages": ["numpy"], "exercises": {"ex1-evaluate-cnf": {"starter": "def evaluate_cnf(clauses, assignment):\n    # Evaluates CNF formula under given truth assignment\n    return None\n", "solution": "def evaluate_cnf(clauses, assignment):\n    has_undetermined_clause = False\n\n    for cl in clauses:\n        if not isinstance(cl, list) or not cl:\n            raise ValueError(\"Invalid clause format\")\n\n        clause_sat = False\n        all_lits_assigned = True\n\n        for lit in cl:\n            if not isinstance(lit, int) or lit == 0:\n                raise ValueError(\"Literal must be a non-zero integer\")\n\n            var = abs(lit)\n            if var in assignment:\n                val = assignment[var]\n                lit_val = val if lit > 0 else not val\n                if lit_val:\n                    clause_sat = True\n                    break\n            else:\n                all_lits_assigned = False\n\n        if clause_sat:\n            continue\n\n        if all_lits_assigned:\n            # All literals assigned and none True -> clause falsified\n            return False\n        else:\n            has_undetermined_clause = True\n\n    return None if has_undetermined_clause else True\n", "tests": "def test_cnf_satisfied():\n    clauses = [[1, 2], [-1, 2]]\n    assign = {1: True, 2: True}\n    assert evaluate_cnf(clauses, assign) is True\n\ndef test_cnf_falsified():\n    clauses = [[1, 2], [-1, -2]]\n    assign = {1: True, 2: True} # Second clause falsified: -1 is False, -2 is False\n    assert evaluate_cnf(clauses, assign) is False\n\ndef test_cnf_undetermined():\n    clauses = [[1, 2], [3, 4]]\n    assign = {1: True} # First clause sat, second clause unassigned\n    assert evaluate_cnf(clauses, assign) is None\n\ndef test_cnf_zero_literal():\n    try:\n        evaluate_cnf([[0, 1]], {1: True})\n        assert False, \"Should raise ValueError for literal 0\"\n    except ValueError:\n        pass\n", "mutants": ["def evaluate_cnf(clauses, assignment):\n    # Always returns True\n    if any(0 in cl for cl in clauses): raise ValueError()\n    return True\n", "def evaluate_cnf(clauses, assignment):\n    # Returns False whenever any literal is unassigned\n    if any(0 in cl for cl in clauses): raise ValueError()\n    return False\n"], "hints": ["Evaluate each literal as `assignment[abs(lit)] if lit > 0 else not assignment[abs(lit)]`.", "Return `False` immediately if any clause has all literals assigned and none evaluate to True."], "level": "warmup", "title": "Evaluate propositional CNF formula under truth assignment"}, "ex2-dpll-solver": {"starter": "def dpll_solve(clauses, num_vars):\n    # DPLL SAT solver with unit propagation and backtracking\n    return False, None\n", "solution": "def dpll_solve(clauses, num_vars):\n    def solve(assignment):\n        curr_assign = dict(assignment)\n\n        # Unit propagation loop\n        changed = True\n        while changed:\n            changed = False\n            for cl in clauses:\n                sat = False\n                unassigned = []\n                falsified_count = 0\n\n                for lit in cl:\n                    v = abs(lit)\n                    if v in curr_assign:\n                        val = curr_assign[v] if lit > 0 else not curr_assign[v]\n                        if val:\n                            sat = True\n                            break\n                        else:\n                            falsified_count += 1\n                    else:\n                        unassigned.append(lit)\n\n                if sat:\n                    continue\n\n                if falsified_count == len(cl):\n                    # Conflict: all literals in clause are falsified\n                    return False, None\n\n                if len(unassigned) == 1:\n                    unit = unassigned[0]\n                    curr_assign[abs(unit)] = (unit > 0)\n                    changed = True\n                    break\n\n        # Check if all clauses satisfied\n        all_sat = True\n        for cl in clauses:\n            if not any(curr_assign.get(abs(lit)) == (lit > 0) for lit in cl):\n                all_sat = False\n                break\n        if all_sat:\n            # Fill remaining unassigned variables with False\n            for v in range(1, num_vars + 1):\n                if v not in curr_assign:\n                    curr_assign[v] = False\n            return True, curr_assign\n\n        # Branching: select first unassigned variable\n        next_var = None\n        for v in range(1, num_vars + 1):\n            if v not in curr_assign:\n                next_var = v\n                break\n\n        if next_var is None:\n            return False, None\n\n        # Try True\n        a_true = dict(curr_assign)\n        a_true[next_var] = True\n        ok, res = solve(a_true)\n        if ok:\n            return True, res\n\n        # Try False\n        a_false = dict(curr_assign)\n        a_false[next_var] = False\n        return solve(a_false)\n\n    return solve({})\n", "tests": "def test_dpll_simple_sat():\n    clauses = [[1, 2], [-1, 2], [1, -2]]\n    sat, model = dpll_solve(clauses, 2)\n    assert sat is True\n    assert model[1] is True\n    assert model[2] is True\n\ndef test_dpll_unsat():\n    # (x1) and (-x1)\n    clauses = [[1], [-1]]\n    sat, model = dpll_solve(clauses, 1)\n    assert sat is False\n    assert model is None\n\ndef test_dpll_3sat():\n    # (x1 or x2 or x3) and (-x1 or -x2) and (-x2 or -x3)\n    clauses = [[1, 2, 3], [-1, -2], [-2, -3]]\n    sat, model = dpll_solve(clauses, 3)\n    assert sat is True\n    # Verify model satisfies clauses\n    for cl in clauses:\n        assert any(model[abs(lit)] == (lit > 0) for lit in cl)\n", "mutants": ["def dpll_solve(clauses, num_vars):\n    # Always returns True\n    return True, {v: True for v in range(1, num_vars + 1)}\n", "def dpll_solve(clauses, num_vars):\n    # Skips backtracking and returns False on any conflict\n    return False, None\n"], "hints": ["Perform unit propagation in a `while changed:` loop.", "Fill unassigned variables with `False` when all clauses are satisfied."], "level": "core", "title": "DPLL SAT solver with unit propagation and backtracking"}, "ex3-tseitin-gates": {"starter": "def tseitin_gate(gate_type, out_var, in_vars):\n    # Generates equisatisfiable Tseitin CNF clauses for a gate\n    return []\n", "solution": "def tseitin_gate(gate_type, out_var, in_vars):\n    if not isinstance(out_var, int) or out_var <= 0:\n        raise ValueError(\"out_var must be a positive integer\")\n\n    if gate_type == 'NOT':\n        if len(in_vars) != 1:\n            raise ValueError(\"NOT gate requires exactly 1 input\")\n        a = in_vars[0]\n        return [[-out_var, -a], [out_var, a]]\n\n    elif gate_type == 'AND':\n        if len(in_vars) != 2:\n            raise ValueError(\"AND gate requires exactly 2 inputs\")\n        a, b = in_vars[0], in_vars[1]\n        return [[-out_var, a], [-out_var, b], [out_var, -a, -b]]\n\n    elif gate_type == 'OR':\n        if len(in_vars) != 2:\n            raise ValueError(\"OR gate requires exactly 2 inputs\")\n        a, b = in_vars[0], in_vars[1]\n        return [[out_var, -a], [out_var, -b], [-out_var, a, b]]\n\n    elif gate_type == 'IFF':\n        if len(in_vars) != 2:\n            raise ValueError(\"IFF gate requires exactly 2 inputs\")\n        a, b = in_vars[0], in_vars[1]\n        return [\n            [-out_var, -a, b],\n            [-out_var, a, -b],\n            [out_var, a, b],\n            [out_var, -a, -b]\n        ]\n    else:\n        raise ValueError(f\"Unknown gate type: {gate_type}\")\n", "tests": "def test_tseitin_not():\n    cls = tseitin_gate('NOT', 3, [1])\n    assert cls == [[-3, -1], [3, 1]]\n\ndef test_tseitin_and():\n    cls = tseitin_gate('AND', 3, [1, 2])\n    assert len(cls) == 3\n    assert [-3, 1] in cls and [-3, 2] in cls and [3, -1, -2] in cls\n\ndef test_tseitin_or():\n    cls = tseitin_gate('OR', 3, [1, 2])\n    assert len(cls) == 3\n    assert [3, -1] in cls and [3, -2] in cls and [-3, 1, 2] in cls\n\ndef test_tseitin_invalid():\n    try:\n        tseitin_gate('XOR_UNKNOWN', 3, [1, 2])\n        assert False, \"Should raise ValueError for unknown gate\"\n    except ValueError:\n        pass\n", "mutants": ["def tseitin_gate(gate_type, out_var, in_vars):\n    # Returns empty list\n    if gate_type not in ['AND', 'OR', 'NOT', 'IFF']: raise ValueError()\n    return []\n", "def tseitin_gate(gate_type, out_var, in_vars):\n    # Swaps AND and OR clauses\n    if gate_type not in ['AND', 'OR', 'NOT', 'IFF']: raise ValueError()\n    return [[out_var, -in_vars[0]]]\n"], "hints": ["For AND: $out \\implies in_1$, $out \\implies in_2$, $(in_1 \\land in_2) \\implies out$.", "Ensure `out_var` and all `in_vars` are positive integers."], "level": "core", "title": "Tseitin transformation generator for boolean logic gates"}, "ex4-explicit-model-checker": {"starter": "def model_check_bfs(initial_state, next_states_fn, safety_predicate, max_states=10000):\n    # Explicit-state BFS model checker\n    return {}\n", "solution": "from collections import deque\n\ndef model_check_bfs(initial_state, next_states_fn, safety_predicate, max_states=10000):\n    if not safety_predicate(initial_state):\n        return {\n            'safe': False,\n            'counterexample_trace': [initial_state],\n            'explored_states': 1\n        }\n\n    queue = deque([initial_state])\n    parent = {initial_state: None}\n    visited = {initial_state}\n\n    while queue:\n        curr = queue.popleft()\n\n        for succ in next_states_fn(curr):\n            if succ not in visited:\n                visited.add(succ)\n                parent[succ] = curr\n\n                if not safety_predicate(succ):\n                    # Reconstruct path\n                    trace = []\n                    node = succ\n                    while node is not None:\n                        trace.append(node)\n                        node = parent[node]\n                    trace.reverse()\n                    return {\n                        'safe': False,\n                        'counterexample_trace': trace,\n                        'explored_states': len(visited)\n                    }\n\n                if len(visited) > max_states:\n                    raise TimeoutError(\"Max state limit exceeded\")\n\n                queue.append(succ)\n\n    return {\n        'safe': True,\n        'counterexample_trace': None,\n        'explored_states': len(visited)\n    }\n", "tests": "def test_model_checker_safe():\n    # Simple ring of 5 states: 0 -> 1 -> 2 -> 3 -> 4 -> 0\n    next_fn = lambda s: [(s + 1) % 5]\n    safe_pred = lambda s: s < 10\n    res = model_check_bfs(0, next_fn, safe_pred)\n    assert res['safe'] is True\n    assert res['explored_states'] == 5\n    assert res['counterexample_trace'] is None\n\ndef test_model_checker_violation():\n    # Binary counter: states are tuples (b0, b1)\n    # Transitions: toggle bits\n    next_fn = lambda s: [((s[0] + 1) % 2, s[1]), (s[0], (s[1] + 1) % 2)]\n    # Unsafe state is (1, 1)\n    safe_pred = lambda s: s != (1, 1)\n\n    res = model_check_bfs((0, 0), next_fn, safe_pred)\n    assert res['safe'] is False\n    assert len(res['counterexample_trace']) == 3 # (0, 0) -> (1, 0) or (0, 1) -> (1, 1)\n    assert res['counterexample_trace'][0] == (0, 0)\n    assert res['counterexample_trace'][-1] == (1, 1)\n\ndef test_model_checker_initial_violation():\n    res = model_check_bfs(-1, lambda s: [s], lambda s: s >= 0)\n    assert res['safe'] is False\n    assert res['counterexample_trace'] == [-1]\n", "mutants": ["def model_check_bfs(initial_state, next_states_fn, safety_predicate, max_states=10000):\n    # Always claims safe\n    return {'safe': True, 'counterexample_trace': None, 'explored_states': 1}\n", "def model_check_bfs(initial_state, next_states_fn, safety_predicate, max_states=10000):\n    # Fails to reconstruct counterexample trace\n    return {'safe': False, 'counterexample_trace': [], 'explored_states': 0}\n"], "hints": ["Use `collections.deque` for FIFO BFS.", "Maintain a `parent` dict mapping each visited state to the state that discovered it."], "level": "boss", "title": "Explicit-state model checker with counterexample trace reconstruction"}}, "demos": {"oracle-dpll-pigeonhole": {"code": "def dpll_solve_simple(clauses: list[list[int]], num_vars: int):\n    # Pure DPLL solver\n    def solve(cl_list, assignment):\n        # Check if all clauses satisfied\n        all_sat = True\n        for cl in cl_list:\n            sat = any(assignment.get(abs(lit)) == (lit > 0) for lit in cl)\n            if not sat:\n                all_sat = False\n                break\n        if all_sat:\n            return True, assignment\n\n        # Check for empty clause (conflict)\n        for cl in cl_list:\n            falsified = all(assignment.get(abs(lit)) is not None and \n                            assignment.get(abs(lit)) != (lit > 0) for lit in cl)\n            if falsified:\n                return False, None\n\n        # Unit propagation\n        for cl in cl_list:\n            unassigned = [lit for lit in cl if assignment.get(abs(lit)) is None]\n            sat = any(assignment.get(abs(lit)) == (lit > 0) for lit in cl)\n            if not sat and len(unassigned) == 1:\n                unit = unassigned[0]\n                new_assign = dict(assignment)\n                new_assign[abs(unit)] = (unit > 0)\n                return solve(cl_list, new_assign)\n\n        # Pick next unassigned variable\n        var = None\n        for v in range(1, num_vars + 1):\n            if v not in assignment:\n                var = v\n                break\n        if var is None:\n            return False, None\n\n        # Try True\n        a1 = dict(assignment)\n        a1[var] = True\n        ok, res = solve(cl_list, a1)\n        if ok:\n            return True, res\n\n        # Try False\n        a2 = dict(assignment)\n        a2[var] = False\n        return solve(cl_list, a2)\n\n    return solve(clauses, {})\n\n# Pigeonhole: 4 pigeons into 3 holes (12 variables)\n# P_i,h = variable (i - 1) * 3 + h\nclauses = []\n# Every pigeon in at least one hole\nfor i in range(1, 5):\n    clauses.append([(i - 1) * 3 + h for h in range(1, 4)])\n# No two pigeons in same hole\nfor h in range(1, 4):\n    for p1 in range(1, 5):\n        for p2 in range(p1 + 1, 5):\n            clauses.append([-((p1 - 1) * 3 + h), -((p2 - 1) * 3 + h)])\n\nis_sat, model = dpll_solve_simple(clauses, 12)\nassert is_sat is False, \"Pigeonhole(4, 3) must be UNSAT!\"\nassert model is None\nprint(\"Pigeonhole principle SAT oracle verified UNSAT successfully!\")\n", "mutants": ["def dpll_solve_simple(clauses, num_vars):\n    # Broken mutant: always claims SAT\n    return True, {v: True for v in range(1, num_vars + 1)}\n\nis_sat, model = dpll_solve_simple([], 12)\nassert is_sat is False, \"Mutant must be caught!\"\n"]}, "exp-model-check-interleaving": {"code": "from collections import deque\n\ndef model_check_concurrency():\n    # Initial state: Account A = 100, Account B = 100, Thread 1 at step 0, Thread 2 at step 0\n    # Thread 1 transfers 20 from A to B\n    # Thread 2 transfers 30 from B to A\n    # Buggy thread: reads A, reads B, modifies both without lock\n    initial_state = (100, 100, 0, 0, None, None) # (A, B, pc1, pc2, local1, local2)\n\n    def get_transitions(state):\n        A, B, pc1, pc2, loc1, loc2 = state\n        succs = []\n        # Thread 1 transitions (transfer 20 A -> B)\n        if pc1 == 0: # read A\n            succs.append((A, B, 1, pc2, A - 20, loc2))\n        elif pc1 == 1: # write A, update B\n            succs.append((loc1, B + 20, 2, pc2, loc1, loc2))\n\n        # Thread 2 transitions (transfer 30 B -> A)\n        if pc2 == 0: # read B\n            succs.append((A, B, pc1, 1, loc1, B - 30))\n        elif pc2 == 1: # write B, update A\n            succs.append((A + 30, loc2, pc1, 2, loc1, loc2))\n\n        return succs\n\n    queue = deque([(initial_state, [initial_state])])\n    visited = {initial_state}\n    counterexample = None\n\n    while queue:\n        curr, trace = queue.popleft()\n        A, B, pc1, pc2, _, _ = curr\n        # Safety invariant: Total money must always be exactly 200\n        if A + B != 200:\n            counterexample = trace\n            break\n\n        for succ in get_transitions(curr):\n            if succ not in visited:\n                visited.add(succ)\n                queue.append((succ, trace + [succ]))\n\n    return counterexample, len(visited)\n\ntrace, visited_count = model_check_concurrency()\nassert trace is not None, \"Model checker should discover safety violation!\"\nprint(f\"Discovered race condition after exploring {visited_count} states!\")\nprint(f\"Counterexample trace length: {len(trace)} steps\")\nA_final, B_final = trace[-1][0], trace[-1][1]\nprint(f\"Final corrupted balance: A={A_final}, B={B_final}, Total={A_final + B_final} (Expected 200)\")\n", "mutants": ["# Broken mutant: claims no race condition exists\ntrace = None\nassert trace is not None, \"Model checker must find concurrency violation!\"\n"]}}, "cards": [{"q": "What is the SAT problem?", "a": "The decision problem of determining whether there exists a truth assignment that satisfies a Boolean formula in CNF."}, {"q": "What does the Tseitin transformation achieve?", "a": "It converts arbitrary Boolean circuits into equisatisfiable CNF in linear time and space $O(n)$ by introducing auxiliary variables for each logic gate."}, {"q": "What are the two core deduction rules in DPLL?", "a": "Unit propagation (forced assignment of unit clauses) and pure literal elimination (assigning variables with single polarities)."}, {"q": "What is Conflict-Driven Clause Learning (CDCL)?", "a": "A SAT algorithm that analyzes conflicts, learns new asserting clauses, and backjumps non-chronologically to avoid repeating mistakes."}, {"q": "What is the difference between safety and liveness properties?", "a": "Safety: 'bad things never happen' (disproved by finite trace). Liveness: 'good things eventually happen' (disproved by infinite loop)."}, {"q": "How does explicit-state model checking find concurrency bugs?", "a": "By using breadth-first search to systematically explore every possible thread scheduling interleaving until all states are validated or an unsafe state is reached."}], "title": "Automated reasoning: SAT, SMT and model checking"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

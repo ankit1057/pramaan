@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P16 Semantics and interpreters</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P16">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P16</p><h1>Semantics and interpreters</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P15.html">P15</a></div><div><b>Covers:</b> CS2023 FPL</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>syntax vs semantics</li><li>small-step and big-step operational semantics</li><li>environments and closures</li><li>a tree-walking interpreter</li><li>evaluation order and short-circuiting</li><li>JavaScript ToBoolean truthiness</li><li>abstract equality (==) vs strict equality (===)</li><li>ToNumber and ToPrimitive coercion</li><li>static vs dynamic and sound vs unsound type systems</li><li>type inference idea</li><li>differential testing of an interpreter against a reference engine</li><li>the lambda calculus: alpha conversion, beta reduction and reduction order</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the 1930s at Princeton University, logician Alonzo Church created the lambda calculus ($\lambda$-calculus) as a formal mathematical system to investigate the foundations of logic and functions. Church proved that computation could be distilled entirely into three primitives: variables ($x$), function abstraction ($\lambda x. M$), and function application ($M N$). When Alan Turing arrived at Princeton in 1936, he and Church proved that Church's lambda calculus and Turing's paper-tape machines were computationally equivalent—establishing the Church-Turing thesis. Thirty years later in 1960, John McCarthy invented Lisp, recognizing that Church's lambda calculus was not just abstract logic, but the blueprint for an elegant, interactive programming language where code and data shared the same tree structure (homoiconicity) and functions could capture lexical environments to form closures.</p>
+<p>In the 1970s and 1980s, Gordon Plotkin formalized structural operational semantics (small-step and big-step semantics), giving computer scientists mathematical tools to prove that an interpreter evaluates code correctly. But in May 1995, Brendan Eich had to design JavaScript's runtime semantics in just ten days for Netscape Navigator. Rushed by commercial browser wars, Eich implemented dynamic type coercion algorithms (such as the abstract equality operator <code>==</code> and <code>ToPrimitive</code>), creating infamous semantic quirks where <code>[] == ![]</code> evaluates to <code>true</code>, <code>null == undefined</code> is <code>true</code>, but <code>null &gt; 0</code> is <code>false</code> and <code>null &gt;= 0</code> is <code>true</code>. Today, programming language implementers use formal operational semantics and automated differential fuzzing—running millions of random expressions through both their custom interpreter and reference engines like Google V8—to detect subtle evaluation bugs.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Syntax is what computer code looks like (the rules of punctuation, keywords, and grammar), while semantics is what code actually means and does when it runs. An interpreter is a software engine that walks through a program's syntax tree step by step, evaluating variables in memory environments, making decisions at <code>if</code> branches, and calling functions. Closures allow functions to remember variables from the outer scope where they were born, even if called much later. Knowing exact runtime semantics explains bizarre language behaviors—such as why JavaScript automatically converts strings to numbers in unexpected ways—and ensures your programs behave predictably.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and implementation of programming language semantics are defined across operational models and type theory:</p>
+<ol>
+<li>
+<p><strong>Syntax vs Semantics</strong>:
+- <strong>Syntax</strong>: Grammatical structure defined by context-free grammars producing an Abstract Syntax Tree (AST).
+- <strong>Semantics</strong>: The operational execution and meaning of expressions. Two syntactically distinct programs can have identical denotational semantics ($x + x \equiv 2 \cdot x$).</p>
+</li>
+<li>
+<p><strong>Operational Semantics</strong>:
+- <strong>Small-Step Operational Semantics (Structural)</strong>: Specifies computation via a single transition relation $\langle e, \sigma \rangle \to \langle e&#x27;, \sigma&#x27; \rangle$, tracking intermediate reduction steps.
+- <strong>Big-Step Operational Semantics (Natural)</strong>: Specifies the final evaluated value directly via judgment $\langle e, \sigma \rangle \Downarrow v$, abstracting over intermediate transitions.</p>
+</li>
+<li>
+<p><strong>Environments, Scopes, and Closures</strong>:
+An environment $\rho: \text{Var} \to \text{Val}$ maps variable identifiers to values.
+Lexical scoping organizes environments into parent-linked frames. A closure is a pair $\langle \lambda x. e, \rho \rangle$ bundling a function's code with the exact lexical environment $\rho$ active at its definition point.</p>
+</li>
+<li>
+<p><strong>Evaluation Order &amp; Short-Circuiting</strong>:
+- <strong>Applicative Order (Eager/Call-by-Value)</strong>: Function arguments are evaluated before entering the function body.
+- <strong>Normal Order (Lazy/Call-by-Name)</strong>: Function arguments are substituted unevaluated; evaluated only when needed (with sharing, Call-by-Need).
+- <strong>Short-Circuit Evaluation</strong>: For binary logical operators, $e_1 \land e_2$ evaluates $e_2$ if and only if $e_1$ evaluates to true; $e_1 \lor e_2$ evaluates $e_2$ if and only if $e_1$ evaluates to false.</p>
+</li>
+<li>
+<p><strong>JavaScript Type Coercion Semantics (ECMA-262)</strong>:
+- <strong>ToBoolean Truthiness</strong>: Falsy values are exactly: <code>false</code>, <code>0</code>, <code>-0</code>, <code>0n</code>, <code>""</code>, <code>null</code>, <code>undefined</code>, and <code>NaN</code>. All other values (including empty arrays <code>[]</code> and empty objects <code>{}</code>) are truthy.
+- <strong>Strict Equality (<code>===</code>)</strong>: Returns <code>true</code> iff types match and values are identical (with <code>NaN === NaN</code> being <code>false</code>).
+- <strong>Abstract Equality (<code>==</code>)</strong>: Executes recursive type coercion:</p>
+</li>
+<li>If Type(x) equals Type(y), apply <code>===</code>.</li>
+<li>If <code>null == undefined</code> (or reverse), returns <code>true</code>.</li>
+<li>If comparing Number and String, coerce String via <code>ToNumber</code>.</li>
+<li>If comparing Boolean with any type, coerce Boolean via <code>ToNumber</code>.</li>
+<li>
+<p>If comparing Object with String/Number/Symbol, coerce Object via <code>ToPrimitive(default Hint)</code>.
+  <em>Paradox</em>: <code>[] == ![]</code> evaluates as: <code>![]</code> is <code>false</code> (since <code>[]</code> is truthy); <code>[] == false</code> coerses Boolean to <code>0</code> (<code>[] == 0</code>); <code>[]</code> coerses via <code>ToPrimitive</code> to <code>""</code> (<code>"" == 0</code>); <code>""</code> coerses via <code>ToNumber</code> to <code>0</code> (<code>0 == 0</code>), returning <code>true</code>!</p>
+</li>
+<li>
+<p><strong>Type Systems &amp; The Lambda Calculus</strong>:
+- <strong>Static vs Dynamic</strong>: Types verified at compile time vs runtime.
+- <strong>Soundness vs Unsoundness</strong>: A sound type system guarantees that well-typed programs never get stuck in undefined states at runtime ("well-typed programs cannot go wrong").
+- <strong>Untyped Lambda Calculus</strong>: Expressions $e ::= x \mid \lambda x. e \mid e_1 \, e_2$.
+  - $\alpha$-conversion: Renaming bound variables ($\lambda x. x \equiv_\alpha \lambda y. y$).
+  - $\beta$-reduction: Function application substitution $(\lambda x. e) \, v \to_\beta e[x \mapsto v]$.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding formal operational semantics, environments, and interpreters is essential because every software engineer eventually encounters runtime evaluation bugs, lexical scoping quirks, or needs to implement a custom rule evaluation engine. Many developers struggle for hours with asynchronous JavaScript or Python closures because they misunderstand environment frame capture: capturing a mutable loop variable in a closure captures a reference to the environment binding, not a static snapshot of the value at loop creation time. By understanding how environments and closures are constructed on the heap, engineers avoid classic concurrency and callback traps.</p>
+<p>Moreover, mastering type coercion semantics prevents critical security vulnerabilities and production logic bugs. In web authentication systems, naive comparison using loose equality (<code>if (userToken == adminToken)</code>) has allowed authentication bypasses in PHP and JavaScript when integer zero or boolean values are coerced to match empty strings. Finally, building an interpreter teaches engineers how programming languages truly execute under the hood, enabling them to evaluate performance characteristics, design clean domain-specific languages, and appreciate the runtime costs of dynamic dispatch.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The lexical closure and environment stack oracle demonstrates how an interpreter maintains parent-linked environment frames to capture outer variable bindings. In language runtimes and functional engines, closures retain pointers to their enclosing scope even after the outer function has completed execution and returned. The interactive oracle simulates nested environment scopes, instantiates closures, executes function applications, and asserts proper lexical variable lookup.</p>
+<div class="lab demo" data-demo="p16-oracle-closure-environment">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Lexical Environment Frame and Closure Execution Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class Environment:
+    def __init__(self, parent=None):
+        self.bindings = {}
+        self.parent = parent
+
+    def get(self, name: str):
+        if name in self.bindings:
+            return self.bindings[name]
+        if self.parent:
+            return self.parent.get(name)
+        raise NameError(f&quot;Unbound variable: {name}&quot;)
+
+    def set(self, name: str, value):
+        self.bindings[name] = value
+
+class Closure:
+    def __init__(self, param: str, body_func, env: Environment):
+        self.param = param
+        self.body_func = body_func
+        self.env = env  # captured lexical environment
+
+    def call(self, arg):
+        call_env = Environment(parent=self.env)
+        call_env.set(self.param, arg)
+        return self.body_func(call_env)
+
+# Global scope
+global_env = Environment()
+global_env.set(&quot;x&quot;, 100)
+
+# make_adder(a) captures &#x27;a&#x27;
+def make_adder(a):
+    local_env = Environment(parent=global_env)
+    local_env.set(&quot;a&quot;, a)
+    # returns closure(b) -&gt; a + b + x
+    return Closure(&quot;b&quot;, lambda env: env.get(&quot;a&quot;) + env.get(&quot;b&quot;) + env.get(&quot;x&quot;), local_env)
+
+add5 = make_adder(5)
+assert add5.call(20) == 125  # 5 + 20 + 100
+
+add10 = make_adder(10)
+assert add10.call(20) == 130 # 10 + 20 + 100
+
+# Overriding global x does not mutate captured local &#x27;a&#x27;
+global_env.set(&quot;x&quot;, 0)
+assert add5.call(20) == 25   # 5 + 20 + 0
+
+print(&quot;Lexical environment frame and closure execution oracle verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the algorithmic behavior and semantic anomalies of the ECMAScript abstract equality (<code>==</code>) coercion rules across famous edge cases. Using a reference implementation of the ECMA-262 loose equality specification, we verify counter-intuitive coercions: <code>[] == ![]</code> evaluating to true, <code>"" == 0</code> evaluating to true, <code>null == undefined</code> evaluating to true, while <code>null == 0</code> evaluates to false, demonstrating why modern engineering style guides mandate strict equality (<code>===</code>).</p>
+<div class="lab demo" data-demo="p16-exp-js-coercion-matrix">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>ECMAScript Abstract Equality Coercion Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def to_boolean(val) -&gt; bool:
+    if val is None or val is False or val == 0 or val == &quot;&quot; or val != val:  # NaN check
+        return False
+    return True
+
+def to_number(val) -&gt; float:
+    if val is None or val is False or val == &quot;&quot;:
+        return 0.0
+    if val is True:
+        return 1.0
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        try: return float(val)
+        except ValueError: return float(&quot;nan&quot;)
+    if isinstance(val, list):
+        if len(val) == 0: return 0.0
+        if len(val) == 1: return to_number(val[0])
+        return float(&quot;nan&quot;)
+    return float(&quot;nan&quot;)
+
+def to_primitive(val):
+    if isinstance(val, list):
+        # Array to primitive string joining elements
+        return &quot;,&quot;.join(str(x) for x in val)
+    return val
+
+def abstract_equality(x, y) -&gt; bool:
+    # 1. Same type
+    if type(x) == type(y):
+        return x == y
+    # 2. null and undefined
+    if (x is None and y == &quot;undefined&quot;) or (x == &quot;undefined&quot; and y is None):
+        return True
+    # 3. Boolean comparison first (since bool is subclass of int in Python)
+    if isinstance(x, bool):
+        return abstract_equality(to_number(x), y)
+    if isinstance(y, bool):
+        return abstract_equality(x, to_number(y))
+    # 4. Number and String
+    if isinstance(x, (int, float)) and isinstance(y, str):
+        return x == to_number(y)
+    if isinstance(x, str) and isinstance(y, (int, float)):
+        return to_number(x) == y
+    # 5. Object/Array comparison
+    if isinstance(x, list):
+        return abstract_equality(to_primitive(x), y)
+    if isinstance(y, list):
+        return abstract_equality(x, to_primitive(y))
+    return False
+
+# 1. [] == ![] -&gt; true!
+not_empty_array = not to_boolean([])  # False
+assert abstract_equality([], not_empty_array) is True
+
+# 2. &quot;&quot; == 0 -&gt; true
+assert abstract_equality(&quot;&quot;, 0) is True
+
+# 3. &quot;0&quot; == 0 -&gt; true
+assert abstract_equality(&quot;0&quot;, 0) is True
+
+# 4. &quot;0&quot; == false -&gt; true
+assert abstract_equality(&quot;0&quot;, False) is True
+
+print(&quot;ECMAScript abstract equality coercion paradoxes experimentally verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-js-abstract-equality-coercion" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>ECMAScript Abstract Equality (==) Coercion Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the ecmascript_abstract_equality(x, y) -&gt; bool function according to the full ECMA-262 loose equality specification, accurately coercing strings, booleans, numbers, null, undefined, and empty lists.</p></div>
+<textarea class="code" spellcheck="false">def ecmascript_abstract_equality(x, y) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_abstract_equality_primitives():
+    assert ecmascript_abstract_equality(1, &quot;1&quot;) is True
+    assert ecmascript_abstract_equality(0, &quot;&quot;) is True
+    assert ecmascript_abstract_equality(False, 0) is True
+    assert ecmascript_abstract_equality(True, &quot;1&quot;) is True
+    assert ecmascript_abstract_equality(False, &quot;0&quot;) is True
+
+def test_abstract_equality_null_undefined():
+    assert ecmascript_abstract_equality(None, &quot;undefined&quot;) is True
+    assert ecmascript_abstract_equality(&quot;undefined&quot;, None) is True
+    assert ecmascript_abstract_equality(None, 0) is False
+    assert ecmascript_abstract_equality(None, False) is False
+
+def test_abstract_equality_empty_array():
+    assert ecmascript_abstract_equality([], 0) is True
+    assert ecmascript_abstract_equality([], &quot;&quot;) is True
+    assert ecmascript_abstract_equality([], False) is True
+    assert ecmascript_abstract_equality([5], &quot;5&quot;) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-tree-walking-interpreter-with-closures" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Tree-Walking Interpreter with Lexical Scoping and Closures</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement interpret_ast(ast: dict, env: dict = None) -&gt; any to evaluate an AST supporting number literals, identifiers, binary operations ('+', '*', '&amp;&amp;' with short-circuiting), 'let' declarations, and 'fn' lambda definitions returning callable closures.</p></div>
+<textarea class="code" spellcheck="false">class Frame:
+    def __init__(self, parent=None, initial=None):
+        pass
+
+class ASTClosure:
+    def __init__(self, params, body, captured_frame):
+        pass
+
+def eval_node(node, frame):
+    pass
+
+def interpret_ast(ast: dict, env: dict = None) -&gt; any:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_interpreter_arithmetic_and_let():
+    # let a = 5; let b = 10; a + b * 2
+    ast = {
+        &quot;type&quot;: &quot;Block&quot;,
+        &quot;statements&quot;: [
+            {&quot;type&quot;: &quot;Let&quot;, &quot;name&quot;: &quot;a&quot;, &quot;value&quot;: {&quot;type&quot;: &quot;Number&quot;, &quot;value&quot;: 5}},
+            {&quot;type&quot;: &quot;Let&quot;, &quot;name&quot;: &quot;b&quot;, &quot;value&quot;: {&quot;type&quot;: &quot;Number&quot;, &quot;value&quot;: 10}},
+            {&quot;type&quot;: &quot;BinaryOp&quot;, &quot;op&quot;: &quot;+&quot;,
+             &quot;left&quot;: {&quot;type&quot;: &quot;Variable&quot;, &quot;name&quot;: &quot;a&quot;},
+             &quot;right&quot;: {&quot;type&quot;: &quot;BinaryOp&quot;, &quot;op&quot;: &quot;*&quot;,
+                       &quot;left&quot;: {&quot;type&quot;: &quot;Variable&quot;, &quot;name&quot;: &quot;b&quot;},
+                       &quot;right&quot;: {&quot;type&quot;: &quot;Number&quot;, &quot;value&quot;: 2}}}
+        ]
+    }
+    assert interpret_ast(ast) == 25  # 5 + (10 * 2)
+
+def test_interpreter_short_circuit():
+    # false &amp;&amp; (error_variable_lookup)
+    ast = {
+        &quot;type&quot;: &quot;BinaryOp&quot;, &quot;op&quot;: &quot;&amp;&amp;&quot;,
+        &quot;left&quot;: {&quot;type&quot;: &quot;Boolean&quot;, &quot;value&quot;: False},
+        &quot;right&quot;: {&quot;type&quot;: &quot;Variable&quot;, &quot;name&quot;: &quot;non_existent&quot;}
+    }
+    # Must short-circuit and return False without raising NameError
+    assert interpret_ast(ast) is False
+
+def test_interpreter_closure_lexical_capture():
+    # let make_adder = fn(x) -&gt; fn(y) -&gt; x + y;
+    # let add10 = make_adder(10);
+    # add10(20)
+    ast = {
+        &quot;type&quot;: &quot;Block&quot;,
+        &quot;statements&quot;: [
+            {&quot;type&quot;: &quot;Let&quot;, &quot;name&quot;: &quot;make_adder&quot;, &quot;value&quot;: {
+                &quot;type&quot;: &quot;Lambda&quot;, &quot;params&quot;: [&quot;x&quot;], &quot;body&quot;: {
+                    &quot;type&quot;: &quot;Lambda&quot;, &quot;params&quot;: [&quot;y&quot;], &quot;body&quot;: {
+                        &quot;type&quot;: &quot;BinaryOp&quot;, &quot;op&quot;: &quot;+&quot;,
+                        &quot;left&quot;: {&quot;type&quot;: &quot;Variable&quot;, &quot;name&quot;: &quot;x&quot;},
+                        &quot;right&quot;: {&quot;type&quot;: &quot;Variable&quot;, &quot;name&quot;: &quot;y&quot;}
+                    }
+                }
+            }},
+            {&quot;type&quot;: &quot;Let&quot;, &quot;name&quot;: &quot;add10&quot;, &quot;value&quot;: {
+                &quot;type&quot;: &quot;Call&quot;,
+                &quot;callee&quot;: {&quot;type&quot;: &quot;Variable&quot;, &quot;name&quot;: &quot;make_adder&quot;},
+                &quot;args&quot;: [{&quot;type&quot;: &quot;Number&quot;, &quot;value&quot;: 10}]
+            }},
+            {&quot;type&quot;: &quot;Call&quot;,
+             &quot;callee&quot;: {&quot;type&quot;: &quot;Variable&quot;, &quot;name&quot;: &quot;add10&quot;},
+             &quot;args&quot;: [{&quot;type&quot;: &quot;Number&quot;, &quot;value&quot;: 20}]}
+        ]
+    }
+    assert interpret_ast(ast) == 30
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-lambda-calculus-reducer" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Untyped Lambda Calculus Beta-Reduction Evaluator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement beta_reduce(expr: tuple, max_steps: int = 100) -&gt; tuple to evaluate lambda calculus expressions represented as nested tuples: ('var', name), ('lam', param, body), ('app', func, arg) using normal-order evaluation and alpha-renaming.</p></div>
+<textarea class="code" spellcheck="false">def beta_reduce(expr: tuple, max_steps: int = 100) -&gt; tuple:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_identity_application():
+    # (\x. x) y -&gt; y
+    ident = (&#x27;lam&#x27;, &#x27;x&#x27;, (&#x27;var&#x27;, &#x27;x&#x27;))
+    app = (&#x27;app&#x27;, ident, (&#x27;var&#x27;, &#x27;y&#x27;))
+    assert beta_reduce(app) == (&#x27;var&#x27;, &#x27;y&#x27;)
+
+def test_const_application():
+    # (\x. \y. x) a b -&gt; (\y. a) b -&gt; a
+    const_fn = (&#x27;lam&#x27;, &#x27;x&#x27;, (&#x27;lam&#x27;, &#x27;y&#x27;, (&#x27;var&#x27;, &#x27;x&#x27;)))
+    app = (&#x27;app&#x27;, (&#x27;app&#x27;, const_fn, (&#x27;var&#x27;, &#x27;a&#x27;)), (&#x27;var&#x27;, &#x27;b&#x27;))
+    assert beta_reduce(app) == (&#x27;var&#x27;, &#x27;a&#x27;)
+
+def test_nested_beta_reduction():
+    # (\f. \x. f x) (\y. y) z -&gt; z
+    apply_fn = (&#x27;lam&#x27;, &#x27;f&#x27;, (&#x27;lam&#x27;, &#x27;x&#x27;, (&#x27;app&#x27;, (&#x27;var&#x27;, &#x27;f&#x27;), (&#x27;var&#x27;, &#x27;x&#x27;))))
+    ident = (&#x27;lam&#x27;, &#x27;y&#x27;, (&#x27;var&#x27;, &#x27;y&#x27;))
+    full_expr = (&#x27;app&#x27;, (&#x27;app&#x27;, apply_fn, ident), (&#x27;var&#x27;, &#x27;z&#x27;))
+    assert beta_reduce(full_expr) == (&#x27;var&#x27;, &#x27;z&#x27;)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-differential-interpreter-fuzzer" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Automated Differential Interpreter Fuzzing Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement differential_fuzz_interpreters(candidate_fn, reference_fn, test_cases: list[dict]) -&gt; dict executing candidate and reference interpreter functions against generated AST cases to detect semantic divergences and uncaught crashes.</p></div>
+<textarea class="code" spellcheck="false">def differential_fuzz_interpreters(candidate_fn, reference_fn, test_cases: list[dict]) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_differential_fuzzing_all_match():
+    ref = lambda ast, env: ast[&quot;val&quot;] * 2
+    cand = lambda ast, env: ast[&quot;val&quot;] * 2
+    cases = [{&quot;ast&quot;: {&quot;val&quot;: 10}}, {&quot;ast&quot;: {&quot;val&quot;: 25}}]
+    res = differential_fuzz_interpreters(cand, ref, cases)
+    assert res[&quot;parity_verified&quot;] is True
+    assert res[&quot;passed&quot;] == 2
+    assert len(res[&quot;divergences&quot;]) == 0
+
+def test_differential_fuzzing_detects_divergence():
+    ref = lambda ast, env: ast[&quot;val&quot;] * 2
+    # Candidate buggy implementation computes addition instead of multiplication
+    cand = lambda ast, env: ast[&quot;val&quot;] + 2
+    cases = [{&quot;ast&quot;: {&quot;val&quot;: 10}}]  # ref: 20, cand: 12
+    res = differential_fuzz_interpreters(cand, ref, cases)
+    assert res[&quot;parity_verified&quot;] is False
+    assert len(res[&quot;divergences&quot;]) == 1
+    assert res[&quot;divergences&quot;][0][&quot;candidate_result&quot;] == 12
+    assert res[&quot;divergences&quot;][0][&quot;reference_result&quot;] == 20
+
+def test_differential_fuzzing_detects_crash():
+    ref = lambda ast, env: 42
+    # Candidate crashes on None
+    cand = lambda ast, env: None[&quot;missing_key&quot;]
+    cases = [{&quot;ast&quot;: {}}]
+    res = differential_fuzz_interpreters(cand, ref, cases)
+    assert res[&quot;parity_verified&quot;] is False
+    assert len(res[&quot;crashes&quot;]) == 1
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Dynamic typing means variables have no types."</strong> In dynamically typed languages, values have rigid, concrete types; variables simply hold references to any value without compile-time type annotations.</li>
+<li><strong>"Short-circuit evaluation is merely an optional compiler performance optimization."</strong> Short-circuit evaluation is a semantic correctness requirement (e.g., <code>if (ptr != null &amp;&amp; ptr.val &gt; 0)</code>); without it, the second operand would trigger null pointer dereferences.</li>
+<li><strong>"Closures clone the variables they capture from enclosing scopes."</strong> Closures capture references to the enclosing lexical environment frame; subsequent mutations to those variables are visible to all closures sharing that environment.</li>
+<li><strong>"Abstract equality (==) in JavaScript is just strict equality (===) with float parsing."</strong> Abstract equality invokes a complex 10-step recursive algorithm involving <code>ToPrimitive</code>, <code>ToNumber</code>, and prototype <code>valueOf</code>/<code>toString</code> methods.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Tree-walking interpreters break down in execution throughput because recursive function calls incur heavy stack frame allocation overhead and continuous CPU branch mispredictions. High-performance production runtimes replace simple tree-walking with bytecode compilation and virtual machine dispatch, or JIT compilation directly to native machine code with inline caching, deoptimization bails, and hidden class shape transitions.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Semantics and interpreter techniques are applied daily in production browser JavaScript engines (Google V8, WebKit JavaScriptCore), domain-specific rule evaluation engines (JSONPath, OPA Rego policy engines), workflow execution systems (Camunda, Temporal), configuration languages (Terraform HCL), and template engines (Jinja2, Liquid).</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the difference between small-step and big-step operational semantics?</p></div><div class="a" hidden><p>Small-step semantics formalizes computation step-by-step as transition relations; big-step semantics relates expressions directly to their final evaluated values.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is a closure in programming language semantics?</p></div><div class="a" hidden><p>A first-class function paired with its enclosing lexical environment frame, preserving access to captured variables across function lifetimes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the falsy values in ECMAScript (JavaScript)?</p></div><div class="a" hidden><p>false, 0, -0, 0n, empty string '', null, undefined, and NaN. All other values (including [] and {}) are truthy.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why does [] == ![] evaluate to true in JavaScript?</p></div><div class="a" hidden><p>![] evaluates to false; [] coerses via ToPrimitive to '' which coerses via ToNumber to 0; false coerses to 0; and 0 == 0 is true.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is beta-reduction in the lambda calculus?</p></div><div class="a" hidden><p>The fundamental rule of function application replacing formal parameters with argument expressions: (\x. e) v -&gt; e[x := v].</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is differential testing of an interpreter?</p></div><div class="a" hidden><p>Running identical randomized or suite inputs through a new interpreter and a trusted reference implementation to detect discrepancies.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement tree-walking interpreters with lexical environments and closures, evaluate lambda calculus expressions with beta reduction, execute ECMAScript abstract equality coercion rules, and run differential fuzzer suites.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Church, A. (1936). An Unsolvable Problem of Elementary Number Theory. American Journal of Mathematics, 58(2), 345-363.</li>
+<li>McCarthy, J. (1960). Recursive Functions of Symbolic Expressions and Their Computation by Machine, Part I. Communications of the ACM, 3(4), 184-195.</li>
+<li>Plotkin, G. D. (1981). A Structural Approach to Operational Semantics. Technical Report DAIMI FN-19, Computer Science Department, Aarhus University.</li>
+</ul></section>
+<footer class="pager"><a href="D21.html">&larr; D21 Behavioural and leadership interviews for L5</a>
+<a href="S08.html">S08 Mobile storage and offline-first data &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P16", "packages": ["numpy"], "exercises": {"ex1-js-abstract-equality-coercion": {"starter": "def ecmascript_abstract_equality(x, y) -> bool:\n    pass\n", "solution": "def ecmascript_abstract_equality(x, y) -> bool:\n    def to_primitive(val):\n        if isinstance(val, list):\n            return \",\".join(str(elem) for elem in val)\n        return val\n\n    def to_number(val):\n        if val is None or val is False or val == \"\":\n            return 0.0\n        if val is True:\n            return 1.0\n        if isinstance(val, bool):\n            return 1.0 if val else 0.0\n        if isinstance(val, (int, float)):\n            return float(val)\n        if isinstance(val, str):\n            try:\n                return float(val)\n            except ValueError:\n                return float('nan')\n        if isinstance(val, list):\n            return to_number(to_primitive(val))\n        return float('nan')\n\n    # 1. Handle booleans first before number checks (since bool is subclass of int)\n    if isinstance(x, bool):\n        return ecmascript_abstract_equality(to_number(x), y)\n    if isinstance(y, bool):\n        return ecmascript_abstract_equality(x, to_number(y))\n\n    # 2. Same types or both numbers\n    if type(x) == type(y):\n        return x == y\n    if isinstance(x, (int, float)) and isinstance(y, (int, float)):\n        return float(x) == float(y)\n\n    # 3. null and undefined\n    if (x is None and y == \"undefined\") or (x == \"undefined\" and y is None):\n        return True\n\n    # 4. Number and String\n    if isinstance(x, (int, float)) and isinstance(y, str):\n        return float(x) == to_number(y)\n    if isinstance(x, str) and isinstance(y, (int, float)):\n        return to_number(x) == float(y)\n\n    # 5. Object / Array comparisons\n    if isinstance(x, list):\n        return ecmascript_abstract_equality(to_primitive(x), y)\n    if isinstance(y, list):\n        return ecmascript_abstract_equality(x, to_primitive(y))\n\n    return False\n", "tests": "def test_abstract_equality_primitives():\n    assert ecmascript_abstract_equality(1, \"1\") is True\n    assert ecmascript_abstract_equality(0, \"\") is True\n    assert ecmascript_abstract_equality(False, 0) is True\n    assert ecmascript_abstract_equality(True, \"1\") is True\n    assert ecmascript_abstract_equality(False, \"0\") is True\n\ndef test_abstract_equality_null_undefined():\n    assert ecmascript_abstract_equality(None, \"undefined\") is True\n    assert ecmascript_abstract_equality(\"undefined\", None) is True\n    assert ecmascript_abstract_equality(None, 0) is False\n    assert ecmascript_abstract_equality(None, False) is False\n\ndef test_abstract_equality_empty_array():\n    assert ecmascript_abstract_equality([], 0) is True\n    assert ecmascript_abstract_equality([], \"\") is True\n    assert ecmascript_abstract_equality([], False) is True\n    assert ecmascript_abstract_equality([5], \"5\") is True\n", "mutants": ["def ecmascript_abstract_equality(x, y):\n    assert False, 'mutant injected'\n", "def ecmascript_abstract_equality(x, y):\n    return x == y  # naive python equality without js coercion\n"], "hints": ["Convert booleans to numbers: True -> 1.0, False -> 0.0.", "Convert empty lists to empty strings via to_primitive.", "Compare null and 'undefined' as mutually equal."], "level": "warmup", "title": "ECMAScript Abstract Equality (==) Coercion Engine"}, "ex2-tree-walking-interpreter-with-closures": {"starter": "class Frame:\n    def __init__(self, parent=None, initial=None):\n        pass\n\nclass ASTClosure:\n    def __init__(self, params, body, captured_frame):\n        pass\n\ndef eval_node(node, frame):\n    pass\n\ndef interpret_ast(ast: dict, env: dict = None) -> any:\n    pass\n", "solution": "class Frame:\n    def __init__(self, parent=None, initial=None):\n        self.bindings = dict(initial or {})\n        self.parent = parent\n        \n    def get(self, name):\n        if name in self.bindings:\n            return self.bindings[name]\n        if self.parent:\n            return self.parent.get(name)\n        raise NameError(f\"Undefined variable '{name}'\")\n        \n    def set(self, name, val):\n        self.bindings[name] = val\n\nclass ASTClosure:\n    def __init__(self, params, body, captured_frame):\n        self.params = params\n        self.body = body\n        self.frame = captured_frame\n        \n    def apply(self, args):\n        call_frame = Frame(parent=self.frame)\n        for param, arg in zip(self.params, args):\n            call_frame.set(param, arg)\n        return eval_node(self.body, call_frame)\n\ndef eval_node(node, frame):\n    ntype = node.get(\"type\")\n    \n    if ntype == \"Number\":\n        return node[\"value\"]\n    elif ntype == \"Boolean\":\n        return node[\"value\"]\n    elif ntype == \"Variable\":\n        return frame.get(node[\"name\"])\n    elif ntype == \"BinaryOp\":\n        op = node[\"op\"]\n        left_val = eval_node(node[\"left\"], frame)\n        # Short-circuit logical AND\n        if op == \"&&\":\n            if not left_val:\n                return False\n            return bool(eval_node(node[\"right\"], frame))\n        right_val = eval_node(node[\"right\"], frame)\n        if op == \"+\": return left_val + right_val\n        elif op == \"*\": return left_val * right_val\n        elif op == \"==\": return left_val == right_val\n        else: raise ValueError(f\"Unknown op {op}\")\n    elif ntype == \"Let\":\n        val = eval_node(node[\"value\"], frame)\n        frame.set(node[\"name\"], val)\n        return val\n    elif ntype == \"Lambda\":\n        return ASTClosure(node[\"params\"], node[\"body\"], frame)\n    elif ntype == \"Call\":\n        callee = eval_node(node[\"callee\"], frame)\n        args = [eval_node(a, frame) for a in node[\"args\"]]\n        return callee.apply(args)\n    elif ntype == \"Block\":\n        res = None\n        for stmt in node[\"statements\"]:\n            res = eval_node(stmt, frame)\n        return res\n    raise ValueError(f\"Unknown node type: {ntype}\")\n\ndef interpret_ast(ast: dict, env: dict = None) -> any:\n    top_frame = Frame(initial=env)\n    return eval_node(ast, top_frame)\n", "tests": "def test_interpreter_arithmetic_and_let():\n    # let a = 5; let b = 10; a + b * 2\n    ast = {\n        \"type\": \"Block\",\n        \"statements\": [\n            {\"type\": \"Let\", \"name\": \"a\", \"value\": {\"type\": \"Number\", \"value\": 5}},\n            {\"type\": \"Let\", \"name\": \"b\", \"value\": {\"type\": \"Number\", \"value\": 10}},\n            {\"type\": \"BinaryOp\", \"op\": \"+\",\n             \"left\": {\"type\": \"Variable\", \"name\": \"a\"},\n             \"right\": {\"type\": \"BinaryOp\", \"op\": \"*\",\n                       \"left\": {\"type\": \"Variable\", \"name\": \"b\"},\n                       \"right\": {\"type\": \"Number\", \"value\": 2}}}\n        ]\n    }\n    assert interpret_ast(ast) == 25  # 5 + (10 * 2)\n\ndef test_interpreter_short_circuit():\n    # false && (error_variable_lookup)\n    ast = {\n        \"type\": \"BinaryOp\", \"op\": \"&&\",\n        \"left\": {\"type\": \"Boolean\", \"value\": False},\n        \"right\": {\"type\": \"Variable\", \"name\": \"non_existent\"}\n    }\n    # Must short-circuit and return False without raising NameError\n    assert interpret_ast(ast) is False\n\ndef test_interpreter_closure_lexical_capture():\n    # let make_adder = fn(x) -> fn(y) -> x + y;\n    # let add10 = make_adder(10);\n    # add10(20)\n    ast = {\n        \"type\": \"Block\",\n        \"statements\": [\n            {\"type\": \"Let\", \"name\": \"make_adder\", \"value\": {\n                \"type\": \"Lambda\", \"params\": [\"x\"], \"body\": {\n                    \"type\": \"Lambda\", \"params\": [\"y\"], \"body\": {\n                        \"type\": \"BinaryOp\", \"op\": \"+\",\n                        \"left\": {\"type\": \"Variable\", \"name\": \"x\"},\n                        \"right\": {\"type\": \"Variable\", \"name\": \"y\"}\n                    }\n                }\n            }},\n            {\"type\": \"Let\", \"name\": \"add10\", \"value\": {\n                \"type\": \"Call\",\n                \"callee\": {\"type\": \"Variable\", \"name\": \"make_adder\"},\n                \"args\": [{\"type\": \"Number\", \"value\": 10}]\n            }},\n            {\"type\": \"Call\",\n             \"callee\": {\"type\": \"Variable\", \"name\": \"add10\"},\n             \"args\": [{\"type\": \"Number\", \"value\": 20}]}\n        ]\n    }\n    assert interpret_ast(ast) == 30\n", "mutants": ["class Frame:\n    def __init__(self, parent=None, initial=None): pass\n    def get(self, name): return None\n    def set(self, name, val): pass\nclass ASTClosure:\n    def __init__(self, params, body, captured_frame): pass\n    def apply(self, args): return None\ndef eval_node(node, frame): assert False, 'mutant injected'\ndef interpret_ast(ast, env=None):\n    assert False, 'mutant injected'\n", "class Frame:\n    def __init__(self, parent=None, initial=None): pass\n    def get(self, name): return None\n    def set(self, name, val): pass\nclass ASTClosure:\n    def __init__(self, params, body, captured_frame): pass\n    def apply(self, args): return None\ndef eval_node(node, frame): return 0\ndef interpret_ast(ast, env=None):\n    return 0  # mutant returns zero for all ASTs\n"], "hints": ["Use a Frame class holding variable bindings and a parent frame pointer.", "Short-circuit '&&' by returning False immediately if left is false.", "Store the current frame inside the closure when creating a Lambda."], "level": "core", "title": "Tree-Walking Interpreter with Lexical Scoping and Closures"}, "ex3-lambda-calculus-reducer": {"starter": "def beta_reduce(expr: tuple, max_steps: int = 100) -> tuple:\n    pass\n", "solution": "def _free_vars(expr):\n    tag = expr[0]\n    if tag == 'var':\n        return {expr[1]}\n    elif tag == 'lam':\n        return _free_vars(expr[2]) - {expr[1]}\n    elif tag == 'app':\n        return _free_vars(expr[1]) | _free_vars(expr[2])\n    return set()\n\n_counter = 0\ndef _fresh_var(base=\"v\"):\n    global _counter\n    _counter += 1\n    return f\"{base}_{_counter}\"\n\ndef _substitute(expr, var_name, replacement):\n    tag = expr[0]\n    if tag == 'var':\n        return replacement if expr[1] == var_name else expr\n    elif tag == 'app':\n        return ('app', _substitute(expr[1], var_name, replacement), _substitute(expr[2], var_name, replacement))\n    elif tag == 'lam':\n        param = expr[1]\n        body = expr[2]\n        if param == var_name:\n            return expr  # Variable shadowed\n        # Alpha-rename if free variable in replacement would be captured\n        repl_free = _free_vars(replacement)\n        if param in repl_free:\n            fresh = _fresh_var(param)\n            body_renamed = _substitute(body, param, ('var', fresh))\n            return ('lam', fresh, _substitute(body_renamed, var_name, replacement))\n        return ('lam', param, _substitute(body, var_name, replacement))\n    return expr\n\ndef _step_normal_order(expr):\n    tag = expr[0]\n    if tag == 'app':\n        func, arg = expr[1], expr[2]\n        # Beta-reduction: (\\x. body) arg -> body[x := arg]\n        if func[0] == 'lam':\n            param, body = func[1], func[2]\n            return _substitute(body, param, arg), True\n        # Try stepping function first\n        new_func, stepped = _step_normal_order(func)\n        if stepped:\n            return ('app', new_func, arg), True\n        # Try stepping argument\n        new_arg, stepped = _step_normal_order(arg)\n        if stepped:\n            return ('app', func, new_arg), True\n    elif tag == 'lam':\n        new_body, stepped = _step_normal_order(expr[2])\n        if stepped:\n            return ('lam', expr[1], new_body), True\n    return expr, False\n\ndef beta_reduce(expr: tuple, max_steps: int = 100) -> tuple:\n    curr = expr\n    for _ in range(max_steps):\n        curr, stepped = _step_normal_order(curr)\n        if not stepped:\n            break\n    return curr\n", "tests": "def test_identity_application():\n    # (\\x. x) y -> y\n    ident = ('lam', 'x', ('var', 'x'))\n    app = ('app', ident, ('var', 'y'))\n    assert beta_reduce(app) == ('var', 'y')\n\ndef test_const_application():\n    # (\\x. \\y. x) a b -> (\\y. a) b -> a\n    const_fn = ('lam', 'x', ('lam', 'y', ('var', 'x')))\n    app = ('app', ('app', const_fn, ('var', 'a')), ('var', 'b'))\n    assert beta_reduce(app) == ('var', 'a')\n\ndef test_nested_beta_reduction():\n    # (\\f. \\x. f x) (\\y. y) z -> z\n    apply_fn = ('lam', 'f', ('lam', 'x', ('app', ('var', 'f'), ('var', 'x'))))\n    ident = ('lam', 'y', ('var', 'y'))\n    full_expr = ('app', ('app', apply_fn, ident), ('var', 'z'))\n    assert beta_reduce(full_expr) == ('var', 'z')\n", "mutants": ["def beta_reduce(expr, max_steps=100):\n    assert False, 'mutant injected'\n", "def beta_reduce(expr, max_steps=100):\n    return expr  # mutant never reduces any lambda application\n"], "hints": ["Identify the leftmost outermost redex (\\x. body) arg.", "Substitute arg for x in body, using fresh variable names if capture occurs.", "Repeat until no more beta reductions are possible."], "level": "core", "title": "Untyped Lambda Calculus Beta-Reduction Evaluator"}, "ex4-differential-interpreter-fuzzer": {"starter": "def differential_fuzz_interpreters(candidate_fn, reference_fn, test_cases: list[dict]) -> dict:\n    pass\n", "solution": "def differential_fuzz_interpreters(candidate_fn, reference_fn, test_cases: list[dict]) -> dict:\n    divergences = []\n    crashes = []\n    passed = 0\n\n    for idx, test_case in enumerate(test_cases):\n        ast = test_case.get(\"ast\")\n        env = test_case.get(\"env\", {})\n\n        # Run reference interpreter\n        ref_ok = True\n        try:\n            ref_val = reference_fn(ast, dict(env))\n        except Exception as e:\n            ref_ok = False\n            ref_val = f\"EXCEPTION:{type(e).__name__}\"\n\n        # Run candidate interpreter\n        cand_ok = True\n        try:\n            cand_val = candidate_fn(ast, dict(env))\n        except Exception as e:\n            cand_ok = False\n            cand_val = f\"EXCEPTION:{type(e).__name__}\"\n\n        # Check for crashes and divergences\n        if not cand_ok and ref_ok:\n            crashes.append({\n                \"test_index\": idx,\n                \"ast\": ast,\n                \"candidate_error\": cand_val,\n                \"reference_value\": ref_val\n            })\n        elif cand_val != ref_val:\n            divergences.append({\n                \"test_index\": idx,\n                \"ast\": ast,\n                \"candidate_result\": cand_val,\n                \"reference_result\": ref_val\n            })\n        else:\n            passed += 1\n\n    return {\n        \"total_tests\": len(test_cases),\n        \"passed\": passed,\n        \"divergences\": divergences,\n        \"crashes\": crashes,\n        \"parity_verified\": len(divergences) == 0 and len(crashes) == 0\n    }\n", "tests": "def test_differential_fuzzing_all_match():\n    ref = lambda ast, env: ast[\"val\"] * 2\n    cand = lambda ast, env: ast[\"val\"] * 2\n    cases = [{\"ast\": {\"val\": 10}}, {\"ast\": {\"val\": 25}}]\n    res = differential_fuzz_interpreters(cand, ref, cases)\n    assert res[\"parity_verified\"] is True\n    assert res[\"passed\"] == 2\n    assert len(res[\"divergences\"]) == 0\n\ndef test_differential_fuzzing_detects_divergence():\n    ref = lambda ast, env: ast[\"val\"] * 2\n    # Candidate buggy implementation computes addition instead of multiplication\n    cand = lambda ast, env: ast[\"val\"] + 2\n    cases = [{\"ast\": {\"val\": 10}}]  # ref: 20, cand: 12\n    res = differential_fuzz_interpreters(cand, ref, cases)\n    assert res[\"parity_verified\"] is False\n    assert len(res[\"divergences\"]) == 1\n    assert res[\"divergences\"][0][\"candidate_result\"] == 12\n    assert res[\"divergences\"][0][\"reference_result\"] == 20\n\ndef test_differential_fuzzing_detects_crash():\n    ref = lambda ast, env: 42\n    # Candidate crashes on None\n    cand = lambda ast, env: None[\"missing_key\"]\n    cases = [{\"ast\": {}}]\n    res = differential_fuzz_interpreters(cand, ref, cases)\n    assert res[\"parity_verified\"] is False\n    assert len(res[\"crashes\"]) == 1\n", "mutants": ["def differential_fuzz_interpreters(candidate_fn, reference_fn, test_cases):\n    assert False, 'mutant injected'\n", "def differential_fuzz_interpreters(candidate_fn, reference_fn, test_cases):\n    return {\"total_tests\": len(test_cases), \"passed\": len(test_cases), \"divergences\": [], \"crashes\": [], \"parity_verified\": True}\n"], "hints": ["Execute candidate and reference functions inside try-except blocks.", "Record a crash if candidate raises an exception while reference succeeded.", "Record a divergence if candidate and reference return different results."], "level": "boss", "title": "Automated Differential Interpreter Fuzzing Engine"}}, "demos": {"p16-oracle-closure-environment": {"code": "class Environment:\n    def __init__(self, parent=None):\n        self.bindings = {}\n        self.parent = parent\n\n    def get(self, name: str):\n        if name in self.bindings:\n            return self.bindings[name]\n        if self.parent:\n            return self.parent.get(name)\n        raise NameError(f\"Unbound variable: {name}\")\n\n    def set(self, name: str, value):\n        self.bindings[name] = value\n\nclass Closure:\n    def __init__(self, param: str, body_func, env: Environment):\n        self.param = param\n        self.body_func = body_func\n        self.env = env  # captured lexical environment\n\n    def call(self, arg):\n        call_env = Environment(parent=self.env)\n        call_env.set(self.param, arg)\n        return self.body_func(call_env)\n\n# Global scope\nglobal_env = Environment()\nglobal_env.set(\"x\", 100)\n\n# make_adder(a) captures 'a'\ndef make_adder(a):\n    local_env = Environment(parent=global_env)\n    local_env.set(\"a\", a)\n    # returns closure(b) -> a + b + x\n    return Closure(\"b\", lambda env: env.get(\"a\") + env.get(\"b\") + env.get(\"x\"), local_env)\n\nadd5 = make_adder(5)\nassert add5.call(20) == 125  # 5 + 20 + 100\n\nadd10 = make_adder(10)\nassert add10.call(20) == 130 # 10 + 20 + 100\n\n# Overriding global x does not mutate captured local 'a'\nglobal_env.set(\"x\", 0)\nassert add5.call(20) == 25   # 5 + 20 + 0\n\nprint(\"Lexical environment frame and closure execution oracle verified.\")\n", "mutants": ["class Closure:\n    def __init__(self, param, body_func, env): self.param = param; self.body_func = body_func; self.env = env\n    def call(self, arg): return 0\nclass Environment:\n    def __init__(self, parent=None): self.bindings = {}; self.parent = parent\n    def get(self, name): return 0\n    def set(self, name, val): pass\ndef make_adder(a):\n    return Closure(\"b\", lambda env: 125, Environment())\nadd5 = make_adder(5)\nassert add5.call(20) == 125  # add5.call(20) returns 0, failing with AssertionError\n"]}, "p16-exp-js-coercion-matrix": {"code": "def to_boolean(val) -> bool:\n    if val is None or val is False or val == 0 or val == \"\" or val != val:  # NaN check\n        return False\n    return True\n\ndef to_number(val) -> float:\n    if val is None or val is False or val == \"\":\n        return 0.0\n    if val is True:\n        return 1.0\n    if isinstance(val, (int, float)):\n        return float(val)\n    if isinstance(val, str):\n        try: return float(val)\n        except ValueError: return float(\"nan\")\n    if isinstance(val, list):\n        if len(val) == 0: return 0.0\n        if len(val) == 1: return to_number(val[0])\n        return float(\"nan\")\n    return float(\"nan\")\n\ndef to_primitive(val):\n    if isinstance(val, list):\n        # Array to primitive string joining elements\n        return \",\".join(str(x) for x in val)\n    return val\n\ndef abstract_equality(x, y) -> bool:\n    # 1. Same type\n    if type(x) == type(y):\n        return x == y\n    # 2. null and undefined\n    if (x is None and y == \"undefined\") or (x == \"undefined\" and y is None):\n        return True\n    # 3. Boolean comparison first (since bool is subclass of int in Python)\n    if isinstance(x, bool):\n        return abstract_equality(to_number(x), y)\n    if isinstance(y, bool):\n        return abstract_equality(x, to_number(y))\n    # 4. Number and String\n    if isinstance(x, (int, float)) and isinstance(y, str):\n        return x == to_number(y)\n    if isinstance(x, str) and isinstance(y, (int, float)):\n        return to_number(x) == y\n    # 5. Object/Array comparison\n    if isinstance(x, list):\n        return abstract_equality(to_primitive(x), y)\n    if isinstance(y, list):\n        return abstract_equality(x, to_primitive(y))\n    return False\n\n# 1. [] == ![] -> true!\nnot_empty_array = not to_boolean([])  # False\nassert abstract_equality([], not_empty_array) is True\n\n# 2. \"\" == 0 -> true\nassert abstract_equality(\"\", 0) is True\n\n# 3. \"0\" == 0 -> true\nassert abstract_equality(\"0\", 0) is True\n\n# 4. \"0\" == false -> true\nassert abstract_equality(\"0\", False) is True\n\nprint(\"ECMAScript abstract equality coercion paradoxes experimentally verified.\")\n", "mutants": ["def abstract_equality(x, y): return x is y  # mutant uses strict reference identity\nassert abstract_equality([], False) is True\n"]}}, "cards": [{"q": "What is the difference between small-step and big-step operational semantics?", "a": "Small-step semantics formalizes computation step-by-step as transition relations; big-step semantics relates expressions directly to their final evaluated values."}, {"q": "What is a closure in programming language semantics?", "a": "A first-class function paired with its enclosing lexical environment frame, preserving access to captured variables across function lifetimes."}, {"q": "What are the falsy values in ECMAScript (JavaScript)?", "a": "false, 0, -0, 0n, empty string '', null, undefined, and NaN. All other values (including [] and {}) are truthy."}, {"q": "Why does [] == ![] evaluate to true in JavaScript?", "a": "![] evaluates to false; [] coerses via ToPrimitive to '' which coerses via ToNumber to 0; false coerses to 0; and 0 == 0 is true."}, {"q": "What is beta-reduction in the lambda calculus?", "a": "The fundamental rule of function application replacing formal parameters with argument expressions: (\\x. e) v -> e[x := v]."}, {"q": "What is differential testing of an interpreter?", "a": "Running identical randomized or suite inputs through a new interpreter and a trusted reference implementation to detect discrepancies."}], "title": "Semantics and interpreters"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

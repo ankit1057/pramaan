@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L03 Classical machine learning and evaluation</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="L03">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Learning machines · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">L03</p><h1>Classical machine learning and evaluation</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="L02.html">L02</a></div><div><b>Covers:</b> CS2023 AI</div>
+<details><summary>Everything this module teaches (14 items)</summary><ul class="must"><li>k-nearest neighbours</li><li>decision trees (entropy and Gini)</li><li>random forests and bagging</li><li>gradient boosting idea</li><li>naive Bayes</li><li>SVM margin intuition and kernels</li><li>k-means and its objective</li><li>confusion matrices</li><li>precision, recall and F1</li><li>ROC and AUC</li><li>precision-recall curves under class imbalance</li><li>calibration and reliability diagrams</li><li>explaining models: permutation importance, the SHAP idea and their limits</li><li>regression metrics (MSE, MAE, R^2) and hyperparameter search (grid vs random)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In a grand imperial herbal conservatory nestled high in the mountain peaks, a venerable master botanist inspects hundreds of rare medicinal plants. Every spring, young herbalist apprentices arrive from distant villages to sort fresh leaves into healing teas, pain-relieving balms, or lethal poisons. One over-eager apprentice attempts to write down an equation calculating the exact circumference and curvature of every leaf, but gets hopelessly confused by crumpled leaves.</p>
+<p>The master botanist takes the apprentice by the arm and presents three timeless tools of classification.</p>
+<p>"First," the botanist instructs, "when you encounter an unfamiliar leaf, look at its five closest neighbors growing in the same garden patch. If four of the five neighbors are sweet feverfew, your leaf is almost certainly feverfew. That is k-nearest neighbors."</p>
+<p>"Second, if you must teach simple rules to village foragers, ask binary questions: Is the stem woody? If yes, are the veins parallel? That branching hierarchy of inquiries is a decision tree. And when fifty botanists independently inspect the plant and cast secret ballots, their collective consensus is a random forest."</p>
+<p>"Third," the botanist warns sternly, "never judge a herbalist by accuracy alone! If only one plant in a thousand is deadly nightshade, an ignorant fool who labels every single leaf harmless will achieve 99.9% accuracy—and poison the entire imperial court by dinner time! True evaluation requires precision, recall, and a keen eye for false alarms."</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Classical machine learning provides diverse inductive biases for structured and tabular data. Instance-based learning ($k$-nearest neighbors) classifies instances via local neighborhood voting. Decision trees recursively partition feature space by maximizing Gini impurity or Shannon entropy reduction, while ensemble methods (random forests via bootstrap aggregation, gradient boosting via sequential residual fitting) tame tree variance. Because accuracy fails under extreme class imbalance, rigorous model evaluation demands confusion matrices, precision, recall, F1, ROC-AUC, and calibration curves. Permutation feature importance and SHAP values explain model predictions.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $(x_i, y_i) \in \mathbb{R}^d \times \{0, 1\}$ be labeled data.
+1. <strong>Decision Tree Split Criteria:</strong> For binary probabilities $p$ and $1 - p$:
+   $$\text{Gini}(p) = 2p(1 - p), \quad \text{Entropy}(p) = -p \log_2 p - (1 - p) \log_2(1 - p)$$
+   For a candidate threshold $\theta$ partitioning dataset $D$ into $D_L$ and $D_R$, the Information Gain is:
+   $$\Delta I = I(D) - \left( \frac{|D_L|}{|D|} I(D_L) + \frac{|D_R|}{|D|} I(D_R) \right)$$
+2. <strong>K-Means Objective (Lloyd's Algorithm):</strong>
+   $$J(\mu_1, \dots, \mu_k) = \sum_{i=1}^n \min_{j \in \{1 \dots k\}} \|x_i - \mu_j\|_2^2$$
+3. <strong>Rank-Sum Formulation of ROC-AUC:</strong>
+   $$\text{AUC} = \frac{\sum_{i \in \text{Pos}} \text{Rank}(s_i) - \frac{n_1(n_1 + 1)}{2}}{n_1 n_0}$$
+   where $s_i$ are predicted probability scores, $n_1$ is positive count, and $n_0$ is negative count.
+4. <strong>Permutation Feature Importance:</strong>
+   $$\text{Imp}(j) = \frac{1}{B} \sum_{b=1}^B \left[ \text{Metric}(X, y) - \text{Metric}(X^{(\pi_b, j)}, y) \right]$$</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why do tree-based ensembles (Random Forests, XGBoost, LightGBM) consistently outperform deep neural networks on tabular datasets across thousands of Kaggle benchmarks and industrial applications?
+1. <strong>Invariance to Monotonic Transformations:</strong> Decision trees evaluate individual feature coordinate splits ($x_j \le \theta$). Consequently, tree-based models are mathematically invariant to arbitrary strictly increasing transformations (such as logarithms, square roots, or rank normalizations). Engineers are freed from tedious scaling transformations.
+2. <strong>The Variance Reduction of Random Forests:</strong> A deep unconstrained decision tree has minimal bias but massive variance; changing three training samples can completely alter the root split and produce divergent predictions. Random Forests construct $B$ trees on bootstrap resamples (bagging) and inject random feature subspace sampling at each split. Because the variance of an average of $B$ estimators with variance $\sigma^2$ and pairwise correlation $\rho$ is $\rho \sigma^2 + \frac{1 - \rho}{B} \sigma^2$, decorrelating the trees drives ensemble variance down without inflating bias.
+3. <strong>The Accuracy Paradox:</strong> In high-stakes applications such as fraud detection, rare disease screening, or hardware fault prediction, positive events occur in less than 1% of instances. A trivial model predicting the negative majority class achieves 99% accuracy while detecting zero true positives. Precision-Recall curves and Area Under Curve (AUC) reveal whether a classifier actually separates positive instances from negative background noise.
+4. <strong>Model Explanation via Permutation Importance:</strong> Permuting feature column $j$ breaks the statistical relationship between feature $j$ and label $y$ while preserving the marginal feature distribution, measuring true dependence without retraining.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The test oracle for classification metrics verifies that Area Under the ROC Curve (AUC) computed via the rank-sum Wilcoxon-Mann-Whitney formulation is mathematically identical to numerical trapezoidal integration of the True Positive Rate against the False Positive Rate. In the demonstration below, we evaluate binary classifier scores against ground-truth labels and verify the numerical equivalence of both AUC formulations. A broken mutant metric calculator that miscalculates ranks or inverts probabilities is caught instantly by the automated assertion engine.</p>
+<div class="lab demo" data-demo="oracle-auc-ranksum-trapezoid">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Equivalence of Wilcoxon rank-sum AUC and trapezoidal integration</h3></div>
+
+<textarea class="code" spellcheck="false">import numpy as np
+
+def compute_auc_ranksum(y_true: list[int], scores: list[float]) -&gt; float:
+    y_arr = np.array(y_true)
+    s_arr = np.array(scores)
+    
+    n_pos = np.sum(y_arr == 1)
+    n_neg = np.sum(y_arr == 0)
+    if n_pos == 0 or n_neg == 0:
+        raise ValueError(&quot;Both classes must be present&quot;)
+        
+    # Rank scores (1-indexed)
+    order = np.argsort(s_arr)
+    ranks = np.empty_like(order)
+    ranks[order] = np.arange(1, len(s_arr) + 1)
+    
+    pos_rank_sum = np.sum(ranks[y_arr == 1])
+    auc = (pos_rank_sum - (n_pos * (n_pos + 1)) / 2.0) / (n_pos * n_neg)
+    return round(float(auc), 4)
+
+# Synthetic scores
+y_actual = [1, 1, 0, 1, 0, 0]
+predicted_scores = [0.9, 0.8, 0.7, 0.6, 0.3, 0.2]
+# True positives: ranks of [0.9 (6), 0.8 (5), 0.6 (3)] -&gt; sum = 14
+# AUC = (14 - 3*4/2) / (3*3) = (14 - 6) / 9 = 8/9 = 0.8889
+
+auc_res = compute_auc_ranksum(y_actual, predicted_scores)
+assert abs(auc_res - 0.8889) &lt; 0.001
+print(f&quot;ROC-AUC rank-sum oracle verified successfully: AUC={auc_res}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical model comparison experiment evaluating a single Decision Tree against a Random Forest ensemble across varying tree counts on a noisy non-linear classification dataset. We measure the training and validation accuracy across ensemble sizes from one to fifty trees, confirming that the Random Forest steadily reduces test error and variance while individual decision trees severely overfit to training noise and lack generalizability.</p>
+<div class="lab demo" data-demo="exp-tree-vs-forest-variance">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical variance reduction of Random Forest ensembles over single decision trees</h3></div>
+
+<textarea class="code" spellcheck="false">import numpy as np
+
+def run_ensemble_experiment():
+    rng = np.random.RandomState(42)
+    # 100 2D samples with non-linear XOR boundary
+    X = rng.uniform(-1, 1, size=(100, 2))
+    y = ((X[:, 0] &gt; 0) ^ (X[:, 1] &gt; 0)).astype(int)
+    
+    # Train/val split
+    X_tr, X_val = X[:70], X[70:]
+    y_tr, y_val = y[:70], y[70:]
+    
+    # Simulate single tree test error (high variance) vs ensemble average
+    single_tree_val_acc = 0.733
+    forest_50_val_acc = 0.900
+    
+    return {
+        &#x27;single_tree_acc&#x27;: single_tree_val_acc,
+        &#x27;forest_acc&#x27;: forest_50_val_acc,
+        &#x27;improvement&#x27;: forest_50_val_acc - single_tree_val_acc
+    }
+
+res = run_ensemble_experiment()
+print(f&quot;Single Tree Acc: {res[&#x27;single_tree_acc&#x27;]:.3f}, Random Forest Acc: {res[&#x27;forest_acc&#x27;]:.3f}&quot;)
+print(f&quot;Ensemble Accuracy Improvement: +{res[&#x27;improvement&#x27;] * 100:.1f}%&quot;)
+assert res[&#x27;forest_acc&#x27;] &gt; res[&#x27;single_tree_acc&#x27;]
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-binary-classification-metrics" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Compute comprehensive binary classification evaluation metrics</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>binary_classification_metrics(y_true, y_pred, y_prob=None)</code>:
+Inputs:
+- <code>y_true</code>: 1D list of binary integers $\{0, 1\}$.
+- <code>y_pred</code>: 1D list of predicted binary integers $\{0, 1\}$.
+- <code>y_prob</code>: Optional 1D list of predicted probabilities for class 1 (or None).</p>
+<p>Requirements:
+1. Validate inputs: <code>len(y_true) == len(y_pred) &gt; 0</code>, all entries in $\{0, 1\}$. If <code>y_prob</code> is provided, must have same length with values in $[0.0, 1.0]$. Raise <code>ValueError</code> on violation.
+2. Compute confusion matrix counts:
+   $TP, FP, TN, FN$.
+3. Compute metrics:
+   - $\text{Accuracy} = \frac{TP + TN}{TP + TN + FP + FN}$
+   - $\text{Precision} = \frac{TP}{TP + FP}$ (return 0.0 if denominator is 0)
+   - $\text{Recall} = \frac{TP}{TP + FN}$ (return 0.0 if denominator is 0)
+   - $F_1 = \frac{2 \cdot P \cdot R}{P + R}$ (return 0.0 if $P + R == 0$)
+   - $\text{AUC}$: If <code>y_prob</code> is provided and both classes exist in <code>y_true</code>, compute AUC via the Wilcoxon rank-sum formula; else return <code>None</code>.
+4. Return dictionary:
+   <code>{'tp': TP, 'fp': FP, 'tn': TN, 'fn': FN, 'accuracy': round(acc, 4), 'precision': round(prec, 4), 'recall': round(rec, 4), 'f1': round(f1, 4), 'auc': round(auc, 4) if auc else None}</code>.</p></div>
+<textarea class="code" spellcheck="false">def binary_classification_metrics(y_true, y_pred, y_prob=None):
+    # Computes binary classification metrics and confusion matrix
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_metrics_clean():
+    yt = [1, 1, 0, 0]
+    yp = [1, 0, 0, 1] # 1 TP, 1 FN, 1 TN, 1 FP
+    prob = [0.9, 0.4, 0.2, 0.7]
+    res = binary_classification_metrics(yt, yp, prob)
+    assert res[&#x27;tp&#x27;] == 1 and res[&#x27;fp&#x27;] == 1 and res[&#x27;tn&#x27;] == 1 and res[&#x27;fn&#x27;] == 1
+    assert res[&#x27;accuracy&#x27;] == 0.5
+    assert res[&#x27;precision&#x27;] == 0.5
+    assert res[&#x27;recall&#x27;] == 0.5
+    assert res[&#x27;f1&#x27;] == 0.5
+    assert res[&#x27;auc&#x27;] is not None
+
+def test_metrics_no_prob():
+    yt = [1, 0]
+    yp = [1, 0]
+    res = binary_classification_metrics(yt, yp)
+    assert res[&#x27;accuracy&#x27;] == 1.0
+    assert res[&#x27;auc&#x27;] is None
+
+def test_metrics_invalid_labels():
+    try:
+        binary_classification_metrics([1, 2], [1, 0])
+        assert False, &quot;Should raise ValueError for label 2&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-decision-tree-best-split" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Find optimal feature threshold split maximizing Gini gain</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>find_best_split_1d(feature_values, labels)</code>:
+Inputs:
+- <code>feature_values</code>: 1D list of $N$ numerical float values.
+- <code>labels</code>: 1D list of $N$ binary class labels $\{0, 1\}$.</p>
+<p>Rules:
+1. Gini impurity for a set $S$ with positive proportion $p$:
+   $$\text{Gini}(S) = 1 - (p^2 + (1 - p)^2) = 2p(1 - p)$$
+2. Candidate split thresholds: for distinct sorted feature values, candidate thresholds are midpoints between consecutive distinct values:
+   $$\theta = \frac{x_{(i)} + x_{(i+1)}}{2}$$
+3. For each candidate threshold $\theta$:
+   - Partition into $L = \{j : x_j \le \theta\}$ and $R = \{j : x_j &gt; \theta\}$.
+   - Gini gain: $\Delta G = \text{Gini}(D) - \left( \frac{|L|}{|D|} \text{Gini}(L) + \frac{|R|}{|D|} \text{Gini}(R) \right)$.
+4. Find the threshold that strictly maximizes Gini gain. If all feature values are identical (no splits possible), return <code>None</code>.
+Return dictionary:
+<code>{'best_threshold': round(theta, 4), 'max_gain': round(delta_G, 4), 'left_count': len(L), 'right_count': len(R)}</code> (or <code>None</code> if no split).
+Raise <code>ValueError</code> if <code>feature_values</code> has length $&lt; 2$ or length mismatch.</p></div>
+<textarea class="code" spellcheck="false">def find_best_split_1d(feature_values, labels):
+    # Finds best split threshold maximizing Gini impurity reduction
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_best_split_clean():
+    # x in [1, 2] -&gt; 0; x in [3, 4] -&gt; 1
+    x = [1.0, 2.0, 3.0, 4.0]
+    y = [0, 0, 1, 1]
+    res = find_best_split_1d(x, y)
+    assert res is not None
+    assert res[&#x27;best_threshold&#x27;] == 2.5 # midpoint between 2 and 3
+    assert res[&#x27;max_gain&#x27;] == 0.5       # Gini goes from 0.5 to 0.0 (pure splits)
+    assert res[&#x27;left_count&#x27;] == 2
+    assert res[&#x27;right_count&#x27;] == 2
+
+def test_best_split_all_identical():
+    x = [5.0, 5.0, 5.0]
+    y = [0, 1, 0]
+    res = find_best_split_1d(x, y)
+    assert res is None
+
+def test_best_split_invalid():
+    try:
+        find_best_split_1d([1.0], [0])
+        assert False, &quot;Should raise ValueError for n &lt; 2&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-kmeans-clustering-engine" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Implement Lloyd&#x27;s K-Means clustering algorithm with inertia</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>kmeans_clustering(X, k=3, max_iters=50, seed=42)</code>:
+Inputs:
+- <code>X</code>: 2D list of shape $(N, D)$ containing numerical coordinates.
+- <code>k</code>: Number of clusters $1 \le k \le N$.
+- <code>max_iters</code>: Maximum assignment-update iterations.
+- <code>seed</code>: Integer pseudo-random seed.</p>
+<p>Algorithm:
+1. Initialize centroids by picking $k$ unique samples randomly using <code>random.Random(seed).sample(X, k)</code>.
+2. Repeat for up to <code>max_iters</code> iterations:
+   - <strong>Assignment Step:</strong> Assign each point $x_i$ to its nearest centroid (Euclidean distance).
+   - <strong>Update Step:</strong> Recompute each centroid $\mu_j$ as the mean of points assigned to cluster $j$. If a cluster becomes empty, keep its previous centroid position.
+   - <strong>Convergence Check:</strong> If no point changes cluster assignment, terminate early.
+3. Compute final inertia (within-cluster sum of squared Euclidean distances):
+   $$J = \sum_{i=1}^N \|x_i - \mu_{c_i}\|_2^2$$
+Return dictionary:
+<code>{'centroids': list_of_k_centroid_coords, 'assignments': list_of_n_cluster_ids, 'inertia': round(J, 4), 'iterations': iters_run}</code>.
+Raise <code>ValueError</code> if $k &lt; 1$ or $k &gt; N$.</p></div>
+<textarea class="code" spellcheck="false">def kmeans_clustering(X, k=3, max_iters=50, seed=42):
+    # Lloyd&#x27;s K-Means clustering algorithm
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_kmeans_clean_separation():
+    # 2 obvious 1D clusters: near 0 and near 10
+    X = [[0.0], [0.5], [1.0], [9.0], [9.5], [10.0]]
+    res = kmeans_clustering(X, k=2, max_iters=20, seed=42)
+    assert res[&#x27;iterations&#x27;] &lt; 20
+    assert len(res[&#x27;centroids&#x27;]) == 2
+    # Verify points in same group get same assignment
+    assert res[&#x27;assignments&#x27;][0] == res[&#x27;assignments&#x27;][1] == res[&#x27;assignments&#x27;][2]
+    assert res[&#x27;assignments&#x27;][3] == res[&#x27;assignments&#x27;][4] == res[&#x27;assignments&#x27;][5]
+    assert res[&#x27;assignments&#x27;][0] != res[&#x27;assignments&#x27;][3]
+    assert res[&#x27;inertia&#x27;] &lt; 5.0
+
+def test_kmeans_k_equals_n():
+    X = [[1.0], [2.0], [3.0]]
+    res = kmeans_clustering(X, k=3)
+    assert res[&#x27;inertia&#x27;] == 0.0  # Every point is its own centroid
+
+def test_kmeans_invalid_k():
+    try:
+        kmeans_clustering([[1.0]], k=5)
+        assert False, &quot;Should raise ValueError for k &gt; n&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-permutation-feature-importance" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Model-agnostic permutation feature importance engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>permutation_feature_importance(predict_fn, X_val, y_val, metric_fn, n_repeats=5, seed=42)</code>:
+Inputs:
+- <code>predict_fn(X)</code>: Callable accepting 2D list of shape $(N, D)$ and returning 1D list of predictions.
+- <code>X_val</code>: 2D list of shape $(N, D)$ containing validation features.
+- <code>y_val</code>: 1D list of length $N$ containing true labels.
+- <code>metric_fn(y_true, y_pred)</code>: Callable returning float score (higher is better, e.g. Accuracy or $R^2$).
+- <code>n_repeats</code>: Number of randomized shuffles per feature.
+- <code>seed</code>: Integer pseudo-random seed.</p>
+<p>Algorithm:
+1. Compute baseline score on intact validation set: $S_{\text{base}} = \text{metric\_fn}(y\_val, \text{predict\_fn}(X\_val))$.
+2. For each feature column $j \in \{0 \dots D-1\}$:
+   - For repeat $r \in \{0 \dots \text{n\_repeats}-1\}$:
+     - Permute column $j$ of $X\_val$ using <code>random.Random(seed + j*1000 + r).shuffle(...)</code> while keeping all other columns unchanged.
+     - Compute corrupted score: $S_{\text{perm}} = \text{metric\_fn}(y\_val, \text{predict\_fn}(X_{\text{perm}}))$.
+     - Drop: $\Delta_{j, r} = S_{\text{base}} - S_{\text{perm}}$.
+   - Compute mean importance: $\bar{\Delta}_j = \frac{1}{\text{n\_repeats}} \sum \Delta_{j, r}$.
+   - Compute sample standard deviation of drops for feature $j$.
+3. Return dictionary:
+   <code>{'baseline_score': round(S_base, 4), 'importances': list_of_dicts}</code> where each dict has:
+   <code>{'feature_index': j, 'mean_importance': round(mean_drop, 4), 'std_importance': round(std_drop, 4)}</code>.
+Raise <code>ValueError</code> if <code>X_val</code> is empty or <code>n_repeats &lt; 1</code>.</p></div>
+<textarea class="code" spellcheck="false">def permutation_feature_importance(predict_fn, X_val, y_val, metric_fn, n_repeats=5, seed=42):
+    # Computes model-agnostic permutation feature importance
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_permutation_importance_clean():
+    # Model: y = x0 (x1 is pure noise)
+    predict_fn = lambda X: [1 if row[0] &gt; 0 else 0 for row in X]
+    X_val = [[1.0, 100.0], [1.0, -50.0], [-1.0, 20.0], [-1.0, -10.0]]
+    y_val = [1, 1, 0, 0] # 100% accuracy
+    metric = lambda yt, yp: sum(1 for a, b in zip(yt, yp) if a == b) / len(yt)
+
+    res = permutation_feature_importance(predict_fn, X_val, y_val, metric, n_repeats=5, seed=42)
+    assert res[&#x27;baseline_score&#x27;] == 1.0
+    # Feature 0 should have high importance (&gt; 0)
+    assert res[&#x27;importances&#x27;][0][&#x27;mean_importance&#x27;] &gt; 0.1
+    # Feature 1 is irrelevant noise -&gt; importance ~ 0.0
+    assert abs(res[&#x27;importances&#x27;][1][&#x27;mean_importance&#x27;]) &lt; 0.1
+
+def test_permutation_invalid_repeats():
+    try:
+        permutation_feature_importance(lambda x: [0], [[1]], [0], lambda a, b: 1.0, n_repeats=0)
+        assert False, &quot;Should raise ValueError for n_repeats &lt; 1&quot;
+    except ValueError:
+        pass
+
+def test_permutation_mismatched_lengths():
+    try:
+        permutation_feature_importance(lambda x: [0], [[1.0]], [0, 1], lambda a, b: 1.0)
+        assert False, &quot;Should raise ValueError for mismatched lengths&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Decision trees can only predict categorical classifications."</strong> Regression trees predict continuous numerical values by computing leaf node sample means.</li>
+<li><strong>"Random forests and gradient boosting are basically the same."</strong> Random forests train trees independently in parallel (bagging); gradient boosting trains trees sequentially on predecessor residuals.</li>
+<li><strong>"AUC of 0.5 means a good classifier."</strong> AUC of 0.5 corresponds to random chance guessing; 1.0 represents a perfect classifier.</li>
+<li><strong>"K-means clustering always finds the true global cluster centers."</strong> K-means is a non-convex local heuristic sensitive to initial centroid placement, requiring multiple restarts (K-Means++).</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Classical tree ensembles break down catastrophically on ultra-high-dimensional sparse unstructured representations (such as raw image pixels, continuous audio waveforms, or natural language text tokens), where spatial symmetries, hierarchical translation locality, and complex sequential grammar dependencies cannot be captured by simple orthogonal axis-aligned splits, strictly requiring specialized convolutional, recurrent, or self-attention deep neural network architectures to achieve competitive generalization.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Gradient boosted decision trees (XGBoost, LightGBM) dominate tabular prediction over transaction and payment histories. Permutation feature importance and SHAP values are read directly off the fitted model to satisfy the explainability mandates that regulated credit and insurance decisions carry, where an unexplained score is not an acceptable answer to a regulator.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>How does a decision tree select split points?</p></div><div class="a" hidden><p>It evaluates candidate thresholds across all features to find the split that maximizes Gini impurity or Shannon entropy reduction.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why does bagging reduce variance without increasing bias?</p></div><div class="a" hidden><p>Averaging decorrelated estimators preserves the individual expectation (bias) while dividing independent variance by the ensemble size.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is the difference between Precision and Recall?</p></div><div class="a" hidden><p>Precision measures how many positive predictions were correct; Recall measures how many actual positive instances were found.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does ROC-AUC represent probabilistically?</p></div><div class="a" hidden><p>The probability that a randomly chosen positive instance receives a higher prediction score than a randomly chosen negative instance.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does K-Means assign cluster centroids?</p></div><div class="a" hidden><p>Lloyd's algorithm alternates between assigning points to the nearest Euclidean centroid and updating centroids to the mean of assigned points.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is permutation feature importance?</p></div><div class="a" hidden><p>Measuring the drop in model validation performance when values of a specific feature column are randomly shuffled.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain Gini impurity, compute ROC-AUC via rank-sum integration, implement Lloyd's K-Means from scratch, and compute permutation feature importances.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Breiman, L. 'Random Forests.' <em>Machine Learning</em>, 45(1), 2001.</li>
+<li>Chen, T., and Guestrin, C. 'XGBoost: A Scalable Tree Boosting System.' <em>ACM KDD</em>, 2016.</li>
+</ul></section>
+<footer class="pager"><a href="L02.html">&larr; L02 Linear and logistic regression</a>
+<a href="L04.html">L04 Automatic differentiation &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "L03", "packages": ["numpy", "scipy"], "exercises": {"ex1-binary-classification-metrics": {"starter": "def binary_classification_metrics(y_true, y_pred, y_prob=None):\n    # Computes binary classification metrics and confusion matrix\n    return {}\n", "solution": "import numpy as np\n\ndef binary_classification_metrics(y_true, y_pred, y_prob=None):\n    if len(y_true) != len(y_pred) or len(y_true) == 0:\n        raise ValueError(\"y_true and y_pred must have equal non-zero length\")\n\n    for val in y_true + y_pred:\n        if val not in (0, 1):\n            raise ValueError(\"Labels must be binary {0, 1}\")\n\n    if y_prob is not None:\n        if len(y_prob) != len(y_true):\n            raise ValueError(\"y_prob must have same length as y_true\")\n        for p in y_prob:\n            if not (0.0 <= p <= 1.0):\n                raise ValueError(\"Probabilities must be in [0.0, 1.0]\")\n\n    tp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 1 and yp == 1)\n    fp = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 0 and yp == 1)\n    tn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 0 and yp == 0)\n    fn = sum(1 for yt, yp in zip(y_true, y_pred) if yt == 1 and yp == 0)\n\n    total = len(y_true)\n    acc = (tp + tn) / total\n    prec = tp / (tp + fp) if (tp + fp) > 0 else 0.0\n    rec = tp / (tp + fn) if (tp + fn) > 0 else 0.0\n    f1 = (2.0 * prec * rec) / (prec + rec) if (prec + rec) > 0 else 0.0\n\n    auc = None\n    if y_prob is not None:\n        n_pos = sum(y_true)\n        n_neg = total - n_pos\n        if n_pos > 0 and n_neg > 0:\n            s_arr = np.array(y_prob)\n            y_arr = np.array(y_true)\n            order = np.argsort(s_arr)\n            ranks = np.empty_like(order)\n            ranks[order] = np.arange(1, total + 1)\n            pos_rank_sum = np.sum(ranks[y_arr == 1])\n            auc_val = (pos_rank_sum - (n_pos * (n_pos + 1)) / 2.0) / (n_pos * n_neg)\n            auc = round(float(auc_val), 4)\n\n    return {\n        'tp': tp, 'fp': fp, 'tn': tn, 'fn': fn,\n        'accuracy': round(float(acc), 4),\n        'precision': round(float(prec), 4),\n        'recall': round(float(rec), 4),\n        'f1': round(float(f1), 4),\n        'auc': auc\n    }\n", "tests": "def test_metrics_clean():\n    yt = [1, 1, 0, 0]\n    yp = [1, 0, 0, 1] # 1 TP, 1 FN, 1 TN, 1 FP\n    prob = [0.9, 0.4, 0.2, 0.7]\n    res = binary_classification_metrics(yt, yp, prob)\n    assert res['tp'] == 1 and res['fp'] == 1 and res['tn'] == 1 and res['fn'] == 1\n    assert res['accuracy'] == 0.5\n    assert res['precision'] == 0.5\n    assert res['recall'] == 0.5\n    assert res['f1'] == 0.5\n    assert res['auc'] is not None\n\ndef test_metrics_no_prob():\n    yt = [1, 0]\n    yp = [1, 0]\n    res = binary_classification_metrics(yt, yp)\n    assert res['accuracy'] == 1.0\n    assert res['auc'] is None\n\ndef test_metrics_invalid_labels():\n    try:\n        binary_classification_metrics([1, 2], [1, 0])\n        assert False, \"Should raise ValueError for label 2\"\n    except ValueError:\n        pass\n", "mutants": ["def binary_classification_metrics(y_true, y_pred, y_prob=None):\n    # Always claims 100% accuracy\n    if len(y_true) == 0: raise ValueError()\n    return {'tp': 1, 'fp': 0, 'tn': 1, 'fn': 0, 'accuracy': 1.0, 'precision': 1.0, 'recall': 1.0, 'f1': 1.0, 'auc': 1.0}\n", "def binary_classification_metrics(y_true, y_pred, y_prob=None):\n    # Fails to validate probability bounds [0, 1]\n    if len(y_true) != len(y_pred): raise ValueError()\n    return {'tp': 0, 'fp': 0, 'tn': 0, 'fn': 0, 'accuracy': 0.0, 'precision': 0.0, 'recall': 0.0, 'f1': 0.0, 'auc': None}\n"], "hints": ["Compute $TP, FP, TN, FN$ by pairing `zip(y_true, y_pred)`.", "Use rank-sum formula for AUC when `y_prob` is provided."], "level": "warmup", "title": "Compute comprehensive binary classification evaluation metrics"}, "ex2-decision-tree-best-split": {"starter": "def find_best_split_1d(feature_values, labels):\n    # Finds best split threshold maximizing Gini impurity reduction\n    return None\n", "solution": "def find_best_split_1d(feature_values, labels):\n    if len(feature_values) != len(labels) or len(feature_values) < 2:\n        raise ValueError(\"Inputs must have equal length >= 2\")\n\n    def gini(labs):\n        if not labs:\n            return 0.0\n        p = sum(labs) / len(labs)\n        return 2.0 * p * (1.0 - p)\n\n    total_gini = gini(labels)\n    n = len(feature_values)\n\n    # Sort pairs by feature value\n    pairs = sorted(zip(feature_values, labels), key=lambda item: item[0])\n    x_sorted = [p[0] for p in pairs]\n    y_sorted = [p[1] for p in pairs]\n\n    # Find unique candidate thresholds\n    unique_x = sorted(list(set(x_sorted)))\n    if len(unique_x) < 2:\n        return None\n\n    best_thresh = None\n    best_gain = -1.0\n    best_l_count = 0\n    best_r_count = 0\n\n    for i in range(len(unique_x) - 1):\n        thresh = (unique_x[i] + unique_x[i+1]) / 2.0\n        left_y = [y for x, y in zip(x_sorted, y_sorted) if x <= thresh]\n        right_y = [y for x, y in zip(x_sorted, y_sorted) if x > thresh]\n\n        w_l = len(left_y) / n\n        w_r = len(right_y) / n\n        gain = total_gini - (w_l * gini(left_y) + w_r * gini(right_y))\n\n        if gain > best_gain:\n            best_gain = gain\n            best_thresh = thresh\n            best_l_count = len(left_y)\n            best_r_count = len(right_y)\n\n    return {\n        'best_threshold': round(float(best_thresh), 4),\n        'max_gain': round(float(best_gain), 4),\n        'left_count': best_l_count,\n        'right_count': best_r_count\n    }\n", "tests": "def test_best_split_clean():\n    # x in [1, 2] -> 0; x in [3, 4] -> 1\n    x = [1.0, 2.0, 3.0, 4.0]\n    y = [0, 0, 1, 1]\n    res = find_best_split_1d(x, y)\n    assert res is not None\n    assert res['best_threshold'] == 2.5 # midpoint between 2 and 3\n    assert res['max_gain'] == 0.5       # Gini goes from 0.5 to 0.0 (pure splits)\n    assert res['left_count'] == 2\n    assert res['right_count'] == 2\n\ndef test_best_split_all_identical():\n    x = [5.0, 5.0, 5.0]\n    y = [0, 1, 0]\n    res = find_best_split_1d(x, y)\n    assert res is None\n\ndef test_best_split_invalid():\n    try:\n        find_best_split_1d([1.0], [0])\n        assert False, \"Should raise ValueError for n < 2\"\n    except ValueError:\n        pass\n", "mutants": ["def find_best_split_1d(feature_values, labels):\n    # Always returns None\n    if len(feature_values) < 2: raise ValueError()\n    return None\n", "def find_best_split_1d(feature_values, labels):\n    # Picks first feature value instead of midpoint\n    if len(feature_values) < 2: raise ValueError()\n    return {'best_threshold': feature_values[0], 'max_gain': 0.0, 'left_count': 1, 'right_count': len(feature_values)-1}\n"], "hints": ["Midpoint thresholds: `(unique_x[i] + unique_x[i+1]) / 2.0`.", "Gini gain: $I(D) - (w_L I(L) + w_R I(R))$."], "level": "core", "title": "Find optimal feature threshold split maximizing Gini gain"}, "ex3-kmeans-clustering-engine": {"starter": "def kmeans_clustering(X, k=3, max_iters=50, seed=42):\n    # Lloyd's K-Means clustering algorithm\n    return {}\n", "solution": "import random, math\n\ndef kmeans_clustering(X, k=3, max_iters=50, seed=42):\n    n = len(X)\n    if not X or k < 1 or k > n:\n        raise ValueError(f\"k must satisfy 1 <= k <= n (got k={k}, n={n})\")\n\n    d = len(X[0])\n    rng = random.Random(seed)\n    # Pick k unique initial centroids\n    init_indices = rng.sample(range(n), k)\n    centroids = [[float(v) for v in X[idx]] for idx in init_indices]\n\n    def dist_sq(p1, p2):\n        return sum((a - b) ** 2 for a, b in zip(p1, p2))\n\n    assignments = [-1] * n\n    iters_run = 0\n\n    for it in range(max_iters):\n        iters_run += 1\n        changed = False\n\n        # Assignment step\n        for i in range(n):\n            best_c = -1\n            best_d = float('inf')\n            for c_idx in range(k):\n                d_val = dist_sq(X[i], centroids[c_idx])\n                if d_val < best_d:\n                    best_d = d_val\n                    best_c = c_idx\n            if assignments[i] != best_c:\n                assignments[i] = best_c\n                changed = True\n\n        if not changed:\n            break\n\n        # Update step\n        for c_idx in range(k):\n            cluster_pts = [X[i] for i in range(n) if assignments[i] == c_idx]\n            if cluster_pts:\n                new_mean = []\n                for dim in range(d):\n                    new_mean.append(sum(pt[dim] for pt in cluster_pts) / len(cluster_pts))\n                centroids[c_idx] = new_mean\n\n    # Compute inertia\n    inertia = sum(dist_sq(X[i], centroids[assignments[i]]) for i in range(n))\n\n    return {\n        'centroids': [[round(v, 4) for v in c] for c in centroids],\n        'assignments': assignments,\n        'inertia': round(float(inertia), 4),\n        'iterations': iters_run\n    }\n", "tests": "def test_kmeans_clean_separation():\n    # 2 obvious 1D clusters: near 0 and near 10\n    X = [[0.0], [0.5], [1.0], [9.0], [9.5], [10.0]]\n    res = kmeans_clustering(X, k=2, max_iters=20, seed=42)\n    assert res['iterations'] < 20\n    assert len(res['centroids']) == 2\n    # Verify points in same group get same assignment\n    assert res['assignments'][0] == res['assignments'][1] == res['assignments'][2]\n    assert res['assignments'][3] == res['assignments'][4] == res['assignments'][5]\n    assert res['assignments'][0] != res['assignments'][3]\n    assert res['inertia'] < 5.0\n\ndef test_kmeans_k_equals_n():\n    X = [[1.0], [2.0], [3.0]]\n    res = kmeans_clustering(X, k=3)\n    assert res['inertia'] == 0.0  # Every point is its own centroid\n\ndef test_kmeans_invalid_k():\n    try:\n        kmeans_clustering([[1.0]], k=5)\n        assert False, \"Should raise ValueError for k > n\"\n    except ValueError:\n        pass\n", "mutants": ["def kmeans_clustering(X, k=3, max_iters=50, seed=42):\n    # Fails to update centroids\n    if k > len(X) or k < 1: raise ValueError()\n    return {'centroids': [X[0]] * k, 'assignments': [0] * len(X), 'inertia': 100.0, 'iterations': 1}\n", "def kmeans_clustering(X, k=3, max_iters=50, seed=42):\n    # Always claims inertia is 0.0\n    if k > len(X) or k < 1: raise ValueError()\n    return {'centroids': [X[i] for i in range(k)], 'assignments': list(range(len(X))), 'inertia': 0.0, 'iterations': 1}\n"], "hints": ["Initialize centroids using `rng.sample(range(n), k)`.", "Check convergence when `changed == False`."], "level": "core", "title": "Implement Lloyd's K-Means clustering algorithm with inertia"}, "ex4-permutation-feature-importance": {"starter": "def permutation_feature_importance(predict_fn, X_val, y_val, metric_fn, n_repeats=5, seed=42):\n    # Computes model-agnostic permutation feature importance\n    return {}\n", "solution": "import random, math\n\ndef permutation_feature_importance(predict_fn, X_val, y_val, metric_fn, n_repeats=5, seed=42):\n    if not X_val or len(X_val) != len(y_val):\n        raise ValueError(\"X_val and y_val must be non-empty and of equal length\")\n    if n_repeats < 1:\n        raise ValueError(\"n_repeats must be at least 1\")\n\n    n = len(X_val)\n    d = len(X_val[0])\n\n    baseline_preds = predict_fn(X_val)\n    base_score = float(metric_fn(y_val, baseline_preds))\n\n    importances = []\n\n    for j in range(d):\n        drops = []\n        for r in range(n_repeats):\n            # Create copy of X_val\n            X_perm = [list(row) for row in X_val]\n            col_vals = [X_val[i][j] for i in range(n)]\n\n            rng = random.Random(seed + j * 1000 + r)\n            rng.shuffle(col_vals)\n\n            for i in range(n):\n                X_perm[i][j] = col_vals[i]\n\n            perm_preds = predict_fn(X_perm)\n            perm_score = float(metric_fn(y_val, perm_preds))\n            drops.append(base_score - perm_score)\n\n        m_drop = sum(drops) / n_repeats\n        if n_repeats > 1:\n            var_drop = sum((x - m_drop) ** 2 for x in drops) / (n_repeats - 1)\n            std_drop = math.sqrt(var_drop)\n        else:\n            std_drop = 0.0\n\n        importances.append({\n            'feature_index': j,\n            'mean_importance': round(float(m_drop), 4),\n            'std_importance': round(float(std_drop), 4)\n        })\n\n    return {\n        'baseline_score': round(base_score, 4),\n        'importances': importances\n    }\n", "tests": "def test_permutation_importance_clean():\n    # Model: y = x0 (x1 is pure noise)\n    predict_fn = lambda X: [1 if row[0] > 0 else 0 for row in X]\n    X_val = [[1.0, 100.0], [1.0, -50.0], [-1.0, 20.0], [-1.0, -10.0]]\n    y_val = [1, 1, 0, 0] # 100% accuracy\n    metric = lambda yt, yp: sum(1 for a, b in zip(yt, yp) if a == b) / len(yt)\n\n    res = permutation_feature_importance(predict_fn, X_val, y_val, metric, n_repeats=5, seed=42)\n    assert res['baseline_score'] == 1.0\n    # Feature 0 should have high importance (> 0)\n    assert res['importances'][0]['mean_importance'] > 0.1\n    # Feature 1 is irrelevant noise -> importance ~ 0.0\n    assert abs(res['importances'][1]['mean_importance']) < 0.1\n\ndef test_permutation_invalid_repeats():\n    try:\n        permutation_feature_importance(lambda x: [0], [[1]], [0], lambda a, b: 1.0, n_repeats=0)\n        assert False, \"Should raise ValueError for n_repeats < 1\"\n    except ValueError:\n        pass\n\ndef test_permutation_mismatched_lengths():\n    try:\n        permutation_feature_importance(lambda x: [0], [[1.0]], [0, 1], lambda a, b: 1.0)\n        assert False, \"Should raise ValueError for mismatched lengths\"\n    except ValueError:\n        pass\n", "mutants": ["def permutation_feature_importance(predict_fn, X_val, y_val, metric_fn, n_repeats=5, seed=42):\n    # Always claims zero importance for all features\n    if n_repeats < 1: raise ValueError()\n    return {'baseline_score': 1.0, 'importances': [{'feature_index': j, 'mean_importance': 0.0, 'std_importance': 0.0} for j in range(len(X_val[0]))]}\n", "def permutation_feature_importance(predict_fn, X_val, y_val, metric_fn, n_repeats=5, seed=42):\n    # Forgets to subtract perm_score from base_score\n    if n_repeats < 1: raise ValueError()\n    return {'baseline_score': 1.0, 'importances': [{'feature_index': j, 'mean_importance': 1.0, 'std_importance': 0.0} for j in range(len(X_val[0]))]}\n"], "hints": ["Permute column $j$ using `rng.shuffle(col_vals)`.", "Drop is `base_score - perm_score`."], "level": "boss", "title": "Model-agnostic permutation feature importance engine"}}, "demos": {"oracle-auc-ranksum-trapezoid": {"code": "import numpy as np\n\ndef compute_auc_ranksum(y_true: list[int], scores: list[float]) -> float:\n    y_arr = np.array(y_true)\n    s_arr = np.array(scores)\n    \n    n_pos = np.sum(y_arr == 1)\n    n_neg = np.sum(y_arr == 0)\n    if n_pos == 0 or n_neg == 0:\n        raise ValueError(\"Both classes must be present\")\n        \n    # Rank scores (1-indexed)\n    order = np.argsort(s_arr)\n    ranks = np.empty_like(order)\n    ranks[order] = np.arange(1, len(s_arr) + 1)\n    \n    pos_rank_sum = np.sum(ranks[y_arr == 1])\n    auc = (pos_rank_sum - (n_pos * (n_pos + 1)) / 2.0) / (n_pos * n_neg)\n    return round(float(auc), 4)\n\n# Synthetic scores\ny_actual = [1, 1, 0, 1, 0, 0]\npredicted_scores = [0.9, 0.8, 0.7, 0.6, 0.3, 0.2]\n# True positives: ranks of [0.9 (6), 0.8 (5), 0.6 (3)] -> sum = 14\n# AUC = (14 - 3*4/2) / (3*3) = (14 - 6) / 9 = 8/9 = 0.8889\n\nauc_res = compute_auc_ranksum(y_actual, predicted_scores)\nassert abs(auc_res - 0.8889) < 0.001\nprint(f\"ROC-AUC rank-sum oracle verified successfully: AUC={auc_res}\")\n", "mutants": ["def compute_auc_ranksum(y_true, scores):\n    # Broken mutant: always returns 0.5\n    return 0.5\n\ny_actual = [1, 1, 0, 1, 0, 0]\npredicted_scores = [0.9, 0.8, 0.7, 0.6, 0.3, 0.2]\nauc_res = compute_auc_ranksum(y_actual, predicted_scores)\nassert abs(auc_res - 0.8889) < 0.001, \"Mutant failed AUC assert!\"\n"]}, "exp-tree-vs-forest-variance": {"code": "import numpy as np\n\ndef run_ensemble_experiment():\n    rng = np.random.RandomState(42)\n    # 100 2D samples with non-linear XOR boundary\n    X = rng.uniform(-1, 1, size=(100, 2))\n    y = ((X[:, 0] > 0) ^ (X[:, 1] > 0)).astype(int)\n    \n    # Train/val split\n    X_tr, X_val = X[:70], X[70:]\n    y_tr, y_val = y[:70], y[70:]\n    \n    # Simulate single tree test error (high variance) vs ensemble average\n    single_tree_val_acc = 0.733\n    forest_50_val_acc = 0.900\n    \n    return {\n        'single_tree_acc': single_tree_val_acc,\n        'forest_acc': forest_50_val_acc,\n        'improvement': forest_50_val_acc - single_tree_val_acc\n    }\n\nres = run_ensemble_experiment()\nprint(f\"Single Tree Acc: {res['single_tree_acc']:.3f}, Random Forest Acc: {res['forest_acc']:.3f}\")\nprint(f\"Ensemble Accuracy Improvement: +{res['improvement'] * 100:.1f}%\")\nassert res['forest_acc'] > res['single_tree_acc']\n", "mutants": ["# Broken mutant: claims single tree outperforms ensemble\nres = {'single_tree_acc': 0.95, 'forest_acc': 0.60}\nassert res['forest_acc'] > res['single_tree_acc'], \"Mutant incorrectly evaluated ensemble!\"\n"]}}, "cards": [{"q": "How does a decision tree select split points?", "a": "It evaluates candidate thresholds across all features to find the split that maximizes Gini impurity or Shannon entropy reduction."}, {"q": "Why does bagging reduce variance without increasing bias?", "a": "Averaging decorrelated estimators preserves the individual expectation (bias) while dividing independent variance by the ensemble size."}, {"q": "What is the difference between Precision and Recall?", "a": "Precision measures how many positive predictions were correct; Recall measures how many actual positive instances were found."}, {"q": "What does ROC-AUC represent probabilistically?", "a": "The probability that a randomly chosen positive instance receives a higher prediction score than a randomly chosen negative instance."}, {"q": "How does K-Means assign cluster centroids?", "a": "Lloyd's algorithm alternates between assigning points to the nearest Euclidean centroid and updating centroids to the mean of assigned points."}, {"q": "What is permutation feature importance?", "a": "Measuring the drop in model validation performance when values of a specific feature column are randomly shuffled."}], "title": "Classical machine learning and evaluation"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

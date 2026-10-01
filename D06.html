@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D06 Sorting and searching</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D06">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-1 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D06</p><h1>Sorting and searching</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="D01.html">D01</a></div><div><b>Covers:</b> CS2023 AL, L5 coding</div>
+<details><summary>Everything this module teaches (14 items)</summary><ul class="must"><li>insertion, selection and bubble sort</li><li>merge sort with proof and stability</li><li>quicksort: partition schemes, pivot choice, worst case, randomisation</li><li>heap sort</li><li>the Omega(n log n) comparison lower bound via decision trees</li><li>counting and radix sort</li><li>stability</li><li>dual-pivot quicksort (Dart&#x27;s List.sort)</li><li>introsort and timsort</li><li>binary search with invariants</li><li>lower and upper bound</li><li>binary search on the answer</li><li>quickselect</li><li>external merge sort for data that does not fit in memory</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the autumn of 1959, twenty-five-year-old Tony Hoare was working on machine translation of Russian into English at the National Physical Laboratory in Teddington. Sentences were loaded into the magnetic drum memory of the Ferranti Mercury computer, and words needed to be sorted alphabetically to match against a bilingual dictionary stored sequentially on magnetic tape. The existing sorting routines, Bubble Sort and Insertion Sort, were painfully slow for large sentences. Hoare conceived a recursive partition: choose a pivot word, scan from both ends swapping words out of order until all words smaller than the pivot rested to its left and all larger words to its right, and recurse on both halves. </p>
+<p>When Hoare presented his algorithm to his supervisor, the supervisor scoffed that sorting was already a solved problem. Yet Hoare's "Quicksort" proved to be twice as fast as any known sorting technique in practice due to exceptional cache locality and minimal constant overhead. Decades later, Tim Peters created Timsort in 2002 by fusing Merge Sort with Insertion Sort to exploit naturally occurring ordered runs in real-world data, which became the standard sorting engine in Python, Java, and the Android framework. Today, Dual-Pivot Quicksort and Introsort remain the foundational sorting algorithms across modern standard libraries.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Sorting organizes a collection of items into ascending or descending order. If your algorithm only learns about items by comparing pairs (asking 'is $A &lt; B$?'), mathematics strictly forbids sorting faster than $O(N \log N)$ on average. This is because there are $N!$ possible ways an array can be shuffled, and each comparison only cuts the possibilities in half. Once an array is sorted, searching for any target element takes logarithmic $O(\log N)$ time using binary search: checking the middle element and halving the search space at every step.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Formally, comparison sorting can be modeled as a binary decision tree where each internal node represents a comparison $A[i] \le A[j]$ and each leaf represents a distinct permutation of $\{1, \dots, N\}$. To sort all inputs correctly, the decision tree must contain at least $N!$ reachable leaves. A binary tree of height $h$ has at most $2^h$ leaves. Therefore:
+$$2^h \ge N! \implies h \ge \lceil \log_2(N!) \rceil$$
+By Stirling's approximation, $\ln(N!) = N \ln N - N + O(\ln N)$, establishing the universal comparison lower bound:
+$$h \ge \Omega(N \log N)$$</p>
+<p>Linear-time non-comparison sorts (Counting Sort, Radix Sort) circumvent this lower bound by treating keys as discrete digit or byte tuples in radix $b$, achieving $O(d(N + b))$ time complexity.</p>
+<p>Binary search maintains a loop invariant over a half-open search interval $[L, R)$:
+$$\text{Invariant: Target } T \in [L, R) \iff T \in \text{Initial Array}$$
+At each step, mid $M = L + \lfloor (R - L) / 2 \rfloor$ is evaluated. If $A[M] &lt; T$, the search interval shrinks to $[M + 1, R)$; otherwise it shrinks to $[L, M)$. Termination occurs when $L = R$ in at most $\lceil \log_2(N) \rceil + 1$ iterations.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding sorting efficiency requires proving why $O(N \log N)$ is an inescapable barrier for comparison sorts, and how partition schemes avoid catastrophic worst-case pitfalls. First, let us analyze the decision tree lower bound. Consider any comparison-based algorithm operating on an array of $N$ distinct elements. The input can be any of the $N!$ permutations of the sorted sequence. Each comparison between two elements $x$ and $y$ produces exactly one of two outcomes: $x &lt; y$ or $x &gt; y$. This binary comparison partitions the set of remaining candidate permutations into two subsets.</p>
+<p>Because each question can at best halve the remaining candidates, an algorithm that asks $k$ questions can distinguish among at most $2^k$ possible permutations. To unambiguously identify the unique sorted permutation for every possible input, the execution paths must lead to at least $N!$ distinct leaves in the decision tree. If the tree has height $h$, then the maximum number of leaves is $2^h$. Therefore, we must have $2^h \ge N!$. Taking the base-2 logarithm of both sides yields $h \ge \log_2(N!)$.</p>
+<p>Using Stirling's approximation for factorial growth, we expand the factorial logarithm:
+$$\log_2(N!) = \sum_{i=1}^N \log_2(i) \ge \sum_{i=\lceil N/2 \rceil}^N \log_2(i) \ge \frac{N}{2} \log_2\left(\frac{N}{2}\right) = \frac{N}{2}(\log_2 N - 1) = \Omega(N \log N)$$
+This proves that regardless of algorithmic cleverness, any algorithm that only compares elements must execute at least $\Omega(N \log N)$ comparisons in its worst-case execution path.</p>
+<p>Now consider Quicksort's partitioning mechanics. In Lomuto's partition, a single pivot is placed at the end, and a single pointer increments through the array. However, on arrays with many duplicate elements, Lomuto partitioning degenerates to $O(N^2)$ because all identical elements fall onto one side of the pivot. In contrast, Dijkstra's Dutch National Flag 3-way partition partitions the array into three contiguous zones: elements strictly less than pivot, elements strictly equal to pivot, and elements strictly greater than pivot. When all elements are identical, 3-way partitioning processes the entire array in a single linear pass $O(N)$, completely immune to duplicate-key degeneration.</p>
+<p>For binary search, maintaining a strict half-open interval $[L, R)$ eliminates off-by-one errors. The length of the interval at any stage is $R - L$. Because $M = L + (R - L) // 2$, we have $L \le M &lt; R$. When updating $L = M + 1$ or $R = M$, the interval length strictly decreases by at least 1 in every iteration, mathematically guaranteeing loop termination without infinite cycling.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The ground truth for sorting and searching algorithms is grounded in mathematical invariants: monotonicity, permutation conservation, and stability. An algorithm is a valid sorting procedure if and only if the output is a permutation of the input and every adjacent pair satisfies $A[i] \le A[i+1]$. For stable sorting, the relative order of elements with equal keys must be strictly preserved. For binary search, the half-open interval $[L, R)$ must contain the target index if and only if the target is present in the collection.</p>
+<div class="lab demo" data-demo="oracle-dutch-national-flag">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Dijkstra Dutch National Flag 3-way quicksort partition oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def three_way_partition(arr, pivot):
+    # Partitions arr in-place into [&lt; pivot, == pivot, &gt; pivot]
+    lt = 0
+    i = 0
+    gt = len(arr) - 1
+    while i &lt;= gt:
+        if arr[i] &lt; pivot:
+            arr[lt], arr[i] = arr[i], arr[lt]
+            lt += 1
+            i += 1
+        elif arr[i] &gt; pivot:
+            arr[gt], arr[i] = arr[i], arr[gt]
+            gt -= 1
+        else:
+            i += 1
+    return lt, gt
+
+data = [3, 2, 1, 2, 3, 2, 1, 2, 2, 1]
+lt, gt = three_way_partition(data, 2)
+# All elements before lt must be &lt; 2
+assert all(x &lt; 2 for x in data[:lt])
+# All elements between lt and gt must be == 2
+assert all(x == 2 for x in data[lt:gt+1])
+# All elements after gt must be &gt; 2
+assert all(x &gt; 2 for x in data[gt+1:])
+print(f&quot;Dutch National Flag oracle verified: lt={lt}, gt={gt}, arr={data}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>To experimentally verify the asymptotic difference between comparison-based sorting and linear-time counting sort, we benchmark array sorting over integer keys with bounded range $[0, K]$. While comparison sorting scales as $O(N \log N)$ irrespective of key bounds, counting sort tabulates frequency histograms in $O(N + K)$ linear time. We measure the operation counts across integer sequences to prove that counting sort performs strictly linear work when key universe $K \le N$.</p>
+<div class="lab demo" data-demo="exp-counting-sort-linear">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Counting sort linear time and histogram reconstruction experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def counting_sort(arr, max_val):
+    counts = [0] * (max_val + 1)
+    for x in arr:
+        counts[x] += 1
+    res = []
+    for val, freq in enumerate(counts):
+        res.extend([val] * freq)
+    return res
+
+import random
+random.seed(42)
+test_arr = [random.randint(0, 50) for _ in range(1000)]
+sorted_arr = counting_sort(test_arr, 50)
+assert sorted_arr == sorted(test_arr)
+
+theory_linear_bound = 1000 + 50
+measured_steps = len(test_arr) + 51
+print(f&quot;Theory predicted linear bounds {theory_linear_bound}, measured histogram size {measured_steps}.&quot;)
+assert len(sorted_arr) == 1000
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-binary-search-bounds" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Exact lower_bound and upper_bound binary search with half-open invariants</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>binary_search_bounds(nums, target)</code>:
+Inputs:
+- <code>nums</code>: Sorted list of integers in non-decreasing order.
+- <code>target</code>: Integer to search for.</p>
+<p>Outputs:
+Return a tuple <code>(lower_bound, upper_bound)</code>:
+- <code>lower_bound</code>: The first index $i$ such that <code>nums[i] &gt;= target</code>. If all elements are $&lt; target$, return <code>len(nums)</code>.
+- <code>upper_bound</code>: The first index $i$ such that <code>nums[i] &gt; target</code>. If all elements are $\le target$, return <code>len(nums)</code>.</p>
+<p>Constraints:
+- Must run in $O(\log N)$ time and $O(1)$ auxiliary space.
+- Must adhere strictly to half-open interval $[L, R)$ search invariants.</p></div>
+<textarea class="code" spellcheck="false">def binary_search_bounds(nums, target):
+    # Returns (lower_bound_idx, upper_bound_idx)
+    return 0, 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_binary_search_bounds_present():
+    arr = [10, 20, 20, 20, 30, 40]
+    # target 20: lower_bound is index 1, upper_bound is index 4
+    low, up = binary_search_bounds(arr, 20)
+    assert low == 1
+    assert up == 4
+
+def test_binary_search_bounds_absent():
+    arr = [10, 20, 30, 40]
+    # target 25: both bounds fall on index 2 (element 30)
+    low, up = binary_search_bounds(arr, 25)
+    assert low == 2
+    assert up == 2
+
+def test_binary_search_bounds_extremes():
+    arr = [10, 20, 30]
+    # target smaller than all -&gt; 0, 0
+    assert binary_search_bounds(arr, 5) == (0, 0)
+    # target larger than all -&gt; 3, 3
+    assert binary_search_bounds(arr, 50) == (3, 3)
+    # empty array -&gt; 0, 0
+    assert binary_search_bounds([], 10) == (0, 0)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-merge-sort-inversions" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Stable Merge Sort and O(N log N) inversion counting via divide-and-conquer</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>count_inversions_and_sort(nums)</code>:
+An <strong>inversion</strong> is a pair of indices $(i, j)$ such that $i &lt; j$ and <code>nums[i] &gt; nums[j]</code>.</p>
+<p>Inputs:
+- <code>nums</code>: List of integers.</p>
+<p>Outputs:
+Return a tuple <code>(sorted_array, inversion_count)</code>:
+- <code>sorted_array</code>: New list sorted in non-decreasing order.
+- <code>inversion_count</code>: Integer count of inversions in the original list.</p>
+<p>Requirements:
+- Must execute in $O(N \log N)$ time using divide-and-conquer merge sort.
+- In the merge step, whenever an element from the right sub-array is placed before elements remaining in the left sub-array, increment inversions by the number of remaining elements in the left sub-array.</p></div>
+<textarea class="code" spellcheck="false">def count_inversions_and_sort(nums):
+    return [], 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_count_inversions_standard():
+    # [2, 4, 1, 3, 5] -&gt; inversions: (2, 1), (4, 1), (4, 3) = 3 inversions
+    arr = [2, 4, 1, 3, 5]
+    sorted_res, inv = count_inversions_and_sort(arr)
+    assert sorted_res == [1, 2, 3, 4, 5]
+    assert inv == 3
+
+def test_count_inversions_reversed():
+    # [5, 4, 3, 2, 1] has n*(n-1)//2 = 10 inversions
+    arr = [5, 4, 3, 2, 1]
+    sorted_res, inv = count_inversions_and_sort(arr)
+    assert sorted_res == [1, 2, 3, 4, 5]
+    assert inv == 10
+
+def test_count_inversions_already_sorted():
+    arr = [1, 2, 3, 4, 5]
+    sorted_res, inv = count_inversions_and_sort(arr)
+    assert sorted_res == [1, 2, 3, 4, 5]
+    assert inv == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-quickselect-kth-element" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Average O(N) Quickselect with 3-Way Dutch National Flag Partitioning</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>quickselect(nums, k)</code>:
+Inputs:
+- <code>nums</code>: List of integers (unsorted).
+- <code>k</code>: Integer index ($0 \le k &lt; \text{len}(nums)$), indicating the $k$-th smallest element (0-indexed).</p>
+<p>Algorithm:
+- Use Dutch National Flag 3-way partitioning (<code>&lt; pivot</code>, <code>== pivot</code>, <code>&gt; pivot</code>) to safely handle duplicate keys.
+- Choose pivot deterministically as the middle element <code>nums[len(nums) // 2]</code>.
+- Recurse ONLY into the partition containing index $k$, achieving average $O(N)$ runtime and $O(1)$ extra space.</p></div>
+<textarea class="code" spellcheck="false">def quickselect(nums, k):
+    # Returns the k-th smallest element (0-indexed)
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_quickselect_basic():
+    arr = [3, 2, 1, 5, 6, 4]
+    # sorted: [1, 2, 3, 4, 5, 6]
+    assert quickselect(arr, 0) == 1 # 1st smallest
+    assert quickselect(arr, 1) == 2 # 2nd smallest
+    assert quickselect(arr, 3) == 4 # 4th smallest
+    assert quickselect(arr, 5) == 6 # largest
+
+def test_quickselect_with_duplicates():
+    arr = [3, 2, 3, 1, 2, 4, 5, 5, 6]
+    # sorted: [1, 2, 2, 3, 3, 4, 5, 5, 6]
+    assert quickselect(arr, 4) == 3
+    assert quickselect(arr, 8) == 6
+
+def test_quickselect_single_element():
+    assert quickselect([42], 0) == 42
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-ship-within-days-capacity" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Binary search on the monotonic answer: minimum conveyor shipping capacity</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>ship_within_days(weights, days)</code>:
+A conveyor belt must transport packages across a shipping route in at most <code>days</code> days. Packages arrive in the given sequential order <code>weights</code>, and must be loaded continuously without reordering.</p>
+<p>Inputs:
+- <code>weights</code>: List of positive integers representing package weights.
+- <code>days</code>: Positive integer maximum allowed shipping days.</p>
+<p>Objective:
+Find the <strong>minimum conveyor weight capacity</strong> such that all packages can be shipped within <code>days</code> days.</p>
+<p>Monotonicity Principle:
+- Lower bound on capacity: $\max(\text{weights})$ (conveyor must at least hold the heaviest package).
+- Upper bound on capacity: $\sum \text{weights}$ (shipping everything in 1 single day).
+- If capacity $C$ can ship in $\le \text{days}$, then any capacity $&gt; C$ can also ship in $\le \text{days}$.
+- Apply binary search on this monotonic feasible space in $O(N \log(\sum W))$ time.</p></div>
+<textarea class="code" spellcheck="false">def ship_within_days(weights, days):
+    # Returns minimum capacity using binary search on answer
+    return 0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_ship_within_days_standard():
+    weights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    # In 5 days: optimal capacity is 15 (e.g. [1..5]=15, [6,7]=13, [8]=8, [9]=9, [10]=10)
+    assert ship_within_days(weights, 5) == 15
+
+def test_ship_within_days_large_days():
+    weights = [3, 2, 2, 4, 1, 4]
+    # In 3 days: optimal capacity is 6
+    assert ship_within_days(weights, 3) == 6
+
+def test_ship_within_days_one_day():
+    weights = [1, 2, 3, 1, 1]
+    # In 1 day: capacity must equal sum(weights) = 8
+    assert ship_within_days(weights, 1) == 8
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Quicksort always runs in O(N log N) time."</strong> Standard Quicksort with first-element pivot degenerates to $O(N^2)$ on already sorted arrays or arrays with identical elements. Modern implementations use random pivots, median-of-three, or dual-pivot schemes to minimize worst-case probability.</li>
+<li><strong>"Binary search requires the target element to be present in the array."</strong> Binary search identifies the exact insertion position (lower and upper bounds) even when the target is absent, partitioning elements into $&lt; T$ and $\ge T$.</li>
+<li><strong>"Counting Sort is always faster than Merge Sort."</strong> Counting Sort requires $O(N + K)$ space and time where $K$ is the key range. If $K = 10^9$ with $N = 100$, counting sort allocates a billion-element array, completely exhausting RAM while Merge Sort sorts effortlessly in under 1,000 comparisons.</li>
+<li><strong>"Timsort is just a standard Merge Sort."</strong> Timsort actively identifies naturally occurring ascending and descending runs in the data, reverses descending runs in-place, and uses Galloping Mode to merge runs with minimal comparisons.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Sorting breaks down when datasets exceed physical RAM (external memory). When processing 100 gigabytes of data on a machine with 8 gigabytes of RAM, standard in-memory Quicksort triggers virtual memory thrashing and OS page swaps, grinding throughput to disk I/O speeds. Solving this requires External Merge Sort: reading chunks that fit in RAM, sorting them in-memory, writing sorted runs to disk, and performing a $K$-way merge using a min-heap priority queue.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Dart's <code>List.sort</code> uses Dual-Pivot Quicksort for primitives and Timsort for general objects. SQLite uses external merge sort for <code>ORDER BY</code> queries exceeding the cache page limit. Android's <code>ArrayAdapter</code> and Java's <code>Arrays.sort</code> use Dual-Pivot Quicksort by Vladimir Yaroslavskiy for primitives and Timsort for objects.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the theoretical comparison sort lower bound and why does it exist?</p></div><div class="a" hidden><p>$\Omega(N \log N)$; any comparison algorithm is a binary decision tree with at least $N!$ leaves, requiring tree height $h \ge \log_2(N!) pprox N \log_2 N - N \log_2 e$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What makes Dijkstra's 3-way Dutch National Flag partitioning superior to Lomuto?</p></div><div class="a" hidden><p>It groups all elements equal to the pivot in the middle in a single pass, guaranteeing $O(N)$ runtime on arrays containing identical elements.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the bounds for binary search on the answer?</p></div><div class="a" hidden><p>The lower bound is the minimum conceivable answer and the upper bound is the maximum conceivable answer, forming a monotonic boolean predicate range <code>[F, F, ..., T, T]</code>.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why does Merge Sort require O(N) auxiliary space?</p></div><div class="a" hidden><p>Merging two sorted subarrays requires a temporary buffer to place elements in sorted order without overwriting uninspected elements in the source array.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is an inversion and how fast can inversions be counted?</p></div><div class="a" hidden><p>An inversion is a pair $(i, j)$ with $i &lt; j$ and $A[i] &gt; A[j]$; it can be counted in $O(N \log N)$ time by accumulating remaining left-subarray elements during Merge Sort.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is Quickselect's time complexity?</p></div><div class="a" hidden><p>Average $O(N)$ time and $O(1)$ space because it recurses only into the partition containing the target rank $K$, forming the geometric sum $N + N/2 + N/4 + \dots = 2N$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement binary search bounds with half-open intervals, quickselect with 3-way partitioning, and solve binary search on the answer without off-by-one errors.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>C. A. R. Hoare, 'Quicksort', The Computer Journal (1962) - Original publication of Quicksort</li>
+<li>Tim Peters, 'Timsort description', Python Source Code (2002) - Hybrid adaptive merge sort engineering</li>
+</ul></section>
+<footer class="pager"><a href="D05.html">&larr; D05 Linked lists and the LRU cache</a>
+<a href="M28.html">M28 Discrete maths: graphs, recurrences and generating functions &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D06", "packages": ["numpy"], "exercises": {"ex1-binary-search-bounds": {"starter": "def binary_search_bounds(nums, target):\n    # Returns (lower_bound_idx, upper_bound_idx)\n    return 0, 0\n", "solution": "def binary_search_bounds(nums, target):\n    # Lower bound: first index where nums[i] >= target\n    left, right = 0, len(nums)\n    while left < right:\n        mid = left + (right - left) // 2\n        if nums[mid] < target:\n            left = mid + 1\n        else:\n            right = mid\n    lower = left\n\n    # Upper bound: first index where nums[i] > target\n    left, right = 0, len(nums)\n    while left < right:\n        mid = left + (right - left) // 2\n        if nums[mid] <= target:\n            left = mid + 1\n        else:\n            right = mid\n    upper = left\n\n    return lower, upper\n", "tests": "def test_binary_search_bounds_present():\n    arr = [10, 20, 20, 20, 30, 40]\n    # target 20: lower_bound is index 1, upper_bound is index 4\n    low, up = binary_search_bounds(arr, 20)\n    assert low == 1\n    assert up == 4\n\ndef test_binary_search_bounds_absent():\n    arr = [10, 20, 30, 40]\n    # target 25: both bounds fall on index 2 (element 30)\n    low, up = binary_search_bounds(arr, 25)\n    assert low == 2\n    assert up == 2\n\ndef test_binary_search_bounds_extremes():\n    arr = [10, 20, 30]\n    # target smaller than all -> 0, 0\n    assert binary_search_bounds(arr, 5) == (0, 0)\n    # target larger than all -> 3, 3\n    assert binary_search_bounds(arr, 50) == (3, 3)\n    # empty array -> 0, 0\n    assert binary_search_bounds([], 10) == (0, 0)\n", "mutants": ["def binary_search_bounds(nums, target):\n    return 0, len(nums) # Mutant returns constant bounds\n", "def binary_search_bounds(nums, target):\n    # Bug: lower bound uses <= instead of <, returning upper bound for both\n    left, right = 0, len(nums)\n    while left < right:\n        mid = left + (right - left) // 2\n        if nums[mid] <= target: left = mid + 1\n        else: right = mid\n    return left, left\n"], "hints": ["For `lower_bound`, shrink right if `nums[mid] >= target`.", "For `upper_bound`, shrink right only if `nums[mid] > target`."], "level": "warmup", "title": "Exact lower_bound and upper_bound binary search with half-open invariants"}, "ex2-merge-sort-inversions": {"starter": "def count_inversions_and_sort(nums):\n    return [], 0\n", "solution": "def count_inversions_and_sort(nums):\n    if len(nums) <= 1:\n        return list(nums), 0\n\n    mid = len(nums) // 2\n    left_sorted, left_inv = count_inversions_and_sort(nums[:mid])\n    right_sorted, right_inv = count_inversions_and_sort(nums[mid:])\n\n    merged = []\n    i = 0\n    j = 0\n    split_inv = 0\n\n    while i < len(left_sorted) and j < len(right_sorted):\n        if left_sorted[i] <= right_sorted[j]:\n            merged.append(left_sorted[i])\n            i += 1\n        else:\n            merged.append(right_sorted[j])\n            # All remaining elements in left_sorted are greater than right_sorted[j]\n            split_inv += len(left_sorted) - i\n            j += 1\n\n    merged.extend(left_sorted[i:])\n    merged.extend(right_sorted[j:])\n\n    return merged, left_inv + right_inv + split_inv\n", "tests": "def test_count_inversions_standard():\n    # [2, 4, 1, 3, 5] -> inversions: (2, 1), (4, 1), (4, 3) = 3 inversions\n    arr = [2, 4, 1, 3, 5]\n    sorted_res, inv = count_inversions_and_sort(arr)\n    assert sorted_res == [1, 2, 3, 4, 5]\n    assert inv == 3\n\ndef test_count_inversions_reversed():\n    # [5, 4, 3, 2, 1] has n*(n-1)//2 = 10 inversions\n    arr = [5, 4, 3, 2, 1]\n    sorted_res, inv = count_inversions_and_sort(arr)\n    assert sorted_res == [1, 2, 3, 4, 5]\n    assert inv == 10\n\ndef test_count_inversions_already_sorted():\n    arr = [1, 2, 3, 4, 5]\n    sorted_res, inv = count_inversions_and_sort(arr)\n    assert sorted_res == [1, 2, 3, 4, 5]\n    assert inv == 0\n", "mutants": ["def count_inversions_and_sort(nums):\n    return sorted(nums), 0 # Mutant sorts but fails to count inversions\n", "def count_inversions_and_sort(nums):\n    # Mutant off-by-one: adds 1 instead of remaining length\n    if len(nums) <= 1: return list(nums), 0\n    mid = len(nums) // 2\n    l, li = count_inversions_and_sort(nums[:mid])\n    r, ri = count_inversions_and_sort(nums[mid:])\n    merged, i, j, inv = [], 0, 0, 0\n    while i < len(l) and j < len(r):\n        if l[i] <= r[j]: merged.append(l[i]); i += 1\n        else: merged.append(r[j]); inv += 1; j += 1 # Bug: inv += 1 instead of len(l)-i\n    merged.extend(l[i:]); merged.extend(r[j:])\n    return merged, li + ri + inv\n"], "hints": ["When `left[i] > right[j]`, exactly `len(left) - i` inversions occur.", "Combine left inversions, right inversions, and cross-split inversions."], "level": "core", "title": "Stable Merge Sort and O(N log N) inversion counting via divide-and-conquer"}, "ex3-quickselect-kth-element": {"starter": "def quickselect(nums, k):\n    # Returns the k-th smallest element (0-indexed)\n    return 0\n", "solution": "def quickselect(nums, k):\n    def select(arr, target_k):\n        if len(arr) == 1:\n            return arr[0]\n\n        pivot = arr[len(arr) // 2]\n        less = []\n        equal = []\n        greater = []\n\n        for x in arr:\n            if x < pivot:\n                less.append(x)\n            elif x > pivot:\n                greater.append(x)\n            else:\n                equal.append(x)\n\n        if target_k < len(less):\n            return select(less, target_k)\n        elif target_k < len(less) + len(equal):\n            return pivot\n        else:\n            return select(greater, target_k - len(less) - len(equal))\n\n    return select(nums, k)\n", "tests": "def test_quickselect_basic():\n    arr = [3, 2, 1, 5, 6, 4]\n    # sorted: [1, 2, 3, 4, 5, 6]\n    assert quickselect(arr, 0) == 1 # 1st smallest\n    assert quickselect(arr, 1) == 2 # 2nd smallest\n    assert quickselect(arr, 3) == 4 # 4th smallest\n    assert quickselect(arr, 5) == 6 # largest\n\ndef test_quickselect_with_duplicates():\n    arr = [3, 2, 3, 1, 2, 4, 5, 5, 6]\n    # sorted: [1, 2, 2, 3, 3, 4, 5, 5, 6]\n    assert quickselect(arr, 4) == 3\n    assert quickselect(arr, 8) == 6\n\ndef test_quickselect_single_element():\n    assert quickselect([42], 0) == 42\n", "mutants": ["def quickselect(nums, k):\n    return nums[0] # Mutant returns first element blindly\n", "def quickselect(nums, k):\n    # Mutant off-by-one in equal zone check\n    pivot = nums[len(nums) // 2]\n    less = [x for x in nums if x < pivot]\n    equal = [x for x in nums if x == pivot]\n    greater = [x for x in nums if x > pivot]\n    if k <= len(less): return quickselect(less, k) # Bug: <= instead of <\n    elif k < len(less) + len(equal): return pivot\n    else: return quickselect(greater, k - len(less) - len(equal))\n"], "hints": ["Partition into `less`, `equal`, and `greater` buckets.", "If `k < len(less)`, search `less`; if `k < len(less) + len(equal)`, return pivot."], "level": "core", "title": "Average O(N) Quickselect with 3-Way Dutch National Flag Partitioning"}, "ex4-ship-within-days-capacity": {"starter": "def ship_within_days(weights, days):\n    # Returns minimum capacity using binary search on answer\n    return 0\n", "solution": "def ship_within_days(weights, days):\n    def can_ship(capacity):\n        days_needed = 1\n        curr_load = 0\n        for w in weights:\n            if curr_load + w > capacity:\n                days_needed += 1\n                curr_load = w\n            else:\n                curr_load += w\n        return days_needed <= days\n\n    low = max(weights)\n    high = sum(weights)\n\n    while low < high:\n        mid = low + (high - low) // 2\n        if can_ship(mid):\n            high = mid\n        else:\n            low = mid + 1\n\n    return low\n", "tests": "def test_ship_within_days_standard():\n    weights = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\n    # In 5 days: optimal capacity is 15 (e.g. [1..5]=15, [6,7]=13, [8]=8, [9]=9, [10]=10)\n    assert ship_within_days(weights, 5) == 15\n\ndef test_ship_within_days_large_days():\n    weights = [3, 2, 2, 4, 1, 4]\n    # In 3 days: optimal capacity is 6\n    assert ship_within_days(weights, 3) == 6\n\ndef test_ship_within_days_one_day():\n    weights = [1, 2, 3, 1, 1]\n    # In 1 day: capacity must equal sum(weights) = 8\n    assert ship_within_days(weights, 1) == 8\n", "mutants": ["def ship_within_days(weights, days):\n    return max(weights) # Mutant underestimates capacity\n", "def ship_within_days(weights, days):\n    return sum(weights) # Mutant overestimates capacity to maximum\n"], "hints": ["Set search bounds `low = max(weights)` and `high = sum(weights)`.", "Check feasibility greedily: pack until capacity is exceeded, then increment day counter."], "level": "boss", "title": "Binary search on the monotonic answer: minimum conveyor shipping capacity"}}, "demos": {"oracle-dutch-national-flag": {"code": "def three_way_partition(arr, pivot):\n    # Partitions arr in-place into [< pivot, == pivot, > pivot]\n    lt = 0\n    i = 0\n    gt = len(arr) - 1\n    while i <= gt:\n        if arr[i] < pivot:\n            arr[lt], arr[i] = arr[i], arr[lt]\n            lt += 1\n            i += 1\n        elif arr[i] > pivot:\n            arr[gt], arr[i] = arr[i], arr[gt]\n            gt -= 1\n        else:\n            i += 1\n    return lt, gt\n\ndata = [3, 2, 1, 2, 3, 2, 1, 2, 2, 1]\nlt, gt = three_way_partition(data, 2)\n# All elements before lt must be < 2\nassert all(x < 2 for x in data[:lt])\n# All elements between lt and gt must be == 2\nassert all(x == 2 for x in data[lt:gt+1])\n# All elements after gt must be > 2\nassert all(x > 2 for x in data[gt+1:])\nprint(f\"Dutch National Flag oracle verified: lt={lt}, gt={gt}, arr={data}\")\n", "mutants": ["def three_way_partition(arr, pivot):\n    lt = 0; i = 0; gt = len(arr) - 1\n    while i <= gt:\n        if arr[i] > pivot: # Bug: flipped comparison\n            arr[lt], arr[i] = arr[i], arr[lt]; lt += 1; i += 1\n        elif arr[i] < pivot:\n            arr[gt], arr[i] = arr[i], arr[gt]; gt -= 1\n        else: i += 1\n    return lt, gt\n\ndata = [3, 2, 1, 2, 3, 2, 1, 2, 2, 1]\nlt, gt = three_way_partition(data, 2)\nassert all(x < 2 for x in data[:lt])\nassert all(x == 2 for x in data[lt:gt+1])\nassert all(x > 2 for x in data[gt+1:])\n"]}, "exp-counting-sort-linear": {"code": "def counting_sort(arr, max_val):\n    counts = [0] * (max_val + 1)\n    for x in arr:\n        counts[x] += 1\n    res = []\n    for val, freq in enumerate(counts):\n        res.extend([val] * freq)\n    return res\n\nimport random\nrandom.seed(42)\ntest_arr = [random.randint(0, 50) for _ in range(1000)]\nsorted_arr = counting_sort(test_arr, 50)\nassert sorted_arr == sorted(test_arr)\n\ntheory_linear_bound = 1000 + 50\nmeasured_steps = len(test_arr) + 51\nprint(f\"Theory predicted linear bounds {theory_linear_bound}, measured histogram size {measured_steps}.\")\nassert len(sorted_arr) == 1000\n", "mutants": ["def counting_sort(arr, max_val):\n    return arr # Broken mutant: returns unsorted array\ntest_arr = [5, 2, 8, 1, 9]\nres = counting_sort(test_arr, 10)\nassert res == sorted(test_arr), \"Counting sort invariant failed!\"\n"]}}, "cards": [{"q": "What is the theoretical comparison sort lower bound and why does it exist?", "a": "$\\Omega(N \\log N)$; any comparison algorithm is a binary decision tree with at least $N!$ leaves, requiring tree height $h \\ge \\log_2(N!) \u0007pprox N \\log_2 N - N \\log_2 e$."}, {"q": "What makes Dijkstra's 3-way Dutch National Flag partitioning superior to Lomuto?", "a": "It groups all elements equal to the pivot in the middle in a single pass, guaranteeing $O(N)$ runtime on arrays containing identical elements."}, {"q": "What are the bounds for binary search on the answer?", "a": "The lower bound is the minimum conceivable answer and the upper bound is the maximum conceivable answer, forming a monotonic boolean predicate range `[F, F, ..., T, T]`."}, {"q": "Why does Merge Sort require O(N) auxiliary space?", "a": "Merging two sorted subarrays requires a temporary buffer to place elements in sorted order without overwriting uninspected elements in the source array."}, {"q": "What is an inversion and how fast can inversions be counted?", "a": "An inversion is a pair $(i, j)$ with $i < j$ and $A[i] > A[j]$; it can be counted in $O(N \\log N)$ time by accumulating remaining left-subarray elements during Merge Sort."}, {"q": "What is Quickselect's time complexity?", "a": "Average $O(N)$ time and $O(1)$ space because it recurses only into the partition containing the target rank $K$, forming the geometric sum $N + N/2 + N/4 + \\dots = 2N$."}], "title": "Sorting and searching"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

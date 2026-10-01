@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P05 Computer architecture and the memory hierarchy</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P05">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P05</p><h1>Computer architecture and the memory hierarchy</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P04.html">P04</a></div><div><b>Covers:</b> CS2023 AR, CS2023 SF</div>
+<details><summary>Everything this module teaches (15 items)</summary><ul class="must"><li>the von Neumann model</li><li>instruction sets (RISC vs CISC, ARM64)</li><li>the instruction cycle</li><li>pipelining and hazards</li><li>branch prediction</li><li>caches: lines, sets, associativity (128-byte lines on Apple Silicon)</li><li>locality</li><li>compulsory, capacity, conflict and coherence misses</li><li>latency numbers</li><li>SIMD</li><li>multicore coherence (MESI)</li><li>I/O: polling vs interrupt-driven I/O, interrupt vectors and handlers, buses and DMA</li><li>speculative-execution side channels (Spectre, Meltdown) and the cost of their mitigations</li><li>memory and storage technology: SRAM vs DRAM, HDD vs SSD (erase blocks, wear levelling), cache write-back vs write-through and prefetching</li><li>performance equations: CPU time = instructions x CPI x clock period, and average memory access time</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In late June 1945, Hungarian-American mathematician John von Neumann published a 101-page typewritten document titled "First Draft of a Report on the EDVAC." In this foundational paper, von Neumann crystallized the architectural blueprint of electronic computing: a central arithmetic unit (ALU), a central control unit with instruction registers and program counters, input/output mechanisms, and a unified primary memory holding both data and executable instructions. This unified memory architecture—known forever as the von Neumann model—enabled software to modify itself and treated code as data.</p>
+<p>Four decades later in the early 1980s, Stanford professor John Hennessy and UC Berkeley professor David Patterson challenged prevailing processor dogma. For years, computer manufacturers had built increasingly complex CISC (Complex Instruction Set Computer) processors like the VAX and Intel 8086, featuring hundreds of intricate instructions with complicated addressing modes. Hennessy and Patterson proved that 80% of execution time was spent on a tiny subset of 20% of simple instructions. By radically simplifying the instruction set to fixed-width, load-store architectures—RISC (Reduced Instruction Set Computer)—processors could implement deep instruction pipelining, executing an instruction every single clock cycle. This RISC revolution laid the direct architectural foundation for modern ARM64 silicon, powering billions of mobile smartphones and Apple Silicon M-series chips.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A processor is a high-speed calculator that fetches instructions from memory, decodes what they mean, executes the math, and writes back the answer billions of times every second. But there is a massive physics problem: modern CPUs compute in a fraction of a nanosecond, while fetching data from main system RAM takes hundreds of clock cycles. To keep the CPU from sitting idle, chip architects place a hierarchy of tiny, blazing-fast SRAM memory caches (L1, L2, L3) directly on the silicon die, exploiting the fact that programs tend to reuse recent data (temporal locality) and access nearby memory locations (spatial locality).</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Computer architecture performance and memory hierarchy behavior are formalized by:</p>
+<ol>
+<li>
+<p><strong>The Iron Law of Processor Performance</strong>:
+The total execution time for a program is governed by:
+$$\text{CPU Time} = \text{Instruction Count} \times \text{CPI} \times T_{\text{clock}} = \frac{\text{Instructions} \times \text{CPI}}{\text{Clock Frequency}}$$
+where $\text{CPI}$ (Cycles Per Instruction) measures execution efficiency across pipelined functional units.</p>
+</li>
+<li>
+<p><strong>Average Memory Access Time (AMAT)</strong>:
+For a multi-level cache hierarchy:
+$$\text{AMAT} = T_{L1} + M_{L1} \cdot \left( T_{L2} + M_{L2} \cdot \left( T_{L3} + M_{L3} \cdot T_{\text{DRAM}} \right) \right)$$
+where $T_k$ is the hit latency of level $k$ and $M_k$ is the local miss rate ($0 \le M_k \le 1$).</p>
+</li>
+<li>
+<p><strong>Set-Associative Cache Mapping</strong>:
+A physical memory address of $W$ bits is partitioned into three fields:
+$$\begin{array}{|c|c|c|}
+\hline
+\text{Tag } (W - S - B \text{ bits}) &amp; \text{Set Index } (S \text{ bits}) &amp; \text{Byte Offset } (B \text{ bits}) \\
+\hline
+\end{array}$$
+where $B = \log_2(\text{Line Size})$, $S = \log_2(\text{Number of Sets})$, and $\text{Ways} = E$.
+- Cache Line Size: 64 bytes (x86), 128 bytes (Apple Silicon).
+- The 4 C's of Cache Misses: Compulsory (cold start), Capacity (working set exceeds total cache size), Conflict (non-ideal hash collision within a set), Coherence (cache block invalidated by another core via MESI).</p>
+</li>
+<li>
+<p><strong>Pipelining &amp; Hazards</strong>:
+- <strong>Structural Hazards</strong>: Simultaneous hardware resource conflicts (e.g. unified memory port).
+- <strong>Data Hazards (RAW, WAR, WAW)</strong>: True data dependency (Read-After-Write). Resolved via forwarding bypass networks or compiler scheduling stalls.
+- <strong>Control Hazards</strong>: Branch resolution delays. Mitigated via 2-bit branch predictors, branch target buffers (BTB), and speculative execution.</p>
+</li>
+<li>
+<p><strong>Multicore Coherence (MESI Protocol)</strong>:
+Every cache line occupies one of four states:
+$$\text{MESI} = \{\text{Modified (dirty, exclusive)}, \text{Exclusive (clean, private)}, \text{Shared (clean, replicated)}, \text{Invalid (stale)}\}$$</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why CPU architects introduced out-of-order execution, deep pipelining, and aggressive branch prediction requires analyzing the "Memory Wall"—the exponentially widening performance chasm between processor clock speeds and DRAM memory access latency. Between 1980 and 2005, CPU frequencies grew at approximately 55% per year, while DRAM access latency improved by a sluggish 7% per year. Consequently, a memory load instruction that once cost 5 CPU cycles came to cost over 300 CPU cycles.</p>
+<p>If a modern processor stalled synchronously on every cache miss, the ALU would spend over 95% of its time idling, destroying computing throughput. Chip architects resolved this through aggressive speculation:
+1. <strong>Branch Predictors &amp; Speculative Execution</strong>: The CPU predicts which direction an <code>if</code> branch will take with over 98% accuracy and executes instructions miles ahead of actual data readiness.
+2. <strong>Out-of-Order Instruction Windows</strong>: While waiting for a slow DRAM load, the processor searches ahead in an instruction window of hundreds of instructions, executing independent instructions out of order and reordering the results before retirement.
+3. <strong>The Microarchitectural Vulnerability (Spectre &amp; Meltdown)</strong>: In 2018, researchers discovered that speculative execution leaves physical footprints in the CPU cache. Even when a mispredicted branch is rolled back, the data loaded into the cache during speculative execution alters memory access timing, allowing attackers to measure microsecond latency differences (Flush+Reload) and read arbitrary kernel memory.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The cache address decoder and memory mapping verification oracle proves how physical memory addresses decompose into Tag, Set Index, and Byte Offset fields across arbitrary cache geometries. The interactive oracle simulates a 4-way set-associative cache with 64-byte lines, verifying that identical set index mappings cause conflict evictions while spatial locality hits within the same 64-byte line without secondary memory stalls.</p>
+<div class="lab demo" data-demo="p05-oracle-cache-decoder">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Set-Associative Cache Address Decomposition Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def decode_address(addr: int, cache_bytes: int, line_bytes: int, ways: int) -&gt; dict:
+    num_lines = cache_bytes // line_bytes
+    num_sets = num_lines // ways
+    
+    offset_bits = int(math.log2(line_bytes))
+    set_bits = int(math.log2(num_sets))
+    
+    offset = addr &amp; ((1 &lt;&lt; offset_bits) - 1)
+    set_idx = (addr &gt;&gt; offset_bits) &amp; ((1 &lt;&lt; set_bits) - 1)
+    tag = addr &gt;&gt; (offset_bits + set_bits)
+    
+    return {
+        &quot;offset&quot;: offset,
+        &quot;set_idx&quot;: set_idx,
+        &quot;tag&quot;: tag,
+        &quot;num_sets&quot;: num_sets,
+        &quot;offset_bits&quot;: offset_bits,
+        &quot;set_bits&quot;: set_bits
+    }
+
+# 32 KB cache, 64-byte line, 4-way set associative:
+# num_lines = 32768 / 64 = 512 lines.
+# num_sets = 512 / 4 = 128 sets (7 set bits, 6 offset bits)
+res = decode_address(0x12345678, cache_bytes=32768, line_bytes=64, ways=4)
+assert res[&quot;offset_bits&quot;] == 6
+assert res[&quot;set_bits&quot;] == 7
+assert res[&quot;num_sets&quot;] == 128
+# Verify byte offset inside line: 0x78 &amp; 0x3F = 0x38 = 56
+assert res[&quot;offset&quot;] == 56
+
+print(&quot;Cache address decomposition and bit field boundary verification passed.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally measure the latency difference between sequential array traversal and strided non-contiguous memory access. When iterating sequentially through an array, CPU hardware prefetchers stream contiguous cache lines into L1/L2 caches ahead of time, achieving high throughput. Striding with large intervals causes persistent cache line misses, demonstrating the critical impact of spatial locality. This empirical divergence proves why cache-conscious memory layouts are vital for high-throughput computing performance.</p>
+<div class="lab demo" data-demo="p05-exp-cache-locality">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Spatial Locality and Cache Line Traversal Experiment</h3></div>
+
+<textarea class="code" spellcheck="false"># Simulate cache hits for sequential vs strided access
+line_size_elements = 16  # 64 bytes / 4-byte integers
+
+# Sequential access: 1 miss every 16 elements
+seq_misses = sum(1 for i in range(128) if (i % line_size_elements) == 0)
+assert seq_misses == 8  # 128 / 16 = 8 misses
+
+# Strided access (stride = 16): every single access hits a new cache line!
+strided_misses = sum(1 for i in range(0, 128 * line_size_elements, line_size_elements)[:128])
+assert strided_misses == 128  # 100% compulsory cache line misses!
+
+ratio = strided_misses / seq_misses
+assert ratio == 16.0
+print(f&quot;Spatial locality experiment: Strided access incurred {ratio:.0f}x more cache line misses than sequential.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-amat-calculator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Average Memory Access Time and CPU Performance Calculator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement calculate_amat(l1_hit_time, l1_miss_rate, l2_hit_time, l2_miss_rate, dram_penalty) -&gt; float and cpu_execution_time(instructions: int, cpi: float, clock_ghz: float) -&gt; float to evaluate hardware performance metrics.</p></div>
+<textarea class="code" spellcheck="false">def calculate_amat(l1_hit: float, l1_miss: float, l2_hit: float, l2_miss: float, dram: float) -&gt; float:
+    pass
+
+def cpu_execution_time(instructions: int, cpi: float, clock_ghz: float) -&gt; float:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_amat_basic():
+    # L1: 1ns, 5% miss. L2: 4ns, 10% miss. DRAM: 100ns
+    # AMAT = 1 + 0.05 * (4 + 0.10 * 100) = 1 + 0.05 * 14 = 1.70 ns
+    res = calculate_amat(1.0, 0.05, 4.0, 0.10, 100.0)
+    assert res == 1.7
+
+def test_amat_perfect_cache():
+    # 0% miss rate in L1
+    assert calculate_amat(1.0, 0.0, 5.0, 0.2, 80.0) == 1.0
+
+def test_cpu_execution_time():
+    # 3 billion instructions, CPI 1.5, 3.0 GHz CPU
+    # Time = (3e9 * 1.5) / 3e9 = 1.5 seconds
+    res = cpu_execution_time(3_000_000_000, 1.5, 3.0)
+    assert res == 1.5
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-cache-address-decoder" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Cache Address Decomposition and Set Mapper</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement decode_cache_address(address: int, cache_size_bytes: int, line_size_bytes: int, ways: int) -&gt; dict that decomposes a 32-bit or 64-bit physical memory address into its exact tag, set index, and byte offset fields.</p></div>
+<textarea class="code" spellcheck="false">def decode_cache_address(address: int, cache_size_bytes: int, line_size_bytes: int, ways: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cache_decoder_basic():
+    # 32KB, 64-byte lines, 4 ways -&gt; 128 sets (7 set bits, 6 offset bits)
+    res = decode_cache_address(0x12345678, 32768, 64, 4)
+    assert res[&quot;num_sets&quot;] == 128
+    assert res[&quot;offset_bits&quot;] == 6
+    assert res[&quot;set_bits&quot;] == 7
+    # 0x78 = 0b01111000 -&gt; lower 6 bits: 0b111000 = 56
+    assert res[&quot;byte_offset&quot;] == 56
+
+def test_cache_decoder_direct_mapped():
+    # 16KB, 32-byte lines, 1 way (direct mapped) -&gt; 512 sets (9 set bits, 5 offset bits)
+    res = decode_cache_address(0x00000000, 16384, 32, 1)
+    assert res[&quot;num_sets&quot;] == 512
+    assert res[&quot;offset_bits&quot;] == 5
+    assert res[&quot;set_bits&quot;] == 9
+    assert res[&quot;tag&quot;] == 0
+    assert res[&quot;set_index&quot;] == 0
+    assert res[&quot;byte_offset&quot;] == 0
+
+def test_cache_decoder_apple_silicon_128b():
+    # 128-byte cache lines (7 offset bits)
+    res = decode_cache_address(0x1000, 65536, 128, 8)
+    assert res[&quot;offset_bits&quot;] == 7
+    assert res[&quot;num_sets&quot;] == 64
+    assert res[&quot;set_bits&quot;] == 6
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-mesi-protocol-simulator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>MESI Multicore Cache Coherence FSM</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_mesi_transition(current_state: str, action: str) -&gt; tuple[str, str] that models cache line coherence transitions across Modified, Exclusive, Shared, and Invalid states in response to local CPU and external Bus snooping events.</p></div>
+<textarea class="code" spellcheck="false">def simulate_mesi_transition(current_state: str, action: str) -&gt; tuple[str, str]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_mesi_local_transitions():
+    assert simulate_mesi_transition(&quot;INVALID&quot;, &quot;LOCAL_READ&quot;) == (&quot;SHARED&quot;, &quot;BUS_RD&quot;)
+    assert simulate_mesi_transition(&quot;INVALID&quot;, &quot;LOCAL_WRITE&quot;) == (&quot;MODIFIED&quot;, &quot;BUS_RDX&quot;)
+    assert simulate_mesi_transition(&quot;SHARED&quot;, &quot;LOCAL_WRITE&quot;) == (&quot;MODIFIED&quot;, &quot;BUS_UPGR&quot;)
+    assert simulate_mesi_transition(&quot;EXCLUSIVE&quot;, &quot;LOCAL_WRITE&quot;) == (&quot;MODIFIED&quot;, &quot;NONE&quot;)
+
+def test_mesi_bus_snooping_invalidation():
+    # If another core issues BUS_RDX on my SHARED line, invalidate it
+    assert simulate_mesi_transition(&quot;SHARED&quot;, &quot;BUS_RDX&quot;) == (&quot;INVALID&quot;, &quot;NONE&quot;)
+    # If another core issues BUS_RD on my MODIFIED line, write back and downgrade to SHARED
+    assert simulate_mesi_transition(&quot;MODIFIED&quot;, &quot;BUS_RD&quot;) == (&quot;SHARED&quot;, &quot;WRITE_BACK&quot;)
+
+def test_mesi_noop():
+    assert simulate_mesi_transition(&quot;SHARED&quot;, &quot;LOCAL_READ&quot;) == (&quot;SHARED&quot;, &quot;NONE&quot;)
+    assert simulate_mesi_transition(&quot;MODIFIED&quot;, &quot;LOCAL_READ&quot;) == (&quot;MODIFIED&quot;, &quot;NONE&quot;)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-pipeline-hazard-detector" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Pipelined Processor Data Hazard and Stall Analyzer</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement detect_pipeline_hazards(instructions: list[dict], has_forwarding: bool = False) -&gt; dict to inspect a sequence of RISC instructions, detect RAW (Read-After-Write) data dependencies, and compute total execution cycles and stall bubbles with and without data forwarding hardware.</p></div>
+<textarea class="code" spellcheck="false">def detect_pipeline_hazards(instructions: list[dict], has_forwarding: bool = False) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pipeline_no_hazards():
+    insts = [
+        {&quot;op&quot;: &quot;ADD&quot;, &quot;dest&quot;: &quot;R1&quot;, &quot;srcs&quot;: [&quot;R2&quot;, &quot;R3&quot;]},
+        {&quot;op&quot;: &quot;ADD&quot;, &quot;dest&quot;: &quot;R4&quot;, &quot;srcs&quot;: [&quot;R5&quot;, &quot;R6&quot;]}
+    ]
+    res = detect_pipeline_hazards(insts, has_forwarding=False)
+    assert res[&quot;stalls&quot;] == 0
+    assert res[&quot;total_cycles&quot;] == 6  # 2 + 4 = 6
+    assert len(res[&quot;hazards_detected&quot;]) == 0
+
+def test_pipeline_raw_without_forwarding():
+    insts = [
+        {&quot;op&quot;: &quot;ADD&quot;, &quot;dest&quot;: &quot;R1&quot;, &quot;srcs&quot;: [&quot;R2&quot;, &quot;R3&quot;]},
+        {&quot;op&quot;: &quot;SUB&quot;, &quot;dest&quot;: &quot;R4&quot;, &quot;srcs&quot;: [&quot;R1&quot;, &quot;R5&quot;]}  # distance 1 RAW
+    ]
+    res = detect_pipeline_hazards(insts, has_forwarding=False)
+    assert res[&quot;stalls&quot;] == 2
+    assert res[&quot;total_cycles&quot;] == 8
+    assert len(res[&quot;hazards_detected&quot;]) == 1
+
+def test_pipeline_load_use_with_forwarding():
+    insts = [
+        {&quot;op&quot;: &quot;LOAD&quot;, &quot;dest&quot;: &quot;R1&quot;, &quot;srcs&quot;: [&quot;R2&quot;]},
+        {&quot;op&quot;: &quot;ADD&quot;, &quot;dest&quot;: &quot;R4&quot;, &quot;srcs&quot;: [&quot;R1&quot;, &quot;R3&quot;]}  # Load-use RAW
+    ]
+    res_fwd = detect_pipeline_hazards(insts, has_forwarding=True)
+    assert res_fwd[&quot;stalls&quot;] == 1  # 1 load-use delay cycle
+    assert res_fwd[&quot;total_cycles&quot;] == 7
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Modern CPUs execute instructions strictly in the order they appear in assembly code."</strong> Modern processors use Out-of-Order (OoO) execution engines with Reorder Buffers (ROBs), executing instructions as soon as operands are ready and retiring them in program order.</li>
+<li><strong>"A 3.0 GHz processor is always 50% faster than a 2.0 GHz processor."</strong> Performance is governed by the Iron Law (Instructions * CPI * Clock Period). A 2.0 GHz CPU with higher IPC (Instructions Per Cycle) can vastly outperform a 3.0 GHz CPU that stalls frequently on cache misses.</li>
+<li><strong>"L1, L2, and L3 caches all use identical memory circuits."</strong> L1 cache uses high-transistor SRAM optimized for single-cycle latency (1 ns); L3 uses denser, slower SRAM (10-20 ns); main RAM uses high-density capacitor DRAM that requires periodic refreshing.</li>
+<li><strong>"Branch predictors only guess random directions on conditional jumps."</strong> Advanced branch predictors (like TAGE) maintain multi-kilobyte history tables tracking correlated patterns across thousands of past branches, exceeding 98% prediction accuracy.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Computer architecture models break down when workloads defeat cache locality and branch predictors, such as graph traversals with irregular random pointer chasing. When every instruction experiences an L3 cache miss and branch misprediction, the processor pipeline constantly flushes and stalls, reducing effective CPU utilization to less than 5% of theoretical peak compute.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Understanding computer architecture and cache hierarchies is essential for high-performance systems engineering. Game engine developers arrange components into Data-Oriented Design (structs of arrays) to saturate cache lines. High-frequency trading firms optimize code layouts to avoid L1 instruction cache misses, and database architects write lock-free ring buffers aligned to 64-byte boundaries to eliminate false sharing.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the Iron Law of Processor Performance?</p></div><div class="a" hidden><p>CPU Time = Instruction Count * CPI * Clock Period.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is AMAT in memory systems?</p></div><div class="a" hidden><p>Average Memory Access Time = Hit Time + (Miss Rate * Miss Penalty).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the 4 C's of cache misses?</p></div><div class="a" hidden><p>Compulsory (cold start), Capacity (cache too small), Conflict (collision in set), Coherence (multicore invalidation).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the difference between RISC and CISC?</p></div><div class="a" hidden><p>RISC uses simple, fixed-length load-store instructions optimized for single-cycle pipelining; CISC uses complex, variable-length multi-cycle instructions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is a load-use data hazard?</p></div><div class="a" hidden><p>When an instruction immediately reads a register being loaded from memory, requiring a 1-cycle pipeline bubble even with forwarding.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How do Spectre and Meltdown exploit speculative execution?</p></div><div class="a" hidden><p>By executing unauthorized loads past mispredicted branches; microarchitectural cache timing side channels leak the loaded secrets.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can calculate AMAT and CPU execution time, decode cache addresses into tag/set/offset, trace MESI cache coherence states, and analyze pipeline data hazards.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>von Neumann, J. (1945). First Draft of a Report on the EDVAC.</li>
+<li>Hennessy, J. L., &amp; Patterson, D. A. (2017). Computer Architecture: A Quantitative Approach. Morgan Kaufmann.</li>
+<li>Kocher, P., et al. (2019). Spectre attacks: Exploiting speculative execution. IEEE S&amp;P.</li>
+</ul></section>
+<footer class="pager"><a href="L01.html">&larr; L01 What learning from data means</a>
+<a href="P06.html">P06 Operating systems I: processes, threads and scheduling &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P05", "packages": ["numpy"], "exercises": {"ex1-amat-calculator": {"starter": "def calculate_amat(l1_hit: float, l1_miss: float, l2_hit: float, l2_miss: float, dram: float) -> float:\n    pass\n\ndef cpu_execution_time(instructions: int, cpi: float, clock_ghz: float) -> float:\n    pass\n", "solution": "def calculate_amat(l1_hit: float, l1_miss: float, l2_hit: float, l2_miss: float, dram: float) -> float:\n    # AMAT = T_L1 + M_L1 * (T_L2 + M_L2 * T_DRAM)\n    amat = l1_hit + l1_miss * (l2_hit + l2_miss * dram)\n    return round(amat, 3)\n\ndef cpu_execution_time(instructions: int, cpi: float, clock_ghz: float) -> float:\n    # CPU Time = Instructions * CPI / Frequency (Hz)\n    freq_hz = clock_ghz * 1e9\n    time_sec = (instructions * cpi) / freq_hz\n    return round(time_sec, 6)\n", "tests": "def test_amat_basic():\n    # L1: 1ns, 5% miss. L2: 4ns, 10% miss. DRAM: 100ns\n    # AMAT = 1 + 0.05 * (4 + 0.10 * 100) = 1 + 0.05 * 14 = 1.70 ns\n    res = calculate_amat(1.0, 0.05, 4.0, 0.10, 100.0)\n    assert res == 1.7\n\ndef test_amat_perfect_cache():\n    # 0% miss rate in L1\n    assert calculate_amat(1.0, 0.0, 5.0, 0.2, 80.0) == 1.0\n\ndef test_cpu_execution_time():\n    # 3 billion instructions, CPI 1.5, 3.0 GHz CPU\n    # Time = (3e9 * 1.5) / 3e9 = 1.5 seconds\n    res = cpu_execution_time(3_000_000_000, 1.5, 3.0)\n    assert res == 1.5\n", "mutants": ["def calculate_amat(l1_hit, l1_miss, l2_hit, l2_miss, dram): assert False, 'mutant injected'\ndef cpu_execution_time(instructions, cpi, clock_ghz): assert False, 'mutant injected'\n", "def calculate_amat(l1_hit, l1_miss, l2_hit, l2_miss, dram): return l1_hit\ndef cpu_execution_time(instructions, cpi, clock_ghz): return 0.0\n"], "hints": ["AMAT = L1_hit + L1_miss * (L2_hit + L2_miss * DRAM)", "CPU Time = (Instructions * CPI) / (Clock_GHz * 1e9)"], "level": "warmup", "title": "Average Memory Access Time and CPU Performance Calculator"}, "ex2-cache-address-decoder": {"starter": "def decode_cache_address(address: int, cache_size_bytes: int, line_size_bytes: int, ways: int) -> dict:\n    pass\n", "solution": "import math\n\ndef decode_cache_address(address: int, cache_size_bytes: int, line_size_bytes: int, ways: int) -> dict:\n    num_lines = cache_size_bytes // line_size_bytes\n    num_sets = num_lines // ways\n    \n    offset_bits = int(math.log2(line_size_bytes))\n    set_bits = int(math.log2(num_sets))\n    \n    offset_mask = (1 << offset_bits) - 1\n    set_mask = (1 << set_bits) - 1\n    \n    byte_offset = address & offset_mask\n    set_index = (address >> offset_bits) & set_mask\n    tag = address >> (offset_bits + set_bits)\n    \n    return {\n        \"tag\": tag,\n        \"set_index\": set_index,\n        \"byte_offset\": byte_offset,\n        \"num_sets\": num_sets,\n        \"offset_bits\": offset_bits,\n        \"set_bits\": set_bits\n    }\n", "tests": "def test_cache_decoder_basic():\n    # 32KB, 64-byte lines, 4 ways -> 128 sets (7 set bits, 6 offset bits)\n    res = decode_cache_address(0x12345678, 32768, 64, 4)\n    assert res[\"num_sets\"] == 128\n    assert res[\"offset_bits\"] == 6\n    assert res[\"set_bits\"] == 7\n    # 0x78 = 0b01111000 -> lower 6 bits: 0b111000 = 56\n    assert res[\"byte_offset\"] == 56\n\ndef test_cache_decoder_direct_mapped():\n    # 16KB, 32-byte lines, 1 way (direct mapped) -> 512 sets (9 set bits, 5 offset bits)\n    res = decode_cache_address(0x00000000, 16384, 32, 1)\n    assert res[\"num_sets\"] == 512\n    assert res[\"offset_bits\"] == 5\n    assert res[\"set_bits\"] == 9\n    assert res[\"tag\"] == 0\n    assert res[\"set_index\"] == 0\n    assert res[\"byte_offset\"] == 0\n\ndef test_cache_decoder_apple_silicon_128b():\n    # 128-byte cache lines (7 offset bits)\n    res = decode_cache_address(0x1000, 65536, 128, 8)\n    assert res[\"offset_bits\"] == 7\n    assert res[\"num_sets\"] == 64\n    assert res[\"set_bits\"] == 6\n", "mutants": ["def decode_cache_address(address, cache_size_bytes, line_size_bytes, ways):\n    assert False, 'mutant injected'\n", "def decode_cache_address(address, cache_size_bytes, line_size_bytes, ways):\n    return {\"tag\": 0, \"set_index\": 0, \"byte_offset\": 0, \"num_sets\": 1, \"offset_bits\": 0, \"set_bits\": 0}\n"], "hints": ["num_sets = (cache_size // line_size) // ways", "offset_bits = log2(line_size); set_bits = log2(num_sets)"], "level": "core", "title": "Cache Address Decomposition and Set Mapper"}, "ex3-mesi-protocol-simulator": {"starter": "def simulate_mesi_transition(current_state: str, action: str) -> tuple[str, str]:\n    pass\n", "solution": "def simulate_mesi_transition(current_state: str, action: str) -> tuple[str, str]:\n    state = current_state.upper()\n    act = action.upper()\n    \n    # Actions: LOCAL_READ, LOCAL_WRITE, BUS_RD, BUS_RDX, BUS_UPGR\n    if state == \"INVALID\":\n        if act == \"LOCAL_READ\":\n            return \"SHARED\", \"BUS_RD\"\n        elif act == \"LOCAL_WRITE\":\n            return \"MODIFIED\", \"BUS_RDX\"\n        else:\n            return \"INVALID\", \"NONE\"\n            \n    elif state == \"SHARED\":\n        if act == \"LOCAL_READ\":\n            return \"SHARED\", \"NONE\"\n        elif act == \"LOCAL_WRITE\":\n            return \"MODIFIED\", \"BUS_UPGR\"\n        elif act == \"BUS_RD\":\n            return \"SHARED\", \"NONE\"\n        elif act in (\"BUS_RDX\", \"BUS_UPGR\"):\n            return \"INVALID\", \"NONE\"\n            \n    elif state == \"EXCLUSIVE\":\n        if act == \"LOCAL_READ\":\n            return \"EXCLUSIVE\", \"NONE\"\n        elif act == \"LOCAL_WRITE\":\n            return \"MODIFIED\", \"NONE\"\n        elif act == \"BUS_RD\":\n            return \"SHARED\", \"NONE\"\n        elif act == \"BUS_RDX\":\n            return \"INVALID\", \"NONE\"\n            \n    elif state == \"MODIFIED\":\n        if act == \"LOCAL_READ\":\n            return \"MODIFIED\", \"NONE\"\n        elif act == \"LOCAL_WRITE\":\n            return \"MODIFIED\", \"NONE\"\n        elif act == \"BUS_RD\":\n            return \"SHARED\", \"WRITE_BACK\"\n        elif act == \"BUS_RDX\":\n            return \"INVALID\", \"WRITE_BACK\"\n            \n    return state, \"NONE\"\n", "tests": "def test_mesi_local_transitions():\n    assert simulate_mesi_transition(\"INVALID\", \"LOCAL_READ\") == (\"SHARED\", \"BUS_RD\")\n    assert simulate_mesi_transition(\"INVALID\", \"LOCAL_WRITE\") == (\"MODIFIED\", \"BUS_RDX\")\n    assert simulate_mesi_transition(\"SHARED\", \"LOCAL_WRITE\") == (\"MODIFIED\", \"BUS_UPGR\")\n    assert simulate_mesi_transition(\"EXCLUSIVE\", \"LOCAL_WRITE\") == (\"MODIFIED\", \"NONE\")\n\ndef test_mesi_bus_snooping_invalidation():\n    # If another core issues BUS_RDX on my SHARED line, invalidate it\n    assert simulate_mesi_transition(\"SHARED\", \"BUS_RDX\") == (\"INVALID\", \"NONE\")\n    # If another core issues BUS_RD on my MODIFIED line, write back and downgrade to SHARED\n    assert simulate_mesi_transition(\"MODIFIED\", \"BUS_RD\") == (\"SHARED\", \"WRITE_BACK\")\n\ndef test_mesi_noop():\n    assert simulate_mesi_transition(\"SHARED\", \"LOCAL_READ\") == (\"SHARED\", \"NONE\")\n    assert simulate_mesi_transition(\"MODIFIED\", \"LOCAL_READ\") == (\"MODIFIED\", \"NONE\")\n", "mutants": ["def simulate_mesi_transition(current_state: str, action: str) -> tuple[str, str]:\n    assert False, 'mutant injected'\n", "def simulate_mesi_transition(current_state: str, action: str) -> tuple[str, str]:\n    return \"INVALID\", \"NONE\"\n"], "hints": ["States: M (Modified), E (Exclusive), S (Shared), I (Invalid).", "Writing from S broadcasts BUS_UPGR to transition to M."], "level": "core", "title": "MESI Multicore Cache Coherence FSM"}, "ex4-pipeline-hazard-detector": {"starter": "def detect_pipeline_hazards(instructions: list[dict], has_forwarding: bool = False) -> dict:\n    pass\n", "solution": "def detect_pipeline_hazards(instructions: list[dict], has_forwarding: bool = False) -> dict:\n    if not instructions:\n        return {\"total_cycles\": 0, \"stalls\": 0, \"hazards_detected\": []}\n        \n    hazards = []\n    stalls = 0\n    \n    # 5-stage classic RISC pipeline: IF, ID, EX, MEM, WB\n    # An instruction writes to dest at WB (end of cycle 4).\n    # With forwarding, EX output is available at end of EX (cycle 2) for next ALU op,\n    # but a LOAD instruction result is only available after MEM (end of cycle 3), causing 1 stall.\n    \n    # Without forwarding, a RAW dependency within distance 1 causes 2 stalls, distance 2 causes 1 stall.\n    for i in range(1, len(instructions)):\n        curr = instructions[i]\n        curr_srcs = set(curr.get(\"srcs\", []))\n        \n        # Check against previous instruction (distance 1)\n        prev1 = instructions[i - 1]\n        prev1_dest = prev1.get(\"dest\")\n        \n        if prev1_dest and prev1_dest in curr_srcs:\n            hazards.append({\"consumer_index\": i, \"producer_index\": i - 1, \"reg\": prev1_dest})\n            if has_forwarding:\n                if prev1.get(\"op\") == \"LOAD\":\n                    stalls += 1  # Load-use hazard cannot be fully eliminated by forwarding\n            else:\n                stalls += 2\n            continue\n            \n        # Check against instruction 2 steps back (distance 2)\n        if i >= 2:\n            prev2 = instructions[i - 2]\n            prev2_dest = prev2.get(\"dest\")\n            if prev2_dest and prev2_dest in curr_srcs:\n                hazards.append({\"consumer_index\": i, \"producer_index\": i - 2, \"reg\": prev2_dest})\n                if not has_forwarding:\n                    stalls += 1\n                    \n    # Baseline non-stalled cycles: 5 + (N - 1) = N + 4\n    total_cycles = len(instructions) + 4 + stalls\n    return {\n        \"total_cycles\": total_cycles,\n        \"stalls\": stalls,\n        \"hazards_detected\": hazards\n    }\n", "tests": "def test_pipeline_no_hazards():\n    insts = [\n        {\"op\": \"ADD\", \"dest\": \"R1\", \"srcs\": [\"R2\", \"R3\"]},\n        {\"op\": \"ADD\", \"dest\": \"R4\", \"srcs\": [\"R5\", \"R6\"]}\n    ]\n    res = detect_pipeline_hazards(insts, has_forwarding=False)\n    assert res[\"stalls\"] == 0\n    assert res[\"total_cycles\"] == 6  # 2 + 4 = 6\n    assert len(res[\"hazards_detected\"]) == 0\n\ndef test_pipeline_raw_without_forwarding():\n    insts = [\n        {\"op\": \"ADD\", \"dest\": \"R1\", \"srcs\": [\"R2\", \"R3\"]},\n        {\"op\": \"SUB\", \"dest\": \"R4\", \"srcs\": [\"R1\", \"R5\"]}  # distance 1 RAW\n    ]\n    res = detect_pipeline_hazards(insts, has_forwarding=False)\n    assert res[\"stalls\"] == 2\n    assert res[\"total_cycles\"] == 8\n    assert len(res[\"hazards_detected\"]) == 1\n\ndef test_pipeline_load_use_with_forwarding():\n    insts = [\n        {\"op\": \"LOAD\", \"dest\": \"R1\", \"srcs\": [\"R2\"]},\n        {\"op\": \"ADD\", \"dest\": \"R4\", \"srcs\": [\"R1\", \"R3\"]}  # Load-use RAW\n    ]\n    res_fwd = detect_pipeline_hazards(insts, has_forwarding=True)\n    assert res_fwd[\"stalls\"] == 1  # 1 load-use delay cycle\n    assert res_fwd[\"total_cycles\"] == 7\n", "mutants": ["def detect_pipeline_hazards(instructions, has_forwarding=False):\n    assert False, 'mutant injected'\n", "def detect_pipeline_hazards(instructions, has_forwarding=False):\n    return {\"total_cycles\": len(instructions) + 4, \"stalls\": 0, \"hazards_detected\": []}\n"], "hints": ["Without forwarding, distance 1 RAW causes 2 stalls; distance 2 causes 1 stall.", "With forwarding, only LOAD followed immediately by consumer causes 1 stall."], "level": "boss", "title": "Pipelined Processor Data Hazard and Stall Analyzer"}}, "demos": {"p05-oracle-cache-decoder": {"code": "import math\n\ndef decode_address(addr: int, cache_bytes: int, line_bytes: int, ways: int) -> dict:\n    num_lines = cache_bytes // line_bytes\n    num_sets = num_lines // ways\n    \n    offset_bits = int(math.log2(line_bytes))\n    set_bits = int(math.log2(num_sets))\n    \n    offset = addr & ((1 << offset_bits) - 1)\n    set_idx = (addr >> offset_bits) & ((1 << set_bits) - 1)\n    tag = addr >> (offset_bits + set_bits)\n    \n    return {\n        \"offset\": offset,\n        \"set_idx\": set_idx,\n        \"tag\": tag,\n        \"num_sets\": num_sets,\n        \"offset_bits\": offset_bits,\n        \"set_bits\": set_bits\n    }\n\n# 32 KB cache, 64-byte line, 4-way set associative:\n# num_lines = 32768 / 64 = 512 lines.\n# num_sets = 512 / 4 = 128 sets (7 set bits, 6 offset bits)\nres = decode_address(0x12345678, cache_bytes=32768, line_bytes=64, ways=4)\nassert res[\"offset_bits\"] == 6\nassert res[\"set_bits\"] == 7\nassert res[\"num_sets\"] == 128\n# Verify byte offset inside line: 0x78 & 0x3F = 0x38 = 56\nassert res[\"offset\"] == 56\n\nprint(\"Cache address decomposition and bit field boundary verification passed.\")\n", "mutants": ["def decode_address(addr, cache_bytes, line_bytes, ways): return {\"num_sets\": 0}\nres = decode_address(0, 32768, 64, 4)\nassert res[\"num_sets\"] == 128\n"]}, "p05-exp-cache-locality": {"code": "# Simulate cache hits for sequential vs strided access\nline_size_elements = 16  # 64 bytes / 4-byte integers\n\n# Sequential access: 1 miss every 16 elements\nseq_misses = sum(1 for i in range(128) if (i % line_size_elements) == 0)\nassert seq_misses == 8  # 128 / 16 = 8 misses\n\n# Strided access (stride = 16): every single access hits a new cache line!\nstrided_misses = sum(1 for i in range(0, 128 * line_size_elements, line_size_elements)[:128])\nassert strided_misses == 128  # 100% compulsory cache line misses!\n\nratio = strided_misses / seq_misses\nassert ratio == 16.0\nprint(f\"Spatial locality experiment: Strided access incurred {ratio:.0f}x more cache line misses than sequential.\")\n", "mutants": ["seq_misses = 128\nstrided_misses = 128\nassert seq_misses == 8\n"]}}, "cards": [{"q": "What is the Iron Law of Processor Performance?", "a": "CPU Time = Instruction Count * CPI * Clock Period."}, {"q": "What is AMAT in memory systems?", "a": "Average Memory Access Time = Hit Time + (Miss Rate * Miss Penalty)."}, {"q": "What are the 4 C's of cache misses?", "a": "Compulsory (cold start), Capacity (cache too small), Conflict (collision in set), Coherence (multicore invalidation)."}, {"q": "What is the difference between RISC and CISC?", "a": "RISC uses simple, fixed-length load-store instructions optimized for single-cycle pipelining; CISC uses complex, variable-length multi-cycle instructions."}, {"q": "What is a load-use data hazard?", "a": "When an instruction immediately reads a register being loaded from memory, requiring a 1-cycle pipeline bubble even with forwarding."}, {"q": "How do Spectre and Meltdown exploit speculative execution?", "a": "By executing unauthorized loads past mispredicted branches; microarchitectural cache timing side channels leak the loaded secrets."}], "title": "Computer architecture and the memory hierarchy"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

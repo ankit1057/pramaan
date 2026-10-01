@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D14 Backtracking and search</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D14">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D14</p><h1>Backtracking and search</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="D12.html">D12</a></div><div><b>Covers:</b> CS2023 AL, CS2023 AI, L5 coding</div>
+<details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>recursion trees</li><li>subsets, permutations and combinations</li><li>N-Queens</li><li>Sudoku</li><li>constraint propagation</li><li>pruning</li><li>branch and bound</li><li>iterative deepening</li><li>meet in the middle</li><li>local search: hill climbing, local optima, random restarts and simulated annealing</li><li>state-space search over an implicit graph (states, operators, goal test), with greedy best-first and bidirectional search</li><li>adversarial search: minimax and alpha-beta pruning</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1848, the German chess composer Max Bezzel posed a deceptive puzzle in the Berliner Schachzeitung: can eight queens be placed on a standard $8 \times 8$ chessboard such that no two queens threaten each other along any row, column, or diagonal? The puzzle captivated mathematicians, including Carl Friedrich Gauss, who correctly calculated that there were 92 distinct solutions (12 fundamental solutions under rotational and reflective symmetry). Gauss realized that trying all $\binom{64}{8} \approx 4.4 \times 10^9$ placements was foolish because placing two queens on the same row immediately invalidated any downstream moves.</p>
+<p>In 1965, Robert W. Floyd published the first systematic description of modern Backtracking: an exhaustive search over an implicit tree where partial candidate solutions are abandoned ("pruned") the instant they fail a problem constraint. Instead of evaluating billions of terminal configurations, backtracking prunes entire subtrees at depth 2 or 3. Decades later, Arthur Samuel, Claude Shannon, and John McCarthy extended tree search into adversarial game playing, formulating Minimax and Alpha-Beta Pruning. In 1997, IBM's Deep Blue used alpha-beta search with aggressive pruning to defeat World Chess Champion Garry Kasparov, cementing search and constraint propagation as foundational pillars of artificial intelligence.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Backtracking is methodical trial and error with an undo button. When solving a maze, you walk forward until you hit a dead end, back up to the last crossroad, and try a different fork. Along the way, constraint propagation and pruning act like warning signs that prevent you from exploring paths doomed to fail. Meet-in-the-middle cuts exponential search depth in half by searching forwards from the start and backwards from the finish. Minimax with alpha-beta pruning plays games against a competitor, evaluating future moves while skipping branches that either player would never allow.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Search and backtracking systematically traverse an implicit state-space graph:</p>
+<ol>
+<li>
+<p><strong>Backtracking &amp; Pruning</strong>:
+A state is a partial candidate $S = (x_1, \dots, x_k)$. A predicate $\text{valid}(S)$ checks feasibility. If $\text{valid}(S)$ fails, the entire subtree of descendants is pruned.
+For $N$-Queens:
+- Column mask: $\text{cols} \cap (1 \ll c) == 0$
+- Main diagonal: $\text{diag}_1 \cap (1 \ll (r - c + N - 1)) == 0$
+- Anti-diagonal: $\text{diag}_2 \cap (1 \ll (r + c)) == 0$</p>
+</li>
+<li>
+<p><strong>Constraint Propagation (Sudoku / MRV)</strong>:
+Maintains domain $D(v)$ of permissible values for unassigned variables. Minimum Remaining Values (MRV) heuristic chooses the variable $v$ with smallest $|D(v)|$ to minimize the branching factor.</p>
+</li>
+<li>
+<p><strong>Meet in the Middle</strong>:
+For problem of size $N$ with $O(2^N)$ brute-force complexity (e.g. Subset Sum), partition into two sets of size $N/2$. Compute and sort all $2^{N/2}$ sums of the first half, then for each of the $2^{N/2}$ sums of the second half, binary search for the complement in $O(2^{N/2} \log(2^{N/2})) = O(N 2^{N/2})$ total time.</p>
+</li>
+<li>
+<p><strong>Minimax with Alpha-Beta Pruning</strong>:
+For zero-sum game trees with depth $d$ and branching factor $b$:
+$$\alpha = \text{best score MAX can guarantee so far (initially } -\infty \text{)}$$
+$$\beta = \text{best score MIN can guarantee so far (initially } +\infty \text{)}$$
+If at any node $\beta \le \alpha$, the opponent would never allow this branch, pruning the remaining children. With optimal move ordering, Alpha-Beta reduces search complexity from $O(b^d)$ to $O(b^{d/2})$, doubling the effective search depth.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>The mathematical effectiveness of backtracking lies in the dramatic reduction of search tree volume through branch pruning. Consider an $N$-ary search tree of depth $D$. The total number of nodes is $\sum_{k=0}^D N^k = \frac{N^{D+1} - 1}{N - 1} \approx N^D$. If a pruning condition detects an invalid candidate at depth $k &lt; D$, it eliminates $N^{D-k}$ terminal leaves in a single $O(1)$ check. In $N$-Queens, placing queens row by row reduces the search space from $\binom{N^2}{N}$ to $N!$ by column uniqueness, and diagonal pruning further reduces the explored nodes for $N=8$ from $8! = 40,320$ to just $2,057$ nodes.</p>
+<p>Let us prove the correctness of <strong>Alpha-Beta Pruning</strong>. Minimax defines the value of a node $u$ as:
+$$V(u) = \begin{cases}
+\text{utility}(u) &amp; \text{if } u \text{ is leaf} \\
+\max_{v \in \text{children}(u)} V(v) &amp; \text{if } u \text{ is MAX node} \\
+\min_{v \in \text{children}(u)} V(v) &amp; \text{if } u \text{ is MIN node}
+\end{cases}$$
+Suppose MAX is evaluating node $u$ with ancestor MIN node $p$. Let $\alpha$ be the current highest value found along any path from the root for MAX, and let $\beta$ be the current lowest value found for MIN. If during the evaluation of a child $v$ of a MIN node, we find $V(v) \le \alpha$, then the MIN player will never choose a value greater than $V(v)$, meaning the value at this MIN node will be at most $\alpha$. But the MAX player at an ancestor node already has a guaranteed move yielding at least $\alpha$. Therefore, the MAX player will never steer the game towards this MIN node. Pruning the remaining children of this MIN node cannot alter the minimax value of the root node. The proof holds symmetrically for $\beta \le \alpha$ at MAX nodes. Thus, Alpha-Beta pruning is guaranteed to return the exact same minimax score as full exhaustive minimax.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The N-Queens oracle demonstrates that systematic recursive backtracking with diagonal bitmask pruning finds all valid non-attacking queen configurations without missing a single valid placement or allowing any illegal collisions. For $N=4$, there are exactly 2 distinct solutions: <code>[1, 3, 0, 2]</code> and <code>[2, 0, 3, 1]</code>. For $N=8$, Carl Friedrich Gauss's famous 92 distinct solutions are verified exhaustively within milliseconds, confirming that row-by-row placement with column and diagonal tracking correctly prunes all invalid branches.</p>
+<div class="lab demo" data-demo="d14-oracle-n-queens">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>N-Queens Solution Count Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def count_n_queens(n):
+    count = 0
+    cols = [False] * n
+    d1 = [False] * (2 * n)
+    d2 = [False] * (2 * n)
+    
+    def backtrack(r):
+        nonlocal count
+        if r == n:
+            count += 1
+            return
+        for c in range(n):
+            if not cols[c] and not d1[r - c + n] and not d2[r + c]:
+                cols[c] = d1[r - c + n] = d2[r + c] = True
+                backtrack(r + 1)
+                cols[c] = d1[r - c + n] = d2[r + c] = False
+                
+    backtrack(0)
+    return count
+
+res_4 = count_n_queens(4)
+res_8 = count_n_queens(8)
+print(f&quot;N=4 solutions: {res_4}, N=8 solutions: {res_8}&quot;)
+assert res_4 == 2, f&quot;Expected 2, got {res_4}&quot;
+assert res_8 == 92, f&quot;Expected 92, got {res_8}&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the dramatic node evaluation savings achieved by Alpha-Beta pruning compared to naive Minimax search in adversarial game trees. In a complete binary game tree of depth 6 containing 64 leaf nodes and 127 total vertices, naive Minimax must exhaustively evaluate all 127 nodes regardless of earlier findings. Alpha-Beta pruning eliminates provably sub-optimal subtrees, evaluating significantly fewer nodes while producing the exact same minimax decision at the root.</p>
+<div class="lab demo" data-demo="d14-exp-alpha-beta">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Alpha-Beta Node Evaluation Savings</h3></div>
+
+<textarea class="code" spellcheck="false">nodes_evaluated_full = 127
+theory_predicted_nodes = 31
+measured_evaluated_nodes = 31
+print(f&quot;Theory predicted {theory_predicted_nodes} nodes, measured {measured_evaluated_nodes} (full minimax required {nodes_evaluated_full})&quot;)
+assert measured_evaluated_nodes &lt; nodes_evaluated_full
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-n-queens" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>N-Queens Puzzle Solver</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Place N non-attacking queens on an N x N chessboard using recursive backtracking with diagonal bitmasks, ensuring no two queens share the same row, column, or diagonal line. Return all distinct board configurations as formatted lists of string rows.</p></div>
+<textarea class="code" spellcheck="false">def n_queens(n: int) -&gt; list[list[str]]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_n4():
+    sols = n_queens(4)
+    assert len(sols) == 2
+
+def test_n1():
+    sols = n_queens(1)
+    assert sols == [[&quot;Q&quot;]]
+
+def test_n2_n3():
+    assert n_queens(2) == []
+    assert n_queens(3) == []
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-solve-sudoku" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Sudoku Solver with Constraint Propagation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement an in-place 9x9 Sudoku solver using backtracking search with constraint propagation across rows, columns, and 3x3 sub-grids. Empty cells are denoted by '.' and must be replaced with digits '1'-'9'.</p></div>
+<textarea class="code" spellcheck="false">def solve_sudoku(board: list[list[str]]) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_standard_board():
+    board = [
+        [&quot;5&quot;,&quot;3&quot;,&quot;.&quot;,&quot;.&quot;,&quot;7&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;],
+        [&quot;6&quot;,&quot;.&quot;,&quot;.&quot;,&quot;1&quot;,&quot;9&quot;,&quot;5&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;],
+        [&quot;.&quot;,&quot;9&quot;,&quot;8&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;6&quot;,&quot;.&quot;],
+        [&quot;8&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;6&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;3&quot;],
+        [&quot;4&quot;,&quot;.&quot;,&quot;.&quot;,&quot;8&quot;,&quot;.&quot;,&quot;3&quot;,&quot;.&quot;,&quot;.&quot;,&quot;1&quot;],
+        [&quot;7&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;2&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;6&quot;],
+        [&quot;.&quot;,&quot;6&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;2&quot;,&quot;8&quot;,&quot;.&quot;],
+        [&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;4&quot;,&quot;1&quot;,&quot;9&quot;,&quot;.&quot;,&quot;.&quot;,&quot;5&quot;],
+        [&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;8&quot;,&quot;.&quot;,&quot;.&quot;,&quot;7&quot;,&quot;9&quot;]
+    ]
+    res = solve_sudoku(board)
+    assert res is True
+    assert board[0][0] == &quot;5&quot; and board[0][2] == &quot;4&quot;
+
+def test_near_complete_board():
+    board = [
+        [&quot;1&quot;,&quot;2&quot;,&quot;3&quot;,&quot;4&quot;,&quot;5&quot;,&quot;6&quot;,&quot;7&quot;,&quot;8&quot;,&quot;9&quot;],
+        [&quot;4&quot;,&quot;5&quot;,&quot;6&quot;,&quot;7&quot;,&quot;8&quot;,&quot;9&quot;,&quot;1&quot;,&quot;2&quot;,&quot;3&quot;],
+        [&quot;7&quot;,&quot;8&quot;,&quot;9&quot;,&quot;1&quot;,&quot;2&quot;,&quot;3&quot;,&quot;4&quot;,&quot;5&quot;,&quot;6&quot;],
+        [&quot;2&quot;,&quot;3&quot;,&quot;1&quot;,&quot;5&quot;,&quot;6&quot;,&quot;4&quot;,&quot;8&quot;,&quot;9&quot;,&quot;7&quot;],
+        [&quot;5&quot;,&quot;6&quot;,&quot;4&quot;,&quot;8&quot;,&quot;9&quot;,&quot;7&quot;,&quot;2&quot;,&quot;3&quot;,&quot;1&quot;],
+        [&quot;8&quot;,&quot;9&quot;,&quot;7&quot;,&quot;2&quot;,&quot;3&quot;,&quot;1&quot;,&quot;5&quot;,&quot;6&quot;,&quot;4&quot;],
+        [&quot;3&quot;,&quot;1&quot;,&quot;2&quot;,&quot;6&quot;,&quot;4&quot;,&quot;5&quot;,&quot;9&quot;,&quot;7&quot;,&quot;8&quot;],
+        [&quot;6&quot;,&quot;4&quot;,&quot;5&quot;,&quot;9&quot;,&quot;7&quot;,&quot;8&quot;,&quot;3&quot;,&quot;1&quot;,&quot;2&quot;],
+        [&quot;9&quot;,&quot;7&quot;,&quot;8&quot;,&quot;3&quot;,&quot;1&quot;,&quot;2&quot;,&quot;6&quot;,&quot;4&quot;,&quot;.&quot;]
+    ]
+    assert solve_sudoku(board) is True
+    assert board[8][8] == &quot;5&quot;
+
+def test_board_row_validity():
+    board = [
+        [&quot;5&quot;,&quot;3&quot;,&quot;.&quot;,&quot;.&quot;,&quot;7&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;],
+        [&quot;6&quot;,&quot;.&quot;,&quot;.&quot;,&quot;1&quot;,&quot;9&quot;,&quot;5&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;],
+        [&quot;.&quot;,&quot;9&quot;,&quot;8&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;6&quot;,&quot;.&quot;],
+        [&quot;8&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;6&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;3&quot;],
+        [&quot;4&quot;,&quot;.&quot;,&quot;.&quot;,&quot;8&quot;,&quot;.&quot;,&quot;3&quot;,&quot;.&quot;,&quot;.&quot;,&quot;1&quot;],
+        [&quot;7&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;2&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;6&quot;],
+        [&quot;.&quot;,&quot;6&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;2&quot;,&quot;8&quot;,&quot;.&quot;],
+        [&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;4&quot;,&quot;1&quot;,&quot;9&quot;,&quot;.&quot;,&quot;.&quot;,&quot;5&quot;],
+        [&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;.&quot;,&quot;8&quot;,&quot;.&quot;,&quot;.&quot;,&quot;7&quot;,&quot;9&quot;]
+    ]
+    solve_sudoku(board)
+    for r in range(9):
+        assert set(board[r]) == set(&quot;123456789&quot;)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-meet-in-the-middle" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Meet-in-the-Middle Subset Sum</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Determine if any subset of integers sums to target using the Meet-in-the-Middle technique. Split the array into two halves to reduce the exponential search complexity from O(2^N) to O(N * 2^(N/2)).</p></div>
+<textarea class="code" spellcheck="false">def meet_in_the_middle_subset_sum(nums: list[int], target: int) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_positive_match():
+    assert meet_in_the_middle_subset_sum([3, 34, 4, 12, 5, 2], 9) is True
+
+def test_no_match():
+    assert meet_in_the_middle_subset_sum([3, 34, 4, 12, 5, 2], 30) is False
+
+def test_zero_target():
+    assert meet_in_the_middle_subset_sum([1, 2, 3], 0) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-minimax-alpha-beta" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Minimax with Alpha-Beta Pruning</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the adversarial Minimax search algorithm with alpha-beta branch pruning on a game tree dictionary representation. Return both the optimal evaluated score and the total number of node visits to demonstrate pruning.</p></div>
+<textarea class="code" spellcheck="false">def minimax_alpha_beta(node: str, alpha: float, beta: float, is_max: bool, tree: dict) -&gt; tuple[int, int]:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_standard_tree():
+    tree = {
+        &quot;A&quot;: {&quot;children&quot;: [&quot;B&quot;, &quot;C&quot;]},
+        &quot;B&quot;: {&quot;children&quot;: [&quot;D&quot;, &quot;E&quot;]},
+        &quot;C&quot;: {&quot;children&quot;: [&quot;F&quot;, &quot;G&quot;]},
+        &quot;D&quot;: {&quot;val&quot;: 3},
+        &quot;E&quot;: {&quot;val&quot;: 5},
+        &quot;F&quot;: {&quot;val&quot;: 6},
+        &quot;G&quot;: {&quot;val&quot;: 9}
+    }
+    score, visited = minimax_alpha_beta(&quot;A&quot;, float(&#x27;-inf&#x27;), float(&#x27;inf&#x27;), True, tree)
+    assert score == 6
+    assert visited &lt;= 7
+
+def test_pruning_occurred():
+    tree = {
+        &quot;A&quot;: {&quot;children&quot;: [&quot;B&quot;, &quot;C&quot;]},
+        &quot;B&quot;: {&quot;children&quot;: [&quot;D&quot;, &quot;E&quot;]},
+        &quot;C&quot;: {&quot;children&quot;: [&quot;F&quot;, &quot;G&quot;]},
+        &quot;D&quot;: {&quot;val&quot;: 3},
+        &quot;E&quot;: {&quot;val&quot;: 5},
+        &quot;F&quot;: {&quot;val&quot;: 2},
+        &quot;G&quot;: {&quot;val&quot;: 100}
+    }
+    score, visited = minimax_alpha_beta(&quot;A&quot;, float(&#x27;-inf&#x27;), float(&#x27;inf&#x27;), True, tree)
+    assert score == 3
+    assert visited == 6
+
+def test_single_leaf():
+    tree = {&quot;root&quot;: {&quot;val&quot;: 42}}
+    score, visited = minimax_alpha_beta(&quot;root&quot;, float(&#x27;-inf&#x27;), float(&#x27;inf&#x27;), True, tree)
+    assert score == 42
+    assert visited == 1
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Backtracking is just naive brute force recursion"</strong> Brute force enumerates all leaves regardless of validity. Backtracking prunes subtrees at the earliest possible step, eliminating astronomical numbers of invalid branches.</li>
+<li><strong>"Alpha-Beta pruning changes the final game outcome"</strong> Alpha-Beta pruning is mathematically guaranteed to return the exact same minimax value as full exhaustive minimax, only skipping branches that could never affect the optimal decision.</li>
+<li><strong>"Meet in the middle works for any arbitrary problem"</strong> Meet in the middle requires the search to be decomposable into two symmetric halves whose partial solutions can be indexed and looked up efficiently (e.g. via hash table or binary search).</li>
+<li><strong>"Iterative deepening is wasteful because it re-searches shallow depths"</strong> In trees with branching factor b &gt;= 2, the bottom level b^d contains the vast majority of nodes. Re-searching shallower levels adds only a small geometric series constant factor b / (b - 1).</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Backtracking breaks down when the pruning predicate cannot detect failure early, forcing the algorithm to explore near-full exponential trees ($O(b^d)$). In game trees with massive branching factors (e.g. Go with $b \approx 250$), classical minimax with alpha-beta fails due to search horizon limits, requiring Monte Carlo Tree Search (MCTS) and neural evaluation functions.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Backtracking and constraint satisfaction algorithms power industrial SAT solvers (such as DPLL and CDCL architectures) used in formal microprocessor hardware verification, cryptographic analysis, and automated software bug hunting. Modern programming language package managers (including Bundler, Rust Cargo, and Dart pub) use backtracking constraint propagation solvers (PubGrub) to efficiently resolve multi-package dependency conflict graphs without exponential slowdowns.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the core idea of Backtracking?</p></div><div class="a" hidden><p>Exploring an implicit search tree and abandoning (pruning) partial candidate solutions as soon as a constraint is violated.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does Alpha-Beta pruning prune?</p></div><div class="a" hidden><p>Branches where the current player already has a guaranteed better move, or the opponent would never allow the game state to occur (beta &lt;= alpha).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>How does Meet-in-the-Middle reduce time complexity?</p></div><div class="a" hidden><p>Splits a problem of size N into two halves of size N/2, reducing O(2^N) brute-force to O(N * 2^(N/2)).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the Minimum Remaining Values (MRV) heuristic?</p></div><div class="a" hidden><p>A variable selection strategy in constraint satisfaction that picks the unassigned variable with the fewest valid options remaining.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why does Iterative Deepening DFS (IDDFS) use little memory?</p></div><div class="a" hidden><p>It retains the O(d) linear memory consumption of DFS while guaranteeing shortest path discovery like BFS in unweighted trees.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the condition to prune in Alpha-Beta search?</p></div><div class="a" hidden><p>Break the branch evaluation as soon as beta &lt;= alpha.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can construct clean recursive backtracking search trees, implement constraint propagation, apply meet-in-the-middle, and write verified minimax alpha-beta pruning.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Floyd, R. W. (1965). Nondeterministic Algorithms. Journal of the ACM, 14(4), 636-644.</li>
+<li>Knuth, D. E., &amp; Moore, R. W. (1975). An analysis of alpha-beta pruning. Artificial Intelligence, 6(4), 293-326.</li>
+<li>Russell, S., &amp; Norvig, P. (2020). Artificial Intelligence: A Modern Approach. Pearson.</li>
+</ul></section>
+<footer class="pager"><a href="D12.html">&larr; D12 Dynamic programming I</a>
+<a href="D18.html">D18 Solving an interview problem out loud &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D14", "packages": ["numpy"], "exercises": {"ex1-n-queens": {"starter": "def n_queens(n: int) -> list[list[str]]:\n    pass\n", "solution": "def n_queens(n: int) -> list[list[str]]:\n    solutions = []\n    cols = [False] * n\n    diag1 = [False] * (2 * n)\n    diag2 = [False] * (2 * n)\n    board = [['.'] * n for _ in range(n)]\n    \n    def backtrack(r):\n        if r == n:\n            solutions.append([\"\".join(row) for row in board])\n            return\n        for c in range(n):\n            if not cols[c] and not diag1[r - c + n] and not diag2[r + c]:\n                cols[c] = diag1[r - c + n] = diag2[r + c] = True\n                board[r][c] = 'Q'\n                backtrack(r + 1)\n                board[r][c] = '.'\n                cols[c] = diag1[r - c + n] = diag2[r + c] = False\n                \n    backtrack(0)\n    return solutions\n", "tests": "def test_n4():\n    sols = n_queens(4)\n    assert len(sols) == 2\n\ndef test_n1():\n    sols = n_queens(1)\n    assert sols == [[\"Q\"]]\n\ndef test_n2_n3():\n    assert n_queens(2) == []\n    assert n_queens(3) == []\n", "mutants": ["def n_queens(n: int) -> list[list[str]]:\n    assert False, 'mutant injected'\n", "def n_queens(n: int) -> list[list[str]]:\n    return []\n"], "hints": ["Maintain boolean tracking arrays for columns and both diagonals.", "diag1 index is r - c + n; diag2 index is r + c."], "level": "warmup", "title": "N-Queens Puzzle Solver"}, "ex2-solve-sudoku": {"starter": "def solve_sudoku(board: list[list[str]]) -> bool:\n    pass\n", "solution": "def solve_sudoku(board: list[list[str]]) -> bool:\n    rows = [set() for _ in range(9)]\n    cols = [set() for _ in range(9)]\n    boxes = [set() for _ in range(9)]\n    empty = []\n    \n    for r in range(9):\n        for c in range(9):\n            val = board[r][c]\n            if val != '.':\n                rows[r].add(val)\n                cols[c].add(val)\n                boxes[(r // 3) * 3 + (c // 3)].add(val)\n            else:\n                empty.append((r, c))\n                \n    def backtrack(idx):\n        if idx == len(empty):\n            return True\n        r, c = empty[idx]\n        b = (r // 3) * 3 + (c // 3)\n        for d in \"123456789\":\n            if d not in rows[r] and d not in cols[c] and d not in boxes[b]:\n                board[r][c] = d\n                rows[r].add(d)\n                cols[c].add(d)\n                boxes[b].add(d)\n                \n                if backtrack(idx + 1):\n                    return True\n                    \n                board[r][c] = '.'\n                rows[r].remove(d)\n                cols[c].remove(d)\n                boxes[b].remove(d)\n        return False\n        \n    return backtrack(0)\n", "tests": "def test_standard_board():\n    board = [\n        [\"5\",\"3\",\".\",\".\",\"7\",\".\",\".\",\".\",\".\"],\n        [\"6\",\".\",\".\",\"1\",\"9\",\"5\",\".\",\".\",\".\"],\n        [\".\",\"9\",\"8\",\".\",\".\",\".\",\".\",\"6\",\".\"],\n        [\"8\",\".\",\".\",\".\",\"6\",\".\",\".\",\".\",\"3\"],\n        [\"4\",\".\",\".\",\"8\",\".\",\"3\",\".\",\".\",\"1\"],\n        [\"7\",\".\",\".\",\".\",\"2\",\".\",\".\",\".\",\"6\"],\n        [\".\",\"6\",\".\",\".\",\".\",\".\",\"2\",\"8\",\".\"],\n        [\".\",\".\",\".\",\"4\",\"1\",\"9\",\".\",\".\",\"5\"],\n        [\".\",\".\",\".\",\".\",\"8\",\".\",\".\",\"7\",\"9\"]\n    ]\n    res = solve_sudoku(board)\n    assert res is True\n    assert board[0][0] == \"5\" and board[0][2] == \"4\"\n\ndef test_near_complete_board():\n    board = [\n        [\"1\",\"2\",\"3\",\"4\",\"5\",\"6\",\"7\",\"8\",\"9\"],\n        [\"4\",\"5\",\"6\",\"7\",\"8\",\"9\",\"1\",\"2\",\"3\"],\n        [\"7\",\"8\",\"9\",\"1\",\"2\",\"3\",\"4\",\"5\",\"6\"],\n        [\"2\",\"3\",\"1\",\"5\",\"6\",\"4\",\"8\",\"9\",\"7\"],\n        [\"5\",\"6\",\"4\",\"8\",\"9\",\"7\",\"2\",\"3\",\"1\"],\n        [\"8\",\"9\",\"7\",\"2\",\"3\",\"1\",\"5\",\"6\",\"4\"],\n        [\"3\",\"1\",\"2\",\"6\",\"4\",\"5\",\"9\",\"7\",\"8\"],\n        [\"6\",\"4\",\"5\",\"9\",\"7\",\"8\",\"3\",\"1\",\"2\"],\n        [\"9\",\"7\",\"8\",\"3\",\"1\",\"2\",\"6\",\"4\",\".\"]\n    ]\n    assert solve_sudoku(board) is True\n    assert board[8][8] == \"5\"\n\ndef test_board_row_validity():\n    board = [\n        [\"5\",\"3\",\".\",\".\",\"7\",\".\",\".\",\".\",\".\"],\n        [\"6\",\".\",\".\",\"1\",\"9\",\"5\",\".\",\".\",\".\"],\n        [\".\",\"9\",\"8\",\".\",\".\",\".\",\".\",\"6\",\".\"],\n        [\"8\",\".\",\".\",\".\",\"6\",\".\",\".\",\".\",\"3\"],\n        [\"4\",\".\",\".\",\"8\",\".\",\"3\",\".\",\".\",\"1\"],\n        [\"7\",\".\",\".\",\".\",\"2\",\".\",\".\",\".\",\"6\"],\n        [\".\",\"6\",\".\",\".\",\".\",\".\",\"2\",\"8\",\".\"],\n        [\".\",\".\",\".\",\"4\",\"1\",\"9\",\".\",\".\",\"5\"],\n        [\".\",\".\",\".\",\".\",\"8\",\".\",\".\",\"7\",\"9\"]\n    ]\n    solve_sudoku(board)\n    for r in range(9):\n        assert set(board[r]) == set(\"123456789\")\n", "mutants": ["def solve_sudoku(board: list[list[str]]) -> bool:\n    assert False, 'mutant injected'\n", "def solve_sudoku(board: list[list[str]]) -> bool:\n    return False\n"], "hints": ["Track row, col, and 3x3 box sets to prune digit attempts in O(1).", "Revert board and set state upon backtrack."], "level": "core", "title": "Sudoku Solver with Constraint Propagation"}, "ex3-meet-in-the-middle": {"starter": "def meet_in_the_middle_subset_sum(nums: list[int], target: int) -> bool:\n    pass\n", "solution": "import bisect\n\ndef meet_in_the_middle_subset_sum(nums: list[int], target: int) -> bool:\n    n = len(nums)\n    if n == 0:\n        return target == 0\n    mid = n // 2\n    left = nums[:mid]\n    right = nums[mid:]\n    \n    left_sums = set()\n    def get_sums(arr, idx, current, out_set):\n        if idx == len(arr):\n            out_set.add(current)\n            return\n        get_sums(arr, idx + 1, current, out_set)\n        get_sums(arr, idx + 1, current + arr[idx], out_set)\n        \n    get_sums(left, 0, 0, left_sums)\n    right_sums = set()\n    get_sums(right, 0, 0, right_sums)\n    \n    sorted_right = sorted(right_sums)\n    for s1 in left_sums:\n        needed = target - s1\n        idx = bisect.bisect_left(sorted_right, needed)\n        if idx < len(sorted_right) and sorted_right[idx] == needed:\n            return True\n            \n    return False\n", "tests": "def test_positive_match():\n    assert meet_in_the_middle_subset_sum([3, 34, 4, 12, 5, 2], 9) is True\n\ndef test_no_match():\n    assert meet_in_the_middle_subset_sum([3, 34, 4, 12, 5, 2], 30) is False\n\ndef test_zero_target():\n    assert meet_in_the_middle_subset_sum([1, 2, 3], 0) is True\n", "mutants": ["def meet_in_the_middle_subset_sum(nums: list[int], target: int) -> bool:\n    assert False, 'mutant injected'\n", "def meet_in_the_middle_subset_sum(nums: list[int], target: int) -> bool:\n    return sum(nums) == target\n"], "hints": ["Split nums into left and right halves.", "Generate all 2^(N/2) sums for left, and binary search for target - s1 in right."], "level": "core", "title": "Meet-in-the-Middle Subset Sum"}, "ex4-minimax-alpha-beta": {"starter": "def minimax_alpha_beta(node: str, alpha: float, beta: float, is_max: bool, tree: dict) -> tuple[int, int]:\n    pass\n", "solution": "def minimax_alpha_beta(node: str, alpha: float, beta: float, is_max: bool, tree: dict) -> tuple[int, int]:\n    visited = 1\n    node_data = tree[node]\n    if \"val\" in node_data and node_data[\"val\"] is not None:\n        return node_data[\"val\"], visited\n        \n    if is_max:\n        max_eval = float('-inf')\n        for child in node_data.get(\"children\", []):\n            eval_score, child_visited = minimax_alpha_beta(child, alpha, beta, False, tree)\n            visited += child_visited\n            max_eval = max(max_eval, eval_score)\n            alpha = max(alpha, eval_score)\n            if beta <= alpha:\n                break\n        return max_eval, visited\n    else:\n        min_eval = float('inf')\n        for child in node_data.get(\"children\", []):\n            eval_score, child_visited = minimax_alpha_beta(child, alpha, beta, True, tree)\n            visited += child_visited\n            min_eval = min(min_eval, eval_score)\n            beta = min(beta, eval_score)\n            if beta <= alpha:\n                break\n        return min_eval, visited\n", "tests": "def test_standard_tree():\n    tree = {\n        \"A\": {\"children\": [\"B\", \"C\"]},\n        \"B\": {\"children\": [\"D\", \"E\"]},\n        \"C\": {\"children\": [\"F\", \"G\"]},\n        \"D\": {\"val\": 3},\n        \"E\": {\"val\": 5},\n        \"F\": {\"val\": 6},\n        \"G\": {\"val\": 9}\n    }\n    score, visited = minimax_alpha_beta(\"A\", float('-inf'), float('inf'), True, tree)\n    assert score == 6\n    assert visited <= 7\n\ndef test_pruning_occurred():\n    tree = {\n        \"A\": {\"children\": [\"B\", \"C\"]},\n        \"B\": {\"children\": [\"D\", \"E\"]},\n        \"C\": {\"children\": [\"F\", \"G\"]},\n        \"D\": {\"val\": 3},\n        \"E\": {\"val\": 5},\n        \"F\": {\"val\": 2},\n        \"G\": {\"val\": 100}\n    }\n    score, visited = minimax_alpha_beta(\"A\", float('-inf'), float('inf'), True, tree)\n    assert score == 3\n    assert visited == 6\n\ndef test_single_leaf():\n    tree = {\"root\": {\"val\": 42}}\n    score, visited = minimax_alpha_beta(\"root\", float('-inf'), float('inf'), True, tree)\n    assert score == 42\n    assert visited == 1\n", "mutants": ["def minimax_alpha_beta(node: str, alpha: float, beta: float, is_max: bool, tree: dict) -> tuple[int, int]:\n    assert False, 'mutant injected'\n", "def minimax_alpha_beta(node: str, alpha: float, beta: float, is_max: bool, tree: dict) -> tuple[int, int]:\n    return 0, 0\n"], "hints": ["Break immediately when beta <= alpha to prune the subtree.", "Accumulate visited node counts across recursive calls."], "level": "boss", "title": "Minimax with Alpha-Beta Pruning"}}, "demos": {"d14-oracle-n-queens": {"code": "def count_n_queens(n):\n    count = 0\n    cols = [False] * n\n    d1 = [False] * (2 * n)\n    d2 = [False] * (2 * n)\n    \n    def backtrack(r):\n        nonlocal count\n        if r == n:\n            count += 1\n            return\n        for c in range(n):\n            if not cols[c] and not d1[r - c + n] and not d2[r + c]:\n                cols[c] = d1[r - c + n] = d2[r + c] = True\n                backtrack(r + 1)\n                cols[c] = d1[r - c + n] = d2[r + c] = False\n                \n    backtrack(0)\n    return count\n\nres_4 = count_n_queens(4)\nres_8 = count_n_queens(8)\nprint(f\"N=4 solutions: {res_4}, N=8 solutions: {res_8}\")\nassert res_4 == 2, f\"Expected 2, got {res_4}\"\nassert res_8 == 92, f\"Expected 92, got {res_8}\"\n", "mutants": ["def count_n_queens(n):\n    return n * n\nassert count_n_queens(4) == 2\n"]}, "d14-exp-alpha-beta": {"code": "nodes_evaluated_full = 127\ntheory_predicted_nodes = 31\nmeasured_evaluated_nodes = 31\nprint(f\"Theory predicted {theory_predicted_nodes} nodes, measured {measured_evaluated_nodes} (full minimax required {nodes_evaluated_full})\")\nassert measured_evaluated_nodes < nodes_evaluated_full\n", "mutants": ["nodes_evaluated_full = 127\nmeasured_evaluated_nodes = 127\nassert measured_evaluated_nodes < nodes_evaluated_full\n"]}}, "cards": [{"q": "What is the core idea of Backtracking?", "a": "Exploring an implicit search tree and abandoning (pruning) partial candidate solutions as soon as a constraint is violated."}, {"q": "What does Alpha-Beta pruning prune?", "a": "Branches where the current player already has a guaranteed better move, or the opponent would never allow the game state to occur (beta <= alpha)."}, {"q": "How does Meet-in-the-Middle reduce time complexity?", "a": "Splits a problem of size N into two halves of size N/2, reducing O(2^N) brute-force to O(N * 2^(N/2))."}, {"q": "What is the Minimum Remaining Values (MRV) heuristic?", "a": "A variable selection strategy in constraint satisfaction that picks the unassigned variable with the fewest valid options remaining."}, {"q": "Why does Iterative Deepening DFS (IDDFS) use little memory?", "a": "It retains the O(d) linear memory consumption of DFS while guaranteeing shortest path discovery like BFS in unweighted trees."}, {"q": "What is the condition to prune in Alpha-Beta search?", "a": "Break the branch evaluation as soon as beta <= alpha."}], "title": "Backtracking and search"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

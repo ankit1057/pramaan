@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M19 Complex numbers</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M19">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~3h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M19</p><h1>Complex numbers</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M13.html">M13</a> <a href="M15.html">M15</a></div><div><b>Covers:</b> NCERT 11: Complex Numbers and Quadratic Equations</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>i and the algebra of complex numbers</li><li>conjugate and modulus</li><li>the Argand plane</li><li>polar form</li><li>Euler&#x27;s formula e^(i theta) = cos + i sin</li><li>De Moivre&#x27;s theorem</li><li>roots of unity</li><li>multiplication as rotation and scaling</li><li>quadratics with complex roots</li><li>the bridge to Fourier transforms</li><li>square roots of a complex number in a+ib form</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Rohan's grandfather draws a treasure map on the back of an envelope.</p>
+<p>"From the well, walk three paces east. Then turn a quarter-turn to the left and walk four paces. Dig."</p>
+<p>Rohan walks it and finds a tin of coins. Then he gets interested in the <em>turning</em>. He walks three east, turns a quarter-turn — now he is facing north. Another quarter-turn, facing west. Another, south. One more and he is facing east again. Four quarter-turns and he is back where he started.</p>
+<p>His grandfather asks him something strange. "What number would you have to multiply by, to make a quarter-turn?"</p>
+<p>Rohan knows that multiplying by $-1$ flips you right round — a half-turn. East becomes west. So a quarter-turn done twice should be a half-turn. Whatever the quarter-turn number is, multiplying by it twice must give $-1$.</p>
+<p>He thinks. No ordinary number does that. Two positives give a positive. Two negatives also give a positive. There is nowhere for $-1$ to come from.</p>
+<p>"Then the number is not on your line," says his grandfather. "Your line only goes east and west. Make it a <em>page</em>."</p>
+<p>Here is the surprise: the number that squares to $-1$ was never a fantasy. It is the quarter-turn, and the only reason it looked impossible is that Rohan was insisting on a one-dimensional world. Give numbers a second dimension and the impossible thing is just the instruction "turn left".</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>We define one new number, $i$, with the single property $i^2 = -1$. Everything else follows from ordinary algebra.</p>
+<p>A <strong>complex number</strong> $z = a + bi$ is then a pair of real numbers: $a$ across and $b$ up. Plotted that way, on the <strong>Argand plane</strong>, complex numbers <em>are</em> points, or arrows from the origin.</p>
+<p>And now the payoff. Adding complex numbers slides arrows. <strong>Multiplying</strong> them rotates and scales: multiply the lengths, add the angles. So multiplying by $i$, which has length 1 and angle $90°$, is exactly Rohan's quarter-turn.</p>
+<p>The one-line takeaway: complex numbers are not a patch for broken quadratics. They are the algebra of rotation, which is why they turn up wherever something spins, oscillates or repeats — and why the Fourier transform is built from them.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Algebra</h2>
+<p>Define $i$ by $i^2 = -1$. A <strong>complex number</strong> is $z = a+bi$ with $a,b \in \mathbb{R}$; $a = \operatorname{Re}(z)$ and $b = \operatorname{Im}(z)$. Note that the imaginary part is the real number $b$, not $bi$.</p>
+<p>$$(a+bi)+(c+di) = (a+c)+(b+d)i$$
+$$(a+bi)(c+di) = (ac - bd) + (ad+bc)i$$</p>
+<p>The multiplication rule is just expanding the brackets and replacing $i^2$ by $-1$. The minus sign in $ac - bd$ is where that replacement happened.</p>
+<p>The <strong>conjugate</strong> is $\bar{z} = a - bi$, and the <strong>modulus</strong> is $|z| = \sqrt{a^2+b^2}$. Then</p>
+<p>$$z\bar{z} = a^2+b^2 = |z|^2$$</p>
+<p>which is always a non-negative <em>real</em> number — the fact that makes division possible:</p>
+<p>$$\frac{z}{w} = \frac{z\bar{w}}{w\bar{w}} = \frac{z\bar{w}}{|w|^2}$$</p>
+<p>Conjugation respects all the arithmetic: $\overline{z+w} = \bar z + \bar w$ and $\overline{zw} = \bar z\,\bar w$. The modulus is multiplicative, $|zw| = |z||w|$, and satisfies the triangle inequality $|z+w| \le |z|+|w|$.</p>
+<p>Powers of $i$ cycle with period 4: $i^0=1$, $i^1=i$, $i^2=-1$, $i^3=-i$, $i^4=1$.</p>
+<h2>The Argand plane and polar form</h2>
+<p>Plot $z = a+bi$ at the point $(a,b)$. Its <strong>modulus</strong> $r = |z|$ is the distance from the origin and its <strong>argument</strong> $\theta = \arg z$ is the angle from the positive real axis, so</p>
+<p>$$z = r(\cos\theta + i\sin\theta)$$</p>
+<p>The <strong>principal argument</strong> is taken in $(-\pi, \pi]$, and is computed with <code>atan2(b, a)</code> — never with <code>atan(b/a)</code>, which loses the quadrant.</p>
+<h2>Euler's formula and De Moivre</h2>
+<p>$$e^{i\theta} = \cos\theta + i\sin\theta$$</p>
+<p>so $z = re^{i\theta}$. Multiplication becomes transparent:</p>
+<p>$$r_1e^{i\theta_1}\cdot r_2e^{i\theta_2} = r_1r_2\,e^{i(\theta_1+\theta_2)}$$</p>
+<p><strong>Moduli multiply, arguments add.</strong> That single sentence is the geometric content of complex multiplication: scale by $r_2$ and rotate by $\theta_2$.</p>
+<p><strong>De Moivre's theorem:</strong> for integer $n$,</p>
+<p>$$\left(\cos\theta+i\sin\theta\right)^n = \cos n\theta + i\sin n\theta$$</p>
+<p>Setting $\theta = \pi$ in Euler's formula gives $e^{i\pi}+1=0$.</p>
+<h2>Roots of unity</h2>
+<p>The $n$-th roots of unity are the solutions of $z^n = 1$:</p>
+<p>$$\omega_k = e^{2\pi i k/n} = \cos\frac{2\pi k}{n} + i\sin\frac{2\pi k}{n}, \qquad k = 0,1,\dots,n-1$$</p>
+<p>They are $n$ equally spaced points on the unit circle, and for $n \ge 2$ they sum to zero — by symmetry, or as a geometric series. More generally, every non-zero complex number has exactly $n$ distinct $n$-th roots, equally spaced in angle.</p>
+<h2>Square roots in $a+bi$ form</h2>
+<p>To find $\sqrt{a+bi} = x+yi$ without polar form, square and match:</p>
+<p>$$x^2 - y^2 = a, \qquad 2xy = b$$</p>
+<p>Combining with $x^2+y^2 = \sqrt{a^2+b^2}$ gives</p>
+<p>$$x = \pm\sqrt{\frac{\sqrt{a^2+b^2}+a}{2}}, \qquad y = \frac{b}{2x}$$</p>
+<p>with the sign of $y$ chosen so that $2xy = b$.</p>
+<h2>Quadratics</h2>
+<p>A quadratic with real coefficients and $D = b^2-4ac &lt; 0$ has roots</p>
+<p>$$\frac{-b}{2a} \pm i\frac{\sqrt{|D|}}{2a}$$</p>
+<p>a conjugate pair. More generally the <strong>fundamental theorem of algebra</strong> says every polynomial of degree $n \ge 1$ with complex coefficients has exactly $n$ roots in $\mathbb{C}$, counted with multiplicity. Extending the reals to the complex numbers is enough, once and for all: no further extension is needed to solve polynomials.</p>
+<h2>The bridge to Fourier</h2>
+<p>A complex number of modulus 1, $e^{i\theta}$, is a pure rotation. Letting $\theta$ grow with time, $e^{i\omega t}$ traces the unit circle at angular frequency $\omega$ — its real part is a cosine and its imaginary part a sine, so one complex exponential carries a whole oscillation, amplitude and phase together.</p>
+<p>The discrete Fourier transform is then nothing more than</p>
+<p>$$X_k = \sum_{j=0}^{N-1} x_j\, e^{-2\pi i jk/N}$$</p>
+<p>which multiplies the data by powers of a root of unity and adds. That is why M39 needs this module: the FFT is a statement about roots of unity.</p>
+<h2>A pinch of history</h2>
+<p>Complex numbers entered mathematics through the <strong>cubic</strong>, not the quadratic. Scipione del Ferro and Niccolò Tartaglia found a solution method for cubics; Gerolamo Cardano published it in <em>Ars Magna</em> (1545). The awkwardness was the <em>casus irreducibilis</em>: a cubic with three perfectly real roots whose formula required square roots of negative numbers along the way. Rafael Bombelli, in his <em>Algebra</em> (1572), worked out the arithmetic of these quantities and showed the imaginary parts cancelled, leaving the real answers. So the first real justification for complex numbers was that they were needed to reach <em>real</em> answers.</p>
+<p>Descartes coined "imaginary" dismissively in 1637 and the name stuck, which has misled students ever since. Euler introduced the symbol $i$ and published the formula bearing his name in 1748. Caspar Wessel (1799), Jean-Robert Argand (1806) and Gauss gave the geometric interpretation, and Gauss's work finally made complex numbers respectable. Hamilton in 1837 defined them formally as ordered pairs of reals, removing any remaining mystery.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: multiplication multiplies moduli and adds arguments.</strong></p>
+<ol>
+<li>Write $z_1 = r_1(\cos\alpha+i\sin\alpha)$ and $z_2 = r_2(\cos\beta+i\sin\beta)$.</li>
+<li>Multiply out: $z_1z_2 = r_1r_2\left[(\cos\alpha\cos\beta - \sin\alpha\sin\beta) + i(\sin\alpha\cos\beta+\cos\alpha\sin\beta)\right]$.</li>
+<li><strong>The non-obvious step:</strong> the two brackets are exactly the addition formulas from M15 — $\cos(\alpha+\beta)$ and $\sin(\alpha+\beta)$.</li>
+<li>So $z_1z_2 = r_1r_2\left[\cos(\alpha+\beta)+i\sin(\alpha+\beta)\right]$.</li>
+</ol>
+<p>The minus sign in the real part of complex multiplication and the minus sign in $\cos(A+B)$ are the <em>same</em> minus sign. That is not a coincidence: in M15 we proved the addition formulas from the rotation matrix, and complex multiplication is that rotation matrix wearing different clothes.</p>
+<p><strong>Result 2: De Moivre's theorem</strong>, for a positive integer $n$, follows by induction.</p>
+<ol>
+<li><em>Base:</em> $n=1$ is the identity.</li>
+<li><em>Step:</em> assume $(\cos\theta+i\sin\theta)^k = \cos k\theta+i\sin k\theta$.</li>
+<li>Multiply both sides by $(\cos\theta+i\sin\theta)$ and apply Result 1: the moduli are both 1, and the arguments add to $(k+1)\theta$.</li>
+<li>So the claim holds for $k+1$, and by induction for all positive integers. Negative integers follow by taking reciprocals, which negates the argument.</li>
+</ol>
+<p><strong>Result 3: the $n$-th roots of unity sum to zero for $n\ge2$.</strong></p>
+<ol>
+<li>They form a geometric progression $1, \omega, \omega^2, \dots, \omega^{n-1}$ with $\omega = e^{2\pi i/n}$.</li>
+<li>Since $\omega \neq 1$ for $n\ge2$, the GP sum formula of M14 applies: $\sum_{k=0}^{n-1}\omega^k = \frac{\omega^n-1}{\omega-1}$.</li>
+<li>But $\omega^n = e^{2\pi i} = 1$, so the numerator is zero and the denominator is not.</li>
+<li>Therefore the sum is 0.</li>
+</ol>
+<p>Geometrically, the $n$ arrows are equally spaced around the circle and cancel in opposite pairs or by symmetry — the centre of mass of equally spaced points on a circle is the centre.</p>
+<p><strong>Result 4: why $\sqrt{-1}\cdot\sqrt{-1} \neq \sqrt{(-1)(-1)}$.</strong> The identity $\sqrt{a}\sqrt{b} = \sqrt{ab}$ is proved for non-negative reals and is <strong>false</strong> in general for complex numbers, because the square root is not single-valued: every non-zero number has two square roots, and any choice of branch must break the rule somewhere. Writing $-1 = i\cdot i = \sqrt{-1}\sqrt{-1} = \sqrt{1} = 1$ is the classic "proof" that $-1=1$, and the faulty step is applying a real-number identity outside its domain.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle multiplies complex numbers two genuinely independent ways.</p>
+<p>The first works in <strong>rectangular form</strong>: expand $(a+bi)(c+di)$ with the real arithmetic rule $(ac-bd) + (ad+bc)i$. It never computes an angle.</p>
+<p>The second works in <strong>polar form</strong>: convert both numbers to modulus and argument, multiply the moduli, add the arguments, and convert back. It never touches the rectangular rule.</p>
+<p>If either the sign in $ac-bd$ or the claim that arguments add were wrong, the two would disagree immediately. The demo also checks De Moivre against repeated multiplication, and Euler's formula against the power series for $e^x$, $\cos x$ and $\sin x$ — a third independent route. The mutant uses $(ac+bd)$ in the real part, forgetting that $i^2 = -1$.</p>
+<div class="lab demo" data-demo="m19-multiplication-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Rectangular multiplication against rotate-and-scale</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import sqrt, atan2, cos, sin, pi, factorial
+
+
+def mul_rectangular(z, w):
+    &quot;&quot;&quot;(a+bi)(c+di) = (ac - bd) + (ad + bc)i. No angles anywhere.&quot;&quot;&quot;
+    a, b = z
+    c, d = w
+    return (a * c - b * d, a * d + b * c)
+
+
+def to_polar(z):
+    a, b = z
+    return (sqrt(a * a + b * b), atan2(b, a))
+
+
+def mul_polar(z, w):
+    &quot;&quot;&quot;Multiply the moduli, add the arguments. No rectangular rule anywhere.&quot;&quot;&quot;
+    r1, t1 = to_polar(z)
+    r2, t2 = to_polar(w)
+    r, t = r1 * r2, t1 + t2
+    return (r * cos(t), r * sin(t))
+
+
+rng = random.Random(1572)
+worst = 0.0
+for _ in range(600):
+    z = (rng.uniform(-20, 20), rng.uniform(-20, 20))
+    w = (rng.uniform(-20, 20), rng.uniform(-20, 20))
+    p = mul_rectangular(z, w)
+    q = mul_polar(z, w)
+    worst = max(worst, abs(p[0] - q[0]), abs(p[1] - q[1]))
+
+print(&quot;random products checked:&quot;, 600)
+print(&quot;largest disagreement between rectangular and polar:&quot;, f&quot;{worst:.3e}&quot;)
+assert worst &lt; 1e-9, &quot;both routes to a product must agree&quot;
+
+# i is the quarter turn: multiplying by i four times returns you to the start.
+east = (3.0, 0.0)
+p = east
+turns = []
+for _ in range(4):
+    p = mul_rectangular(p, (0.0, 1.0))
+    turns.append((round(p[0], 10), round(p[1], 10)))
+print(&quot;three paces east, turned four times:&quot;, turns)
+assert turns[0] == (0.0, 3.0)      # north
+assert turns[1] == (-3.0, 0.0)     # west
+assert turns[2] == (0.0, -3.0)     # south
+assert turns[3] == (3.0, 0.0)      # back to east
+assert mul_rectangular((0.0, 1.0), (0.0, 1.0)) == (-1.0, 0.0), &quot;i squared must be -1&quot;
+
+# De Moivre against repeated multiplication.
+for n in range(1, 13):
+    theta = 0.37
+    z = (cos(theta), sin(theta))
+    power = (1.0, 0.0)
+    for _ in range(n):
+        power = mul_rectangular(power, z)
+    assert abs(power[0] - cos(n * theta)) &lt; 1e-9
+    assert abs(power[1] - sin(n * theta)) &lt; 1e-9
+print(&quot;De Moivre verified against repeated multiplication for n = 1..12&quot;)
+
+# Euler&#x27;s formula against the power series, a third independent route.
+def exp_series(theta, terms=40):
+    &quot;&quot;&quot;e^(i theta) by summing the series for exp, using complex tuples.&quot;&quot;&quot;
+    total = (0.0, 0.0)
+    term = (1.0, 0.0)
+    for k in range(terms):
+        total = (total[0] + term[0], total[1] + term[1])
+        term = mul_rectangular(term, (0.0, theta))
+        term = (term[0] / (k + 1), term[1] / (k + 1))
+    return total
+
+for theta in (0.0, 0.5, 1.0, pi / 2, pi, -2.3):
+    re, im = exp_series(theta)
+    assert abs(re - cos(theta)) &lt; 1e-12, &quot;the real part must be cosine&quot;
+    assert abs(im - sin(theta)) &lt; 1e-12, &quot;the imaginary part must be sine&quot;
+print(&quot;Euler&#x27;s formula verified against the exponential power series&quot;)
+print(&quot;e^(i pi) + 1 =&quot;, tuple(round(v, 12) for v in exp_series(pi)), &quot;plus 1 gives 0&quot;)
+assert abs(exp_series(pi)[0] + 1) &lt; 1e-12 and abs(exp_series(pi)[1]) &lt; 1e-12
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory makes several sharp, checkable claims about the $n$-th roots of unity: there are exactly $n$ of them, they all sit on the unit circle, consecutive ones are separated by exactly $\frac{2\pi}{n}$ in angle, and for $n \ge 2$ they sum to exactly zero. We compute them and measure all four.</p>
+<p>Then the bridge to Fourier: we build the discrete Fourier transform purely out of roots of unity, run it on a signal that is a sum of two known cosines, and predict which frequency bins will light up. If the claim that "a complex exponential carries an oscillation" is right, the transform will find the frequencies we put in, and nothing else.</p>
+<div class="lab demo" data-demo="m19-roots-of-unity-and-dft">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Roots of unity, and using them to find hidden frequencies</h3></div>
+
+<textarea class="code" spellcheck="false">from math import cos, sin, pi, atan2, sqrt
+
+print(f&quot;{&#x27;n&#x27;:&gt;4} {&#x27;count&#x27;:&gt;7} {&#x27;max |z|-1&#x27;:&gt;12} {&#x27;max gap error&#x27;:&gt;15} {&#x27;|sum|&#x27;:&gt;12}&quot;)
+for n in range(2, 13):
+    roots = [(cos(2 * pi * k / n), sin(2 * pi * k / n)) for k in range(n)]
+    on_circle = max(abs(sqrt(a * a + b * b) - 1) for a, b in roots)
+    angles = [atan2(b, a) % (2 * pi) for a, b in roots]
+    gaps = [(angles[(k + 1) % n] - angles[k]) % (2 * pi) for k in range(n)]
+    gap_error = max(abs(g - 2 * pi / n) for g in gaps)
+    sre = sum(a for a, b in roots)
+    sim = sum(b for a, b in roots)
+    total = sqrt(sre * sre + sim * sim)
+    print(f&quot;{n:&gt;4} {len(set(roots)):&gt;7} {on_circle:&gt;12.2e} {gap_error:&gt;15.2e} {total:&gt;12.2e}&quot;)
+    assert len(set(roots)) == n, &quot;there must be exactly n distinct roots&quot;
+    assert on_circle &lt; 1e-12, &quot;every root must lie on the unit circle&quot;
+    assert gap_error &lt; 1e-12, &quot;consecutive roots must be 2*pi/n apart&quot;
+    assert total &lt; 1e-12, &quot;for n &gt;= 2 the roots must sum to zero&quot;
+
+print()
+print(&quot;predicted: each root raised to the n-th power returns exactly 1&quot;)
+for n in (3, 5, 8):
+    w = (cos(2 * pi / n), sin(2 * pi / n))
+    p = (1.0, 0.0)
+    for _ in range(n):
+        p = (p[0] * w[0] - p[1] * w[1], p[0] * w[1] + p[1] * w[0])
+    print(f&quot;  n = {n}: omega^n = ({p[0]:.12f}, {p[1]:.12f})&quot;)
+    assert abs(p[0] - 1) &lt; 1e-12 and abs(p[1]) &lt; 1e-12
+
+# The bridge to Fourier: a DFT built only from roots of unity.
+N = 64
+FREQ_A, FREQ_B = 5, 13
+signal = [3.0 * cos(2 * pi * FREQ_A * j / N) + 1.0 * cos(2 * pi * FREQ_B * j / N)
+          for j in range(N)]
+
+
+def dft_magnitude(x, k):
+    n = len(x)
+    re = sum(x[j] * cos(-2 * pi * j * k / n) for j in range(n))
+    im = sum(x[j] * sin(-2 * pi * j * k / n) for j in range(n))
+    return sqrt(re * re + im * im) / n
+
+
+mags = [dft_magnitude(signal, k) for k in range(N // 2 + 1)]
+peaks = sorted(k for k in range(1, N // 2) if mags[k] &gt; 0.1)
+
+print()
+print(&quot;signal built from cosines at bins&quot;, FREQ_A, &quot;and&quot;, FREQ_B)
+print(&quot;predicted peaks at:&quot;, [FREQ_A, FREQ_B])
+print(&quot;measured peaks at :&quot;, peaks)
+print(f&quot;magnitude at {FREQ_A}: {mags[FREQ_A]:.4f} (amplitude 3 -&gt; expect 1.5)&quot;)
+print(f&quot;magnitude at {FREQ_B}: {mags[FREQ_B]:.4f} (amplitude 1 -&gt; expect 0.5)&quot;)
+
+assert peaks == [FREQ_A, FREQ_B], &quot;the transform must find exactly the frequencies present&quot;
+assert abs(mags[FREQ_A] - 1.5) &lt; 1e-9, &quot;a real cosine splits its amplitude between two bins&quot;
+assert abs(mags[FREQ_B] - 0.5) &lt; 1e-9
+assert all(mags[k] &lt; 1e-9 for k in range(1, N // 2) if k not in (FREQ_A, FREQ_B))
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: notice the factor of two in the Fourier half. A real cosine of amplitude 3 produces a magnitude of 1.5, not 3, because a real cosine is the <em>sum of two</em> complex exponentials rotating in opposite directions — $\cos\theta = \frac{e^{i\theta}+e^{-i\theta}}{2}$ — so its energy is split between bin $k$ and bin $N-k$. People meeting a DFT for the first time almost always expect the amplitude back and are confused by the half. It is not an artefact; it is what "a real signal has a symmetric spectrum" means. The demo also chose frequencies that fit a whole number of cycles into the window. When they do not, the energy smears across neighbouring bins — spectral leakage — and that is M39's problem, not this module's.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m19-ex1-arithmetic" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Complex arithmetic, conjugate and modulus</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Represent a complex number as a tuple <code>(real, imag)</code>. Write <code>add(z, w)</code>, <code>mul(z, w)</code>, <code>conjugate(z)</code>, <code>modulus(z)</code> and <code>divide(z, w)</code>, where division multiplies by the conjugate of the denominator and divides by its squared modulus. Write <code>power_of_i(n)</code> returning <code>i**n</code> as a tuple for any non-negative integer <code>n</code>. <code>divide</code> must raise <code>ValueError</code> when <code>w</code> is zero, and <code>power_of_i</code> must raise <code>ValueError</code> for a negative <code>n</code>.</p></div>
+<textarea class="code" spellcheck="false">def add(z, w):
+    &quot;&quot;&quot;Sum of two complex numbers.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def mul(z, w):
+    &quot;&quot;&quot;Product of two complex numbers.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def conjugate(z):
+    &quot;&quot;&quot;The conjugate a - bi.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def modulus(z):
+    &quot;&quot;&quot;The distance from the origin.&quot;&quot;&quot;
+    return 0.0
+
+
+def divide(z, w):
+    &quot;&quot;&quot;z / w, by multiplying by the conjugate of w.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def power_of_i(n):
+    &quot;&quot;&quot;i raised to the n-th power.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_arithmetic_hand_checked():
+    assert add((1, 2), (3, 4)) == (4, 6)
+    # (1+2i)(3+4i) = 3 + 4i + 6i + 8i^2 = -5 + 10i
+    assert mul((1, 2), (3, 4)) == (-5, 10)
+    assert mul((0, 1), (0, 1)) == (-1, 0)      # i squared
+    assert conjugate((3, -4)) == (3, 4)
+    assert modulus((3, 4)) == 5.0
+
+
+def test_conjugate_and_modulus_identities():
+    import random
+    rng = random.Random(1806)
+    for _ in range(300):
+        z = (rng.uniform(-10, 10), rng.uniform(-10, 10))
+        w = (rng.uniform(-10, 10), rng.uniform(-10, 10))
+        # z * conj(z) is the squared modulus, and is real
+        prod = mul(z, conjugate(z))
+        assert abs(prod[1]) &lt; 1e-9
+        assert abs(prod[0] - modulus(z) ** 2) &lt; 1e-9
+        # modulus is multiplicative
+        assert abs(modulus(mul(z, w)) - modulus(z) * modulus(w)) &lt; 1e-9
+        # triangle inequality
+        assert modulus(add(z, w)) &lt;= modulus(z) + modulus(w) + 1e-9
+
+
+def test_division_and_powers_of_i():
+    # dividing then multiplying back must return the original
+    z, w = (1.0, 2.0), (3.0, -1.0)
+    q = divide(z, w)
+    back = mul(q, w)
+    assert abs(back[0] - z[0]) &lt; 1e-9 and abs(back[1] - z[1]) &lt; 1e-9
+    assert power_of_i(0) == (1, 0)
+    assert power_of_i(1) == (0, 1)
+    assert power_of_i(2) == (-1, 0)
+    assert power_of_i(3) == (0, -1)
+    assert power_of_i(4) == (1, 0)
+    assert power_of_i(103) == power_of_i(3)
+    try:
+        divide((1, 1), (0, 0))
+        assert False, &quot;division by zero must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m19-ex2-polar" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Polar form and back again</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>to_polar(z)</code> returning <code>(modulus, argument)</code> with the argument as the principal value in <code>(-pi, pi]</code>, computed with <code>atan2</code>. Write <code>from_polar(r, theta)</code> returning the rectangular tuple. Write <code>mul_polar(z, w)</code> multiplying by converting to polar, multiplying moduli and adding arguments, then converting back. Write <code>normalise_arg(theta)</code> mapping any angle into <code>(-pi, pi]</code>. <code>to_polar</code> must raise <code>ValueError</code> for the zero complex number, whose argument is undefined.</p></div>
+<textarea class="code" spellcheck="false">def to_polar(z):
+    &quot;&quot;&quot;Return (modulus, principal argument).&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def from_polar(r, theta):
+    &quot;&quot;&quot;Return the rectangular form.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def mul_polar(z, w):
+    &quot;&quot;&quot;Multiply via polar form.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def normalise_arg(theta):
+    &quot;&quot;&quot;Map an angle into (-pi, pi].&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_polar_of_known_points():
+    from math import pi
+    r, t = to_polar((1, 0))
+    assert abs(r - 1) &lt; 1e-12 and abs(t) &lt; 1e-12
+    r, t = to_polar((0, 1))
+    assert abs(r - 1) &lt; 1e-12 and abs(t - pi / 2) &lt; 1e-12
+    r, t = to_polar((-1, 0))
+    assert abs(r - 1) &lt; 1e-12 and abs(t - pi) &lt; 1e-12
+    # the quadrant must be right: atan(b/a) would get this wrong
+    r, t = to_polar((-1, -1))
+    assert abs(t - (-3 * pi / 4)) &lt; 1e-12
+
+
+def test_round_trip_and_polar_multiplication():
+    import random
+    rng = random.Random(1748)
+    for _ in range(300):
+        z = (rng.uniform(-10, 10), rng.uniform(-10, 10))
+        if abs(z[0]) &lt; 1e-6 and abs(z[1]) &lt; 1e-6:
+            continue
+        r, t = to_polar(z)
+        back = from_polar(r, t)
+        assert abs(back[0] - z[0]) &lt; 1e-9 and abs(back[1] - z[1]) &lt; 1e-9
+        w = (rng.uniform(-10, 10), rng.uniform(-10, 10))
+        if abs(w[0]) &lt; 1e-6 and abs(w[1]) &lt; 1e-6:
+            continue
+        # polar multiplication must match the rectangular rule
+        rect = (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])
+        pol = mul_polar(z, w)
+        assert abs(rect[0] - pol[0]) &lt; 1e-9 and abs(rect[1] - pol[1]) &lt; 1e-9
+
+
+def test_argument_normalisation_and_errors():
+    from math import pi
+    assert abs(normalise_arg(0.5) - 0.5) &lt; 1e-12
+    assert abs(normalise_arg(2 * pi + 0.5) - 0.5) &lt; 1e-12
+    assert abs(normalise_arg(-3 * pi) - pi) &lt; 1e-12
+    for t in (-10.0, -3.0, 0.0, 3.0, 10.0, 100.0):
+        n = normalise_arg(t)
+        assert -pi &lt; n &lt;= pi + 1e-12
+    try:
+        to_polar((0, 0))
+        assert False, &quot;the argument of zero must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m19-ex3-demoivre" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>De Moivre&#x27;s theorem and integer powers</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>power(z, n)</code> returning <code>z**n</code> for any integer <code>n</code>, using De Moivre via polar form, and raising <code>ValueError</code> when <code>z</code> is zero and <code>n</code> is not positive. Write <code>demoivre(theta, n)</code> returning <code>(cos(n*theta), sin(n*theta))</code> directly from De Moivre's theorem. Write <code>nth_root(z, n, k)</code> returning the <code>k</code>-th of the <code>n</code> distinct <code>n</code>-th roots of <code>z</code>, for <code>k</code> from 0 to <code>n-1</code>, raising <code>ValueError</code> when <code>n</code> is not positive or <code>k</code> is out of range.</p></div>
+<textarea class="code" spellcheck="false">def power(z, n):
+    &quot;&quot;&quot;z to the integer power n.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def demoivre(theta, n):
+    &quot;&quot;&quot;(cos t + i sin t)^n.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def nth_root(z, n, k):
+    &quot;&quot;&quot;The k-th n-th root of z.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_powers_match_repeated_multiplication():
+    import random
+    rng = random.Random(1837)
+
+    def mul(z, w):
+        return (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])
+
+    for _ in range(200):
+        z = (rng.uniform(-3, 3), rng.uniform(-3, 3))
+        if abs(z[0]) &lt; 0.1 and abs(z[1]) &lt; 0.1:
+            continue
+        n = rng.randint(1, 8)
+        by_mul = (1.0, 0.0)
+        for _ in range(n):
+            by_mul = mul(by_mul, z)
+        got = power(z, n)
+        assert abs(got[0] - by_mul[0]) &lt; 1e-6
+        assert abs(got[1] - by_mul[1]) &lt; 1e-6
+
+
+def test_demoivre_and_negative_powers():
+    from math import cos, sin
+    for n in range(-6, 7):
+        t = 0.41
+        got = demoivre(t, n)
+        assert abs(got[0] - cos(n * t)) &lt; 1e-12
+        assert abs(got[1] - sin(n * t)) &lt; 1e-12
+    # i to the fourth is 1; i to the minus one is -i
+    p = power((0.0, 1.0), 4)
+    assert abs(p[0] - 1) &lt; 1e-9 and abs(p[1]) &lt; 1e-9
+    p = power((0.0, 1.0), -1)
+    assert abs(p[0]) &lt; 1e-9 and abs(p[1] + 1) &lt; 1e-9
+
+
+def test_roots_really_are_roots():
+    def mul(z, w):
+        return (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])
+
+    for z in ((1.0, 0.0), (16.0, 0.0), (0.0, 8.0), (-3.0, 4.0)):
+        for n in (2, 3, 5):
+            roots = [nth_root(z, n, k) for k in range(n)]
+            assert len({(round(a, 9), round(b, 9)) for a, b in roots}) == n
+            for root in roots:
+                p = (1.0, 0.0)
+                for _ in range(n):
+                    p = mul(p, root)
+                assert abs(p[0] - z[0]) &lt; 1e-6 and abs(p[1] - z[1]) &lt; 1e-6
+    try:
+        nth_root((1.0, 0.0), 3, 3)
+        assert False, &quot;k out of range must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m19-ex4-roots-of-unity" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Roots of unity and their properties</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>roots_of_unity(n)</code> returning the list of <code>n</code> roots in order of increasing <code>k</code>. Write <code>sum_of_roots(n)</code> returning their sum as a tuple. Write <code>is_primitive(n, k)</code> returning <code>True</code> when the <code>k</code>-th root generates all the others, which happens exactly when <code>k</code> and <code>n</code> are coprime. Write <code>cyclotomic_product(n)</code> returning the product of all <code>n</code> roots, which is <code>1</code> when <code>n</code> is odd and <code>-1</code> when <code>n</code> is even. Raise <code>ValueError</code> when <code>n</code> is not a positive integer.</p></div>
+<textarea class="code" spellcheck="false">def roots_of_unity(n):
+    &quot;&quot;&quot;The n complex n-th roots of 1.&quot;&quot;&quot;
+    return []
+
+
+def sum_of_roots(n):
+    &quot;&quot;&quot;Their sum.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def is_primitive(n, k):
+    &quot;&quot;&quot;True when the k-th root generates all n of them.&quot;&quot;&quot;
+    return False
+
+
+def cyclotomic_product(n):
+    &quot;&quot;&quot;The product of all n roots.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_roots_lie_on_the_circle_and_are_distinct():
+    from math import sqrt
+    for n in range(1, 13):
+        roots = roots_of_unity(n)
+        assert len(roots) == n
+        assert len({(round(a, 9), round(b, 9)) for a, b in roots}) == n
+        for a, b in roots:
+            assert abs(sqrt(a * a + b * b) - 1) &lt; 1e-12
+        assert abs(roots[0][0] - 1) &lt; 1e-12 and abs(roots[0][1]) &lt; 1e-12
+
+
+def test_sum_is_zero_for_n_at_least_two():
+    for n in range(2, 20):
+        s = sum_of_roots(n)
+        assert abs(s[0]) &lt; 1e-9 and abs(s[1]) &lt; 1e-9
+    # n = 1 is the exception: the single root is 1
+    s = sum_of_roots(1)
+    assert abs(s[0] - 1) &lt; 1e-12 and abs(s[1]) &lt; 1e-12
+
+
+def test_primitivity_and_product():
+    # for prime n every k except 0 is primitive
+    for k in range(1, 7):
+        assert is_primitive(7, k) is True
+    assert is_primitive(7, 0) is False
+    # for n = 6 only k = 1 and k = 5 are primitive
+    assert [k for k in range(6) if is_primitive(6, k)] == [1, 5]
+    # the product of all roots is 1 for odd n, -1 for even n
+    for n in range(1, 10):
+        p = cyclotomic_product(n)
+        expected = 1.0 if n % 2 == 1 else -1.0
+        assert abs(p[0] - expected) &lt; 1e-9, f&quot;n={n}&quot;
+        assert abs(p[1]) &lt; 1e-9
+    try:
+        roots_of_unity(0)
+        assert False, &quot;n = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m19-ex5-square-roots-and-quadratics" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Square roots in a+ib form, and quadratics over the complex numbers</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>sqrt_rectangular(z)</code> returning the square root of <code>z = (a, b)</code> in rectangular form without using polar coordinates, using <code>x = sqrt((sqrt(a^2+b^2) + a)/2)</code> and <code>y = b/(2x)</code>, and handling the case <code>x == 0</code> (which happens when <code>z</code> is a non-positive real) separately. Return the root with non-negative real part, and for a negative real input return the one with positive imaginary part. Write <code>solve_quadratic(a, b, c)</code> returning both roots of a real quadratic as tuples, using the complex square root. Write <code>verify_root(a, b, c, root)</code> returning <code>True</code> when the root satisfies the equation within 1e-9. Raise <code>ValueError</code> when <code>a</code> is zero.</p></div>
+<textarea class="code" spellcheck="false">def sqrt_rectangular(z):
+    &quot;&quot;&quot;A square root of z in a+ib form, without polar coordinates.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def solve_quadratic(a, b, c):
+    &quot;&quot;&quot;Both roots of a real quadratic, as complex tuples.&quot;&quot;&quot;
+    return ((0.0, 0.0), (0.0, 0.0))
+
+
+def verify_root(a, b, c, root):
+    &quot;&quot;&quot;True when the root satisfies a z^2 + b z + c = 0.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_square_roots_really_square_back():
+    import random
+    rng = random.Random(1545)
+    for _ in range(400):
+        z = (rng.uniform(-20, 20), rng.uniform(-20, 20))
+        r = sqrt_rectangular(z)
+        back = (r[0] * r[0] - r[1] * r[1], 2 * r[0] * r[1])
+        assert abs(back[0] - z[0]) &lt; 1e-7, z
+        assert abs(back[1] - z[1]) &lt; 1e-7, z
+        assert r[0] &gt;= -1e-12          # non-negative real part
+
+
+def test_square_roots_of_real_numbers():
+    # sqrt(4) = 2
+    r = sqrt_rectangular((4.0, 0.0))
+    assert abs(r[0] - 2.0) &lt; 1e-12 and abs(r[1]) &lt; 1e-12
+    # sqrt(-1) = i
+    r = sqrt_rectangular((-1.0, 0.0))
+    assert abs(r[0]) &lt; 1e-12 and abs(r[1] - 1.0) &lt; 1e-12
+    # sqrt(-9) = 3i
+    r = sqrt_rectangular((-9.0, 0.0))
+    assert abs(r[0]) &lt; 1e-12 and abs(r[1] - 3.0) &lt; 1e-12
+    # a classic textbook case: sqrt(3 + 4i) = 2 + i
+    r = sqrt_rectangular((3.0, 4.0))
+    assert abs(r[0] - 2.0) &lt; 1e-9 and abs(r[1] - 1.0) &lt; 1e-9
+    assert sqrt_rectangular((0.0, 0.0)) == (0.0, 0.0)
+
+
+def test_quadratics_real_and_complex():
+    # real roots
+    r1, r2 = solve_quadratic(1, -7, 12)
+    assert verify_root(1, -7, 12, r1) and verify_root(1, -7, 12, r2)
+    assert abs(r1[1]) &lt; 1e-12 and abs(r2[1]) &lt; 1e-12
+    assert {round(r1[0], 9), round(r2[0], 9)} == {3.0, 4.0}
+    # complex conjugate roots
+    r1, r2 = solve_quadratic(1, 0, 1)
+    assert verify_root(1, 0, 1, r1) and verify_root(1, 0, 1, r2)
+    assert abs(r1[0] - r2[0]) &lt; 1e-12          # same real part
+    assert abs(r1[1] + r2[1]) &lt; 1e-12          # opposite imaginary parts
+    # Vieta still holds over the complex numbers
+    a, b, c = 2, 3, 5
+    r1, r2 = solve_quadratic(a, b, c)
+    assert abs((r1[0] + r2[0]) - (-b / a)) &lt; 1e-9
+    assert abs((r1[1] + r2[1])) &lt; 1e-9
+    try:
+        solve_quadratic(0, 1, 2)
+        assert False, &quot;a = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Imaginary numbers are not real, so they describe nothing."</strong> The name is Descartes' insult and it has done lasting damage. They describe rotation, and they are as concrete as a quarter-turn. They were invented not for quadratics but to get <em>real</em> answers out of cubics.</li>
+<li><strong>"$\sqrt{-1}\cdot\sqrt{-1} = \sqrt{1} = 1$."</strong> The identity $\sqrt{a}\sqrt{b}=\sqrt{ab}$ holds for non-negative reals only. Square roots are two-valued over $\mathbb{C}$ and no branch choice preserves the rule.</li>
+<li><strong>"The imaginary part of $3+4i$ is $4i$."</strong> It is $4$. The imaginary part is a <em>real</em> number, which is why $\operatorname{Im}(z)$ can be compared and plotted.</li>
+<li><strong>"$\arg z = \arctan(b/a)$."</strong> That loses the quadrant: $1+i$ and $-1-i$ give the same ratio and opposite arguments. Use <code>atan2(b, a)</code>.</li>
+<li><strong>"Complex numbers can be ordered like reals."</strong> There is no ordering compatible with the arithmetic. Asking whether $i &gt; 0$ is meaningless; only moduli compare.</li>
+<li><strong>"Every complex number has one $n$-th root."</strong> It has exactly $n$, equally spaced in angle. A library returning only the principal one is making a choice, not stating a fact.</li>
+<li><strong>"A complex exponential is an exotic object."</strong> $e^{i\theta}$ is just the point at angle $\theta$ on the unit circle. Nothing more.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>The complex numbers are <strong>algebraically closed</strong>, which is their great virtue — every polynomial factors completely — but they pay for it by losing the order. You cannot sort them, there is no notion of positive, and inequalities simply do not transfer. Anything built on ordering, such as the Intermediate Value Theorem, has no complex analogue.</p>
+<p>Multi-valued functions are the recurring hazard. $\log z$ and $z^{1/n}$ and $\arg z$ are all genuinely multi-valued, and software picks a <strong>principal branch</strong> with a cut, usually along the negative real axis. Crossing that cut makes the result jump discontinuously, so identities such as $\log(zw) = \log z + \log w$ fail by a multiple of $2\pi i$. This is a real source of bugs in signal and control code.</p>
+<p>Numerically, the modulus $\sqrt{a^2+b^2}$ overflows when $a$ or $b$ is large even though the answer is representable; good libraries use a scaled formula, which is why <code>hypot</code> exists. And the rectangular square-root formula in the boss exercise loses precision when $a$ is large and negative, because $\sqrt{a^2+b^2}+a$ is a subtraction of nearly equal numbers — the catastrophic cancellation of M13, met again.</p>
+<p>Finally, extending further has a cost. The quaternions give up commutativity, the octonions give up associativity, and a theorem of Hurwitz says there is nothing else: $\mathbb{R}$, $\mathbb{C}$, $\mathbb{H}$ and $\mathbb{O}$ are the only normed division algebras over the reals.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Rotation is the direct application: a 2-D rotation is multiplication by $e^{i\theta}$, and that is literally how you rotate a point, a view or a gesture vector. Quaternions, the 3-D cousin, are what every 3-D engine uses for orientation precisely because they avoid gimbal lock.</p>
+<p>Everything periodic is complex arithmetic underneath. Audio, image compression and radio all run through the FFT, which is roots of unity plus divide-and-conquer. An IIR or FIR filter's behaviour is read off the positions of its poles and zeros in the complex plane, and "the filter is stable" means "all poles inside the unit circle" — a statement about moduli. Control systems say the same thing with different words. When M39 arrives, none of it will be new; it will be this module applied.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the geometric meaning of multiplying by a complex number?</p></div><div class="a" hidden><p>Scale by its modulus and rotate by its argument. Moduli multiply and arguments add.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why is the real part of (a+bi)(c+di) equal to ac - bd?</p></div><div class="a" hidden><p>Expanding gives a bd term multiplied by i squared, which is -1, so it subtracts.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why does the minus sign in complex multiplication match the minus sign in cos(A+B)?</p></div><div class="a" hidden><p>Because they are the same fact: complex multiplication is the rotation matrix, and the addition formulas are its entries.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>State Euler's formula and what it says geometrically.</p></div><div class="a" hidden><p>e^(i theta) = cos theta + i sin theta: the point at angle theta on the unit circle.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How many n-th roots does a non-zero complex number have, and how are they arranged?</p></div><div class="a" hidden><p>Exactly n, equally spaced by 2*pi/n in angle, all with the same modulus.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why do the n-th roots of unity sum to zero for n at least 2?</p></div><div class="a" hidden><p>They are a geometric progression with ratio omega, and the GP sum is (omega^n - 1)/(omega - 1), whose numerator vanishes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Why must you use atan2 rather than atan(b/a) for the argument?</p></div><div class="a" hidden><p>Because atan loses the quadrant: two numbers in opposite quadrants give the same ratio b/a.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Why is sqrt(a)*sqrt(b) = sqrt(ab) not valid for complex numbers?</p></div><div class="a" hidden><p>The square root is two-valued, and no choice of branch preserves the identity everywhere. It is proved only for non-negative reals.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>What is the connection between complex numbers and the Fourier transform?</p></div><div class="a" hidden><p>The DFT multiplies the data by powers of a root of unity, so one complex exponential carries an oscillation's amplitude and phase together.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>A real cosine of amplitude 3 is transformed. Why does the bin show 1.5?</p></div><div class="a" hidden><p>Because a real cosine is the sum of two counter-rotating complex exponentials, so its energy splits between bins k and N-k.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why the quarter-turn number cannot live on a line, you can derive the multiplication rule and see the addition formulas inside it, you can convert fluently between rectangular and polar form and say why <code>atan2</code> is required, you can find all n roots of any complex number and explain why the sum of the roots of unity is zero, you pass the boss exercise without hints, and you can say in one sentence why the Fourier transform is built from roots of unity.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 11, chapter on Complex Numbers and Quadratic Equations.</li>
+<li>Tristan Needham, <em>Visual Complex Analysis</em>, Oxford University Press.</li>
+<li>Rafael Bombelli, <em>L'Algebra</em>, 1572 (the first coherent arithmetic of complex quantities).</li>
+<li>Leonhard Euler, <em>Introductio in analysin infinitorum</em>, 1748.</li>
+<li>Oppenheim and Schafer, <em>Discrete-Time Signal Processing</em>, Pearson (the DFT as roots of unity).</li>
+</ul></section>
+<footer class="pager"><a href="M27.html">&larr; M27 Probability II: conditional probability and random variables</a>
+<a href="M20.html">M20 Linear inequalities and linear programming &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M19", "packages": [], "exercises": {"m19-ex1-arithmetic": {"starter": "def add(z, w):\n    \"\"\"Sum of two complex numbers.\"\"\"\n    return (0.0, 0.0)\n\n\ndef mul(z, w):\n    \"\"\"Product of two complex numbers.\"\"\"\n    return (0.0, 0.0)\n\n\ndef conjugate(z):\n    \"\"\"The conjugate a - bi.\"\"\"\n    return (0.0, 0.0)\n\n\ndef modulus(z):\n    \"\"\"The distance from the origin.\"\"\"\n    return 0.0\n\n\ndef divide(z, w):\n    \"\"\"z / w, by multiplying by the conjugate of w.\"\"\"\n    return (0.0, 0.0)\n\n\ndef power_of_i(n):\n    \"\"\"i raised to the n-th power.\"\"\"\n    return (0.0, 0.0)\n", "solution": "from math import sqrt\n\n\ndef add(z, w):\n    \"\"\"Sum of two complex numbers.\"\"\"\n    return (z[0] + w[0], z[1] + w[1])\n\n\ndef mul(z, w):\n    \"\"\"Product of two complex numbers.\"\"\"\n    a, b = z\n    c, d = w\n    return (a * c - b * d, a * d + b * c)\n\n\ndef conjugate(z):\n    \"\"\"The conjugate a - bi.\"\"\"\n    return (z[0], -z[1])\n\n\ndef modulus(z):\n    \"\"\"The distance from the origin.\"\"\"\n    return sqrt(z[0] * z[0] + z[1] * z[1])\n\n\ndef divide(z, w):\n    \"\"\"z / w, by multiplying by the conjugate of w.\"\"\"\n    denom = w[0] * w[0] + w[1] * w[1]\n    if denom == 0:\n        raise ValueError(\"cannot divide by zero\")\n    num = mul(z, conjugate(w))\n    return (num[0] / denom, num[1] / denom)\n\n\ndef power_of_i(n):\n    \"\"\"i raised to the n-th power.\"\"\"\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    return [(1, 0), (0, 1), (-1, 0), (0, -1)][n % 4]\n", "tests": "def test_arithmetic_hand_checked():\n    assert add((1, 2), (3, 4)) == (4, 6)\n    # (1+2i)(3+4i) = 3 + 4i + 6i + 8i^2 = -5 + 10i\n    assert mul((1, 2), (3, 4)) == (-5, 10)\n    assert mul((0, 1), (0, 1)) == (-1, 0)      # i squared\n    assert conjugate((3, -4)) == (3, 4)\n    assert modulus((3, 4)) == 5.0\n\n\ndef test_conjugate_and_modulus_identities():\n    import random\n    rng = random.Random(1806)\n    for _ in range(300):\n        z = (rng.uniform(-10, 10), rng.uniform(-10, 10))\n        w = (rng.uniform(-10, 10), rng.uniform(-10, 10))\n        # z * conj(z) is the squared modulus, and is real\n        prod = mul(z, conjugate(z))\n        assert abs(prod[1]) < 1e-9\n        assert abs(prod[0] - modulus(z) ** 2) < 1e-9\n        # modulus is multiplicative\n        assert abs(modulus(mul(z, w)) - modulus(z) * modulus(w)) < 1e-9\n        # triangle inequality\n        assert modulus(add(z, w)) <= modulus(z) + modulus(w) + 1e-9\n\n\ndef test_division_and_powers_of_i():\n    # dividing then multiplying back must return the original\n    z, w = (1.0, 2.0), (3.0, -1.0)\n    q = divide(z, w)\n    back = mul(q, w)\n    assert abs(back[0] - z[0]) < 1e-9 and abs(back[1] - z[1]) < 1e-9\n    assert power_of_i(0) == (1, 0)\n    assert power_of_i(1) == (0, 1)\n    assert power_of_i(2) == (-1, 0)\n    assert power_of_i(3) == (0, -1)\n    assert power_of_i(4) == (1, 0)\n    assert power_of_i(103) == power_of_i(3)\n    try:\n        divide((1, 1), (0, 0))\n        assert False, \"division by zero must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt\n\n\ndef add(z, w):\n    return (z[0] + w[0], z[1] + w[1])\n\n\ndef mul(z, w):\n    \"\"\"Bug: adds bd, forgetting that i squared is -1.\"\"\"\n    a, b = z\n    c, d = w\n    return (a * c + b * d, a * d + b * c)\n\n\ndef conjugate(z):\n    return (z[0], -z[1])\n\n\ndef modulus(z):\n    return sqrt(z[0] * z[0] + z[1] * z[1])\n\n\ndef divide(z, w):\n    denom = w[0] * w[0] + w[1] * w[1]\n    if denom == 0:\n        raise ValueError(\"cannot divide by zero\")\n    num = mul(z, conjugate(w))\n    return (num[0] / denom, num[1] / denom)\n\n\ndef power_of_i(n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    return [(1, 0), (0, 1), (-1, 0), (0, -1)][n % 4]\n", "from math import sqrt\n\n\ndef add(z, w):\n    return (z[0] + w[0], z[1] + w[1])\n\n\ndef mul(z, w):\n    a, b = z\n    c, d = w\n    return (a * c - b * d, a * d + b * c)\n\n\ndef conjugate(z):\n    \"\"\"Bug: negates the real part instead of the imaginary part.\"\"\"\n    return (-z[0], z[1])\n\n\ndef modulus(z):\n    return sqrt(z[0] * z[0] + z[1] * z[1])\n\n\ndef divide(z, w):\n    denom = w[0] * w[0] + w[1] * w[1]\n    if denom == 0:\n        raise ValueError(\"cannot divide by zero\")\n    num = mul(z, conjugate(w))\n    return (num[0] / denom, num[1] / denom)\n\n\ndef power_of_i(n):\n    if not isinstance(n, int) or n < 0:\n        raise ValueError(\"n must be a non-negative integer\")\n    return [(1, 0), (0, 1), (-1, 0), (0, -1)][n % 4]\n"], "hints": ["Multiplying out `(a+bi)(c+di)` gives `ac + adi + bci + bd i^2`, and `i^2` is `-1`, so the real part is `ac - bd`.", "The conjugate flips the sign of the *imaginary* part only. That is what makes `z * conj(z)` real."], "level": "warmup", "title": "Complex arithmetic, conjugate and modulus"}, "m19-ex2-polar": {"starter": "def to_polar(z):\n    \"\"\"Return (modulus, principal argument).\"\"\"\n    return (0.0, 0.0)\n\n\ndef from_polar(r, theta):\n    \"\"\"Return the rectangular form.\"\"\"\n    return (0.0, 0.0)\n\n\ndef mul_polar(z, w):\n    \"\"\"Multiply via polar form.\"\"\"\n    return (0.0, 0.0)\n\n\ndef normalise_arg(theta):\n    \"\"\"Map an angle into (-pi, pi].\"\"\"\n    return 0.0\n", "solution": "from math import sqrt, atan2, cos, sin, pi\n\n\ndef normalise_arg(theta):\n    \"\"\"Map an angle into (-pi, pi].\"\"\"\n    t = (theta + pi) % (2 * pi) - pi\n    if t <= -pi:\n        t += 2 * pi\n    return t\n\n\ndef to_polar(z):\n    \"\"\"Return (modulus, principal argument).\"\"\"\n    a, b = z\n    if a == 0 and b == 0:\n        raise ValueError(\"the argument of zero is undefined\")\n    return (sqrt(a * a + b * b), atan2(b, a))\n\n\ndef from_polar(r, theta):\n    \"\"\"Return the rectangular form.\"\"\"\n    return (r * cos(theta), r * sin(theta))\n\n\ndef mul_polar(z, w):\n    \"\"\"Multiply via polar form.\"\"\"\n    r1, t1 = to_polar(z)\n    r2, t2 = to_polar(w)\n    return from_polar(r1 * r2, t1 + t2)\n", "tests": "def test_polar_of_known_points():\n    from math import pi\n    r, t = to_polar((1, 0))\n    assert abs(r - 1) < 1e-12 and abs(t) < 1e-12\n    r, t = to_polar((0, 1))\n    assert abs(r - 1) < 1e-12 and abs(t - pi / 2) < 1e-12\n    r, t = to_polar((-1, 0))\n    assert abs(r - 1) < 1e-12 and abs(t - pi) < 1e-12\n    # the quadrant must be right: atan(b/a) would get this wrong\n    r, t = to_polar((-1, -1))\n    assert abs(t - (-3 * pi / 4)) < 1e-12\n\n\ndef test_round_trip_and_polar_multiplication():\n    import random\n    rng = random.Random(1748)\n    for _ in range(300):\n        z = (rng.uniform(-10, 10), rng.uniform(-10, 10))\n        if abs(z[0]) < 1e-6 and abs(z[1]) < 1e-6:\n            continue\n        r, t = to_polar(z)\n        back = from_polar(r, t)\n        assert abs(back[0] - z[0]) < 1e-9 and abs(back[1] - z[1]) < 1e-9\n        w = (rng.uniform(-10, 10), rng.uniform(-10, 10))\n        if abs(w[0]) < 1e-6 and abs(w[1]) < 1e-6:\n            continue\n        # polar multiplication must match the rectangular rule\n        rect = (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])\n        pol = mul_polar(z, w)\n        assert abs(rect[0] - pol[0]) < 1e-9 and abs(rect[1] - pol[1]) < 1e-9\n\n\ndef test_argument_normalisation_and_errors():\n    from math import pi\n    assert abs(normalise_arg(0.5) - 0.5) < 1e-12\n    assert abs(normalise_arg(2 * pi + 0.5) - 0.5) < 1e-12\n    assert abs(normalise_arg(-3 * pi) - pi) < 1e-12\n    for t in (-10.0, -3.0, 0.0, 3.0, 10.0, 100.0):\n        n = normalise_arg(t)\n        assert -pi < n <= pi + 1e-12\n    try:\n        to_polar((0, 0))\n        assert False, \"the argument of zero must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt, atan2, cos, sin, pi, atan\n\n\ndef normalise_arg(theta):\n    t = (theta + pi) % (2 * pi) - pi\n    if t <= -pi:\n        t += 2 * pi\n    return t\n\n\ndef to_polar(z):\n    \"\"\"Bug: uses atan(b/a), which loses the quadrant.\"\"\"\n    a, b = z\n    if a == 0 and b == 0:\n        raise ValueError(\"the argument of zero is undefined\")\n    if a == 0:\n        return (sqrt(a * a + b * b), pi / 2 if b > 0 else -pi / 2)\n    return (sqrt(a * a + b * b), atan(b / a))\n\n\ndef from_polar(r, theta):\n    return (r * cos(theta), r * sin(theta))\n\n\ndef mul_polar(z, w):\n    r1, t1 = to_polar(z)\n    r2, t2 = to_polar(w)\n    return from_polar(r1 * r2, t1 + t2)\n", "from math import sqrt, atan2, cos, sin, pi\n\n\ndef normalise_arg(theta):\n    \"\"\"Bug: maps into [0, 2*pi) instead of (-pi, pi].\"\"\"\n    return theta % (2 * pi)\n\n\ndef to_polar(z):\n    a, b = z\n    if a == 0 and b == 0:\n        raise ValueError(\"the argument of zero is undefined\")\n    return (sqrt(a * a + b * b), atan2(b, a))\n\n\ndef from_polar(r, theta):\n    return (r * cos(theta), r * sin(theta))\n\n\ndef mul_polar(z, w):\n    \"\"\"Bug: subtracts the arguments instead of adding them.\"\"\"\n    r1, t1 = to_polar(z)\n    r2, t2 = to_polar(w)\n    return from_polar(r1 * r2, t1 - t2)\n"], "hints": ["Use `atan2(b, a)`, not `atan(b/a)`. The two-argument version knows which quadrant you are in.", "Multiplying in polar form multiplies the moduli and *adds* the arguments."], "level": "core", "title": "Polar form and back again"}, "m19-ex3-demoivre": {"starter": "def power(z, n):\n    \"\"\"z to the integer power n.\"\"\"\n    return (0.0, 0.0)\n\n\ndef demoivre(theta, n):\n    \"\"\"(cos t + i sin t)^n.\"\"\"\n    return (0.0, 0.0)\n\n\ndef nth_root(z, n, k):\n    \"\"\"The k-th n-th root of z.\"\"\"\n    return (0.0, 0.0)\n", "solution": "from math import sqrt, atan2, cos, sin, pi\n\n\ndef power(z, n):\n    \"\"\"z to the integer power n.\"\"\"\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    a, b = z\n    r = sqrt(a * a + b * b)\n    if r == 0:\n        if n > 0:\n            return (0.0, 0.0)\n        raise ValueError(\"zero cannot be raised to a non-positive power\")\n    theta = atan2(b, a)\n    rn = r ** n\n    return (rn * cos(n * theta), rn * sin(n * theta))\n\n\ndef demoivre(theta, n):\n    \"\"\"(cos t + i sin t)^n.\"\"\"\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    return (cos(n * theta), sin(n * theta))\n\n\ndef nth_root(z, n, k):\n    \"\"\"The k-th n-th root of z.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if not isinstance(k, int) or not 0 <= k < n:\n        raise ValueError(\"k must lie in 0..n-1\")\n    a, b = z\n    r = sqrt(a * a + b * b)\n    theta = atan2(b, a)\n    root_r = r ** (1.0 / n)\n    angle = (theta + 2 * pi * k) / n\n    return (root_r * cos(angle), root_r * sin(angle))\n", "tests": "def test_powers_match_repeated_multiplication():\n    import random\n    rng = random.Random(1837)\n\n    def mul(z, w):\n        return (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])\n\n    for _ in range(200):\n        z = (rng.uniform(-3, 3), rng.uniform(-3, 3))\n        if abs(z[0]) < 0.1 and abs(z[1]) < 0.1:\n            continue\n        n = rng.randint(1, 8)\n        by_mul = (1.0, 0.0)\n        for _ in range(n):\n            by_mul = mul(by_mul, z)\n        got = power(z, n)\n        assert abs(got[0] - by_mul[0]) < 1e-6\n        assert abs(got[1] - by_mul[1]) < 1e-6\n\n\ndef test_demoivre_and_negative_powers():\n    from math import cos, sin\n    for n in range(-6, 7):\n        t = 0.41\n        got = demoivre(t, n)\n        assert abs(got[0] - cos(n * t)) < 1e-12\n        assert abs(got[1] - sin(n * t)) < 1e-12\n    # i to the fourth is 1; i to the minus one is -i\n    p = power((0.0, 1.0), 4)\n    assert abs(p[0] - 1) < 1e-9 and abs(p[1]) < 1e-9\n    p = power((0.0, 1.0), -1)\n    assert abs(p[0]) < 1e-9 and abs(p[1] + 1) < 1e-9\n\n\ndef test_roots_really_are_roots():\n    def mul(z, w):\n        return (z[0] * w[0] - z[1] * w[1], z[0] * w[1] + z[1] * w[0])\n\n    for z in ((1.0, 0.0), (16.0, 0.0), (0.0, 8.0), (-3.0, 4.0)):\n        for n in (2, 3, 5):\n            roots = [nth_root(z, n, k) for k in range(n)]\n            assert len({(round(a, 9), round(b, 9)) for a, b in roots}) == n\n            for root in roots:\n                p = (1.0, 0.0)\n                for _ in range(n):\n                    p = mul(p, root)\n                assert abs(p[0] - z[0]) < 1e-6 and abs(p[1] - z[1]) < 1e-6\n    try:\n        nth_root((1.0, 0.0), 3, 3)\n        assert False, \"k out of range must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt, atan2, cos, sin, pi\n\n\ndef power(z, n):\n    \"\"\"Bug: multiplies the modulus by n instead of raising it to the n-th power.\"\"\"\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    a, b = z\n    r = sqrt(a * a + b * b)\n    if r == 0:\n        if n > 0:\n            return (0.0, 0.0)\n        raise ValueError(\"zero cannot be raised to a non-positive power\")\n    theta = atan2(b, a)\n    rn = r * n\n    return (rn * cos(n * theta), rn * sin(n * theta))\n\n\ndef demoivre(theta, n):\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    return (cos(n * theta), sin(n * theta))\n\n\ndef nth_root(z, n, k):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if not isinstance(k, int) or not 0 <= k < n:\n        raise ValueError(\"k must lie in 0..n-1\")\n    a, b = z\n    r = sqrt(a * a + b * b)\n    theta = atan2(b, a)\n    root_r = r ** (1.0 / n)\n    angle = (theta + 2 * pi * k) / n\n    return (root_r * cos(angle), root_r * sin(angle))\n", "from math import sqrt, atan2, cos, sin, pi\n\n\ndef power(z, n):\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    a, b = z\n    r = sqrt(a * a + b * b)\n    if r == 0:\n        if n > 0:\n            return (0.0, 0.0)\n        raise ValueError(\"zero cannot be raised to a non-positive power\")\n    theta = atan2(b, a)\n    rn = r ** n\n    return (rn * cos(n * theta), rn * sin(n * theta))\n\n\ndef demoivre(theta, n):\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    return (cos(n * theta), sin(n * theta))\n\n\ndef nth_root(z, n, k):\n    \"\"\"Bug: forgets the 2*pi*k offset, so every root is the same one.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    if not isinstance(k, int) or not 0 <= k < n:\n        raise ValueError(\"k must lie in 0..n-1\")\n    a, b = z\n    r = sqrt(a * a + b * b)\n    theta = atan2(b, a)\n    root_r = r ** (1.0 / n)\n    return (root_r * cos(theta / n), root_r * sin(theta / n))\n"], "hints": ["In polar form, raising to the power n raises the modulus to the power n and multiplies the argument by n.", "The n distinct roots come from adding `2*pi*k` to the argument *before* dividing by n. Without that offset you only ever get one root."], "level": "core", "title": "De Moivre's theorem and integer powers"}, "m19-ex4-roots-of-unity": {"starter": "def roots_of_unity(n):\n    \"\"\"The n complex n-th roots of 1.\"\"\"\n    return []\n\n\ndef sum_of_roots(n):\n    \"\"\"Their sum.\"\"\"\n    return (0.0, 0.0)\n\n\ndef is_primitive(n, k):\n    \"\"\"True when the k-th root generates all n of them.\"\"\"\n    return False\n\n\ndef cyclotomic_product(n):\n    \"\"\"The product of all n roots.\"\"\"\n    return (0.0, 0.0)\n", "solution": "from math import cos, sin, pi, gcd\n\n\ndef _check(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n\n\ndef roots_of_unity(n):\n    \"\"\"The n complex n-th roots of 1.\"\"\"\n    _check(n)\n    return [(cos(2 * pi * k / n), sin(2 * pi * k / n)) for k in range(n)]\n\n\ndef sum_of_roots(n):\n    \"\"\"Their sum.\"\"\"\n    roots = roots_of_unity(n)\n    return (sum(a for a, _ in roots), sum(b for _, b in roots))\n\n\ndef is_primitive(n, k):\n    \"\"\"True when the k-th root generates all n of them.\"\"\"\n    _check(n)\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    return gcd(k, n) == 1\n\n\ndef cyclotomic_product(n):\n    \"\"\"The product of all n roots.\"\"\"\n    _check(n)\n    product = (1.0, 0.0)\n    for a, b in roots_of_unity(n):\n        product = (product[0] * a - product[1] * b, product[0] * b + product[1] * a)\n    return product\n", "tests": "def test_roots_lie_on_the_circle_and_are_distinct():\n    from math import sqrt\n    for n in range(1, 13):\n        roots = roots_of_unity(n)\n        assert len(roots) == n\n        assert len({(round(a, 9), round(b, 9)) for a, b in roots}) == n\n        for a, b in roots:\n            assert abs(sqrt(a * a + b * b) - 1) < 1e-12\n        assert abs(roots[0][0] - 1) < 1e-12 and abs(roots[0][1]) < 1e-12\n\n\ndef test_sum_is_zero_for_n_at_least_two():\n    for n in range(2, 20):\n        s = sum_of_roots(n)\n        assert abs(s[0]) < 1e-9 and abs(s[1]) < 1e-9\n    # n = 1 is the exception: the single root is 1\n    s = sum_of_roots(1)\n    assert abs(s[0] - 1) < 1e-12 and abs(s[1]) < 1e-12\n\n\ndef test_primitivity_and_product():\n    # for prime n every k except 0 is primitive\n    for k in range(1, 7):\n        assert is_primitive(7, k) is True\n    assert is_primitive(7, 0) is False\n    # for n = 6 only k = 1 and k = 5 are primitive\n    assert [k for k in range(6) if is_primitive(6, k)] == [1, 5]\n    # the product of all roots is 1 for odd n, -1 for even n\n    for n in range(1, 10):\n        p = cyclotomic_product(n)\n        expected = 1.0 if n % 2 == 1 else -1.0\n        assert abs(p[0] - expected) < 1e-9, f\"n={n}\"\n        assert abs(p[1]) < 1e-9\n    try:\n        roots_of_unity(0)\n        assert False, \"n = 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import cos, sin, pi, gcd\n\n\ndef _check(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n\n\ndef roots_of_unity(n):\n    \"\"\"Bug: uses pi instead of 2*pi, so the roots only cover half the circle.\"\"\"\n    _check(n)\n    return [(cos(pi * k / n), sin(pi * k / n)) for k in range(n)]\n\n\ndef sum_of_roots(n):\n    roots = roots_of_unity(n)\n    return (sum(a for a, _ in roots), sum(b for _, b in roots))\n\n\ndef is_primitive(n, k):\n    _check(n)\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    return gcd(k, n) == 1\n\n\ndef cyclotomic_product(n):\n    _check(n)\n    product = (1.0, 0.0)\n    for a, b in roots_of_unity(n):\n        product = (product[0] * a - product[1] * b, product[0] * b + product[1] * a)\n    return product\n", "from math import cos, sin, pi, gcd\n\n\ndef _check(n):\n    if not isinstance(n, int) or isinstance(n, bool) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n\n\ndef roots_of_unity(n):\n    _check(n)\n    return [(cos(2 * pi * k / n), sin(2 * pi * k / n)) for k in range(n)]\n\n\ndef sum_of_roots(n):\n    roots = roots_of_unity(n)\n    return (sum(a for a, _ in roots), sum(b for _, b in roots))\n\n\ndef is_primitive(n, k):\n    \"\"\"Bug: calls every non-zero k primitive, ignoring common factors.\"\"\"\n    _check(n)\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"k must be a non-negative integer\")\n    return k != 0\n\n\ndef cyclotomic_product(n):\n    _check(n)\n    product = (1.0, 0.0)\n    for a, b in roots_of_unity(n):\n        product = (product[0] * a - product[1] * b, product[0] * b + product[1] * a)\n    return product\n"], "hints": ["The k-th root of unity has angle `2*pi*k/n` \u2014 a full turn divided into n equal parts.", "The k-th root generates all of them exactly when k and n share no factor above 1, so use `math.gcd`."], "level": "core", "title": "Roots of unity and their properties"}, "m19-ex5-square-roots-and-quadratics": {"starter": "def sqrt_rectangular(z):\n    \"\"\"A square root of z in a+ib form, without polar coordinates.\"\"\"\n    return (0.0, 0.0)\n\n\ndef solve_quadratic(a, b, c):\n    \"\"\"Both roots of a real quadratic, as complex tuples.\"\"\"\n    return ((0.0, 0.0), (0.0, 0.0))\n\n\ndef verify_root(a, b, c, root):\n    \"\"\"True when the root satisfies a z^2 + b z + c = 0.\"\"\"\n    return False\n", "solution": "from math import sqrt\n\n\ndef sqrt_rectangular(z):\n    \"\"\"A square root of z in a+ib form, without polar coordinates.\"\"\"\n    a, b = z\n    if a == 0 and b == 0:\n        return (0.0, 0.0)\n    modulus = sqrt(a * a + b * b)\n    x = sqrt((modulus + a) / 2)\n    if x == 0:\n        # z is a negative real; the root is purely imaginary\n        return (0.0, sqrt((modulus - a) / 2))\n    y = b / (2 * x)\n    return (x, y)\n\n\ndef solve_quadratic(a, b, c):\n    \"\"\"Both roots of a real quadratic, as complex tuples.\"\"\"\n    if a == 0:\n        raise ValueError(\"a must not be zero for a quadratic\")\n    disc = (b * b - 4 * a * c, 0.0)\n    root_disc = sqrt_rectangular(disc)\n    r1 = ((-b + root_disc[0]) / (2 * a), root_disc[1] / (2 * a))\n    r2 = ((-b - root_disc[0]) / (2 * a), -root_disc[1] / (2 * a))\n    return (r1, r2)\n\n\ndef verify_root(a, b, c, root):\n    \"\"\"True when the root satisfies a z^2 + b z + c = 0.\"\"\"\n    x, y = root\n    sq = (x * x - y * y, 2 * x * y)\n    re = a * sq[0] + b * x + c\n    im = a * sq[1] + b * y\n    return abs(re) < 1e-9 and abs(im) < 1e-9\n", "tests": "def test_square_roots_really_square_back():\n    import random\n    rng = random.Random(1545)\n    for _ in range(400):\n        z = (rng.uniform(-20, 20), rng.uniform(-20, 20))\n        r = sqrt_rectangular(z)\n        back = (r[0] * r[0] - r[1] * r[1], 2 * r[0] * r[1])\n        assert abs(back[0] - z[0]) < 1e-7, z\n        assert abs(back[1] - z[1]) < 1e-7, z\n        assert r[0] >= -1e-12          # non-negative real part\n\n\ndef test_square_roots_of_real_numbers():\n    # sqrt(4) = 2\n    r = sqrt_rectangular((4.0, 0.0))\n    assert abs(r[0] - 2.0) < 1e-12 and abs(r[1]) < 1e-12\n    # sqrt(-1) = i\n    r = sqrt_rectangular((-1.0, 0.0))\n    assert abs(r[0]) < 1e-12 and abs(r[1] - 1.0) < 1e-12\n    # sqrt(-9) = 3i\n    r = sqrt_rectangular((-9.0, 0.0))\n    assert abs(r[0]) < 1e-12 and abs(r[1] - 3.0) < 1e-12\n    # a classic textbook case: sqrt(3 + 4i) = 2 + i\n    r = sqrt_rectangular((3.0, 4.0))\n    assert abs(r[0] - 2.0) < 1e-9 and abs(r[1] - 1.0) < 1e-9\n    assert sqrt_rectangular((0.0, 0.0)) == (0.0, 0.0)\n\n\ndef test_quadratics_real_and_complex():\n    # real roots\n    r1, r2 = solve_quadratic(1, -7, 12)\n    assert verify_root(1, -7, 12, r1) and verify_root(1, -7, 12, r2)\n    assert abs(r1[1]) < 1e-12 and abs(r2[1]) < 1e-12\n    assert {round(r1[0], 9), round(r2[0], 9)} == {3.0, 4.0}\n    # complex conjugate roots\n    r1, r2 = solve_quadratic(1, 0, 1)\n    assert verify_root(1, 0, 1, r1) and verify_root(1, 0, 1, r2)\n    assert abs(r1[0] - r2[0]) < 1e-12          # same real part\n    assert abs(r1[1] + r2[1]) < 1e-12          # opposite imaginary parts\n    # Vieta still holds over the complex numbers\n    a, b, c = 2, 3, 5\n    r1, r2 = solve_quadratic(a, b, c)\n    assert abs((r1[0] + r2[0]) - (-b / a)) < 1e-9\n    assert abs((r1[1] + r2[1])) < 1e-9\n    try:\n        solve_quadratic(0, 1, 2)\n        assert False, \"a = 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import sqrt\n\n\ndef sqrt_rectangular(z):\n    \"\"\"Bug: forgets to halve, so the root is too large by root 2.\"\"\"\n    a, b = z\n    if a == 0 and b == 0:\n        return (0.0, 0.0)\n    modulus = sqrt(a * a + b * b)\n    x = sqrt(modulus + a)\n    if x == 0:\n        return (0.0, sqrt(modulus - a))\n    y = b / (2 * x)\n    return (x, y)\n\n\ndef solve_quadratic(a, b, c):\n    if a == 0:\n        raise ValueError(\"a must not be zero for a quadratic\")\n    disc = (b * b - 4 * a * c, 0.0)\n    root_disc = sqrt_rectangular(disc)\n    r1 = ((-b + root_disc[0]) / (2 * a), root_disc[1] / (2 * a))\n    r2 = ((-b - root_disc[0]) / (2 * a), -root_disc[1] / (2 * a))\n    return (r1, r2)\n\n\ndef verify_root(a, b, c, root):\n    x, y = root\n    sq = (x * x - y * y, 2 * x * y)\n    re = a * sq[0] + b * x + c\n    im = a * sq[1] + b * y\n    return abs(re) < 1e-9 and abs(im) < 1e-9\n", "from math import sqrt\n\n\ndef sqrt_rectangular(z):\n    a, b = z\n    if a == 0 and b == 0:\n        return (0.0, 0.0)\n    modulus = sqrt(a * a + b * b)\n    x = sqrt((modulus + a) / 2)\n    if x == 0:\n        return (0.0, sqrt((modulus - a) / 2))\n    y = b / (2 * x)\n    return (x, y)\n\n\ndef solve_quadratic(a, b, c):\n    \"\"\"Bug: both roots take the same sign of the imaginary part,\n    so they are no longer a conjugate pair.\"\"\"\n    if a == 0:\n        raise ValueError(\"a must not be zero for a quadratic\")\n    disc = (b * b - 4 * a * c, 0.0)\n    root_disc = sqrt_rectangular(disc)\n    r1 = ((-b + root_disc[0]) / (2 * a), root_disc[1] / (2 * a))\n    r2 = ((-b - root_disc[0]) / (2 * a), root_disc[1] / (2 * a))\n    return (r1, r2)\n\n\ndef verify_root(a, b, c, root):\n    x, y = root\n    sq = (x * x - y * y, 2 * x * y)\n    re = a * sq[0] + b * x + c\n    im = a * sq[1] + b * y\n    return abs(re) < 1e-9 and abs(im) < 1e-9\n"], "hints": ["Square `(x+yi)` and match real and imaginary parts against `a` and `b`; combine with `x^2+y^2 = |z|` to isolate x.", "For a real quadratic with a negative discriminant, the two roots must be conjugates, so their imaginary parts have opposite signs."], "level": "boss", "title": "Square roots in a+ib form, and quadratics over the complex numbers"}}, "demos": {"m19-multiplication-two-ways": {"code": "import random\nfrom math import sqrt, atan2, cos, sin, pi, factorial\n\n\ndef mul_rectangular(z, w):\n    \"\"\"(a+bi)(c+di) = (ac - bd) + (ad + bc)i. No angles anywhere.\"\"\"\n    a, b = z\n    c, d = w\n    return (a * c - b * d, a * d + b * c)\n\n\ndef to_polar(z):\n    a, b = z\n    return (sqrt(a * a + b * b), atan2(b, a))\n\n\ndef mul_polar(z, w):\n    \"\"\"Multiply the moduli, add the arguments. No rectangular rule anywhere.\"\"\"\n    r1, t1 = to_polar(z)\n    r2, t2 = to_polar(w)\n    r, t = r1 * r2, t1 + t2\n    return (r * cos(t), r * sin(t))\n\n\nrng = random.Random(1572)\nworst = 0.0\nfor _ in range(600):\n    z = (rng.uniform(-20, 20), rng.uniform(-20, 20))\n    w = (rng.uniform(-20, 20), rng.uniform(-20, 20))\n    p = mul_rectangular(z, w)\n    q = mul_polar(z, w)\n    worst = max(worst, abs(p[0] - q[0]), abs(p[1] - q[1]))\n\nprint(\"random products checked:\", 600)\nprint(\"largest disagreement between rectangular and polar:\", f\"{worst:.3e}\")\nassert worst < 1e-9, \"both routes to a product must agree\"\n\n# i is the quarter turn: multiplying by i four times returns you to the start.\neast = (3.0, 0.0)\np = east\nturns = []\nfor _ in range(4):\n    p = mul_rectangular(p, (0.0, 1.0))\n    turns.append((round(p[0], 10), round(p[1], 10)))\nprint(\"three paces east, turned four times:\", turns)\nassert turns[0] == (0.0, 3.0)      # north\nassert turns[1] == (-3.0, 0.0)     # west\nassert turns[2] == (0.0, -3.0)     # south\nassert turns[3] == (3.0, 0.0)      # back to east\nassert mul_rectangular((0.0, 1.0), (0.0, 1.0)) == (-1.0, 0.0), \"i squared must be -1\"\n\n# De Moivre against repeated multiplication.\nfor n in range(1, 13):\n    theta = 0.37\n    z = (cos(theta), sin(theta))\n    power = (1.0, 0.0)\n    for _ in range(n):\n        power = mul_rectangular(power, z)\n    assert abs(power[0] - cos(n * theta)) < 1e-9\n    assert abs(power[1] - sin(n * theta)) < 1e-9\nprint(\"De Moivre verified against repeated multiplication for n = 1..12\")\n\n# Euler's formula against the power series, a third independent route.\ndef exp_series(theta, terms=40):\n    \"\"\"e^(i theta) by summing the series for exp, using complex tuples.\"\"\"\n    total = (0.0, 0.0)\n    term = (1.0, 0.0)\n    for k in range(terms):\n        total = (total[0] + term[0], total[1] + term[1])\n        term = mul_rectangular(term, (0.0, theta))\n        term = (term[0] / (k + 1), term[1] / (k + 1))\n    return total\n\nfor theta in (0.0, 0.5, 1.0, pi / 2, pi, -2.3):\n    re, im = exp_series(theta)\n    assert abs(re - cos(theta)) < 1e-12, \"the real part must be cosine\"\n    assert abs(im - sin(theta)) < 1e-12, \"the imaginary part must be sine\"\nprint(\"Euler's formula verified against the exponential power series\")\nprint(\"e^(i pi) + 1 =\", tuple(round(v, 12) for v in exp_series(pi)), \"plus 1 gives 0\")\nassert abs(exp_series(pi)[0] + 1) < 1e-12 and abs(exp_series(pi)[1]) < 1e-12\n", "mutants": ["import random\nfrom math import sqrt, atan2, cos, sin\n\n\ndef mul_rectangular(z, w):\n    \"\"\"Bug: adds bd instead of subtracting, forgetting that i^2 = -1.\"\"\"\n    a, b = z\n    c, d = w\n    return (a * c + b * d, a * d + b * c)\n\n\ndef to_polar(z):\n    a, b = z\n    return (sqrt(a * a + b * b), atan2(b, a))\n\n\ndef mul_polar(z, w):\n    r1, t1 = to_polar(z)\n    r2, t2 = to_polar(w)\n    r, t = r1 * r2, t1 + t2\n    return (r * cos(t), r * sin(t))\n\n\nrng = random.Random(1572)\nworst = 0.0\nfor _ in range(600):\n    z = (rng.uniform(-20, 20), rng.uniform(-20, 20))\n    w = (rng.uniform(-20, 20), rng.uniform(-20, 20))\n    p = mul_rectangular(z, w)\n    q = mul_polar(z, w)\n    worst = max(worst, abs(p[0] - q[0]), abs(p[1] - q[1]))\n\nprint(\"random products checked:\", 600)\nprint(\"largest disagreement between rectangular and polar:\", f\"{worst:.3e}\")\nassert worst < 1e-9, \"both routes to a product must agree\"\n"]}, "m19-roots-of-unity-and-dft": {"code": "from math import cos, sin, pi, atan2, sqrt\n\nprint(f\"{'n':>4} {'count':>7} {'max |z|-1':>12} {'max gap error':>15} {'|sum|':>12}\")\nfor n in range(2, 13):\n    roots = [(cos(2 * pi * k / n), sin(2 * pi * k / n)) for k in range(n)]\n    on_circle = max(abs(sqrt(a * a + b * b) - 1) for a, b in roots)\n    angles = [atan2(b, a) % (2 * pi) for a, b in roots]\n    gaps = [(angles[(k + 1) % n] - angles[k]) % (2 * pi) for k in range(n)]\n    gap_error = max(abs(g - 2 * pi / n) for g in gaps)\n    sre = sum(a for a, b in roots)\n    sim = sum(b for a, b in roots)\n    total = sqrt(sre * sre + sim * sim)\n    print(f\"{n:>4} {len(set(roots)):>7} {on_circle:>12.2e} {gap_error:>15.2e} {total:>12.2e}\")\n    assert len(set(roots)) == n, \"there must be exactly n distinct roots\"\n    assert on_circle < 1e-12, \"every root must lie on the unit circle\"\n    assert gap_error < 1e-12, \"consecutive roots must be 2*pi/n apart\"\n    assert total < 1e-12, \"for n >= 2 the roots must sum to zero\"\n\nprint()\nprint(\"predicted: each root raised to the n-th power returns exactly 1\")\nfor n in (3, 5, 8):\n    w = (cos(2 * pi / n), sin(2 * pi / n))\n    p = (1.0, 0.0)\n    for _ in range(n):\n        p = (p[0] * w[0] - p[1] * w[1], p[0] * w[1] + p[1] * w[0])\n    print(f\"  n = {n}: omega^n = ({p[0]:.12f}, {p[1]:.12f})\")\n    assert abs(p[0] - 1) < 1e-12 and abs(p[1]) < 1e-12\n\n# The bridge to Fourier: a DFT built only from roots of unity.\nN = 64\nFREQ_A, FREQ_B = 5, 13\nsignal = [3.0 * cos(2 * pi * FREQ_A * j / N) + 1.0 * cos(2 * pi * FREQ_B * j / N)\n          for j in range(N)]\n\n\ndef dft_magnitude(x, k):\n    n = len(x)\n    re = sum(x[j] * cos(-2 * pi * j * k / n) for j in range(n))\n    im = sum(x[j] * sin(-2 * pi * j * k / n) for j in range(n))\n    return sqrt(re * re + im * im) / n\n\n\nmags = [dft_magnitude(signal, k) for k in range(N // 2 + 1)]\npeaks = sorted(k for k in range(1, N // 2) if mags[k] > 0.1)\n\nprint()\nprint(\"signal built from cosines at bins\", FREQ_A, \"and\", FREQ_B)\nprint(\"predicted peaks at:\", [FREQ_A, FREQ_B])\nprint(\"measured peaks at :\", peaks)\nprint(f\"magnitude at {FREQ_A}: {mags[FREQ_A]:.4f} (amplitude 3 -> expect 1.5)\")\nprint(f\"magnitude at {FREQ_B}: {mags[FREQ_B]:.4f} (amplitude 1 -> expect 0.5)\")\n\nassert peaks == [FREQ_A, FREQ_B], \"the transform must find exactly the frequencies present\"\nassert abs(mags[FREQ_A] - 1.5) < 1e-9, \"a real cosine splits its amplitude between two bins\"\nassert abs(mags[FREQ_B] - 0.5) < 1e-9\nassert all(mags[k] < 1e-9 for k in range(1, N // 2) if k not in (FREQ_A, FREQ_B))\n", "mutants": ["from math import cos, sin, pi, sqrt\n\nfor n in range(2, 13):\n    # Bug: spaces the roots by 2*pi/(n-1), so they no longer close the circle.\n    roots = [(cos(2 * pi * k / (n - 1)), sin(2 * pi * k / (n - 1))) for k in range(n)]\n    sre = sum(a for a, b in roots)\n    sim = sum(b for a, b in roots)\n    total = sqrt(sre * sre + sim * sim)\n    print(f\"  n = {n}: |sum of roots| = {total:.3e}\")\n    assert total < 1e-12, \"for n >= 2 the roots must sum to zero\"\n"]}}, "cards": [{"q": "What is the geometric meaning of multiplying by a complex number?", "a": "Scale by its modulus and rotate by its argument. Moduli multiply and arguments add."}, {"q": "Why is the real part of (a+bi)(c+di) equal to ac - bd?", "a": "Expanding gives a bd term multiplied by i squared, which is -1, so it subtracts."}, {"q": "Why does the minus sign in complex multiplication match the minus sign in cos(A+B)?", "a": "Because they are the same fact: complex multiplication is the rotation matrix, and the addition formulas are its entries."}, {"q": "State Euler's formula and what it says geometrically.", "a": "e^(i theta) = cos theta + i sin theta: the point at angle theta on the unit circle."}, {"q": "How many n-th roots does a non-zero complex number have, and how are they arranged?", "a": "Exactly n, equally spaced by 2*pi/n in angle, all with the same modulus."}, {"q": "Why do the n-th roots of unity sum to zero for n at least 2?", "a": "They are a geometric progression with ratio omega, and the GP sum is (omega^n - 1)/(omega - 1), whose numerator vanishes."}, {"q": "Why must you use atan2 rather than atan(b/a) for the argument?", "a": "Because atan loses the quadrant: two numbers in opposite quadrants give the same ratio b/a."}, {"q": "Why is sqrt(a)*sqrt(b) = sqrt(ab) not valid for complex numbers?", "a": "The square root is two-valued, and no choice of branch preserves the identity everywhere. It is proved only for non-negative reals."}, {"q": "What is the connection between complex numbers and the Fourier transform?", "a": "The DFT multiplies the data by powers of a root of unity, so one complex exponential carries an oscillation's amplitude and phase together."}, {"q": "A real cosine of amplitude 3 is transformed. Why does the bin show 1.5?", "a": "Because a real cosine is the sum of two counter-rotating complex exponentials, so its energy splits between bins k and N-k."}], "title": "Complex numbers"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

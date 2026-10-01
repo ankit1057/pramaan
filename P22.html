@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P22 Human-computer interaction and accessibility</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P22">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P22</p><h1>Human-computer interaction and accessibility</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P02.html">P02</a></div><div><b>Covers:</b> CS2023 HCI</div>
+<details><summary>Everything this module teaches (15 items)</summary><ul class="must"><li>usability heuristics</li><li>mental models</li><li>Fitts&#x27;s law</li><li>Hick&#x27;s law</li><li>user research: interviews and usability tests</li><li>accessibility: WCAG, screen readers, contrast, touch targets</li><li>designing for low literacy and low connectivity</li><li>form design</li><li>error messages</li><li>measuring UX (task success, SUS)</li><li>prototyping (low-fidelity, rapid, throw-away) and formative vs summative evaluation</li><li>design accountability: dark patterns, disparate impact and digital well-being</li><li>universal and inclusive design</li><li>internationalisation and localisation (ICU plural rules, RTL layouts, locale-aware number and date formats)</li><li>adaptive layouts for tablets and foldables (window size classes, breakpoints)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>On December 9, 1968, at the Fall Joint Computer Conference in San Francisco, Douglas Engelbart took the stage before a thousand computer professionals in what became known as the "Mother of All Demos." Operating an interactive console linked via microwave connection to a mainframe thirty miles away, Engelbart demonstrated a mouse pointing device, live video teleconferencing, hyperlinked text, raster-scanned graphic windows, and real-time collaborative document editing. Engelbart’s vision was not simply to automate clerical calculations, but to "augment human intellect" by engineering natural, responsive interfaces between human cognitive perception and computer capability.</p>
+<p>In the 1970s and 1980s, researchers at Xerox PARC (Palo Alto Research Center)—including Alan Kay, Adele Goldberg, and Butler Lampson—refined Engelbart's ideas into the modern graphical desktop interface, establishing the WIMP metaphor (Windows, Icons, Menus, Pointer). Concurrently, cognitive scientist Don Norman published <em>The Design of Everyday Things</em>, introducing foundational concepts of affordances, signifiers, mapping, and mental models to software engineering. In 1990, Jakob Nielsen and Rolf Molich formalized the 10 Usability Heuristics, establishing user-centered discount usability engineering. In the 21st century, the definition of user experience expanded from convenience to fundamental civil rights: the World Wide Web Consortium (W3C) established the Web Content Accessibility Guidelines (WCAG), mandating that digital systems be Perceivable, Operable, Understandable, and Robust for users with visual, auditory, motor, or cognitive disabilities. Today, in modern mobile ecosystems like Flutter and Android, human-computer interaction spans adaptive window size classes for foldables, touch target kinematics, screen reader semantic trees, and inclusive design for emerging markets.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Human-Computer Interaction (HCI) and accessibility are the design and engineering disciplines that ensure software is intuitive, efficient, and usable for every human being, regardless of their physical abilities, hardware, or literacy level. Good software does not force users to guess how it works; it matches their natural mental models, provides clear immediate feedback, and prevents frustrating errors through helpful constraints. Mathematical laws like Fitts's law and Hick's law explain why larger touch targets and fewer menu choices speed up user interaction. Accessibility requires designing systems that work seamlessly with assistive technologies like screen readers, providing sufficient color contrast, supporting local languages and right-to-left scripts, and adapting fluidly to different screen sizes.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The scientific, mathematical, and psychophysical foundations of Human-Computer Interaction and accessibility are formalized across several core models:</p>
+<ol>
+<li>
+<p><strong>Fitts's Law (Target Acquisition Kinematics)</strong>:
+Fitts's law models the time required to rapidly move to a target area as a function of target distance and target size:
+$$\text{MT} = a + b \cdot \text{ID} = a + b \log_2\left(1 + \frac{D}{W}\right)$$
+where:
+- $\text{MT}$ is movement time.
+- $a$ and $b$ are empirical regression constants reflecting device and user motor characteristics.
+- $D$ is the distance to the center of the target.
+- $W$ is the width of the target measured along the axis of motion.
+- $\text{ID} = \log_2(1 + D/W)$ is the <strong>Index of Difficulty</strong> measured in bits.
+On touchscreens, because targets smaller than $48\text{dp} \times 48\text{dp}$ fall below the average physical human fingertip pad ($~9\text{mm}$), error rates increase exponentially.</p>
+</li>
+<li>
+<p><strong>Hick-Hyman Law (Decision Time)</strong>:
+The time $T$ required for a user to make a decision among $n$ equally probable discrete options scales logarithmically with the number of choices:
+$$T = b \log_2(n + 1)$$
+Reducing cognitive choice overload in form and menu design accelerates decision-making by minimizing the bits of information processed.</p>
+</li>
+<li>
+<p><strong>WCAG Relative Luminance and Color Contrast Ratio</strong>:
+The relative luminance $L$ of a color is defined in the sRGB color space by linearizing gamma-compressed components:
+$$R_{\text{linear}} = \begin{cases} \frac{R_{\text{sRGB}}}{12.92}, &amp; R_{\text{sRGB}} \le 0.04045 \\ \left(\frac{R_{\text{sRGB}} + 0.055}{1.055}\right)^{2.4}, &amp; R_{\text{sRGB}} &gt; 0.04045 \end{cases}$$
+Relative luminance is:
+$$L = 0.2126 R_{\text{linear}} + 0.7152 G_{\text{linear}} + 0.0722 B_{\text{linear}}$$
+The contrast ratio between lighter luminance $L_1$ and darker luminance $L_2$ ($L_1 \ge L_2$) is:
+$$\text{Contrast Ratio} = \frac{L_1 + 0.05}{L_2 + 0.05}$$
+- <strong>WCAG Level AA</strong>: Minimum contrast ratio of $4.5:1$ for normal text, and $3.0:1$ for large text ($\ge 18\text{pt}$ or bold $\ge 14\text{pt}$) and active UI components.
+- <strong>WCAG Level AAA</strong>: Minimum contrast ratio of $7.0:1$ for normal text, and $4.5:1$ for large text.</p>
+</li>
+<li>
+<p><strong>System Usability Scale (SUS)</strong>:
+The SUS is a standardized 10-item Likert scale (ratings $x_i \in [1, 5]$). The composite score is computed by normalizing odd items ($x_i - 1$) and even items ($5 - x_i$):
+$$\text{SUS Score} = 2.5 \times \left(\sum_{k=1, 3, 5, 7, 9} (x_k - 1) + \sum_{k=2, 4, 6, 8, 10} (5 - x_k)\right) \in [0, 100]$$
+An empirical SUS score of 68 represents the 50th percentile (average usability baseline).</p>
+</li>
+<li>
+<p><strong>Adaptive Breakpoints and Window Size Classes</strong>:
+Modern responsive systems categorize device display widths into standardized window size classes:
+- <strong>Compact</strong>: Width $&lt; 600\text{dp}$ (handheld phone portrait: single pane, bottom navigation).
+- <strong>Medium</strong>: $600\text{dp} \le \text{Width} &lt; 840\text{dp}$ (foldables, tablets: navigation rail, list-detail split).
+- <strong>Expanded</strong>: Width $\ge 840\text{dp}$ (desktop, large tablet landscape: permanent navigation drawer, multi-pane).</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>A software product with flawless algorithmic complexity, rigorous unit test suites, and sub-millisecond database queries is completely useless if real human beings cannot figure out how to use it. In competitive digital markets, usability is not an afterthought; it directly determines product adoption, user retention, and business viability. When users encounter ambiguous error messages, hidden navigation hierarchies, or confusing form fields, they do not blame the software; they feel frustrated, abandon the product, and migrate to competitors.</p>
+<p>Furthermore, digital accessibility is a fundamental ethical obligation and legal requirement across the globe. Over 1.3 billion people worldwide live with significant disabilities—including visual impairments, color blindness, motor tremors, hearing loss, and cognitive difficulties. Building inaccessible software actively excludes millions of people from healthcare services, banking systems, government portals, and education. Adhering to WCAG guidelines, maintaining high color contrast, supporting screen reader semantic nodes, and sizing touch targets to at least 48x48dp ensures that digital tools empower all individuals rather than creating artificial technological barriers.</p>
+<p>Finally, user-centered engineering practices make applications dramatically more resilient across diverse operating conditions. Designing for low-connectivity environments and low-literacy users forces architectures to prioritize offline caching, lightweight network payloads, clear iconography, and defensive form validation. Integrating internationalization (ICU pluralization rules, Right-to-Left bidirectional layout flipping, and locale-aware formatting) ensures software succeeds internationally. Usability engineering is the bridge that transforms raw computing power into human capability.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates the calculation of interaction difficulty using Fitts's law and Hick's law, alongside touch target accessibility verification. The oracle evaluates target acquisition times for various button sizes and distances, computes cognitive decision delays across choice counts, and asserts that touch targets satisfy the mandatory 48x48dp minimum physical threshold. This models human motor and perceptual kinematics in mobile and desktop user interfaces.</p>
+<div class="lab demo" data-demo="p22-oracle-fitts-hick-kinematics">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Fitts&#x27;s Law and Hick&#x27;s Law Interaction Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def fitts_index_of_difficulty(distance: float, width: float) -&gt; float:
+    if distance &lt; 0: raise ValueError(&quot;distance must be non-negative&quot;)
+    if width &lt;= 0: raise ValueError(&quot;width must be positive&quot;)
+    return math.log2(1.0 + distance / width)
+
+def fitts_movement_time(distance: float, width: float, a: float = 0.1, b: float = 0.15) -&gt; float:
+    # a and b are empirical constants in seconds
+    return a + b * fitts_index_of_difficulty(distance, width)
+
+def hick_decision_time(num_options: int, b_factor: float = 0.155) -&gt; float:
+    if num_options &lt; 1: raise ValueError(&quot;num_options must be &gt;= 1&quot;)
+    return b_factor * math.log2(num_options + 1)
+
+def is_accessible_touch_target(width_dp: float, height_dp: float) -&gt; bool:
+    # WCAG / Material minimum: 48dp x 48dp
+    return width_dp &gt;= 48.0 and height_dp &gt;= 48.0
+
+# Scenario A: Large button (width 100dp) nearby (distance 100dp)
+id_a = fitts_index_of_difficulty(100.0, 100.0)
+mt_a = fitts_movement_time(100.0, 100.0)
+
+# Scenario B: Small button (width 20dp, inaccessible!) far away (distance 400dp)
+id_b = fitts_index_of_difficulty(400.0, 20.0)
+mt_b = fitts_movement_time(400.0, 20.0)
+
+print(f&quot;Scenario A (Nearby, Large): ID = {id_a:.2f} bits, MT = {mt_a:.3f} s&quot;)
+print(f&quot;Scenario B (Far, Tiny):     ID = {id_b:.2f} bits, MT = {mt_b:.3f} s&quot;)
+
+# Decision time: choosing among 2 options vs 32 options
+t_decide_2 = hick_decision_time(2)
+t_decide_32 = hick_decision_time(32)
+print(f&quot;Hick Decision Time (2 options):  {t_decide_2:.3f} s&quot;)
+print(f&quot;Hick Decision Time (32 options): {t_decide_32:.3f} s&quot;)
+
+assert round(id_a, 2) == 1.0 # log2(1 + 100/100) = log2(2) = 1.0
+assert round(fitts_index_of_difficulty(300.0, 100.0), 2) == 2.0
+assert id_b &gt; id_a
+assert is_accessible_touch_target(48.0, 48.0)
+assert not is_accessible_touch_target(40.0, 50.0)
+assert t_decide_32 &gt; t_decide_2
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment evaluates color combinations against WCAG 2.1 relative luminance and contrast ratio standards. We convert sRGB color values to linear luminance components, compute the contrast ratio between foreground text and background surfaces, and verify whether the pairings satisfy WCAG Level AA (4.5:1 for normal text) and Level AAA (7.0:1) criteria. This guarantees legibility across outdoor glare and diverse vision impairments.</p>
+<div class="lab demo" data-demo="p22-experiment-wcag-contrast">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>WCAG Relative Luminance and Contrast Ratio Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def srgb_channel_to_linear(val_255: int) -&gt; float:
+    c = val_255 / 255.0
+    if c &lt;= 0.04045:
+        return c / 12.92
+    return ((c + 0.055) / 1.055) ** 2.4
+
+def relative_luminance(r: int, g: int, b: int) -&gt; float:
+    r_lin = srgb_channel_to_linear(r)
+    g_lin = srgb_channel_to_linear(g)
+    b_lin = srgb_channel_to_linear(b)
+    return 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin
+
+def contrast_ratio(rgb1: tuple, rgb2: tuple) -&gt; float:
+    l1 = relative_luminance(*rgb1)
+    l2 = relative_luminance(*rgb2)
+    lighter = max(l1, l2)
+    darker = min(l1, l2)
+    return (lighter + 0.05) / (darker + 0.05)
+
+def check_wcag_aa(fg_rgb: tuple, bg_rgb: tuple, is_large_text: bool = False) -&gt; bool:
+    ratio = contrast_ratio(fg_rgb, bg_rgb)
+    threshold = 3.0 if is_large_text else 4.5
+    return ratio &gt;= threshold
+
+# Colors:
+black = (0, 0, 0)
+white = (255, 255, 255)
+light_gray = (200, 200, 200)
+dark_gray = (50, 50, 50)
+brand_yellow = (255, 220, 0)
+
+ratio_bw = contrast_ratio(black, white)
+print(f&quot;Black on White: Contrast = {ratio_bw:.2f}:1 (WCAG AA: {check_wcag_aa(black, white)})&quot;)
+assert round(ratio_bw, 1) == 21.0
+assert check_wcag_aa(black, white)
+
+# Light gray text on white background: fail!
+ratio_fail = contrast_ratio(light_gray, white)
+print(f&quot;Light Gray on White: Contrast = {ratio_fail:.2f}:1 (WCAG AA: {check_wcag_aa(light_gray, white)})&quot;)
+assert ratio_fail &lt; 3.0
+assert not check_wcag_aa(light_gray, white)
+
+# White text on brand yellow: notoriously low contrast!
+ratio_yellow = contrast_ratio(white, brand_yellow)
+print(f&quot;White on Brand Yellow: Contrast = {ratio_yellow:.2f}:1 (WCAG AA: {check_wcag_aa(white, brand_yellow)})&quot;)
+assert not check_wcag_aa(white, brand_yellow)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-fitts-hick-law-evaluator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Fitts&#x27;s and Hick&#x27;s Law Kinematic Interaction Calculator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement functions to calculate Fitts's index of difficulty, Hick's cognitive decision time, and verify touch target accessibility against WCAG 48x48dp minimum physical thresholds to ensure ergonomic mobile usability.</p></div>
+<textarea class="code" spellcheck="false">def fitts_index_of_difficulty(distance: float, width: float) -&gt; float:
+    pass
+
+def hick_decision_time(num_options: int, b_factor: float = 0.155) -&gt; float:
+    pass
+
+def is_accessible_touch_target(width_dp: float, height_dp: float) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_fitts_index_of_difficulty():
+    # D = 300, W = 100 -&gt; log2(1 + 3) = log2(4) = 2.0 bits
+    assert fitts_index_of_difficulty(300.0, 100.0) == 2.0
+    
+    # D = 0 (cursor already on target) -&gt; log2(1 + 0) = 0.0 bits
+    assert fitts_index_of_difficulty(0.0, 50.0) == 0.0
+
+def test_hick_decision_time():
+    # 7 options: b * log2(8) = b * 3.0
+    dt = hick_decision_time(7, b_factor=0.2)
+    assert round(dt, 2) == 0.60
+
+def test_touch_target_accessibility_and_validation():
+    assert is_accessible_touch_target(48.0, 48.0)
+    assert is_accessible_touch_target(56.0, 64.0)
+    assert not is_accessible_touch_target(47.9, 48.0)
+    assert not is_accessible_touch_target(48.0, 32.0)
+    
+    try:
+        fitts_index_of_difficulty(100.0, 0.0)
+        assert False, &quot;Should raise ValueError for width &lt;= 0&quot;
+    except ValueError:
+        pass
+    try:
+        hick_decision_time(0)
+        assert False, &quot;Should raise ValueError for options &lt; 1&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-wcag-contrast-ratio-validator" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>WCAG Relative Luminance and Color Contrast Evaluator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement calculate_luminance, contrast_ratio, and meets_wcag_aa to evaluate sRGB color pairs against WCAG AA standards using linearized gamma components for accessible visual design and text readability.</p></div>
+<textarea class="code" spellcheck="false">from typing import Tuple
+
+def calculate_luminance(r: int, g: int, b: int) -&gt; float:
+    pass
+
+def contrast_ratio(rgb1: Tuple[int, int, int], rgb2: Tuple[int, int, int]) -&gt; float:
+    pass
+
+def meets_wcag_aa(fg_rgb: Tuple[int, int, int], bg_rgb: Tuple[int, int, int], is_large_text: bool = False) -&gt; bool:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_pure_black_and_white():
+    black = (0, 0, 0)
+    white = (255, 255, 255)
+    
+    assert calculate_luminance(*black) == 0.0
+    assert calculate_luminance(*white) == 1.0
+    
+    ratio = contrast_ratio(black, white)
+    assert round(ratio, 1) == 21.0
+    assert meets_wcag_aa(black, white)
+    assert meets_wcag_aa(black, white, is_large_text=True)
+
+def test_identical_colors():
+    gray = (128, 128, 128)
+    assert round(contrast_ratio(gray, gray), 2) == 1.0
+    assert not meets_wcag_aa(gray, gray)
+
+def test_threshold_wcag_aa():
+    # Navy blue on white
+    navy = (0, 0, 128)
+    white = (255, 255, 255)
+    assert meets_wcag_aa(navy, white)
+    
+    # Yellow on white
+    yellow = (255, 255, 0)
+    assert not meets_wcag_aa(yellow, white)
+    assert not meets_wcag_aa(yellow, white, is_large_text=True)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-system-usability-scale" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>System Usability Scale (SUS) Score and Grade Evaluator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement calculate_sus_score and interpret_sus_grade to score 10-item Likert usability surveys and map composite scores to industry percentile benchmark letter grades for empirical user experience measurement and product validation.</p></div>
+<textarea class="code" spellcheck="false">from typing import List
+
+def calculate_sus_score(responses: List[int]) -&gt; float:
+    pass
+
+def interpret_sus_grade(score: float) -&gt; str:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_sus_perfect_score():
+    # Perfect score: 5 on odd questions, 1 on even questions
+    responses = [5, 1, 5, 1, 5, 1, 5, 1, 5, 1]
+    score = calculate_sus_score(responses)
+    assert score == 100.0
+    assert interpret_sus_grade(score) == &quot;A&quot;
+
+def test_sus_average_and_poor_scores():
+    # Baseline benchmark: 68
+    # Odd contributions: 4 * 3 = 12, Even contributions: 4 * 3 = 12 -&gt; 24 * 2.5 = 60
+    resp_c = [4, 2, 4, 2, 4, 2, 4, 2, 4, 2] # (3 + 3)*5 = 30 -&gt; 30 * 2.5 = 75.0 (B)
+    score_b = calculate_sus_score(resp_c)
+    assert score_b == 75.0
+    assert interpret_sus_grade(score_b) == &quot;B&quot;
+    
+    # Terrible score: 1 on odd, 5 on even -&gt; 0
+    responses_zero = [1, 5, 1, 5, 1, 5, 1, 5, 1, 5]
+    assert calculate_sus_score(responses_zero) == 0.0
+    assert interpret_sus_grade(0.0) == &quot;F&quot;
+
+def test_sus_validation():
+    try:
+        calculate_sus_score([3, 3, 3]) # Less than 10 items
+        assert False, &quot;Should raise ValueError for invalid response length&quot;
+    except ValueError:
+        pass
+    try:
+        calculate_sus_score([6, 1, 2, 3, 4, 5, 1, 2, 3, 4]) # 6 out of range
+        assert False, &quot;Should raise ValueError for rating &gt; 5&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-adaptive-responsive-layout-engine" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Adaptive Multi-Screen Window Class and ICU Localization Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement AdaptiveLayoutEngine to determine window size classes, select navigation patterns, configure multi-pane layouts, and resolve ICU plural localized strings for responsive multi-screen mobile and desktop applications.</p></div>
+<textarea class="code" spellcheck="false">from typing import Dict
+
+class AdaptiveLayoutEngine:
+    @staticmethod
+    def get_window_size_class(width_dp: float) -&gt; str:
+        pass
+
+    @staticmethod
+    def resolve_navigation_pattern(size_class: str) -&gt; str:
+        pass
+
+    @staticmethod
+    def resolve_list_detail_layout(size_class: str) -&gt; str:
+        pass
+
+    @staticmethod
+    def resolve_icu_plural(count: int, forms: Dict[str, str], locale: str = &quot;en&quot;) -&gt; str:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_window_size_classes_and_navigation():
+    # Phone portrait
+    assert AdaptiveLayoutEngine.get_window_size_class(412.0) == &quot;COMPACT&quot;
+    assert AdaptiveLayoutEngine.resolve_navigation_pattern(&quot;COMPACT&quot;) == &quot;BOTTOM_NAVIGATION_BAR&quot;
+    assert AdaptiveLayoutEngine.resolve_list_detail_layout(&quot;COMPACT&quot;) == &quot;SINGLE_PANE&quot;
+    
+    # Foldable / Tablet portrait
+    assert AdaptiveLayoutEngine.get_window_size_class(720.0) == &quot;MEDIUM&quot;
+    assert AdaptiveLayoutEngine.resolve_navigation_pattern(&quot;MEDIUM&quot;) == &quot;NAVIGATION_RAIL&quot;
+    assert AdaptiveLayoutEngine.resolve_list_detail_layout(&quot;MEDIUM&quot;) == &quot;TWO_PANE_SPLIT&quot;
+    
+    # Desktop / Tablet landscape
+    assert AdaptiveLayoutEngine.get_window_size_class(1024.0) == &quot;EXPANDED&quot;
+    assert AdaptiveLayoutEngine.resolve_navigation_pattern(&quot;EXPANDED&quot;) == &quot;NAVIGATION_DRAWER&quot;
+    assert AdaptiveLayoutEngine.resolve_list_detail_layout(&quot;EXPANDED&quot;) == &quot;TWO_PANE_SPLIT&quot;
+
+def test_icu_plural_localization():
+    forms = {
+        &quot;zero&quot;: &quot;No items found&quot;,
+        &quot;one&quot;: &quot;{count} item remaining&quot;,
+        &quot;other&quot;: &quot;{count} items remaining&quot;
+    }
+    
+    assert AdaptiveLayoutEngine.resolve_icu_plural(0, forms) == &quot;No items found&quot;
+    assert AdaptiveLayoutEngine.resolve_icu_plural(1, forms) == &quot;1 item remaining&quot;
+    assert AdaptiveLayoutEngine.resolve_icu_plural(5, forms) == &quot;5 items remaining&quot;
+
+def test_validation_errors():
+    try:
+        AdaptiveLayoutEngine.get_window_size_class(-50.0)
+        assert False, &quot;Should raise ValueError for negative width&quot;
+    except ValueError:
+        pass
+    try:
+        AdaptiveLayoutEngine.resolve_navigation_pattern(&quot;ULTRAWIDE&quot;)
+        assert False, &quot;Should raise ValueError for unknown size class&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Accessibility is only for blind people who use screen readers."</strong> Accessibility encompasses motor impairments (tremors, paralysis requiring switch devices), auditory disabilities (requiring closed captions), cognitive differences (dyslexia requiring clear fonts), and temporary situational impairments (holding a baby with one hand, or viewing a phone in glaring sunlight).</li>
+<li><strong>"Making an application accessible makes it ugly, boring, and visually constrained."</strong> High-contrast color palettes, clear visual hierarchy, well-spaced typography, and large touch targets produce modern, premium aesthetic designs that benefit all users, not just those with disabilities.</li>
+<li><strong>"User testing can be replaced by asking developers and designers if the interface makes sense."</strong> Engineers and designers suffer from severe 'curse of knowledge' bias because they built the internal mental model of the software. A developer knows how the API works; a real user has never seen the interface and reveals confusing workflows within seconds.</li>
+<li><strong>"Dark mode can be implemented simply by inverting all RGB colors."</strong> Direct color inversion creates glaring saturated contrasts, destroys brand color aesthetics, and fails accessibility contrast ratios. Proper dark mode design requires desaturating primary colors, adjusting surface elevations with opacity layers, and verifying relative luminance.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>HCI and accessibility heuristics break or require deliberate tradeoffs in specialized domains:
+1. <strong>Dense Professional Workstations and Financial Terminals</strong>: In applications like Bloomberg Terminals or CAD design software, professionals require high information density with hundreds of small data points visible simultaneously on multi-monitor setups. Enforcing a strict 48x48dp mobile touch target standard on a desktop mouse interface destroys screen real estate.
+2. <strong>Hard Real-Time Emergency and Industrial Controls</strong>: In surgical or nuclear control dashboards, immediate single-action physical hardware switches with tactile detents override software touchscreens, as software latency or touchscreen miscalibration can be life-threatening.
+3. <strong>Emerging Natural Language and Multimodal Interfaces</strong>: Classical WIMP heuristics (menus, pointers, visual signifiers) do not directly translate to voice user interfaces (VUI) or conversational AI agents, requiring conversational repair heuristics and auditory mental models instead.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>HCI and accessibility standards are rigorously implemented across industrial mobile engineering:
+- <strong>Flutter Semantics Tree</strong>: Flutter compiles widget hierarchies into a dedicated <code>SemanticsNode</code> tree consumed by Android TalkBack and iOS VoiceOver, exposing accessible labels, hints, and custom action callbacks.
+- <strong>Material 3 Window Size Classes</strong>: Modern Flutter and Android applications monitor display constraints, dynamically switching between <code>BottomNavigationBar</code> on compact phones, <code>NavigationRail</code> on medium foldables, and <code>PermanentNavigationDrawer</code> on tablets.
+- <strong>Enterprise Design Systems (Google Material, Apple HIG)</strong>: Component libraries enforce minimum 48x48dp touch target padding, WCAG AA contrast tokens, and automated CI accessibility audits via Lighthouse and axe-core.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What does Fitts's law model in user interfaces?</p></div><div class="a" hidden><p>The time required to move to a target: MT = a + b * log2(1 + D/W). Making buttons larger (W) and closer (D) reduces interaction time.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does Hick's law state regarding menu design?</p></div><div class="a" hidden><p>Decision time scales logarithmically with the number of choices: T = b * log2(n + 1). Grouping or pruning options reduces cognitive load.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the WCAG 2.1 Level AA color contrast requirements?</p></div><div class="a" hidden><p>A minimum contrast ratio of 4.5:1 for normal text and 3:0:1 for large text (&gt;= 18pt or bold &gt;= 14pt) and active graphical UI components.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Why is the minimum recommended touch target size 48x48dp?</p></div><div class="a" hidden><p>It matches the physical human fingertip pad (~9mm), preventing high miss rates and motor frustration on touchscreens.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the System Usability Scale (SUS) and what score is average?</p></div><div class="a" hidden><p>A 10-item standard usability questionnaire yielding a score from 0 to 100. A score of 68 represents the 50th percentile (average baseline).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What are Material Design window size classes?</p></div><div class="a" hidden><p>Standard responsive breakpoints: Compact (&lt; 600dp, phones), Medium (600-840dp, foldables/tablets), and Expanded (&gt;= 840dp, desktop/large tablets).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can calculate Fitts and Hick interaction times, evaluate WCAG relative luminance contrast ratios, score System Usability Scale surveys, and implement adaptive multi-screen window size class layouts.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Norman, Donald A. (1988). The Design of Everyday Things. Basic Books.</li>
+<li>Nielsen, Jakob, &amp; Molich, Rolf (1990). Heuristic Evaluation of User Interfaces. ACM CHI Conference Proceedings.</li>
+<li>World Wide Web Consortium (2018). Web Content Accessibility Guidelines (WCAG) 2.1. W3C Recommendation.</li>
+<li>Brooke, John (1996). SUS: A Quick and Dirty Usability Scale. Usability Evaluation in Industry, Taylor &amp; Francis.</li>
+</ul></section>
+<footer class="pager"><a href="P19.html">&larr; P19 Software engineering</a>
+<a href="M31.html">M31 Linear algebra II: eigenvalues, orthogonality and the SVD &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P22", "packages": ["numpy"], "exercises": {"ex1-fitts-hick-law-evaluator": {"starter": "def fitts_index_of_difficulty(distance: float, width: float) -> float:\n    pass\n\ndef hick_decision_time(num_options: int, b_factor: float = 0.155) -> float:\n    pass\n\ndef is_accessible_touch_target(width_dp: float, height_dp: float) -> bool:\n    pass\n", "solution": "import math\n\ndef fitts_index_of_difficulty(distance: float, width: float) -> float:\n    if distance < 0:\n        raise ValueError(\"distance must be non-negative\")\n    if width <= 0:\n        raise ValueError(\"width must be positive\")\n    return math.log2(1.0 + distance / width)\n\ndef hick_decision_time(num_options: int, b_factor: float = 0.155) -> float:\n    if num_options < 1:\n        raise ValueError(\"num_options must be >= 1\")\n    return b_factor * math.log2(num_options + 1)\n\ndef is_accessible_touch_target(width_dp: float, height_dp: float) -> bool:\n    return width_dp >= 48.0 and height_dp >= 48.0\n", "tests": "def test_fitts_index_of_difficulty():\n    # D = 300, W = 100 -> log2(1 + 3) = log2(4) = 2.0 bits\n    assert fitts_index_of_difficulty(300.0, 100.0) == 2.0\n    \n    # D = 0 (cursor already on target) -> log2(1 + 0) = 0.0 bits\n    assert fitts_index_of_difficulty(0.0, 50.0) == 0.0\n\ndef test_hick_decision_time():\n    # 7 options: b * log2(8) = b * 3.0\n    dt = hick_decision_time(7, b_factor=0.2)\n    assert round(dt, 2) == 0.60\n\ndef test_touch_target_accessibility_and_validation():\n    assert is_accessible_touch_target(48.0, 48.0)\n    assert is_accessible_touch_target(56.0, 64.0)\n    assert not is_accessible_touch_target(47.9, 48.0)\n    assert not is_accessible_touch_target(48.0, 32.0)\n    \n    try:\n        fitts_index_of_difficulty(100.0, 0.0)\n        assert False, \"Should raise ValueError for width <= 0\"\n    except ValueError:\n        pass\n    try:\n        hick_decision_time(0)\n        assert False, \"Should raise ValueError for options < 1\"\n    except ValueError:\n        pass\n", "mutants": ["def fitts_index_of_difficulty(distance: float, width: float) -> float:\n    assert False, 'mutant injected'\ndef hick_decision_time(num_options: int, b_factor: float = 0.155) -> float: pass\ndef is_accessible_touch_target(width_dp: float, height_dp: float) -> bool: pass\n", "import math\ndef fitts_index_of_difficulty(distance: float, width: float) -> float:\n    return distance / width # Mutant uses linear ratio instead of log2\ndef hick_decision_time(num_options: int, b_factor: float = 0.155) -> float:\n    return float(num_options)\ndef is_accessible_touch_target(width_dp: float, height_dp: float) -> bool:\n    return True\n"], "hints": ["Use math.log2(1.0 + distance / width) for Fitts's index of difficulty.", "Use b_factor * math.log2(num_options + 1) for Hick's decision time.", "Verify that both width and height are >= 48.0 dp for touch target accessibility."], "level": "warmup", "title": "Fitts's and Hick's Law Kinematic Interaction Calculator"}, "ex2-wcag-contrast-ratio-validator": {"starter": "from typing import Tuple\n\ndef calculate_luminance(r: int, g: int, b: int) -> float:\n    pass\n\ndef contrast_ratio(rgb1: Tuple[int, int, int], rgb2: Tuple[int, int, int]) -> float:\n    pass\n\ndef meets_wcag_aa(fg_rgb: Tuple[int, int, int], bg_rgb: Tuple[int, int, int], is_large_text: bool = False) -> bool:\n    pass\n", "solution": "from typing import Tuple\n\ndef _channel_to_linear(c_255: int) -> float:\n    if not (0 <= c_255 <= 255):\n        raise ValueError(\"Color channel must be between 0 and 255\")\n    c = c_255 / 255.0\n    if c <= 0.04045:\n        return c / 12.92\n    return ((c + 0.055) / 1.055) ** 2.4\n\ndef calculate_luminance(r: int, g: int, b: int) -> float:\n    r_lin = _channel_to_linear(r)\n    g_lin = _channel_to_linear(g)\n    b_lin = _channel_to_linear(b)\n    return 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin\n\ndef contrast_ratio(rgb1: Tuple[int, int, int], rgb2: Tuple[int, int, int]) -> float:\n    l1 = calculate_luminance(*rgb1)\n    l2 = calculate_luminance(*rgb2)\n    lighter = max(l1, l2)\n    darker = min(l1, l2)\n    return (lighter + 0.05) / (darker + 0.05)\n\ndef meets_wcag_aa(fg_rgb: Tuple[int, int, int], bg_rgb: Tuple[int, int, int], is_large_text: bool = False) -> bool:\n    ratio = contrast_ratio(fg_rgb, bg_rgb)\n    threshold = 3.0 if is_large_text else 4.5\n    return ratio >= threshold\n", "tests": "def test_pure_black_and_white():\n    black = (0, 0, 0)\n    white = (255, 255, 255)\n    \n    assert calculate_luminance(*black) == 0.0\n    assert calculate_luminance(*white) == 1.0\n    \n    ratio = contrast_ratio(black, white)\n    assert round(ratio, 1) == 21.0\n    assert meets_wcag_aa(black, white)\n    assert meets_wcag_aa(black, white, is_large_text=True)\n\ndef test_identical_colors():\n    gray = (128, 128, 128)\n    assert round(contrast_ratio(gray, gray), 2) == 1.0\n    assert not meets_wcag_aa(gray, gray)\n\ndef test_threshold_wcag_aa():\n    # Navy blue on white\n    navy = (0, 0, 128)\n    white = (255, 255, 255)\n    assert meets_wcag_aa(navy, white)\n    \n    # Yellow on white\n    yellow = (255, 255, 0)\n    assert not meets_wcag_aa(yellow, white)\n    assert not meets_wcag_aa(yellow, white, is_large_text=True)\n", "mutants": ["def calculate_luminance(r, g, b): assert False, 'mutant injected'\ndef contrast_ratio(rgb1, rgb2): pass\ndef meets_wcag_aa(fg_rgb, bg_rgb, is_large_text=False): pass\n", "def calculate_luminance(r, g, b):\n    # Mutant computes simple average without gamma correction\n    return (r + g + b) / (3.0 * 255.0)\ndef contrast_ratio(rgb1, rgb2):\n    l1 = calculate_luminance(*rgb1); l2 = calculate_luminance(*rgb2)\n    return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)\ndef meets_wcag_aa(fg, bg, is_large=False): return True\n"], "hints": ["Convert each 8-bit sRGB channel to linear values using the piecewise formula.", "Calculate luminance using ITU-R BT.709 coefficients: 0.2126*R + 0.7152*G + 0.0722*B.", "Contrast ratio formula is (L_lighter + 0.05) / (L_darker + 0.05)."], "level": "core", "title": "WCAG Relative Luminance and Color Contrast Evaluator"}, "ex3-system-usability-scale": {"starter": "from typing import List\n\ndef calculate_sus_score(responses: List[int]) -> float:\n    pass\n\ndef interpret_sus_grade(score: float) -> str:\n    pass\n", "solution": "from typing import List\n\ndef calculate_sus_score(responses: List[int]) -> float:\n    if len(responses) != 10:\n        raise ValueError(\"SUS requires exactly 10 responses\")\n    for r in responses:\n        if not (1 <= r <= 5):\n            raise ValueError(\"All response ratings must be between 1 and 5\")\n            \n    odd_sum = 0\n    even_sum = 0\n    \n    # 0-indexed: items 0, 2, 4, 6, 8 are odd questions (q1, q3, q5, q7, q9) -> r - 1\n    # items 1, 3, 5, 7, 9 are even questions (q2, q4, q6, q8, q10) -> 5 - r\n    for idx, r in enumerate(responses):\n        if idx % 2 == 0:\n            odd_sum += (r - 1)\n        else:\n            even_sum += (5 - r)\n            \n    return round((odd_sum + even_sum) * 2.5, 2)\n\ndef interpret_sus_grade(score: float) -> str:\n    if not (0.0 <= score <= 100.0):\n        raise ValueError(\"SUS score must be between 0 and 100\")\n    if score >= 80.3:\n        return \"A\"\n    elif score >= 68.0:\n        return \"B\"\n    elif score >= 51.0:\n        return \"C\"\n    return \"F\"\n", "tests": "def test_sus_perfect_score():\n    # Perfect score: 5 on odd questions, 1 on even questions\n    responses = [5, 1, 5, 1, 5, 1, 5, 1, 5, 1]\n    score = calculate_sus_score(responses)\n    assert score == 100.0\n    assert interpret_sus_grade(score) == \"A\"\n\ndef test_sus_average_and_poor_scores():\n    # Baseline benchmark: 68\n    # Odd contributions: 4 * 3 = 12, Even contributions: 4 * 3 = 12 -> 24 * 2.5 = 60\n    resp_c = [4, 2, 4, 2, 4, 2, 4, 2, 4, 2] # (3 + 3)*5 = 30 -> 30 * 2.5 = 75.0 (B)\n    score_b = calculate_sus_score(resp_c)\n    assert score_b == 75.0\n    assert interpret_sus_grade(score_b) == \"B\"\n    \n    # Terrible score: 1 on odd, 5 on even -> 0\n    responses_zero = [1, 5, 1, 5, 1, 5, 1, 5, 1, 5]\n    assert calculate_sus_score(responses_zero) == 0.0\n    assert interpret_sus_grade(0.0) == \"F\"\n\ndef test_sus_validation():\n    try:\n        calculate_sus_score([3, 3, 3]) # Less than 10 items\n        assert False, \"Should raise ValueError for invalid response length\"\n    except ValueError:\n        pass\n    try:\n        calculate_sus_score([6, 1, 2, 3, 4, 5, 1, 2, 3, 4]) # 6 out of range\n        assert False, \"Should raise ValueError for rating > 5\"\n    except ValueError:\n        pass\n", "mutants": ["def calculate_sus_score(responses): assert False, 'mutant injected'\ndef interpret_sus_grade(score): pass\n", "def calculate_sus_score(responses):\n    # Mutant treats all questions identically, forgetting to invert negative even items\n    if len(responses) != 10: raise ValueError()\n    return sum(r - 1 for r in responses) * 2.5\ndef interpret_sus_grade(score): return \"A\"\n"], "hints": ["Validate that responses contains exactly 10 ratings between 1 and 5.", "Subtract 1 for odd items (index 0, 2, 4, 6, 8) and subtract rating from 5 for even items (index 1, 3, 5, 7, 9).", "Multiply the combined sum by 2.5."], "level": "core", "title": "System Usability Scale (SUS) Score and Grade Evaluator"}, "ex4-adaptive-responsive-layout-engine": {"starter": "from typing import Dict\n\nclass AdaptiveLayoutEngine:\n    @staticmethod\n    def get_window_size_class(width_dp: float) -> str:\n        pass\n\n    @staticmethod\n    def resolve_navigation_pattern(size_class: str) -> str:\n        pass\n\n    @staticmethod\n    def resolve_list_detail_layout(size_class: str) -> str:\n        pass\n\n    @staticmethod\n    def resolve_icu_plural(count: int, forms: Dict[str, str], locale: str = \"en\") -> str:\n        pass\n", "solution": "from typing import Dict\n\nclass AdaptiveLayoutEngine:\n    @staticmethod\n    def get_window_size_class(width_dp: float) -> str:\n        if width_dp < 0:\n            raise ValueError(\"width_dp must be non-negative\")\n        if width_dp < 600.0:\n            return \"COMPACT\"\n        elif width_dp < 840.0:\n            return \"MEDIUM\"\n        return \"EXPANDED\"\n\n    @staticmethod\n    def resolve_navigation_pattern(size_class: str) -> str:\n        if size_class == \"COMPACT\":\n            return \"BOTTOM_NAVIGATION_BAR\"\n        elif size_class == \"MEDIUM\":\n            return \"NAVIGATION_RAIL\"\n        elif size_class == \"EXPANDED\":\n            return \"NAVIGATION_DRAWER\"\n        raise ValueError(f\"Unknown window size class: {size_class}\")\n\n    @staticmethod\n    def resolve_list_detail_layout(size_class: str) -> str:\n        if size_class == \"COMPACT\":\n            return \"SINGLE_PANE\"\n        elif size_class in (\"MEDIUM\", \"EXPANDED\"):\n            return \"TWO_PANE_SPLIT\"\n        raise ValueError(f\"Unknown window size class: {size_class}\")\n\n    @staticmethod\n    def resolve_icu_plural(count: int, forms: Dict[str, str], locale: str = \"en\") -> str:\n        # English plural categories: 'one' (n = 1), 'other' (n != 1), optional 'zero'\n        if locale.startswith(\"en\"):\n            if count == 0 and \"zero\" in forms:\n                category = \"zero\"\n            elif count == 1:\n                category = \"one\"\n            else:\n                category = \"other\"\n        else:\n            category = \"one\" if count == 1 else \"other\"\n            \n        template = forms.get(category, forms.get(\"other\", \"\"))\n        return template.replace(\"{count}\", str(count))\n", "tests": "def test_window_size_classes_and_navigation():\n    # Phone portrait\n    assert AdaptiveLayoutEngine.get_window_size_class(412.0) == \"COMPACT\"\n    assert AdaptiveLayoutEngine.resolve_navigation_pattern(\"COMPACT\") == \"BOTTOM_NAVIGATION_BAR\"\n    assert AdaptiveLayoutEngine.resolve_list_detail_layout(\"COMPACT\") == \"SINGLE_PANE\"\n    \n    # Foldable / Tablet portrait\n    assert AdaptiveLayoutEngine.get_window_size_class(720.0) == \"MEDIUM\"\n    assert AdaptiveLayoutEngine.resolve_navigation_pattern(\"MEDIUM\") == \"NAVIGATION_RAIL\"\n    assert AdaptiveLayoutEngine.resolve_list_detail_layout(\"MEDIUM\") == \"TWO_PANE_SPLIT\"\n    \n    # Desktop / Tablet landscape\n    assert AdaptiveLayoutEngine.get_window_size_class(1024.0) == \"EXPANDED\"\n    assert AdaptiveLayoutEngine.resolve_navigation_pattern(\"EXPANDED\") == \"NAVIGATION_DRAWER\"\n    assert AdaptiveLayoutEngine.resolve_list_detail_layout(\"EXPANDED\") == \"TWO_PANE_SPLIT\"\n\ndef test_icu_plural_localization():\n    forms = {\n        \"zero\": \"No items found\",\n        \"one\": \"{count} item remaining\",\n        \"other\": \"{count} items remaining\"\n    }\n    \n    assert AdaptiveLayoutEngine.resolve_icu_plural(0, forms) == \"No items found\"\n    assert AdaptiveLayoutEngine.resolve_icu_plural(1, forms) == \"1 item remaining\"\n    assert AdaptiveLayoutEngine.resolve_icu_plural(5, forms) == \"5 items remaining\"\n\ndef test_validation_errors():\n    try:\n        AdaptiveLayoutEngine.get_window_size_class(-50.0)\n        assert False, \"Should raise ValueError for negative width\"\n    except ValueError:\n        pass\n    try:\n        AdaptiveLayoutEngine.resolve_navigation_pattern(\"ULTRAWIDE\")\n        assert False, \"Should raise ValueError for unknown size class\"\n    except ValueError:\n        pass\n", "mutants": ["class AdaptiveLayoutEngine:\n    @staticmethod\n    def get_window_size_class(width_dp): assert False, 'mutant injected'\n    @staticmethod\n    def resolve_navigation_pattern(size_class): pass\n    @staticmethod\n    def resolve_list_detail_layout(size_class): pass\n    @staticmethod\n    def resolve_icu_plural(count, forms, locale='en'): pass\n", "class AdaptiveLayoutEngine:\n    @staticmethod\n    def get_window_size_class(width_dp): return \"COMPACT\" # Mutant always returns COMPACT\n    @staticmethod\n    def resolve_navigation_pattern(size_class): return \"BOTTOM_NAVIGATION_BAR\"\n    @staticmethod\n    def resolve_list_detail_layout(size_class): return \"SINGLE_PANE\"\n    @staticmethod\n    def resolve_icu_plural(count, forms, locale='en'): return forms.get(\"other\", \"\")\n"], "hints": ["Use 600dp and 840dp thresholds for COMPACT, MEDIUM, and EXPANDED.", "Map COMPACT to BOTTOM_NAVIGATION_BAR and SINGLE_PANE.", "Handle ICU plural rules by substituting {count} in the matched category template."], "level": "boss", "title": "Adaptive Multi-Screen Window Class and ICU Localization Engine"}}, "demos": {"p22-oracle-fitts-hick-kinematics": {"code": "import math\n\ndef fitts_index_of_difficulty(distance: float, width: float) -> float:\n    if distance < 0: raise ValueError(\"distance must be non-negative\")\n    if width <= 0: raise ValueError(\"width must be positive\")\n    return math.log2(1.0 + distance / width)\n\ndef fitts_movement_time(distance: float, width: float, a: float = 0.1, b: float = 0.15) -> float:\n    # a and b are empirical constants in seconds\n    return a + b * fitts_index_of_difficulty(distance, width)\n\ndef hick_decision_time(num_options: int, b_factor: float = 0.155) -> float:\n    if num_options < 1: raise ValueError(\"num_options must be >= 1\")\n    return b_factor * math.log2(num_options + 1)\n\ndef is_accessible_touch_target(width_dp: float, height_dp: float) -> bool:\n    # WCAG / Material minimum: 48dp x 48dp\n    return width_dp >= 48.0 and height_dp >= 48.0\n\n# Scenario A: Large button (width 100dp) nearby (distance 100dp)\nid_a = fitts_index_of_difficulty(100.0, 100.0)\nmt_a = fitts_movement_time(100.0, 100.0)\n\n# Scenario B: Small button (width 20dp, inaccessible!) far away (distance 400dp)\nid_b = fitts_index_of_difficulty(400.0, 20.0)\nmt_b = fitts_movement_time(400.0, 20.0)\n\nprint(f\"Scenario A (Nearby, Large): ID = {id_a:.2f} bits, MT = {mt_a:.3f} s\")\nprint(f\"Scenario B (Far, Tiny):     ID = {id_b:.2f} bits, MT = {mt_b:.3f} s\")\n\n# Decision time: choosing among 2 options vs 32 options\nt_decide_2 = hick_decision_time(2)\nt_decide_32 = hick_decision_time(32)\nprint(f\"Hick Decision Time (2 options):  {t_decide_2:.3f} s\")\nprint(f\"Hick Decision Time (32 options): {t_decide_32:.3f} s\")\n\nassert round(id_a, 2) == 1.0 # log2(1 + 100/100) = log2(2) = 1.0\nassert round(fitts_index_of_difficulty(300.0, 100.0), 2) == 2.0\nassert id_b > id_a\nassert is_accessible_touch_target(48.0, 48.0)\nassert not is_accessible_touch_target(40.0, 50.0)\nassert t_decide_32 > t_decide_2\n", "mutants": ["import math\ndef fitts_index_of_difficulty(distance, width):\n    return distance / width # Mutant uses linear scaling instead of log2\n\ndef fitts_movement_time(distance, width, a=0.1, b=0.15): return 0.0\ndef hick_decision_time(num_options, b=0.155): return 0.0\ndef is_accessible_touch_target(w, h): return True\n\nassert round(fitts_index_of_difficulty(300.0, 100.0), 2) == 2.0\n"]}, "p22-experiment-wcag-contrast": {"code": "def srgb_channel_to_linear(val_255: int) -> float:\n    c = val_255 / 255.0\n    if c <= 0.04045:\n        return c / 12.92\n    return ((c + 0.055) / 1.055) ** 2.4\n\ndef relative_luminance(r: int, g: int, b: int) -> float:\n    r_lin = srgb_channel_to_linear(r)\n    g_lin = srgb_channel_to_linear(g)\n    b_lin = srgb_channel_to_linear(b)\n    return 0.2126 * r_lin + 0.7152 * g_lin + 0.0722 * b_lin\n\ndef contrast_ratio(rgb1: tuple, rgb2: tuple) -> float:\n    l1 = relative_luminance(*rgb1)\n    l2 = relative_luminance(*rgb2)\n    lighter = max(l1, l2)\n    darker = min(l1, l2)\n    return (lighter + 0.05) / (darker + 0.05)\n\ndef check_wcag_aa(fg_rgb: tuple, bg_rgb: tuple, is_large_text: bool = False) -> bool:\n    ratio = contrast_ratio(fg_rgb, bg_rgb)\n    threshold = 3.0 if is_large_text else 4.5\n    return ratio >= threshold\n\n# Colors:\nblack = (0, 0, 0)\nwhite = (255, 255, 255)\nlight_gray = (200, 200, 200)\ndark_gray = (50, 50, 50)\nbrand_yellow = (255, 220, 0)\n\nratio_bw = contrast_ratio(black, white)\nprint(f\"Black on White: Contrast = {ratio_bw:.2f}:1 (WCAG AA: {check_wcag_aa(black, white)})\")\nassert round(ratio_bw, 1) == 21.0\nassert check_wcag_aa(black, white)\n\n# Light gray text on white background: fail!\nratio_fail = contrast_ratio(light_gray, white)\nprint(f\"Light Gray on White: Contrast = {ratio_fail:.2f}:1 (WCAG AA: {check_wcag_aa(light_gray, white)})\")\nassert ratio_fail < 3.0\nassert not check_wcag_aa(light_gray, white)\n\n# White text on brand yellow: notoriously low contrast!\nratio_yellow = contrast_ratio(white, brand_yellow)\nprint(f\"White on Brand Yellow: Contrast = {ratio_yellow:.2f}:1 (WCAG AA: {check_wcag_aa(white, brand_yellow)})\")\nassert not check_wcag_aa(white, brand_yellow)\n", "mutants": ["def srgb_channel_to_linear(v): return v / 255.0 # Mutant skips non-linear gamma expansion\ndef relative_luminance(r, g, b): return 0.2126*(r/255.0) + 0.7152*(g/255.0) + 0.0722*(b/255.0)\ndef contrast_ratio(c1, c2): return 1.0 # Mutant always returns 1.0\ndef check_wcag_aa(fg, bg, is_large=False): return True\n\nblack = (0, 0, 0); white = (255, 255, 255)\nassert round(contrast_ratio(black, white), 1) == 21.0\n"]}}, "cards": [{"q": "What does Fitts's law model in user interfaces?", "a": "The time required to move to a target: MT = a + b * log2(1 + D/W). Making buttons larger (W) and closer (D) reduces interaction time."}, {"q": "What does Hick's law state regarding menu design?", "a": "Decision time scales logarithmically with the number of choices: T = b * log2(n + 1). Grouping or pruning options reduces cognitive load."}, {"q": "What are the WCAG 2.1 Level AA color contrast requirements?", "a": "A minimum contrast ratio of 4.5:1 for normal text and 3:0:1 for large text (>= 18pt or bold >= 14pt) and active graphical UI components."}, {"q": "Why is the minimum recommended touch target size 48x48dp?", "a": "It matches the physical human fingertip pad (~9mm), preventing high miss rates and motor frustration on touchscreens."}, {"q": "What is the System Usability Scale (SUS) and what score is average?", "a": "A 10-item standard usability questionnaire yielding a score from 0 to 100. A score of 68 represents the 50th percentile (average baseline)."}, {"q": "What are Material Design window size classes?", "a": "Standard responsive breakpoints: Compact (< 600dp, phones), Medium (600-840dp, foldables/tablets), and Expanded (>= 840dp, desktop/large tablets)."}], "title": "Human-computer interaction and accessibility"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

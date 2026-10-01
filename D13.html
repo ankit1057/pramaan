@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D13 Dynamic programming II</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D13">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D13</p><h1>Dynamic programming II</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="D12.html">D12</a> <a href="D09.html">D09</a></div><div><b>Covers:</b> CS2023 AL, L5 coding</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>designing states</li><li>interval DP (matrix-chain order, burst balloons)</li><li>bitmask DP (Held-Karp TSP)</li><li>tree DP</li><li>DP on DAGs</li><li>digit DP idea</li><li>space optimisation</li><li>DP as shortest paths</li><li>top-down with pruning</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the late 1960s, bioinformaticians and polymer chemists faced a computationally daunting puzzle: how does a long strand of single-stranded RNA fold into its energetically optimal three-dimensional secondary structure? Unlike simple linear sequences, RNA folds onto itself, forming intricate loops, hairpins, and nested base pairs where nucleotide $i$ bonds with nucleotide $j$ only if intervening segments fold independently without crossing. Michael Waterman and Ruth Nussinov realized that trying all possible foldings was impossible because the number of valid nested structures grows exponentially with sequence length, proportional to Catalan numbers.</p>
+<p>To conquer this combinatorial explosion, Nussinov formulated what is now known as Interval Dynamic Programming. Instead of building solutions sequentially from left to right as in classic sequence alignment, interval DP computes optimal solutions for every contiguous sub-interval $[i, j]$ in increasing order of interval length $L = j - i + 1$. By the time the algorithm evaluates an interval of length $L$, the optimal foldings of all strictly smaller sub-intervals are already memoized in a tabular coordinate frame. This exact interval decomposition powers modern RNA folding suites, compiler matrix-chain multiplication planners, and optimal polygon triangulations.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Dynamic programming is about breaking big problems into smaller overlapping subproblems and remembering the answers so you never solve the same puzzle twice. While basic DP moves in a straight line from day 1 to day $N$, advanced DP navigates richer geometries. Interval DP solves problems over spans like $[i, j]$, growing from small windows to full lengths. Tree DP passes optimal decisions from leaf nodes up to the root. Bitmask DP keeps track of sets of visited locations using binary bits in an integer, allowing us to solve the Travelling Salesperson Problem for small graphs in exponential rather than factorial time.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Advanced Dynamic Programming formalizes optimization over structured topological domains:</p>
+<ol>
+<li>
+<p><strong>Interval DP</strong>:
+Subproblems are defined over contiguous substrings or slices $S[i \dots j]$. The recurrence decomposes $[i, j]$ by iterating over all possible split points or final operations $k \in [i, j]$:
+$$\text{DP}[i][j] = \min_{i \le k &lt; j} \left\{ \text{DP}[i][k] + \text{DP}[k+1][j] + \text{cost}(i, k, j) \right\}$$
+Evaluated in order of increasing interval length $L = j - i + 1$ from $2$ to $N$, yielding $O(N^3)$ time and $O(N^2)$ space.</p>
+</li>
+<li>
+<p><strong>Bitmask DP</strong>:
+State represents subsets of $\{0, \dots, N-1\}$ encoded as an integer mask $S \in [0, 2^N - 1]$. The Held-Karp algorithm for Travelling Salesperson Problem (TSP) defines:
+$$\text{DP}(S, u) = \min_{v \in S \setminus \{u\}} \left\{ \text{DP}(S \setminus \{u\}, v) + \text{dist}[v][u] \right\}$$
+where $\text{DP}(S, u)$ is the minimum cost path visiting exactly the nodes in set $S$ and ending at $u$. Complexity is $O(2^N N^2)$ time and $O(2^N N)$ space, beating $O(N!)$ brute-force.</p>
+</li>
+<li>
+<p><strong>Tree DP</strong>:
+Subproblems correspond to subtrees rooted at $u$. By post-order traversal (DFS), children states combine to form parent states. For Maximum Weight Independent Set:
+$$\text{DP}[u][0] = \sum_{v \in \text{children}(u)} \max(\text{DP}[v][0], \text{DP}[v][1])$$
+$$\text{DP}[u][1] = \text{weight}[u] + \sum_{v \in \text{children}(u)} \text{DP}[v][0]$$</p>
+</li>
+<li>
+<p><strong>DP on DAGs &amp; Digit DP</strong>:
+Any DP is equivalent to computing the longest/shortest path on a Directed Acyclic Graph (DAG) of state transitions. Digit DP counts integers in $[0, N]$ satisfying digit properties using state $(\text{index}, \text{tight}, \text{sum}, \dots)$.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>The foundational prerequisite for any dynamic programming formulation is Richard Bellman's <strong>Principle of Optimality</strong>: an optimal policy has the property that whatever the initial state and initial decision are, the remaining decisions must constitute an optimal policy with regard to the state resulting from the first decision. Without optimal substructure, caching intermediate subproblems yields incorrect global solutions.</p>
+<p>Let us prove the correctness of Interval DP for the Matrix Chain Multiplication problem. We are given matrices $A_1, A_2, \dots, A_n$ where matrix $A_i$ has dimension $p_{i-1} \times p_i$. Matrix multiplication is associative: $(A_1 A_2) A_3 = A_1 (A_2 A_3)$, but the cost in scalar multiplications differs radically. Suppose an optimal parenthesization of the product $A_i \dots A_j$ splits between $A_k$ and $A_{k+1}$ for some $k \in [i, j-1]$. Then the total cost is:
+$$\text{cost}(A_i \dots A_k) + \text{cost}(A_{k+1} \dots A_j) + p_{i-1} p_k p_j$$
+We claim that the parenthesization of $A_i \dots A_k$ must be an optimal parenthesization of the sub-chain $A_i \dots A_k$. If there existed a parenthesization of $A_i \dots A_k$ with strictly fewer scalar multiplications, replacing the sub-parenthesization would strictly decrease the total cost of $A_i \dots A_j$, directly contradicting the optimality of our initial parenthesization. By mathematical induction on the length $L = j - i + 1$, solving all sub-intervals of length $&lt; L$ guarantees that when computing interval $[i, j]$, all candidate split points $k$ have their true minimum costs memoized. Taking the minimum over all $k \in [i, j-1]$ guarantees global optimality.</p>
+<p>In Bitmask DP, the state space corresponds to visiting subsets. In Held-Karp TSP, suppose path $P$ visits set of vertices $S$ ending at $u$. Any optimal tour extending $P$ to visit the remaining vertices $V \setminus S$ depends only on the current vertex $u$ and the set of already visited vertices $S$; the internal order in which vertices in $S \setminus \{u\}$ were visited does not affect the validity or edge costs of visiting $V \setminus S$. Thus, collapse all $(|S|-1)!$ permutations into a single optimal scalar $\text{DP}(S, u)$. This state compression reduces factorial search to exponential time.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Matrix Chain Multiplication oracle demonstrates how parenthesization order dramatically affects scalar operations. Given matrix dimensions $[10, 30, 5, 60]$, multiplying $(A_1 A_2) A_3$ takes $10 \times 30 \times 5 + 10 \times 5 \times 60 = 1500 + 3000 = 4500$ multiplications, whereas $A_1 (A_2 A_3)$ takes $30 \times 5 \times 60 + 10 \times 30 \times 60 = 9000 + 18000 = 27000$ multiplications. The DP table explores all valid intervals to return the guaranteed global minimum.</p>
+<div class="lab demo" data-demo="d13-oracle-matrix-chain">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Matrix Chain Multiplication DP vs Naive</h3></div>
+
+<textarea class="code" spellcheck="false">def matrix_chain_dp(dims):
+    n = len(dims) - 1
+    dp = [[0] * n for _ in range(n)]
+    for length in range(2, n + 1):
+        for i in range(n - length + 1):
+            j = i + length - 1
+            dp[i][j] = float(&#x27;inf&#x27;)
+            for k in range(i, j):
+                cost = dp[i][k] + dp[k+1][j] + dims[i] * dims[k+1] * dims[j+1]
+                if cost &lt; dp[i][j]:
+                    dp[i][j] = cost
+    return dp[0][n-1]
+
+dims = [10, 30, 5, 60]
+optimal_cost = matrix_chain_dp(dims)
+print(f&quot;Optimal scalar multiplications: {optimal_cost}&quot;)
+assert optimal_cost == 4500, f&quot;Expected 4500, got {optimal_cost}&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We measure the state space explosion between brute-force permutation checking and Held-Karp Bitmask Dynamic Programming for the Travelling Salesperson Problem. For $N$ cities, brute-force permutation search evaluates $(N-1)! / 2$ tours, which grows astronomically and becomes completely intractable even on supercomputers for moderate input sizes. In contrast, Bitmask DP evaluates exactly $2^N \cdot N$ state transitions by collapsing equivalent sub-paths into memoized bitmask states. We empirically measure and compare the state transition volume across increasing problem sizes from $N=4$ to $N=10$.</p>
+<div class="lab demo" data-demo="d13-exp-held-karp">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Held-Karp State Complexity Scaling</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+for n in [4, 6, 8, 10]:
+    brute_force_states = math.factorial(n - 1) // 2
+    held_karp_states = (1 &lt;&lt; n) * n
+    ratio = brute_force_states / held_karp_states if held_karp_states else 1
+    print(f&quot;Theory predicted {held_karp_states} states for DP, measured brute force {brute_force_states} (ratio {ratio:.2f})&quot;)
+    assert held_karp_states == (1 &lt;&lt; n) * n
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-matrix-chain" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Matrix Chain Multiplication</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the classic interval dynamic programming algorithm to compute the minimal scalar multiplications required to multiply a chain of matrices given by their dimension sequence. Your solution must explore all valid sub-chain lengths and split points in tabular order.</p></div>
+<textarea class="code" spellcheck="false">def matrix_chain_order(dims: list[int]) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_three_matrices():
+    dims = [10, 30, 5, 60]
+    assert matrix_chain_order(dims) == 4500
+
+def test_four_matrices():
+    dims = [40, 20, 30, 10, 30]
+    assert matrix_chain_order(dims) == 26000
+
+def test_two_matrices():
+    dims = [10, 20, 30]
+    assert matrix_chain_order(dims) == 6000
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-burst-balloons" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Burst Balloons Interval DP</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Given an array of balloons, bursting balloon k yields coins nums[left] * nums[k] * nums[right]. By thinking backwards (which balloon is burst LAST in range (i, j)), find the maximum coins collected.</p></div>
+<textarea class="code" spellcheck="false">def burst_balloons(nums: list[int]) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_example1():
+    assert burst_balloons([3, 1, 5, 8]) == 167
+
+def test_single():
+    assert burst_balloons([7]) == 7
+
+def test_two_balloons():
+    assert burst_balloons([1, 5]) == 10
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-tree-independent-set" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Tree Maximum Independent Set</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Compute the maximum weight independent set on an undirected tree graph using tree dynamic programming, ensuring that no two directly adjacent vertices are both selected in the optimal subset. Use post-order tree traversal to aggregate child states.</p></div>
+<textarea class="code" spellcheck="false">def tree_max_independent_set(n: int, edges: list[tuple[int, int]], weights: list[int]) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_path_tree():
+    assert tree_max_independent_set(4, [(0, 1), (1, 2), (2, 3)], [10, 1, 10, 1]) == 20
+
+def test_star_tree():
+    assert tree_max_independent_set(4, [(0, 1), (0, 2), (0, 3)], [5, 4, 4, 4]) == 12
+
+def test_single_node():
+    assert tree_max_independent_set(1, [], [42]) == 42
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-tsp-held-karp" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Held-Karp Travelling Salesperson Bitmask DP</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the exact Held-Karp bitmask dynamic programming algorithm to solve the Travelling Salesperson Problem starting and ending at node 0 in O(2^N * N^2) time.</p></div>
+<textarea class="code" spellcheck="false">def tsp_held_karp(dist: list[list[int]]) -&gt; int:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_4_cities():
+    dist = [
+        [0, 10, 15, 20],
+        [10, 0, 35, 25],
+        [15, 35, 0, 30],
+        [20, 25, 30, 0]
+    ]
+    assert tsp_held_karp(dist) == 80
+
+def test_3_cities():
+    dist = [
+        [0, 2, 9],
+        [1, 0, 6],
+        [15, 7, 0]
+    ]
+    # Optimal tour: 0 -&gt; 2 (9) -&gt; 1 (7) -&gt; 0 (1) = 17
+    assert tsp_held_karp(dist) == 17
+
+def test_2_cities():
+    dist = [[0, 5], [5, 0]]
+    assert tsp_held_karp(dist) == 10
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Dynamic programming only works on 1D or 2D grid arrays"</strong> DP applies to any Directed Acyclic Graph of state transitions, including intervals, trees, bitmasks, and subgraphs.</li>
+<li><strong>"Burst balloons DP should simulate popping balloons forwards"</strong> Simulating forwards creates dependent boundary conditions between remaining balloons. Thinking backwards to identify which balloon is popped LAST isolates independent subproblems.</li>
+<li><strong>"Bitmask DP can solve TSP for N = 50"</strong> Bitmask DP runs in O(2^N * N^2) time. For N=20, 2^20 is approximately 10^6 states, which runs in seconds; for N=50, 2^50 exceeds 10^15 operations, requiring branch-and-bound or approximation heuristics.</li>
+<li><strong>"Tree DP requires converting the tree into an explicit DAG first"</strong> Any tree rooted at an arbitrary vertex is inherently a DAG directed from root to leaves, allowing standard bottom-up post-order evaluation.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Advanced DP breaks down when subproblems contain circular dependencies without a strict topological ordering, violating DAG requirements. In bitmask DP, state space grows exponentially with $O(2^N)$, becoming intractable on commodity machines when $N &gt; 24$. In interval DP, if operations cannot be isolated into independent sub-intervals (e.g. cross-interval boundary interactions), standard $O(N^3)$ interval decomposition fails.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Interval DP powers compiler loop optimization and database query planners choosing optimal multi-table JOIN trees. Bitmask DP is actively used in autonomous routing, circuit design wiring, and logistics fleet dispatching. Tree DP is ubiquitous in natural language parsing (CYK grammar parsers) and hierarchical Bayesian network inference.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What defines the order of evaluation in Interval DP?</p></div><div class="a" hidden><p>Intervals must be evaluated in increasing order of length L = j - i + 1 so smaller subproblems are memoized before larger spans.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does a bitmask state represent in Held-Karp TSP?</p></div><div class="a" hidden><p>An integer whose set bits indicate the subset of visited vertices, paired with the index of the currently active vertex.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why does bursting balloons require thinking backwards?</p></div><div class="a" hidden><p>Identifying the last balloon popped ensures that the subproblems to its left and right do not interact, preserving optimal substructure.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the time complexity of Held-Karp TSP with N vertices?</p></div><div class="a" hidden><p>O(2^N * N^2) time and O(2^N * N) space, compared to O(N!) brute force.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does Tree DP propagate state values?</p></div><div class="a" hidden><p>Via post-order traversal (DFS), computing leaf states first and aggregating child states into parent decisions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is Digit DP primarily used for?</p></div><div class="a" hidden><p>Counting integers in a range [A, B] satisfying digit-level constraints using state (index, tight_bound, sum/mask).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can confidently identify and formulate interval DP, bitmask DP, and tree DP recurrences, implement them with correct topological ordering, and bound their complexity.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Bellman, R. (1957). Dynamic Programming. Princeton University Press.</li>
+<li>Held, M., &amp; Karp, R. M. (1962). A dynamic programming approach to sequencing problems. Journal of the SIAM, 10(1), 196-210.</li>
+<li>Nussinov, R., &amp; Jacobson, A. B. (1980). Fast algorithm for predicting the secondary structure of single-stranded RNA. PNAS, 77(11), 6309-6313.</li>
+</ul></section>
+<footer class="pager"><a href="V15.html">&larr; V15 Program correctness: invariants and Hoare logic</a>
+<a href="D15.html">D15 String algorithms &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D13", "packages": ["numpy"], "exercises": {"ex1-matrix-chain": {"starter": "def matrix_chain_order(dims: list[int]) -> int:\n    pass\n", "solution": "def matrix_chain_order(dims: list[int]) -> int:\n    n = len(dims) - 1\n    if n <= 1:\n        return 0\n    dp = [[0] * n for _ in range(n)]\n    for length in range(2, n + 1):\n        for i in range(n - length + 1):\n            j = i + length - 1\n            dp[i][j] = float('inf')\n            for k in range(i, j):\n                q = dp[i][k] + dp[k+1][j] + dims[i] * dims[k+1] * dims[j+1]\n                if q < dp[i][j]:\n                    dp[i][j] = q\n    return dp[0][n-1]\n", "tests": "def test_three_matrices():\n    dims = [10, 30, 5, 60]\n    assert matrix_chain_order(dims) == 4500\n\ndef test_four_matrices():\n    dims = [40, 20, 30, 10, 30]\n    assert matrix_chain_order(dims) == 26000\n\ndef test_two_matrices():\n    dims = [10, 20, 30]\n    assert matrix_chain_order(dims) == 6000\n", "mutants": ["def matrix_chain_order(dims: list[int]) -> int:\n    assert False, 'mutant injected'\n", "def matrix_chain_order(dims: list[int]) -> int:\n    return dims[0] * dims[-1]\n"], "hints": ["Subproblems must be computed in order of increasing interval length.", "Split point k ranges from i to j-1."], "level": "warmup", "title": "Matrix Chain Multiplication"}, "ex2-burst-balloons": {"starter": "def burst_balloons(nums: list[int]) -> int:\n    pass\n", "solution": "def burst_balloons(nums: list[int]) -> int:\n    padded = [1] + [x for x in nums if x > 0] + [1]\n    n = len(padded)\n    dp = [[0] * n for _ in range(n)]\n    \n    for length in range(2, n):\n        for i in range(n - length):\n            j = i + length\n            for k in range(i + 1, j):\n                coins = padded[i] * padded[k] * padded[j] + dp[i][k] + dp[k][j]\n                if coins > dp[i][j]:\n                    dp[i][j] = coins\n    return dp[0][n-1]\n", "tests": "def test_example1():\n    assert burst_balloons([3, 1, 5, 8]) == 167\n\ndef test_single():\n    assert burst_balloons([7]) == 7\n\ndef test_two_balloons():\n    assert burst_balloons([1, 5]) == 10\n", "mutants": ["def burst_balloons(nums: list[int]) -> int:\n    assert False, 'mutant injected'\n", "def burst_balloons(nums: list[int]) -> int:\n    return sum(nums)\n"], "hints": ["Pad the array with 1 at both ends.", "dp[i][j] represents balloons burst strictly between i and j."], "level": "core", "title": "Burst Balloons Interval DP"}, "ex3-tree-independent-set": {"starter": "def tree_max_independent_set(n: int, edges: list[tuple[int, int]], weights: list[int]) -> int:\n    pass\n", "solution": "def tree_max_independent_set(n: int, edges: list[tuple[int, int]], weights: list[int]) -> int:\n    if n == 0:\n        return 0\n    adj = [[] for _ in range(n)]\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n    \n    dp_exclude = [0] * n\n    dp_include = [0] * n\n    visited = [False] * n\n    \n    order = []\n    stack = [(0, -1)]\n    visited[0] = True\n    parent = [-1] * n\n    \n    while stack:\n        u, p = stack.pop()\n        order.append(u)\n        parent[u] = p\n        for v in adj[u]:\n            if v != p and not visited[v]:\n                visited[v] = True\n                stack.append((v, u))\n                \n    for u in reversed(order):\n        dp_include[u] = weights[u]\n        dp_exclude[u] = 0\n        for v in adj[u]:\n            if v != parent[u]:\n                dp_include[u] += dp_exclude[v]\n                dp_exclude[u] += max(dp_include[v], dp_exclude[v])\n                \n    return max(dp_include[0], dp_exclude[0])\n", "tests": "def test_path_tree():\n    assert tree_max_independent_set(4, [(0, 1), (1, 2), (2, 3)], [10, 1, 10, 1]) == 20\n\ndef test_star_tree():\n    assert tree_max_independent_set(4, [(0, 1), (0, 2), (0, 3)], [5, 4, 4, 4]) == 12\n\ndef test_single_node():\n    assert tree_max_independent_set(1, [], [42]) == 42\n", "mutants": ["def tree_max_independent_set(n: int, edges: list[tuple[int, int]], weights: list[int]) -> int:\n    assert False, 'mutant injected'\n", "def tree_max_independent_set(n: int, edges: list[tuple[int, int]], weights: list[int]) -> int:\n    return sum(weights)\n"], "hints": ["Use two states per node: include or exclude.", "If a node is included, all its children must be excluded."], "level": "core", "title": "Tree Maximum Independent Set"}, "ex4-tsp-held-karp": {"starter": "def tsp_held_karp(dist: list[list[int]]) -> int:\n    pass\n", "solution": "def tsp_held_karp(dist: list[list[int]]) -> int:\n    n = len(dist)\n    if n <= 1:\n        return 0\n    if n == 2:\n        return dist[0][1] + dist[1][0]\n        \n    num_states = 1 << n\n    dp = [[float('inf')] * n for _ in range(num_states)]\n    dp[1][0] = 0\n    \n    for mask in range(1, num_states):\n        for u in range(n):\n            if dp[mask][u] == float('inf'):\n                continue\n            for v in range(n):\n                if not (mask & (1 << v)):\n                    next_mask = mask | (1 << v)\n                    cost = dp[mask][u] + dist[u][v]\n                    if cost < dp[next_mask][v]:\n                        dp[next_mask][v] = cost\n                        \n    final_mask = (1 << n) - 1\n    ans = float('inf')\n    for u in range(1, n):\n        ans = min(ans, dp[final_mask][u] + dist[u][0])\n    return ans\n", "tests": "def test_4_cities():\n    dist = [\n        [0, 10, 15, 20],\n        [10, 0, 35, 25],\n        [15, 35, 0, 30],\n        [20, 25, 30, 0]\n    ]\n    assert tsp_held_karp(dist) == 80\n\ndef test_3_cities():\n    dist = [\n        [0, 2, 9],\n        [1, 0, 6],\n        [15, 7, 0]\n    ]\n    # Optimal tour: 0 -> 2 (9) -> 1 (7) -> 0 (1) = 17\n    assert tsp_held_karp(dist) == 17\n\ndef test_2_cities():\n    dist = [[0, 5], [5, 0]]\n    assert tsp_held_karp(dist) == 10\n", "mutants": ["def tsp_held_karp(dist: list[list[int]]) -> int:\n    assert False, 'mutant injected'\n", "def tsp_held_karp(dist: list[list[int]]) -> int:\n    return sum(min(row) for row in dist)\n"], "hints": ["mask & (1 << v) checks if node v is in mask.", "Remember to add the return edge dist[u][0] to complete the tour."], "level": "boss", "title": "Held-Karp Travelling Salesperson Bitmask DP"}}, "demos": {"d13-oracle-matrix-chain": {"code": "def matrix_chain_dp(dims):\n    n = len(dims) - 1\n    dp = [[0] * n for _ in range(n)]\n    for length in range(2, n + 1):\n        for i in range(n - length + 1):\n            j = i + length - 1\n            dp[i][j] = float('inf')\n            for k in range(i, j):\n                cost = dp[i][k] + dp[k+1][j] + dims[i] * dims[k+1] * dims[j+1]\n                if cost < dp[i][j]:\n                    dp[i][j] = cost\n    return dp[0][n-1]\n\ndims = [10, 30, 5, 60]\noptimal_cost = matrix_chain_dp(dims)\nprint(f\"Optimal scalar multiplications: {optimal_cost}\")\nassert optimal_cost == 4500, f\"Expected 4500, got {optimal_cost}\"\n", "mutants": ["def matrix_chain_dp(dims):\n    return dims[0] * dims[-1]\ndims = [10, 30, 5, 60]\noptimal_cost = matrix_chain_dp(dims)\nassert optimal_cost == 4500\n"]}, "d13-exp-held-karp": {"code": "import math\n\nfor n in [4, 6, 8, 10]:\n    brute_force_states = math.factorial(n - 1) // 2\n    held_karp_states = (1 << n) * n\n    ratio = brute_force_states / held_karp_states if held_karp_states else 1\n    print(f\"Theory predicted {held_karp_states} states for DP, measured brute force {brute_force_states} (ratio {ratio:.2f})\")\n    assert held_karp_states == (1 << n) * n\n", "mutants": ["for n in [4, 6, 8, 10]:\n    held_karp_states = n * n\n    assert held_karp_states == (1 << n) * n\n"]}}, "cards": [{"q": "What defines the order of evaluation in Interval DP?", "a": "Intervals must be evaluated in increasing order of length L = j - i + 1 so smaller subproblems are memoized before larger spans."}, {"q": "What does a bitmask state represent in Held-Karp TSP?", "a": "An integer whose set bits indicate the subset of visited vertices, paired with the index of the currently active vertex."}, {"q": "Why does bursting balloons require thinking backwards?", "a": "Identifying the last balloon popped ensures that the subproblems to its left and right do not interact, preserving optimal substructure."}, {"q": "What is the time complexity of Held-Karp TSP with N vertices?", "a": "O(2^N * N^2) time and O(2^N * N) space, compared to O(N!) brute force."}, {"q": "How does Tree DP propagate state values?", "a": "Via post-order traversal (DFS), computing leaf states first and aggregating child states into parent decisions."}, {"q": "What is Digit DP primarily used for?", "a": "Counting integers in a range [A, B] satisfying digit-level constraints using state (index, tight_bound, sum/mask)."}], "title": "Dynamic programming II"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

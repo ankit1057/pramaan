@@ -1,0 +1,328 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D09 Graphs I: traversal</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="D09">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Algorithms and the L5 loop · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">D09</p><h1>Graphs I: traversal</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M28.html">M28</a> <a href="D04.html">D04</a></div><div><b>Covers:</b> CS2023 AL, L5 coding</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>adjacency lists and matrices</li><li>BFS and unweighted shortest paths</li><li>DFS recursive and iterative</li><li>connected components</li><li>cycle detection in directed and undirected graphs</li><li>topological sort (Kahn and DFS)</li><li>bipartite checking</li><li>strongly connected components (Tarjan or Kosaraju)</li><li>grid graphs and flood fill</li><li>multi-source BFS</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 1736, the historic city of Königsberg in Prussia was divided by the Pregel River into four landmasses connected by seven picturesque bridges. Citizens debated a lively weekend riddle: could a person walk through the city crossing each of the seven bridges exactly once and return to the starting point? Leonhard Euler approached the problem not by tracing thousands of individual walking routes, but by abstracting away the physical geography of riverbanks and bridges into discrete points and lines. He replaced the landmasses with vertices and the bridges with edges, inventing the mathematical field of graph theory.</p>
+<p>Euler proved that traversing every edge exactly once (an Eulerian circuit) is possible if and only if every single vertex has an even degree (number of connected edges). Since the four landmasses of Königsberg had degrees 3, 3, 3, and 5, the stroll was mathematically impossible. Two centuries later, computer scientists transformed Euler's topological abstractions into algorithmic traversal engines: Breadth-First Search (BFS) for unweighted shortest paths and network broadcasting, and Depth-First Search (DFS) for cycle detection, topological dependency ordering, and compilers.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A graph is a network of points called vertices (or nodes) connected by lines called edges. If edges have arrows, the graph is directed (like Twitter follows); if edges are two-way roads, it is undirected (like LinkedIn connections). Traversing a graph means visiting every node systematically. Breadth-First Search (BFS) spreads outward like a ripple in a pond, visiting all immediate neighbors before going deeper, which always finds the shortest path in unweighted networks. Depth-First Search (DFS) charges down a single path as far as possible before backtracking, making it ideal for detecting cycles and resolving build dependencies.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Formally, a graph $G = (V, E)$ consists of vertices $V$ and edges $E \subseteq V \times V$.
+Representation:
+- Adjacency list: Array or dictionary of lists, consuming $O(|V| + |E|)$ memory.
+- Adjacency matrix: 2D boolean array $A \in \{0, 1\}^{|V| \times |V|}$, consuming $O(|V|^2)$ memory.</p>
+<p>Breadth-First Search (BFS): Maintains a FIFO queue $Q$ and visited set $S$. Discovers vertices in non-decreasing order of distance from source $s$, computing shortest unweighted path lengths $\delta(s, v)$ in $O(|V| + |E|)$ time.</p>
+<p>Depth-First Search (DFS): Uses recursion or a LIFO stack. Vertices undergo state transitions:
+$$\text{WHITE (unvisited)} \to \text{GRAY (active on call stack)} \to \text{BLACK (finished)}$$
+- A directed graph contains a cycle if and only if DFS encounters a back-edge to a <strong>GRAY</strong> vertex.
+- In a Directed Acyclic Graph (DAG), post-order reverse DFS or Kahn's in-degree queue algorithm produces a <strong>topological sort</strong> satisfying:
+$$\forall (u, v) \in E, \quad \text{pos}(u) &lt; \text{pos}(v)$$</p>
+<p>A graph is <strong>bipartite</strong> if and only if it contains no odd-length cycles, verifiable via 2-coloring.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding graph traversal guarantees requires proving why BFS finds shortest paths and why 3-color DFS correctly detects cycles in directed graphs. First, let us prove that BFS computes shortest path distances $\delta(s, v)$ on unweighted graphs. Suppose we run BFS from source $s$. Let $d[v]$ be the distance assigned to vertex $v$ when it is pushed onto the queue. We claim that vertices are dequeued in monotonically non-decreasing order of distance: if $u$ is dequeued before $v$, then $d[u] \le d[v]$.</p>
+<p>We prove this by mathematical induction on queue operations. Initially, only $s$ with $d[s] = 0$ is in the queue. Suppose the invariant holds. When vertex $u$ is dequeued, all its unvisited neighbors $w$ are assigned $d[w] = d[u] + 1$ and enqueued. Because all existing vertices in the queue have distance at least $d[u]$, any newly enqueued neighbor has distance at most 1 greater than the current queue maximum. Therefore, the queue always consists of vertices with distance $k$ followed by vertices with distance $k+1$. Because distances only increase monotonically, the first time a vertex $v$ is discovered, the path traversed must have minimal edge count, proving that $d[v] = \delta(s, v)$.</p>
+<p>Next, consider cycle detection in directed graphs. A naive approach of checking whether a node has been visited fails because cross-edges or forward-edges can reach previously processed vertices without forming a cycle (e.g. diamond DAG $A \to B \to D$ and $A \to C \to D$). To unambiguously distinguish cycles from non-cyclic converging paths, DFS colors vertices with three distinct states:
+1. <strong>WHITE</strong>: Unvisited node.
+2. <strong>GRAY</strong>: Currently being explored and actively present on the recursion call stack.
+3. <strong>BLACK</strong>: Fully explored with all descendant branches exhausted.</p>
+<p>If DFS at vertex $u$ encounters an edge $(u, v)$ where $v$ is <strong>GRAY</strong>, vertex $v$ is an active ancestor of $u$ on the current call stack. Following the path of call stack edges from $v$ down to $u$, combined with the edge $(u, v)$, forms a closed directed loop $v \to \dots \to u \to v$, proving with absolute mathematical certainty that a directed cycle exists. If $v$ is <strong>BLACK</strong>, its exploration finished in an earlier branch, representing a cross-edge or forward-edge in a DAG.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The ground truth for graph traversals rests on topological invariants and cycle classification theorems. For a Directed Acyclic Graph (DAG), Kahn's algorithm serves as a formal verification oracle: if the topological sort output contains exactly $|V|$ vertices, the graph is provably acyclic and all dependencies are satisfied; if the output contains fewer than $|V|$ vertices, an unresolved cycle exists. In undirected bipartite testing, 2-coloring must assign opposite colors to all edge endpoints without conflict.</p>
+<div class="lab demo" data-demo="oracle-kahns-topological-sort">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Kahn&#x27;s in-degree queue topological sorting oracle verification</h3></div>
+
+<textarea class="code" spellcheck="false">from collections import deque
+
+def kahn_topological_sort(n, edges):
+    adj = {i: [] for i in range(n)}
+    in_degree = [0] * n
+    for u, v in edges:
+        adj[u].append(v)
+        in_degree[v] += 1
+
+    queue = deque([i for i in range(n) if in_degree[i] == 0])
+    topo_order = []
+
+    while queue:
+        u = queue.popleft()
+        topo_order.append(u)
+        for v in adj[u]:
+            in_degree[v] -= 1
+            if in_degree[v] == 0:
+                queue.append(v)
+
+    has_cycle = len(topo_order) != n
+    return topo_order, has_cycle
+
+# DAG: 0 -&gt; 1 -&gt; 3, 0 -&gt; 2 -&gt; 3
+order, cycle = kahn_topological_sort(4, [[0, 1], [0, 2], [1, 3], [2, 3]])
+assert not cycle
+assert len(order) == 4
+# Invariant: 0 must precede 1 and 2, and 1,2 must precede 3
+assert order.index(0) &lt; order.index(1) &lt; order.index(3)
+assert order.index(0) &lt; order.index(2) &lt; order.index(3)
+
+# Cyclic: 0 -&gt; 1 -&gt; 2 -&gt; 0
+order_cyc, cycle_detected = kahn_topological_sort(3, [[0, 1], [1, 2], [2, 0]])
+assert cycle_detected is True
+assert len(order_cyc) == 0
+print(f&quot;Kahn topological oracle verified: DAG={order}, Cycle={cycle_detected}&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>To experimentally demonstrate multi-source breadth-first search on grid networks, we simulate pandemic spread or distance transform across a 2D matrix. By seeding multiple starting epicenters into the BFS queue simultaneously at distance 0, the wavefronts propagate in lockstep, computing the minimum distance from every grid cell to the nearest source in linear $O(R \cdot C)$ time. We measure and assert distance contour values against Manhattan distance metrics.</p>
+<div class="lab demo" data-demo="exp-multi-source-bfs">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Multi-source BFS distance transform and contour propagation experiment</h3></div>
+
+<textarea class="code" spellcheck="false">from collections import deque
+
+def multi_source_bfs_grid(grid):
+    # grid: 2D matrix where 1 = source, 0 = empty land
+    rows = len(grid)
+    cols = len(grid[0])
+    dist = [[-1] * cols for _ in range(rows)]
+    queue = deque()
+
+    for r in range(rows):
+        for c in range(cols):
+            if grid[r][c] == 1:
+                dist[r][c] = 0
+                queue.append((r, c))
+
+    directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]
+    while queue:
+        r, c = queue.popleft()
+        for dr, dc in directions:
+            nr, nc = r + dr, c + dc
+            if 0 &lt;= nr &lt; rows and 0 &lt;= nc &lt; cols and dist[nr][nc] == -1:
+                dist[nr][nc] = dist[r][c] + 1
+                queue.append((nr, nc))
+
+    return dist
+
+grid = [
+    [1, 0, 0],
+    [0, 0, 0],
+    [0, 0, 1]
+]
+distances = multi_source_bfs_grid(grid)
+# Cell (1, 1) has Manhattan distance 2 to both (0,0) and (2,2)
+assert distances[1][1] == 2
+# Cell (0, 1) has distance 1 to (0,0)
+assert distances[0][1] == 1
+assert distances[0][0] == 0
+assert distances[2][2] == 0
+
+predicted_max_dist = 2
+measured_center_dist = distances[1][1]
+print(f&quot;Theory predicted distance {predicted_max_dist}, measured {measured_center_dist}.&quot;)
+assert predicted_max_dist == measured_center_dist
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-bipartite-and-connected-components" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Undirected graph connected components and bipartite 2-coloring verification</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>analyze_undirected_graph(n, edges)</code>:
+Inputs:
+- <code>n</code>: Number of vertices ($0$ to $n-1$).
+- <code>edges</code>: List of undirected edges <code>[[u, v], ...]</code>.</p>
+<p>Outputs:
+Return a dictionary:</p>
+<pre><code class="language-python">{
+    &quot;component_count&quot;: int,
+    &quot;is_bipartite&quot;: bool,
+    &quot;coloring&quot;: dict[int, int] or None
+}
+</code></pre>
+<p>Rules:
+- A graph is bipartite (2-colorable) if and only if vertices can be assigned colors $\{0, 1\}$ such that no two adjacent vertices share the same color.
+- If bipartite, return a dictionary mapping <code>node -&gt; color</code> ($0$ or $1$). If not bipartite, return <code>None</code> for coloring.
+- Count the total number of connected components.</p></div>
+<textarea class="code" spellcheck="false">def analyze_undirected_graph(n, edges):
+    return {
+        &quot;component_count&quot;: 0,
+        &quot;is_bipartite&quot;: False,
+        &quot;coloring&quot;: None
+    }
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_bipartite_even_cycle():
+    # 4-cycle: 0 - 1 - 2 - 3 - 0 (bipartite!)
+    res = analyze_undirected_graph(4, [[0, 1], [1, 2], [2, 3], [3, 0]])
+    assert res[&quot;component_count&quot;] == 1
+    assert res[&quot;is_bipartite&quot;] is True
+    c = res[&quot;coloring&quot;]
+    assert c[0] != c[1] and c[1] != c[2] and c[2] != c[3] and c[3] != c[0]
+
+def test_non_bipartite_odd_cycle():
+    # Triangle: 0 - 1 - 2 - 0 (odd cycle, not bipartite!)
+    res = analyze_undirected_graph(3, [[0, 1], [1, 2], [2, 0]])
+    assert res[&quot;component_count&quot;] == 1
+    assert res[&quot;is_bipartite&quot;] is False
+    assert res[&quot;coloring&quot;] is None
+
+def test_disconnected_components():
+    # Two disconnected edges: 0-1 and 2-3
+    res = analyze_undirected_graph(4, [[0, 1], [2, 3]])
+    assert res[&quot;component_count&quot;] == 2
+    assert res[&quot;is_bipartite&quot;] is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-cycle-detection-dual" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Cycle Detection in Directed Graphs (3-Color DFS) and Undirected Graphs (Parent DFS)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>has_cycle(n, edges, is_directed)</code>:
+Inputs:
+- <code>n</code>: Number of vertices ($0$ to $n-1$).
+- <code>edges</code>: List of edges <code>[[u, v], ...]</code>.
+- <code>is_directed</code>: Boolean flag (<code>True</code> for directed, <code>False</code> for undirected).</p>
+<p>Objective:
+Return <code>True</code> if the graph contains at least one cycle, <code>False</code> otherwise.</p>
+<p>Requirements:
+- For directed graphs: Use 3-color DFS (WHITE, GRAY, BLACK) to detect back-edges to active ancestors.
+- For undirected graphs: Use parent-tracking DFS, ignoring trivial reflections back to the immediate parent.</p></div>
+<textarea class="code" spellcheck="false">def has_cycle(n, edges, is_directed):
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_directed_cycles():
+    # 0 -&gt; 1 -&gt; 2 -&gt; 0 (cycle)
+    assert has_cycle(3, [[0, 1], [1, 2], [2, 0]], is_directed=True) is True
+    # 0 -&gt; 1 -&gt; 2 (no cycle)
+    assert has_cycle(3, [[0, 1], [1, 2]], is_directed=True) is False
+    # Diamond DAG: 0 -&gt; 1 -&gt; 3, 0 -&gt; 2 -&gt; 3 (no cycle!)
+    assert has_cycle(4, [[0, 1], [0, 2], [1, 3], [2, 3]], is_directed=True) is False
+
+def test_undirected_cycles():
+    # 0 - 1 - 2 - 0 (triangle cycle)
+    assert has_cycle(3, [[0, 1], [1, 2], [2, 0]], is_directed=False) is True
+    # Tree: 0 - 1 - 2 (no cycle)
+    assert has_cycle(3, [[0, 1], [1, 2]], is_directed=False) is False
+
+def test_self_loops():
+    assert has_cycle(2, [[0, 0]], is_directed=True) is True
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-course-schedule-kahn" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Course Schedule Dependency Resolution via Kahn&#x27;s Topological Sort</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>find_order(num_courses, prerequisites)</code>:
+There are <code>num_courses</code> labeled from $0$ to <code>num_courses - 1</code>.
+<code>prerequisites[i] = [a, b]</code> indicates you must take course <code>b</code> before taking course <code>a</code> ($b \to a$).</p>
+<p>Outputs:
+- Return a valid ordering of courses to finish all courses.
+- If it is impossible to finish all courses due to a cyclic dependency, return <code>[]</code>.
+- If multiple valid orderings exist, return any valid ordering.</p></div>
+<textarea class="code" spellcheck="false">def find_order(num_courses, prerequisites):
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_find_order_valid():
+    # 0 -&gt; 1 -&gt; 2
+    order = find_order(3, [[1, 0], [2, 1]])
+    assert order == [0, 1, 2]
+
+def test_find_order_cycle():
+    # 0 -&gt; 1 -&gt; 0 (impossible!)
+    assert find_order(2, [[1, 0], [0, 1]]) == []
+
+def test_find_order_diamond():
+    # 0 -&gt; 1 -&gt; 3 and 0 -&gt; 2 -&gt; 3
+    order = find_order(4, [[1, 0], [2, 0], [3, 1], [3, 2]])
+    assert len(order) == 4
+    assert order.index(0) &lt; order.index(1) &lt; order.index(3)
+    assert order.index(0) &lt; order.index(2) &lt; order.index(3)
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-tarjan-strongly-connected-components" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Tarjan&#x27;s Strongly Connected Components (SCC) in O(V + E) Time</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>tarjan_scc(n, directed_edges)</code>:
+A <strong>Strongly Connected Component (SCC)</strong> of a directed graph is a maximal subgraph where every vertex is reachable from every other vertex.</p>
+<p>Inputs:
+- <code>n</code>: Number of vertices ($0$ to $n-1$).
+- <code>directed_edges</code>: List of directed edges <code>[[u, v], ...]</code>.</p>
+<p>Outputs:
+Return a list of strongly connected components: <code>list[list[int]]</code>.
+Each component should be a sorted list of vertex IDs, and the components should be sorted lexicographically by their smallest vertex ID.</p>
+<p>Algorithm Requirements:
+- Execute Tarjan's algorithm in $O(|V| + |E|)$ time using a single DFS pass.
+- Track <code>disc</code> (discovery time), <code>low</code> (lowest reachable discovery time), and an active recursion stack.</p></div>
+<textarea class="code" spellcheck="false">def tarjan_scc(n, directed_edges):
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_tarjan_scc_simple():
+    # 0 -&gt; 1 -&gt; 2 -&gt; 0, and 2 -&gt; 3
+    # SCC 1: [0, 1, 2], SCC 2: [3]
+    edges = [[0, 1], [1, 2], [2, 0], [2, 3]]
+    sccs = tarjan_scc(4, edges)
+    assert sccs == [[0, 1, 2], [3]]
+
+def test_tarjan_scc_dag():
+    # Pure DAG: each node is its own SCC
+    edges = [[0, 1], [1, 2]]
+    sccs = tarjan_scc(3, edges)
+    assert sccs == [[0], [1], [2]]
+
+def test_tarjan_scc_single_huge_loop():
+    edges = [[0, 1], [1, 2], [2, 3], [3, 0]]
+    sccs = tarjan_scc(4, edges)
+    assert sccs == [[0, 1, 2, 3]]
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"BFS and DFS explore the same number of nodes on any graph."</strong> While both visit all reachable nodes $O(V + E)$ in total, their traversal orders differ fundamentally. BFS expands level by level finding shortest paths; DFS plunges deep and is prone to stack overflows on deep line graphs.</li>
+<li><strong>"Cycle detection in directed graphs can be done simply by checking if a node was already visited."</strong> Visiting an already explored node can happen via cross-edges in a DAG. Directed cycle detection strictly requires detecting back-edges to nodes actively present on the recursion call stack (GRAY nodes).</li>
+<li><strong>"A topological sort always exists for any graph."</strong> Topological sort exists if and only if the graph is a Directed Acyclic Graph (DAG). If any directed cycle exists, no linear ordering can satisfy all prerequisites.</li>
+<li><strong>"Bipartite graphs can have triangles."</strong> A graph is bipartite if and only if it contains no odd-length cycles. A triangle has length 3 (odd), which strictly violates 2-colorability.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Traversals break down on massive scale-free web graphs (billions of nodes like Google's web crawler or Facebook's social graph). Storing adjacency lists in RAM becomes impossible, and recursive DFS crashes with call stack overflows. Industrial search engines solve this using External Memory Graph Traversals, Pregel/BSP (Bulk Synchronous Parallel) distributed message passing, and PageRank random-walk matrix power iterations.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Build systems like Make, Gradle, and Bazel use topological sorting to construct compilation dependency DAGs. Package managers (npm, pip, pub) run cycle detection and Tarjan SCC to identify circular dependencies. Compilers construct Control Flow Graphs (CFGs) and use dominator trees derived from DFS to optimize loop invariants and dead code elimination.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why does BFS guarantee shortest paths in unweighted graphs?</p></div><div class="a" hidden><p>Because vertices are discovered in non-decreasing order of distance from source: all vertices at distance $k$ are processed before any at $k+1$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What do the three colors (WHITE, GRAY, BLACK) signify in directed DFS?</p></div><div class="a" hidden><p>WHITE = unvisited, GRAY = currently on the active recursion call stack, BLACK = fully explored with all descendants finished.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What indicates a cycle during directed DFS?</p></div><div class="a" hidden><p>Encountering an edge leading to a GRAY vertex (a back-edge to an active ancestor on the call stack).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What condition proves an undirected graph is bipartite?</p></div><div class="a" hidden><p>The graph is 2-colorable with zero adjacent nodes sharing the same color, which is mathematically equivalent to having no odd-length cycles.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does Kahn's algorithm detect cycles in a directed graph?</p></div><div class="a" hidden><p>If the number of vertices dequeued with in-degree 0 is less than total vertices $|V|$, the remaining vertices form a directed cycle.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What does <code>low[u]</code> represent in Tarjan's SCC algorithm?</p></div><div class="a" hidden><p>The lowest discovery time reachable from $u$ through its subtree and at most one back-edge to an active stack ancestor.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement 3-color directed cycle detection, Kahn's topological sort, and Tarjan's SCC algorithm with complete confidence and zero errors.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Robert Tarjan, 'Depth-First Search and Linear Graph Algorithms', SIAM Journal on Computing (1972) - Foundational DFS and SCC theorems</li>
+<li>Arthur B. Kahn, 'Topological sorting of large networks', Communications of the ACM (1962) - Original in-degree topological sort</li>
+</ul></section>
+<footer class="pager"><a href="D08.html">&larr; D08 Heaps, priority queues and intervals</a>
+<a href="D10.html">D10 Graphs II: shortest paths, spanning trees and union-find &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "D09", "packages": ["numpy"], "exercises": {"ex1-bipartite-and-connected-components": {"starter": "def analyze_undirected_graph(n, edges):\n    return {\n        \"component_count\": 0,\n        \"is_bipartite\": False,\n        \"coloring\": None\n    }\n", "solution": "def analyze_undirected_graph(n, edges):\n    adj = {i: [] for i in range(n)}\n    for u, v in edges:\n        adj[u].append(v)\n        adj[v].append(u)\n\n    color = {}\n    component_count = 0\n    is_bipartite = True\n\n    for i in range(n):\n        if i not in color:\n            component_count += 1\n            color[i] = 0\n            queue = [i]\n\n            while queue:\n                u = queue.pop(0)\n                for v in adj[u]:\n                    if v not in color:\n                        color[v] = 1 - color[u]\n                        queue.append(v)\n                    elif color[v] == color[u]:\n                        is_bipartite = False\n\n    return {\n        \"component_count\": component_count,\n        \"is_bipartite\": is_bipartite,\n        \"coloring\": color if is_bipartite else None\n    }\n", "tests": "def test_bipartite_even_cycle():\n    # 4-cycle: 0 - 1 - 2 - 3 - 0 (bipartite!)\n    res = analyze_undirected_graph(4, [[0, 1], [1, 2], [2, 3], [3, 0]])\n    assert res[\"component_count\"] == 1\n    assert res[\"is_bipartite\"] is True\n    c = res[\"coloring\"]\n    assert c[0] != c[1] and c[1] != c[2] and c[2] != c[3] and c[3] != c[0]\n\ndef test_non_bipartite_odd_cycle():\n    # Triangle: 0 - 1 - 2 - 0 (odd cycle, not bipartite!)\n    res = analyze_undirected_graph(3, [[0, 1], [1, 2], [2, 0]])\n    assert res[\"component_count\"] == 1\n    assert res[\"is_bipartite\"] is False\n    assert res[\"coloring\"] is None\n\ndef test_disconnected_components():\n    # Two disconnected edges: 0-1 and 2-3\n    res = analyze_undirected_graph(4, [[0, 1], [2, 3]])\n    assert res[\"component_count\"] == 2\n    assert res[\"is_bipartite\"] is True\n", "mutants": ["def analyze_undirected_graph(n, edges):\n    return {\"component_count\": 1, \"is_bipartite\": True, \"coloring\": {i: 0 for i in range(n)}}\n", "def analyze_undirected_graph(n, edges):\n    # Mutant assumes all graphs are non-bipartite\n    return {\"component_count\": n, \"is_bipartite\": False, \"coloring\": None}\n"], "hints": ["Use BFS coloring: assign `color[v] = 1 - color[u]`.", "If `color[v] == color[u]`, an odd cycle exists."], "level": "warmup", "title": "Undirected graph connected components and bipartite 2-coloring verification"}, "ex2-cycle-detection-dual": {"starter": "def has_cycle(n, edges, is_directed):\n    return False\n", "solution": "def has_cycle(n, edges, is_directed):\n    if is_directed:\n        adj = {i: [] for i in range(n)}\n        for u, v in edges:\n            adj[u].append(v)\n\n        # 0: WHITE, 1: GRAY, 2: BLACK\n        state = [0] * n\n\n        def dfs(u):\n            state[u] = 1 # Mark GRAY\n            for v in adj[u]:\n                if state[v] == 1:\n                    return True # Back-edge to active ancestor!\n                if state[v] == 0:\n                    if dfs(v):\n                        return True\n            state[u] = 2 # Mark BLACK\n            return False\n\n        for i in range(n):\n            if state[i] == 0:\n                if dfs(i):\n                    return True\n        return False\n    else:\n        adj = {i: [] for i in range(n)}\n        for u, v in edges:\n            adj[u].append(v)\n            adj[v].append(u)\n\n        visited = [False] * n\n\n        def dfs_undirected(u, parent):\n            visited[u] = True\n            for v in adj[u]:\n                if not visited[v]:\n                    if dfs_undirected(v, u):\n                        return True\n                elif v != parent:\n                    return True # Visited non-parent neighbor = cycle!\n            return False\n\n        for i in range(n):\n            if not visited[i]:\n                if dfs_undirected(i, -1):\n                    return True\n        return False\n", "tests": "def test_directed_cycles():\n    # 0 -> 1 -> 2 -> 0 (cycle)\n    assert has_cycle(3, [[0, 1], [1, 2], [2, 0]], is_directed=True) is True\n    # 0 -> 1 -> 2 (no cycle)\n    assert has_cycle(3, [[0, 1], [1, 2]], is_directed=True) is False\n    # Diamond DAG: 0 -> 1 -> 3, 0 -> 2 -> 3 (no cycle!)\n    assert has_cycle(4, [[0, 1], [0, 2], [1, 3], [2, 3]], is_directed=True) is False\n\ndef test_undirected_cycles():\n    # 0 - 1 - 2 - 0 (triangle cycle)\n    assert has_cycle(3, [[0, 1], [1, 2], [2, 0]], is_directed=False) is True\n    # Tree: 0 - 1 - 2 (no cycle)\n    assert has_cycle(3, [[0, 1], [1, 2]], is_directed=False) is False\n\ndef test_self_loops():\n    assert has_cycle(2, [[0, 0]], is_directed=True) is True\n", "mutants": ["def has_cycle(n, edges, is_directed): return False\n", "def has_cycle(n, edges, is_directed):\n    # Mutant assumes diamond DAG is a cycle\n    if is_directed: return len(edges) >= n\n    return len(edges) >= n\n"], "hints": ["For directed, track 3 colors: `0=unvisited`, `1=active (GRAY)`, `2=done (BLACK)`.", "For undirected, check `visited[v] and v != parent`."], "level": "core", "title": "Cycle Detection in Directed Graphs (3-Color DFS) and Undirected Graphs (Parent DFS)"}, "ex3-course-schedule-kahn": {"starter": "def find_order(num_courses, prerequisites):\n    return []\n", "solution": "def find_order(num_courses, prerequisites):\n    from collections import deque\n    adj = {i: [] for i in range(num_courses)}\n    in_degree = [0] * num_courses\n\n    for dest, src in prerequisites:\n        adj[src].append(dest)\n        in_degree[dest] += 1\n\n    queue = deque([i for i in range(num_courses) if in_degree[i] == 0])\n    order = []\n\n    while queue:\n        curr = queue.popleft()\n        order.append(curr)\n        for nxt in adj[curr]:\n            in_degree[nxt] -= 1\n            if in_degree[nxt] == 0:\n                queue.append(nxt)\n\n    return order if len(order) == num_courses else []\n", "tests": "def test_find_order_valid():\n    # 0 -> 1 -> 2\n    order = find_order(3, [[1, 0], [2, 1]])\n    assert order == [0, 1, 2]\n\ndef test_find_order_cycle():\n    # 0 -> 1 -> 0 (impossible!)\n    assert find_order(2, [[1, 0], [0, 1]]) == []\n\ndef test_find_order_diamond():\n    # 0 -> 1 -> 3 and 0 -> 2 -> 3\n    order = find_order(4, [[1, 0], [2, 0], [3, 1], [3, 2]])\n    assert len(order) == 4\n    assert order.index(0) < order.index(1) < order.index(3)\n    assert order.index(0) < order.index(2) < order.index(3)\n", "mutants": ["def find_order(num_courses, prerequisites):\n    return list(range(num_courses)) # Mutant ignores prerequisites\n", "def find_order(num_courses, prerequisites):\n    # Mutant returns empty list always\n    return []\n"], "hints": ["Calculate in-degrees for all nodes.", "Enqueue all nodes with `in_degree == 0`, decrement neighbor in-degrees on pop."], "level": "core", "title": "Course Schedule Dependency Resolution via Kahn's Topological Sort"}, "ex4-tarjan-strongly-connected-components": {"starter": "def tarjan_scc(n, directed_edges):\n    return []\n", "solution": "def tarjan_scc(n, directed_edges):\n    adj = {i: [] for i in range(n)}\n    for u, v in directed_edges:\n        adj[u].append(v)\n\n    disc = [-1] * n\n    low = [-1] * n\n    on_stack = [False] * n\n    stack = []\n    timer = 0\n    sccs = []\n\n    def dfs(u):\n        nonlocal timer\n        disc[u] = low[u] = timer\n        timer += 1\n        stack.append(u)\n        on_stack[u] = True\n\n        for v in adj[u]:\n            if disc[v] == -1:\n                dfs(v)\n                low[u] = min(low[u], low[v])\n            elif on_stack[v]:\n                low[u] = min(low[u], disc[v])\n\n        # If u is root of an SCC\n        if low[u] == disc[u]:\n            component = []\n            while True:\n                w = stack.pop()\n                on_stack[w] = False\n                component.append(w)\n                if w == u:\n                    break\n            sccs.append(sorted(component))\n\n    for i in range(n):\n        if disc[i] == -1:\n            dfs(i)\n\n    return sorted(sccs, key=lambda comp: comp[0])\n", "tests": "def test_tarjan_scc_simple():\n    # 0 -> 1 -> 2 -> 0, and 2 -> 3\n    # SCC 1: [0, 1, 2], SCC 2: [3]\n    edges = [[0, 1], [1, 2], [2, 0], [2, 3]]\n    sccs = tarjan_scc(4, edges)\n    assert sccs == [[0, 1, 2], [3]]\n\ndef test_tarjan_scc_dag():\n    # Pure DAG: each node is its own SCC\n    edges = [[0, 1], [1, 2]]\n    sccs = tarjan_scc(3, edges)\n    assert sccs == [[0], [1], [2]]\n\ndef test_tarjan_scc_single_huge_loop():\n    edges = [[0, 1], [1, 2], [2, 3], [3, 0]]\n    sccs = tarjan_scc(4, edges)\n    assert sccs == [[0, 1, 2, 3]]\n", "mutants": ["def tarjan_scc(n, directed_edges):\n    return [[i] for i in range(n)] # Mutant treats all nodes as separate SCCs\n", "def tarjan_scc(n, directed_edges):\n    return [list(range(n))] # Mutant groups all nodes into one SCC\n"], "hints": ["Maintain `disc[u]` and `low[u]`.", "When `low[u] == disc[u]`, pop stack until `u` to form an SCC."], "level": "boss", "title": "Tarjan's Strongly Connected Components (SCC) in O(V + E) Time"}}, "demos": {"oracle-kahns-topological-sort": {"code": "from collections import deque\n\ndef kahn_topological_sort(n, edges):\n    adj = {i: [] for i in range(n)}\n    in_degree = [0] * n\n    for u, v in edges:\n        adj[u].append(v)\n        in_degree[v] += 1\n\n    queue = deque([i for i in range(n) if in_degree[i] == 0])\n    topo_order = []\n\n    while queue:\n        u = queue.popleft()\n        topo_order.append(u)\n        for v in adj[u]:\n            in_degree[v] -= 1\n            if in_degree[v] == 0:\n                queue.append(v)\n\n    has_cycle = len(topo_order) != n\n    return topo_order, has_cycle\n\n# DAG: 0 -> 1 -> 3, 0 -> 2 -> 3\norder, cycle = kahn_topological_sort(4, [[0, 1], [0, 2], [1, 3], [2, 3]])\nassert not cycle\nassert len(order) == 4\n# Invariant: 0 must precede 1 and 2, and 1,2 must precede 3\nassert order.index(0) < order.index(1) < order.index(3)\nassert order.index(0) < order.index(2) < order.index(3)\n\n# Cyclic: 0 -> 1 -> 2 -> 0\norder_cyc, cycle_detected = kahn_topological_sort(3, [[0, 1], [1, 2], [2, 0]])\nassert cycle_detected is True\nassert len(order_cyc) == 0\nprint(f\"Kahn topological oracle verified: DAG={order}, Cycle={cycle_detected}\")\n", "mutants": ["from collections import deque\ndef kahn_topological_sort(n, edges):\n    # Broken mutant: ignores in-degrees and returns arbitrary range\n    return list(range(n)), False\norder, cycle = kahn_topological_sort(3, [[0, 1], [1, 2], [2, 0]])\nassert cycle is True, \"Cycle detection failed!\"\n"]}, "exp-multi-source-bfs": {"code": "from collections import deque\n\ndef multi_source_bfs_grid(grid):\n    # grid: 2D matrix where 1 = source, 0 = empty land\n    rows = len(grid)\n    cols = len(grid[0])\n    dist = [[-1] * cols for _ in range(rows)]\n    queue = deque()\n\n    for r in range(rows):\n        for c in range(cols):\n            if grid[r][c] == 1:\n                dist[r][c] = 0\n                queue.append((r, c))\n\n    directions = [(0, 1), (0, -1), (1, 0), (-1, 0)]\n    while queue:\n        r, c = queue.popleft()\n        for dr, dc in directions:\n            nr, nc = r + dr, c + dc\n            if 0 <= nr < rows and 0 <= nc < cols and dist[nr][nc] == -1:\n                dist[nr][nc] = dist[r][c] + 1\n                queue.append((nr, nc))\n\n    return dist\n\ngrid = [\n    [1, 0, 0],\n    [0, 0, 0],\n    [0, 0, 1]\n]\ndistances = multi_source_bfs_grid(grid)\n# Cell (1, 1) has Manhattan distance 2 to both (0,0) and (2,2)\nassert distances[1][1] == 2\n# Cell (0, 1) has distance 1 to (0,0)\nassert distances[0][1] == 1\nassert distances[0][0] == 0\nassert distances[2][2] == 0\n\npredicted_max_dist = 2\nmeasured_center_dist = distances[1][1]\nprint(f\"Theory predicted distance {predicted_max_dist}, measured {measured_center_dist}.\")\nassert predicted_max_dist == measured_center_dist\n", "mutants": ["from collections import deque\ndef multi_source_bfs_grid(grid):\n    return [[0]*len(grid[0]) for _ in range(len(grid))] # Mutant returns 0s\ngrid = [[1, 0], [0, 0]]\nd = multi_source_bfs_grid(grid)\nassert d[1][1] > 0, \"Distance transform failed!\"\n"]}}, "cards": [{"q": "Why does BFS guarantee shortest paths in unweighted graphs?", "a": "Because vertices are discovered in non-decreasing order of distance from source: all vertices at distance $k$ are processed before any at $k+1$."}, {"q": "What do the three colors (WHITE, GRAY, BLACK) signify in directed DFS?", "a": "WHITE = unvisited, GRAY = currently on the active recursion call stack, BLACK = fully explored with all descendants finished."}, {"q": "What indicates a cycle during directed DFS?", "a": "Encountering an edge leading to a GRAY vertex (a back-edge to an active ancestor on the call stack)."}, {"q": "What condition proves an undirected graph is bipartite?", "a": "The graph is 2-colorable with zero adjacent nodes sharing the same color, which is mathematically equivalent to having no odd-length cycles."}, {"q": "How does Kahn's algorithm detect cycles in a directed graph?", "a": "If the number of vertices dequeued with in-degree 0 is less than total vertices $|V|$, the remaining vertices form a directed cycle."}, {"q": "What does `low[u]` represent in Tarjan's SCC algorithm?", "a": "The lowest discovery time reachable from $u$ through its subtree and at most one back-edge to an active stack ancestor."}], "title": "Graphs I: traversal"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

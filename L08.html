@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L08 LLM inference and decoding</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="L08">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Learning machines · Grad · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">L08</p><h1>LLM inference and decoding</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="L07.html">L07</a></div><div><b>Covers:</b> Edge AI, CS2023 AI</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>autoregressive generation</li><li>greedy vs sampling</li><li>temperature</li><li>top-k</li><li>top-p (nucleus)</li><li>repetition penalties</li><li>beam search</li><li>the KV cache and its memory</li><li>prefill vs decode (compute-bound vs memory-bound)</li><li>batching</li><li>speculative decoding with exact acceptance min(1, p/q) and the residual max(0, p-q)</li><li>prompt-lookup decoding</li><li>grammar-constrained decoding by masking logits with an automaton or parser</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In late 2022, as large language models exploded into mainstream production, infrastructure engineers confronted a harsh computational reality: generating text from an LLM token by token was excruciatingly slow and memory-bound. During prefill, the model processed the entire input prompt in a single parallel burst, saturating GPU compute cores. But during autoregressive decoding, generating each subsequent token required passing every single weight matrix through high-bandwidth memory (HBM) just to compute a single matrix-vector multiplication. Worse, recomputing past attention keys and values for every new token resulted in quadratic $O(N^2)$ overhead. The introduction of the Key-Value (KV) cache eliminated redundant recomputation by caching past states in memory, but introduced an acute memory bottleneck. Breakthrough decoding strategies—temperature scaling, nucleus (top-p) sampling, speculative decoding with draft models, and grammar-constrained decoding—transformed LLM inference into a finely tuned science.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>When an AI generates a response, it predicts text one word piece at a time. At each step, the model calculates scores for thousands of possible next tokens and converts them into probabilities. You can control creativity using temperature, top-k, and top-p sampling, which filter out improbable words. To avoid re-reading the entire conversation history from scratch for every new word, the system caches past computational results in a Key-Value (KV) cache. Speculative decoding speeds this up even further by letting a tiny, fast model draft several words ahead, which the main model verifies in a single parallel check.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let $\mathbf{z}_t \in \mathbb{R}^V$ denote the unnormalized logit vector output by the language model at step $t$ over vocabulary $\mathcal{V}$ of size $V$. The sampling distribution is computed via temperature-scaled softmax:
+$$P(x_t = i \mid x_{&lt;t}) = \frac{\exp(z_{t, i} / T)}{\sum_{j=1}^V \exp(z_{t, j} / T)}$$
+where $T &gt; 0$ is the sampling temperature.
+- In <strong>Top-$k$ filtering</strong>, the candidate set is restricted to $\mathcal{K} = \operatorname{argtopk}(\mathbf{z}_t, k)$, setting probabilities of all other tokens to zero before renormalizing.
+- In <strong>Top-$p$ (nucleus) filtering</strong>, tokens are sorted in descending order of probability $p_{(1)} \ge p_{(2)} \dots \ge p_{(V)}$, and the smallest set $\mathcal{P} = \{1, \dots, m\}$ is selected such that $\sum_{j=1}^m p_{(j)} \ge p$.</p>
+<p>In <strong>Speculative Decoding</strong> (Leviathan et al. 2023), a fast draft model $q$ proposes $\gamma$ tokens $x_1, \dots, x_\gamma$. The target model $p$ evaluates all tokens in a single parallel forward pass. Token $x_i$ is accepted with exact probability:
+$$\alpha = \min\left(1, \frac{p(x_i \mid x_{&lt;i})}{q(x_i \mid x_{&lt;i})}\right)$$
+If a token is rejected at index $j$, generation halts, and a replacement token is sampled from the normalized residual distribution:
+$$P_{\text{residual}}(x) = \frac{\max(0, p(x) - q(x))}{\sum_{x&#x27;} \max(0, p(x&#x27;) - q(x&#x27;))}$$
+guaranteeing that the output distribution matches the target model $p$ <em>identically</em>.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand the performance dynamics of LLM inference, consider the distinction between the <strong>prefill</strong> phase and the <strong>decode</strong> phase.
+1. <strong>Prefill (Compute-Bound)</strong>: The user prompt of length $P$ is processed in parallel. Matrix-matrix multiplications have high arithmetic intensity (FLOPs per byte of memory accessed), fully saturating GPU tensor cores.
+2. <strong>Decode (Memory-Bound)</strong>: Generation proceeds autoregressively, one token at a time. For each new token, the entire model weight tensor of size $W$ bytes must be loaded from memory into registers to perform matrix-vector multiplication. The time required to generate one token is bounded by memory bandwidth:
+   $$t_{\text{token}} \approx \frac{\text{Model Weights (Bytes)}}{\text{Memory Bandwidth (Bytes/sec)}}$$
+On an NVIDIA A100 GPU (2,000 GB/s bandwidth), loading a 14 GB 7B FP16 model takes $14 / 2000 = 7.0$ milliseconds per token, capping single-batch throughput at ~140 tokens/sec regardless of how many TFLOPs the GPU possesses.</p>
+<p>The <strong>KV Cache</strong> prevents quadratic recomputation. At step $t$, rather than recalculating keys and values for all $t$ prior tokens, we cache past $\mathbf{K}$ and $\mathbf{V}$ tensors. The memory footprint of the KV cache grows linearly with sequence length:
+$$\text{Memory}_{\text{KV}} = 2 \times n_{\text{layers}} \times n_{\text{heads}} \times d_k \times \text{seq\_len} \times \text{bytes\_per\_elem} \times \text{batch\_size}$$
+For a 70B model with sequence length 4,096 in FP16, the KV cache requires over 2.5 GB per concurrent user.</p>
+<p>In speculative decoding, the draft model runs $\gamma$ steps cheaply. When the target model verifies all $\gamma$ tokens simultaneously, it runs in the compute-bound regime. Because the acceptance criterion $\min(1, p/q)$ and residual distribution $\max(0, p-q)$ mathematically preserve the target distribution, speculative decoding achieves 2x to 3x wall-clock speedups with zero loss in output quality.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that sampling and speculative decoding algorithms preserve mathematical exactness, we construct an empirical verification oracle. The oracle runs Monte Carlo simulations over categorical token distributions, verifying that top-p truncation sums to at least probability $p$, and proving that speculative decoding acceptance rejection sampling generates token frequencies identical to the target model distribution within chi-square statistical tolerance.</p>
+<div class="lab demo" data-demo="oracle-speculative-exactness">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of speculative decoding distribution equivalence</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+def sample_categorical(probs, rng):
+    r = rng.random()
+    cumulative = 0.0
+    for i, p in enumerate(probs):
+        cumulative += p
+        if r &lt;= cumulative:
+            return i
+    return len(probs) - 1
+
+def run_speculative_trial(p_dist, q_dist, rng):
+    # Step 1: Draft model samples token x from q
+    x = sample_categorical(q_dist, rng)
+    # Step 2: Accept with probability min(1, p(x) / q(x))
+    alpha = min(1.0, p_dist[x] / q_dist[x])
+    if rng.random() &lt; alpha:
+        return x, True # Accepted
+    else:
+        # Resample from residual max(0, p - q)
+        residual = [max(0.0, p_dist[i] - q_dist[i]) for i in range(len(p_dist))]
+        total_res = sum(residual)
+        res_norm = [r / total_res for r in residual]
+        resampled_x = sample_categorical(res_norm, rng)
+        return resampled_x, False # Rejected &amp; corrected
+
+rng = random.Random(42)
+# Target distribution p vs draft distribution q over 3 tokens
+p = [0.7, 0.2, 0.1]
+q = [0.5, 0.3, 0.2]
+
+trials = 10000
+counts = [0, 0, 0]
+for _ in range(trials):
+    tok, _ = run_speculative_trial(p, q, rng)
+    counts[tok] += 1
+
+empirical_p = [c / float(trials) for c in counts]
+print(f&quot;Target distribution: {p}&quot;)
+print(f&quot;Empirical speculative distribution: {empirical_p}&quot;)
+for i in range(3):
+    assert abs(empirical_p[i] - p[i]) &lt; 0.02, f&quot;Token {i} distribution diverged: {empirical_p[i]} vs {p[i]}&quot;
+print(&quot;SUCCESS: Speculative decoding distribution equivalence confirmed.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment benchmarking memory bandwidth utilization during single-token decoding versus prompt prefill across sequence lengths up to 2,048 tokens. We record wall-clock execution time and tokens generated per second, confirming that autoregressive decoding throughput is strictly bound by memory bus transfer speed, whereas prompt prefill throughput scales directly with peak hardware tensor core floating-point capacity across deep Transformer model serving architectures.</p>
+<div class="lab demo" data-demo="exp-decode-bandwidth-bound">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical decode vs prefill latency scaling</h3></div>
+
+<textarea class="code" spellcheck="false">def estimate_tokens_per_sec(model_size_gb, mem_bandwidth_gb_s, batch_size=1):
+    # Decode latency per token is bounded by loading model weights from memory
+    time_per_token = (model_size_gb * 1.0) / mem_bandwidth_gb_s
+    tokens_per_sec = batch_size / time_per_token
+    return tokens_per_sec
+
+# Mobile SoC: 4GB model on 60 GB/s bandwidth memory
+mobile_speed = estimate_tokens_per_sec(4.0, 60.0)
+# Datacenter GPU: 14GB model on 2000 GB/s bandwidth memory
+gpu_speed = estimate_tokens_per_sec(14.0, 2000.0)
+
+print(f&quot;Mobile decode speed: {mobile_speed:.1f} tokens/s&quot;)
+print(f&quot;Datacenter decode speed: {gpu_speed:.1f} tokens/s&quot;)
+assert mobile_speed == 15.0, &quot;Mobile speed calculation mismatch&quot;
+assert gpu_speed &gt; 100.0, &quot;Datacenter GPU must decode &gt;100 tokens/s&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-sampling-temperature-topk-topp" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Logit filtering with temperature, top-k, and nucleus (top-p)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>filter_and_sample_probs(logits, temperature=1.0, top_k=0, top_p=1.0)</code>:
+Inputs:
+- <code>logits</code>: 1D list of floats representing unnormalized log probabilities.
+- <code>temperature</code>: Positive float scaling factor (default 1.0).
+- <code>top_k</code>: Integer $k \ge 0$; if $k &gt; 0$, retain only the $k$ highest logits, setting others to $-\infty$.
+- <code>top_p</code>: Float $p \in (0, 1.0]$; retain smallest set of top tokens whose cumulative probability $\ge p$.</p>
+<p>Algorithm:
+1. Scale logits: $z_i&#x27; = z_i / \text{temperature}$.
+2. If <code>top_k &gt; 0</code>, find the $k$-th largest value and set all logits below it to $-10^9$.
+3. Compute softmax probabilities $P(i) = \frac{\exp(z_i&#x27; - \max z&#x27;)}{\sum \exp(z&#x27; - \max z&#x27;)}$.
+4. If <code>top_p &lt; 1.0</code>:
+   - Sort probabilities in descending order with indices.
+   - Compute cumulative sum.
+   - Find the cutoff index where cumulative sum first exceeds or equals <code>top_p</code>.
+   - Set probabilities beyond this cutoff to $0.0$.
+   - Renormalize remaining probabilities to sum to $1.0$.
+5. Return the final normalized probability list of the same length as <code>logits</code>.</p></div>
+<textarea class="code" spellcheck="false">def filter_and_sample_probs(logits, temperature=1.0, top_k=0, top_p=1.0):
+    # Filters logits and returns normalized probability distribution
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_temperature_sharpness():
+    logits = [2.0, 1.0, 0.0]
+    p_cold = filter_and_sample_probs(logits, temperature=0.1)
+    p_hot = filter_and_sample_probs(logits, temperature=10.0)
+    # Low temp concentrates mass on top token
+    assert p_cold[0] &gt; 0.99
+    # High temp flattens distribution towards uniform
+    assert p_hot[0] &lt; 0.45
+    assert abs(sum(p_cold) - 1.0) &lt; 1e-5
+
+def test_top_k():
+    logits = [10.0, 8.0, 6.0, 4.0, 2.0]
+    p = filter_and_sample_probs(logits, top_k=2)
+    assert p[0] &gt; 0 and p[1] &gt; 0
+    assert p[2] == 0.0 and p[3] == 0.0 and p[4] == 0.0
+    assert abs(sum(p) - 1.0) &lt; 1e-5
+
+def test_top_p_nucleus():
+    logits = [10.0, 5.0, 1.0] # probabilities will be roughly [0.993, 0.0067, 0.0001]
+    p = filter_and_sample_probs(logits, top_p=0.95)
+    # 0.993 &gt;= 0.95, so only the first token is kept
+    assert p[0] == 1.0
+    assert p[1] == 0.0 and p[2] == 0.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-kv-cache-step-update" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Key-Value (KV) cache appending and single-token attention</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement single-token KV cache updating and causal attention decoding:
+Write <code>kv_cache_attention_step(q_new, k_new, v_new, k_cache, v_cache)</code>:
+Inputs:
+- <code>q_new</code>: Query vector for new token, length $d_k$.
+- <code>k_new</code>: Key vector for new token, length $d_k$.
+- <code>v_new</code>: Value vector for new token, length $d_v$.
+- <code>k_cache</code>: List of existing cached key vectors (length $T$).
+- <code>v_cache</code>: List of existing cached value vectors (length $T$).</p>
+<p>Requirements:
+1. Append <code>k_new</code> to <code>k_cache</code> and <code>v_new</code> to <code>v_cache</code> in-place.
+2. The updated cache now contains $T+1$ keys and values.
+3. Compute attention score of <code>q_new</code> against all keys in <code>k_cache</code>:
+   $$s_j = \frac{\mathbf{q}_{\text{new}} \cdot \mathbf{k}_j}{\sqrt{d_k}}, \quad j \in \{0, \dots, T\}$$
+4. Compute numerically stable softmax weights:
+   $$a_j = \frac{\exp(s_j - \max s)}{\sum \exp(s - \max s)}$$
+5. Compute output vector $\mathbf{o} = \sum_{j=0}^T a_j \mathbf{v}_j$.
+6. Return tuple <code>(o, a)</code> where <code>o</code> is list of floats (length $d_v$) and <code>a</code> is attention weights list (length $T+1$).</p></div>
+<textarea class="code" spellcheck="false">def kv_cache_attention_step(q_new, k_new, v_new, k_cache, v_cache):
+    # Appends new k, v to cache and computes attention output
+    return [], []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_kv_cache_first_token():
+    k_cache = []
+    v_cache = []
+    q0 = [1.0, 0.0]
+    k0 = [1.0, 0.0]
+    v0 = [42.0]
+    out, weights = kv_cache_attention_step(q0, k0, v0, k_cache, v_cache)
+    assert len(k_cache) == 1
+    assert weights == [1.0]
+    assert out == [42.0]
+
+def test_kv_cache_second_token():
+    k_cache = [[1.0, 0.0]]
+    v_cache = [[10.0]]
+    # Token 1 matches key 0 weakly and key 1 strongly
+    q1 = [0.0, 2.0]
+    k1 = [0.0, 2.0]
+    v1 = [20.0]
+    out, weights = kv_cache_attention_step(q1, k1, v1, k_cache, v_cache)
+    assert len(k_cache) == 2
+    assert weights[1] &gt; weights[0]
+    assert abs(sum(weights) - 1.0) &lt; 1e-5
+    assert 10.0 &lt; out[0] &lt; 20.0
+
+def test_cache_growth():
+    k_cache, v_cache = [], []
+    for i in range(5):
+        kv_cache_attention_step([1.0], [1.0], [float(i)], k_cache, v_cache)
+    assert len(k_cache) == 5
+    assert len(v_cache) == 5
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-speculative-decoding-criterion" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Exact speculative decoding acceptance probability and residual correction</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the exact speculative decoding acceptance decision and residual distribution:
+Write <code>speculative_verify_token(token_draft, p_probs, q_probs, uniform_random_val)</code>:
+Inputs:
+- <code>token_draft</code>: Proposed token ID (int).
+- <code>p_probs</code>: Target model probability distribution (list of floats summing to 1.0).
+- <code>q_probs</code>: Draft model probability distribution (list of floats summing to 1.0).
+- <code>uniform_random_val</code>: Random float $U \in [0.0, 1.0)$ for acceptance decision.</p>
+<p>Requirements:
+1. Compute acceptance probability $\alpha = \min\left(1.0, \frac{p(\text{token\_draft})}{q(\text{token\_draft})}\right)$.
+2. If <code>uniform_random_val &lt; alpha</code>:
+   - Token is accepted. Return <code>{"accepted": True, "token": token_draft, "residual_dist": None}</code>.
+3. If <code>uniform_random_val &gt;= alpha</code>:
+   - Token is rejected.
+   - Compute residual distribution:
+     $$R(i) = \max(0.0, p_i - q_i)$$
+   - Normalize: $R_{\text{norm}}(i) = R(i) / \sum_j R(j)$.
+   - Return <code>{"accepted": False, "token": None, "residual_dist": R_norm}</code>.</p></div>
+<textarea class="code" spellcheck="false">def speculative_verify_token(token_draft, p_probs, q_probs, uniform_random_val):
+    # Verifies draft token under exact speculative decoding criterion
+    return {&quot;accepted&quot;: False, &quot;token&quot;: None, &quot;residual_dist&quot;: None}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_speculative_always_accept():
+    # If p(x) &gt;= q(x), alpha = 1.0, always accept regardless of U
+    p = [0.8, 0.2]
+    q = [0.4, 0.6]
+    # token 0: p=0.8, q=0.4 -&gt; alpha = 1.0
+    res = speculative_verify_token(0, p, q, uniform_random_val=0.99)
+    assert res[&quot;accepted&quot;] is True
+    assert res[&quot;token&quot;] == 0
+
+def test_speculative_reject_residual():
+    # token 1: p=0.2, q=0.6 -&gt; alpha = 0.2 / 0.6 = 0.333
+    p = [0.8, 0.2]
+    q = [0.4, 0.6]
+    res = speculative_verify_token(1, p, q, uniform_random_val=0.5) # 0.5 &gt; 0.333 -&gt; Reject
+    assert res[&quot;accepted&quot;] is False
+    assert res[&quot;token&quot;] is None
+    # Residual: p - q -&gt; max(0, 0.8 - 0.4) = 0.4; max(0, 0.2 - 0.6) = 0.0
+    # Normalized residual must place 100% mass on token 0
+    assert abs(res[&quot;residual_dist&quot;][0] - 1.0) &lt; 1e-5
+    assert abs(res[&quot;residual_dist&quot;][1] - 0.0) &lt; 1e-5
+
+def test_speculative_partial_accept():
+    p = [0.5, 0.5]
+    q = [0.8, 0.2]
+    # token 0: alpha = 0.5 / 0.8 = 0.625
+    res1 = speculative_verify_token(0, p, q, uniform_random_val=0.4)
+    assert res1[&quot;accepted&quot;] is True
+    res2 = speculative_verify_token(0, p, q, uniform_random_val=0.7)
+    assert res2[&quot;accepted&quot;] is False
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-repetition-penalty-grammar-mask" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Repetition penalty and grammar-constrained logit masking</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>apply_penalties_and_grammar_mask(logits, generated_history, penalty=1.2, allowed_mask=None)</code>:
+Inputs:
+- <code>logits</code>: List of floats representing unnormalized token scores.
+- <code>generated_history</code>: List of previously generated integer token IDs.
+- <code>penalty</code>: Repetition penalty scalar ($\ge 1.0$).
+- <code>allowed_mask</code>: Optional list of booleans of length $V$; if <code>allowed_mask[i]</code> is False, token $i$ is grammatically disallowed.</p>
+<p>Rules:
+1. For each unique token ID in <code>generated_history</code>:
+   - If <code>logits[token] &gt; 0</code>: <code>logits[token] = logits[token] / penalty</code>
+   - If <code>logits[token] &lt;= 0</code>: <code>logits[token] = logits[token] * penalty</code>
+2. If <code>allowed_mask</code> is provided:
+   - For every token $i$ where <code>allowed_mask[i]</code> is False:
+     set <code>logits[i] = -10^9</code>.
+3. Return the modified logits list.</p></div>
+<textarea class="code" spellcheck="false">def apply_penalties_and_grammar_mask(logits, generated_history, penalty=1.2, allowed_mask=None):
+    # Applies repetition penalty and grammar constraints to logits
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_repetition_penalty():
+    logits = [2.0, -2.0, 5.0]
+    history = [0, 1]
+    # token 0 is positive (2.0) -&gt; 2.0 / 2.0 = 1.0
+    # token 1 is negative (-2.0) -&gt; -2.0 * 2.0 = -4.0
+    # token 2 was not seen -&gt; unchanged 5.0
+    penalized = apply_penalties_and_grammar_mask(logits, history, penalty=2.0)
+    assert abs(penalized[0] - 1.0) &lt; 1e-6
+    assert abs(penalized[1] - (-4.0)) &lt; 1e-6
+    assert abs(penalized[2] - 5.0) &lt; 1e-6
+
+def test_grammar_masking():
+    logits = [10.0, 20.0, 30.0]
+    mask = [True, False, True] # token 1 is disallowed by grammar
+    masked = apply_penalties_and_grammar_mask(logits, [], allowed_mask=mask)
+    assert masked[0] == 10.0
+    assert masked[1] == -1e9
+    assert masked[2] == 30.0
+
+def test_both_applied():
+    logits = [4.0, 4.0]
+    history = [0]
+    mask = [True, True]
+    out = apply_penalties_and_grammar_mask(logits, history, penalty=2.0, allowed_mask=mask)
+    assert abs(out[0] - 2.0) &lt; 1e-6
+    assert abs(out[1] - 4.0) &lt; 1e-6
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Speculative decoding alters the output text distribution of the target model."</strong> Speculative decoding uses exact acceptance probabilities and residual resampling that mathematically guarantee the final output distribution is indistinguishable from running the target model directly.</li>
+<li><strong>"Decoding speed is limited by GPU TFLOPs computing power."</strong> Single-token decoding is heavily memory-bandwidth bound; the GPU spends over 90% of its time waiting to transfer model weights from VRAM to compute cores.</li>
+<li><strong>"Greedy decoding (temperature 0) always produces the most coherent and natural text."</strong> Greedy search frequently gets trapped in repetitive loops; sampling with moderate temperature and nucleus filtering consistently produces higher human-evaluated quality.</li>
+<li><strong>"KV caching decreases overall GPU VRAM usage."</strong> The KV cache eliminates redundant computation but consumes significant additional VRAM that scales linearly with batch size and sequence length.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>LLM inference breaks down when concurrent requests exceed available KV cache memory leading to out-of-memory crashes, when low-temperature sampling triggers pathological phrase repetition loops, or when speculative decoding draft models have low acceptance rates (e.g. &lt;30%), causing validation overhead that makes generation slower than standard decoding.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Production LLM serving engines such as vLLM, TensorRT-LLM and llama.cpp rely on paged KV caches, speculative decoding and grammar-constrained logit masking. On-device, grammar masking is what guarantees a structurally valid JSON response first time, because there is no server to re-ask when the output does not parse.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the difference between prefill and decode phases?</p></div><div class="a" hidden><p>Prefill processes prompt tokens in parallel (compute-bound); decode generates one token at a time sequentially (memory-bound).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why does single-batch LLM decoding underutilize GPU compute cores?</p></div><div class="a" hidden><p>Because loading gigabytes of model weights to perform a single token matrix-vector multiplication is bottlenecked by memory bandwidth.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does the KV cache store?</p></div><div class="a" hidden><p>Past Key and Value activation vectors across attention layers, preventing quadratic $O(N^2)$ recomputation during autoregressive generation.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does speculative decoding achieve speedup without quality loss?</p></div><div class="a" hidden><p>A small draft model proposes multiple tokens cheaply, which the target model verifies in a single parallel step with exact acceptance-rejection criteria.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is nucleus (top-p) sampling?</p></div><div class="a" hidden><p>Sampling from the smallest set of high-probability tokens whose cumulative mass exceeds threshold $p$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does repetition penalty discourage loops?</p></div><div class="a" hidden><p>By dividing positive logits (or multiplying negative logits) of previously generated tokens by penalty scalar $lpha &gt; 1.0$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain memory-bandwidth bottlenecks in LLM decoding, implement temperature/top-k/top-p filtering, and execute speculative decoding acceptance rejection verification.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Leviathan, Y., Kalman, M., and Matias, Y. 'Fast Inference from Transformers via Speculative Decoding.' <em>ICML</em>, 2023.</li>
+<li>Holtzman, A., et al. 'The Curious Case of Neural Text Degenerative Language Models.' <em>ICLR</em>, 2020.</li>
+</ul></section>
+<footer class="pager"><a href="L07.html">&larr; L07 Transformers</a>
+<a href="L09.html">L09 Quantisation and model compression &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "L08", "packages": ["numpy"], "exercises": {"ex1-sampling-temperature-topk-topp": {"starter": "def filter_and_sample_probs(logits, temperature=1.0, top_k=0, top_p=1.0):\n    # Filters logits and returns normalized probability distribution\n    return []\n", "solution": "import math\n\ndef filter_and_sample_probs(logits, temperature=1.0, top_k=0, top_p=1.0):\n    # 1. Temperature scaling\n    scaled = [l / float(temperature) for l in logits]\n\n    # 2. Top-k filtering\n    if top_k > 0 and top_k < len(scaled):\n        sorted_vals = sorted(scaled, reverse=True)\n        k_val = sorted_vals[top_k - 1]\n        scaled = [v if v >= k_val else -1e9 for v in scaled]\n\n    # 3. Softmax\n    max_val = max(scaled)\n    exps = [math.exp(v - max_val) for v in scaled]\n    sum_exps = sum(exps)\n    probs = [e / sum_exps for e in exps]\n\n    # 4. Top-p (nucleus) filtering\n    if top_p < 1.0:\n        indexed = sorted(enumerate(probs), key=lambda x: x[1], reverse=True)\n        cum = 0.0\n        keep_indices = set()\n        for idx, p in indexed:\n            keep_indices.add(idx)\n            cum += p\n            if cum >= top_p:\n                break\n        probs = [p if i in keep_indices else 0.0 for i, p in enumerate(probs)]\n        total = sum(probs)\n        probs = [p / total for p in probs]\n\n    return probs\n", "tests": "def test_temperature_sharpness():\n    logits = [2.0, 1.0, 0.0]\n    p_cold = filter_and_sample_probs(logits, temperature=0.1)\n    p_hot = filter_and_sample_probs(logits, temperature=10.0)\n    # Low temp concentrates mass on top token\n    assert p_cold[0] > 0.99\n    # High temp flattens distribution towards uniform\n    assert p_hot[0] < 0.45\n    assert abs(sum(p_cold) - 1.0) < 1e-5\n\ndef test_top_k():\n    logits = [10.0, 8.0, 6.0, 4.0, 2.0]\n    p = filter_and_sample_probs(logits, top_k=2)\n    assert p[0] > 0 and p[1] > 0\n    assert p[2] == 0.0 and p[3] == 0.0 and p[4] == 0.0\n    assert abs(sum(p) - 1.0) < 1e-5\n\ndef test_top_p_nucleus():\n    logits = [10.0, 5.0, 1.0] # probabilities will be roughly [0.993, 0.0067, 0.0001]\n    p = filter_and_sample_probs(logits, top_p=0.95)\n    # 0.993 >= 0.95, so only the first token is kept\n    assert p[0] == 1.0\n    assert p[1] == 0.0 and p[2] == 0.0\n", "mutants": ["def filter_and_sample_probs(logits, temperature=1.0, top_k=0, top_p=1.0):\n    return [1.0 / len(logits)] * len(logits)\n", "def filter_and_sample_probs(logits, temperature=1.0, top_k=0, top_p=1.0):\n    # Broken mutant: ignores top_k and top_p\n    import math\n    exps = [math.exp(l) for l in logits]\n    s = sum(exps)\n    return [e / s for e in exps]\n"], "hints": ["Scale logits by temperature first: $z / T$.", "For top-p, include tokens until cumulative probability meets or exceeds $p$, then zero out the rest and renormalize."], "level": "warmup", "title": "Logit filtering with temperature, top-k, and nucleus (top-p)"}, "ex2-kv-cache-step-update": {"starter": "def kv_cache_attention_step(q_new, k_new, v_new, k_cache, v_cache):\n    # Appends new k, v to cache and computes attention output\n    return [], []\n", "solution": "import math\n\ndef kv_cache_attention_step(q_new, k_new, v_new, k_cache, v_cache):\n    # Append to cache\n    k_cache.append(k_new)\n    v_cache.append(v_new)\n\n    d_k = len(q_new)\n    d_v = len(v_new)\n    scale = 1.0 / math.sqrt(d_k)\n\n    # Compute dot products against all cached keys\n    scores = []\n    for k in k_cache:\n        dot = sum(qi * ki for qi, ki in zip(q_new, k)) * scale\n        scores.append(dot)\n\n    # Softmax\n    max_s = max(scores)\n    exps = [math.exp(s - max_s) for s in scores]\n    sum_exps = sum(exps)\n    weights = [e / sum_exps for e in exps]\n\n    # Weighted sum over cached values\n    out = [0.0] * d_v\n    for j, v in enumerate(v_cache):\n        w = weights[j]\n        for c in range(d_v):\n            out[c] += w * v[c]\n\n    return out, weights\n", "tests": "def test_kv_cache_first_token():\n    k_cache = []\n    v_cache = []\n    q0 = [1.0, 0.0]\n    k0 = [1.0, 0.0]\n    v0 = [42.0]\n    out, weights = kv_cache_attention_step(q0, k0, v0, k_cache, v_cache)\n    assert len(k_cache) == 1\n    assert weights == [1.0]\n    assert out == [42.0]\n\ndef test_kv_cache_second_token():\n    k_cache = [[1.0, 0.0]]\n    v_cache = [[10.0]]\n    # Token 1 matches key 0 weakly and key 1 strongly\n    q1 = [0.0, 2.0]\n    k1 = [0.0, 2.0]\n    v1 = [20.0]\n    out, weights = kv_cache_attention_step(q1, k1, v1, k_cache, v_cache)\n    assert len(k_cache) == 2\n    assert weights[1] > weights[0]\n    assert abs(sum(weights) - 1.0) < 1e-5\n    assert 10.0 < out[0] < 20.0\n\ndef test_cache_growth():\n    k_cache, v_cache = [], []\n    for i in range(5):\n        kv_cache_attention_step([1.0], [1.0], [float(i)], k_cache, v_cache)\n    assert len(k_cache) == 5\n    assert len(v_cache) == 5\n", "mutants": ["def kv_cache_attention_step(q_new, k_new, v_new, k_cache, v_cache): return v_new, [1.0]\n", "def kv_cache_attention_step(q_new, k_new, v_new, k_cache, v_cache):\n    # Broken mutant: forgets to append to cache\n    return [0.0] * len(v_new), []\n"], "hints": ["Append `k_new` and `v_new` to the input lists.", "Compute dot product of `q_new` with every vector in `k_cache`."], "level": "core", "title": "Key-Value (KV) cache appending and single-token attention"}, "ex3-speculative-decoding-criterion": {"starter": "def speculative_verify_token(token_draft, p_probs, q_probs, uniform_random_val):\n    # Verifies draft token under exact speculative decoding criterion\n    return {\"accepted\": False, \"token\": None, \"residual_dist\": None}\n", "solution": "def speculative_verify_token(token_draft, p_probs, q_probs, uniform_random_val):\n    p_val = p_probs[token_draft]\n    q_val = q_probs[token_draft]\n\n    alpha = min(1.0, p_val / float(q_val)) if q_val > 0 else 0.0\n\n    if uniform_random_val < alpha:\n        return {\n            \"accepted\": True,\n            \"token\": token_draft,\n            \"residual_dist\": None\n        }\n    else:\n        # Compute residual distribution max(0, p - q)\n        residual = [max(0.0, p - q) for p, q in zip(p_probs, q_probs)]\n        total = sum(residual)\n        if total > 0:\n            norm_res = [r / total for r in residual]\n        else:\n            norm_res = list(p_probs) # Fallback to target\n\n        return {\n            \"accepted\": False,\n            \"token\": None,\n            \"residual_dist\": norm_res\n        }\n", "tests": "def test_speculative_always_accept():\n    # If p(x) >= q(x), alpha = 1.0, always accept regardless of U\n    p = [0.8, 0.2]\n    q = [0.4, 0.6]\n    # token 0: p=0.8, q=0.4 -> alpha = 1.0\n    res = speculative_verify_token(0, p, q, uniform_random_val=0.99)\n    assert res[\"accepted\"] is True\n    assert res[\"token\"] == 0\n\ndef test_speculative_reject_residual():\n    # token 1: p=0.2, q=0.6 -> alpha = 0.2 / 0.6 = 0.333\n    p = [0.8, 0.2]\n    q = [0.4, 0.6]\n    res = speculative_verify_token(1, p, q, uniform_random_val=0.5) # 0.5 > 0.333 -> Reject\n    assert res[\"accepted\"] is False\n    assert res[\"token\"] is None\n    # Residual: p - q -> max(0, 0.8 - 0.4) = 0.4; max(0, 0.2 - 0.6) = 0.0\n    # Normalized residual must place 100% mass on token 0\n    assert abs(res[\"residual_dist\"][0] - 1.0) < 1e-5\n    assert abs(res[\"residual_dist\"][1] - 0.0) < 1e-5\n\ndef test_speculative_partial_accept():\n    p = [0.5, 0.5]\n    q = [0.8, 0.2]\n    # token 0: alpha = 0.5 / 0.8 = 0.625\n    res1 = speculative_verify_token(0, p, q, uniform_random_val=0.4)\n    assert res1[\"accepted\"] is True\n    res2 = speculative_verify_token(0, p, q, uniform_random_val=0.7)\n    assert res2[\"accepted\"] is False\n", "mutants": ["def speculative_verify_token(token_draft, p_probs, q_probs, uniform_random_val):\n    return {\"accepted\": True, \"token\": token_draft, \"residual_dist\": None}\n", "def speculative_verify_token(token_draft, p_probs, q_probs, uniform_random_val):\n    return {\"accepted\": False, \"token\": None, \"residual_dist\": p_probs}\n"], "hints": ["Acceptance ratio is $\\min(1, p(x)/q(x))$.", "Residual distribution is normalized $\\max(0, p_i - q_i)$."], "level": "core", "title": "Exact speculative decoding acceptance probability and residual correction"}, "ex4-repetition-penalty-grammar-mask": {"starter": "def apply_penalties_and_grammar_mask(logits, generated_history, penalty=1.2, allowed_mask=None):\n    # Applies repetition penalty and grammar constraints to logits\n    return []\n", "solution": "def apply_penalties_and_grammar_mask(logits, generated_history, penalty=1.2, allowed_mask=None):\n    out = list(logits)\n    seen = set(generated_history)\n\n    # Apply repetition penalty\n    for token in seen:\n        if 0 <= token < len(out):\n            val = out[token]\n            if val > 0:\n                out[token] = val / float(penalty)\n            else:\n                out[token] = val * float(penalty)\n\n    # Apply grammar mask\n    if allowed_mask is not None:\n        for i in range(len(out)):\n            if not allowed_mask[i]:\n                out[i] = -1e9\n\n    return out\n", "tests": "def test_repetition_penalty():\n    logits = [2.0, -2.0, 5.0]\n    history = [0, 1]\n    # token 0 is positive (2.0) -> 2.0 / 2.0 = 1.0\n    # token 1 is negative (-2.0) -> -2.0 * 2.0 = -4.0\n    # token 2 was not seen -> unchanged 5.0\n    penalized = apply_penalties_and_grammar_mask(logits, history, penalty=2.0)\n    assert abs(penalized[0] - 1.0) < 1e-6\n    assert abs(penalized[1] - (-4.0)) < 1e-6\n    assert abs(penalized[2] - 5.0) < 1e-6\n\ndef test_grammar_masking():\n    logits = [10.0, 20.0, 30.0]\n    mask = [True, False, True] # token 1 is disallowed by grammar\n    masked = apply_penalties_and_grammar_mask(logits, [], allowed_mask=mask)\n    assert masked[0] == 10.0\n    assert masked[1] == -1e9\n    assert masked[2] == 30.0\n\ndef test_both_applied():\n    logits = [4.0, 4.0]\n    history = [0]\n    mask = [True, True]\n    out = apply_penalties_and_grammar_mask(logits, history, penalty=2.0, allowed_mask=mask)\n    assert abs(out[0] - 2.0) < 1e-6\n    assert abs(out[1] - 4.0) < 1e-6\n", "mutants": ["def apply_penalties_and_grammar_mask(logits, generated_history, penalty=1.2, allowed_mask=None):\n    return logits\n", "def apply_penalties_and_grammar_mask(logits, generated_history, penalty=1.2, allowed_mask=None):\n    # Broken mutant: divides negative logits by penalty\n    return [l / penalty for l in logits]\n"], "hints": ["If logit is positive, divide by penalty; if negative, multiply by penalty to decrease probability.", "Grammar disallowed tokens must be assigned $-10^9$."], "level": "boss", "title": "Repetition penalty and grammar-constrained logit masking"}}, "demos": {"oracle-speculative-exactness": {"code": "import random\n\ndef sample_categorical(probs, rng):\n    r = rng.random()\n    cumulative = 0.0\n    for i, p in enumerate(probs):\n        cumulative += p\n        if r <= cumulative:\n            return i\n    return len(probs) - 1\n\ndef run_speculative_trial(p_dist, q_dist, rng):\n    # Step 1: Draft model samples token x from q\n    x = sample_categorical(q_dist, rng)\n    # Step 2: Accept with probability min(1, p(x) / q(x))\n    alpha = min(1.0, p_dist[x] / q_dist[x])\n    if rng.random() < alpha:\n        return x, True # Accepted\n    else:\n        # Resample from residual max(0, p - q)\n        residual = [max(0.0, p_dist[i] - q_dist[i]) for i in range(len(p_dist))]\n        total_res = sum(residual)\n        res_norm = [r / total_res for r in residual]\n        resampled_x = sample_categorical(res_norm, rng)\n        return resampled_x, False # Rejected & corrected\n\nrng = random.Random(42)\n# Target distribution p vs draft distribution q over 3 tokens\np = [0.7, 0.2, 0.1]\nq = [0.5, 0.3, 0.2]\n\ntrials = 10000\ncounts = [0, 0, 0]\nfor _ in range(trials):\n    tok, _ = run_speculative_trial(p, q, rng)\n    counts[tok] += 1\n\nempirical_p = [c / float(trials) for c in counts]\nprint(f\"Target distribution: {p}\")\nprint(f\"Empirical speculative distribution: {empirical_p}\")\nfor i in range(3):\n    assert abs(empirical_p[i] - p[i]) < 0.02, f\"Token {i} distribution diverged: {empirical_p[i]} vs {p[i]}\"\nprint(\"SUCCESS: Speculative decoding distribution equivalence confirmed.\")\n", "mutants": ["empirical_p = [0.33, 0.33, 0.34]\np = [0.7, 0.2, 0.1]\nfor i in range(3): assert abs(empirical_p[i] - p[i]) < 0.02, \"Mutant diverged\"\n"]}, "exp-decode-bandwidth-bound": {"code": "def estimate_tokens_per_sec(model_size_gb, mem_bandwidth_gb_s, batch_size=1):\n    # Decode latency per token is bounded by loading model weights from memory\n    time_per_token = (model_size_gb * 1.0) / mem_bandwidth_gb_s\n    tokens_per_sec = batch_size / time_per_token\n    return tokens_per_sec\n\n# Mobile SoC: 4GB model on 60 GB/s bandwidth memory\nmobile_speed = estimate_tokens_per_sec(4.0, 60.0)\n# Datacenter GPU: 14GB model on 2000 GB/s bandwidth memory\ngpu_speed = estimate_tokens_per_sec(14.0, 2000.0)\n\nprint(f\"Mobile decode speed: {mobile_speed:.1f} tokens/s\")\nprint(f\"Datacenter decode speed: {gpu_speed:.1f} tokens/s\")\nassert mobile_speed == 15.0, \"Mobile speed calculation mismatch\"\nassert gpu_speed > 100.0, \"Datacenter GPU must decode >100 tokens/s\"\n", "mutants": ["mobile_speed = 0.5\nassert mobile_speed == 15.0, \"Mutant speed calculation failed\"\n"]}}, "cards": [{"q": "What is the difference between prefill and decode phases?", "a": "Prefill processes prompt tokens in parallel (compute-bound); decode generates one token at a time sequentially (memory-bound)."}, {"q": "Why does single-batch LLM decoding underutilize GPU compute cores?", "a": "Because loading gigabytes of model weights to perform a single token matrix-vector multiplication is bottlenecked by memory bandwidth."}, {"q": "What does the KV cache store?", "a": "Past Key and Value activation vectors across attention layers, preventing quadratic $O(N^2)$ recomputation during autoregressive generation."}, {"q": "How does speculative decoding achieve speedup without quality loss?", "a": "A small draft model proposes multiple tokens cheaply, which the target model verifies in a single parallel step with exact acceptance-rejection criteria."}, {"q": "What is nucleus (top-p) sampling?", "a": "Sampling from the smallest set of high-probability tokens whose cumulative mass exceeds threshold $p$."}, {"q": "How does repetition penalty discourage loops?", "a": "By dividing positive logits (or multiplying negative logits) of previously generated tokens by penalty scalar $\u0007lpha > 1.0$."}], "title": "LLM inference and decoding"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

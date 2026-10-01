@@ -1,0 +1,538 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P18 Functional programming and types</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P18">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P18</p><h1>Functional programming and types</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P03.html">P03</a></div><div><b>Covers:</b> CS2023 FPL</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>pure functions and referential transparency</li><li>higher-order functions</li><li>map, filter and fold</li><li>immutability and persistent data structures</li><li>algebraic data types (sum and product)</li><li>pattern matching and Dart 3 sealed classes</li><li>Option and Result</li><li>functors and monads explained honestly (bind)</li><li>laziness</li><li>ownership and affine types in Rust (the borrow checker is not monads)</li><li>effects</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In the 1930s, Alonzo Church introduced the lambda calculus ($\lambda$-calculus) as a formal mathematical framework for studying function definition, application, and recursion. Decades later in 1958, John McCarthy created Lisp at MIT, translating church's foundational theory into the world's second-oldest high-level programming language and introducing garbage collection, first-class functions, and symbolic computing. In 1977, John Backus delivered his landmark Turing Award lecture, titled "Can Programming Be Liberated from the von Neumann Style?", arguing passionately that imperative state-mutation creates an intellectual and architectural bottleneck—the "von Neumann bottleneck"—that cripples human ability to reason about and parallelize complex software systems.</p>
+<p>Backus's challenge catalyzed a golden era of functional programming research. Robin Milner at the University of Edinburgh designed ML (Meta Language), inventing Hindley-Milner parametric type inference and algebraic data types (ADTs) with pattern matching. In 1990, an international committee of computer scientists unveiled Haskell, introducing pure functional semantics, call-by-need laziness, and Philip Wadler's revolutionary monadic effect system. In the modern era, functional ideas have conquered mainstream industry: Rich Hickey created Clojure to bring persistent immutable data structures with structural sharing to the JVM; Dart 3 introduced sealed class hierarchies and exhaustive pattern matching to mobile UI architectures in Flutter; and Graydon Hoare and the Rust project solved memory safety without garbage collection through affine type systems and ownership borrow checkers. Functional programming is no longer an academic curiosity; it is the theoretical bedrock of resilient, concurrent, and fault-tolerant computing.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Functional programming is an approach to writing software where computation is treated as the evaluation of mathematical functions that avoid mutable state and side effects. A pure function always gives the exact same output for the same input and never quietly modifies global variables, files, or network sockets behind your back. Instead of changing data in place, you create new values that efficiently share unchanged memory with the old ones through persistent data structures. You compose programs using small, reusable higher-order functions like map, filter, and fold; wrap operations that might fail in Option or Result types rather than throwing sudden exceptions; and safely handle effects through structured abstractions. In languages like Rust, affine type systems track ownership and borrowing at compile time, guaranteeing complete memory safety with zero runtime garbage collection overhead.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and type-theoretic foundations of functional programming are defined across several key formalisms:</p>
+<ol>
+<li>
+<p><strong>Pure Functions and Referential Transparency</strong>:
+An expression $e$ is referentially transparent if and only if any occurrence of $e$ in a program can be replaced by its evaluated value without altering the observable behavior of the program:
+$$\forall e, \quad P[e] \equiv P[\text{eval}(e)]$$
+A function $f: A \to B$ is pure if it has no observable side effects (I/O, mutable variable mutation, clock reads) and depends strictly upon its input argument.</p>
+</li>
+<li>
+<p><strong>Algebraic Data Types (ADTs)</strong>:
+An algebraic data type is formed by combining product types (Cartesian products, tuples, structs) and sum types (disjoint unions, tagged unions, variants).
+- <strong>Product Type</strong> ($A \times B$): Contains both an instance of $A$ and an instance of $B$. The cardinality $|A \times B| = |A| \cdot |B|$.
+- <strong>Sum Type</strong> ($A + B$): Contains either an instance of $A$ or an instance of $B$, tagged with a constructor. The cardinality $|A + B| = |A| + |B|$.
+- <strong>Option Type</strong>: $\text{Option}[T] = 1 + T$ (where $1$ represents None / unit, and $T$ represents $\text{Some}(t)$).
+- <strong>Result Type</strong>: $\text{Result}[T, E] = T + E$ (representing either success $\text{Ok}(t)$ or failure $\text{Err}(e)$).</p>
+</li>
+<li>
+<p><strong>Functors and Monads (Bind)</strong>:
+A functor $F$ maps types and functions while preserving identities and composition:
+$$\text{fmap} : (A \to B) \to F[A] \to F[B]$$
+such that $\text{fmap}(\text{id}) = \text{id}$ and $\text{fmap}(g \circ f) = \text{fmap}(g) \circ \text{fmap}(f)$.</p>
+</li>
+</ol>
+<p>A monad is an endofunctor equipped with two natural transformations:
+- <strong>Unit (return / pure)</strong>: $\eta: T \to M[T]$
+- <strong>Bind (flatMap / $\gg=$)</strong>: $(M[A], A \to M[B]) \to M[B]$
+Satisfying the three monad laws:
+- Left identity: $\text{unit}(x) \gg= f \equiv f(x)$
+- Right identity: $m \gg= \text{unit} \equiv m$
+- Associativity: $(m \gg= f) \gg= g \equiv m \gg= (\lambda x. f(x) \gg= g)$</p>
+<ol start="4">
+<li>
+<p><strong>Laziness and Call-by-Need</strong>:
+Under lazy evaluation (non-strict semantics), an expression is represented as a suspended computation called a thunk:
+$$\text{Thunk}[T] = (\text{Suspended}, () \to T) \mid (\text{Evaluated}, T)$$
+The thunk evaluates at most once upon its first forced read and memoizes the result, enabling the manipulation of infinite sequences and streams.</p>
+</li>
+<li>
+<p><strong>Affine Types and Ownership (Linear Logic)</strong>:
+In substructural logic, structural rules govern how hypotheses can be manipulated:
+- <strong>Linear Type</strong>: Must be used exactly once (no weakening, no contraction).
+- <strong>Affine Type</strong>: Must be used at most once (weakening allowed, contraction forbidden).
+Rust implements an affine type system: assigning or passing a non-Copy variable moves ownership, invalidating the source variable. The borrow checker enforces the aliasing XOR mutability invariant at compile time:
+$$\text{ActiveBorrows}(x) \subseteq \{\&amp;T, \dots, \&amp;T\} \quad \lor \quad \text{ActiveBorrows}(x) = \{\&amp;mut\ T\}$$
+The borrow checker is an affine substructural type system, distinctly different from monadic effect containers.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>The imperative style of software development, where shared mutable state is altered by arbitrary sequences of instructions across threads, is the primary source of race conditions, memory corruption, and unpredictable bugs in modern distributed and mobile computing. When three different threads or UI components share a mutable pointer to a user session object, proving that the system will never enter an inconsistent state requires analyzing all possible thread interleavings—an intractable combinatorial explosion of states.</p>
+<p>Functional programming solves this crisis from first principles. By enforcing immutability and referential transparency, pure functions can be reasoned about in isolation, unit tested without complex mock setups, and freely executed across parallel CPU cores without mutex locks or synchronization overhead. Persistent data structures with structural sharing make immutability computationally viable: instead of performing deep defensive copies of $100,000$-element collections, operations like tree insertion or list prepending create lightweight new root pointers that share $99.99\%$ of their node hierarchy with the previous version in $O(\log n)$ or $O(1)$ time.</p>
+<p>Furthermore, type systems have evolved to eliminate entire categories of production failures before runtime. Tony Hoare famously called the invention of the null reference his "billion-dollar mistake." Algebraic data types replace null with Option[T] and replace unhandled exceptions with Result[T, E]. Modern languages like Dart 3 enforce compile-time exhaustive pattern matching over sealed class hierarchies, guaranteeing that if a developer adds a new state to a payment flow or authentication state machine, the compiler immediately halts the build until every switch expression handles the new variant. In systems programming, Rust's borrow checker proves at compile time that data races and use-after-free bugs are mathematically impossible, proving that rigorous type systems are software engineering's greatest productivity amplifier.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The following interactive oracle demonstrates a deterministic functional pipeline combining pure functions, higher-order functions (map, filter, and fold), algebraic data types (Option and Result), and monadic bind (flatMap) to safely parse, validate, and compute aggregate statistics over financial transactions. By relying entirely on railway-oriented programming, errors are propagated deterministically without throwing sudden runtime exceptions, ensuring total referential transparency across execution environments.</p>
+<div class="lab demo" data-demo="p18-oracle-monadic-pipeline">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Pure Monadic Pipeline and Functional Aggregator Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">class Result:
+    def __init__(self, is_ok: bool, value=None, error=None):
+        self.is_ok = is_ok
+        self.value = value
+        self.error = error
+
+    @classmethod
+    def ok(cls, val):
+        return cls(True, value=val)
+
+    @classmethod
+    def err(cls, err):
+        return cls(False, error=err)
+
+    def map(self, fn):
+        if self.is_ok:
+            return Result.ok(fn(self.value))
+        return self
+
+    def bind(self, fn):
+        if self.is_ok:
+            return fn(self.value)
+        return self
+
+def parse_int(s: str) -&gt; Result:
+    try:
+        return Result.ok(int(s.strip()))
+    except ValueError:
+        return Result.err(f&quot;Invalid integer: {s}&quot;)
+
+def validate_positive(n: int) -&gt; Result:
+    if n &gt; 0:
+        return Result.ok(n)
+    return Result.err(f&quot;Value must be positive, got {n}&quot;)
+
+def process_transaction(raw_text: str) -&gt; Result:
+    return parse_int(raw_text).bind(validate_positive).map(lambda amount: amount * 100)
+
+raw_inputs = [&quot;50&quot;, &quot;-12&quot;, &quot;abc&quot;, &quot;120&quot;]
+results = [process_transaction(x) for x in raw_inputs]
+
+valid_amounts = [r.value for r in results if r.is_ok]
+total_cents = sum(valid_amounts)
+
+print(&quot;Valid amounts (cents):&quot;, valid_amounts)
+print(&quot;Total cents:&quot;, total_cents)
+assert total_cents == 17000
+assert results[0].is_ok and results[0].value == 5000
+assert not results[1].is_ok
+assert not results[2].is_ok
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>This interactive experiment demonstrates call-by-need lazy evaluation versus eager evaluation using an infinite generator stream of prime numbers. We show that lazy stream operations (map, filter, and take) evaluate elements strictly on demand, executing in $O(k)$ steps for $k$ requested elements, whereas an eager evaluation would trigger an infinite loop or process unbounded memory. By measuring generator step counts, we verify that unneeded elements are never evaluated.</p>
+<div class="lab demo" data-demo="p18-experiment-lazy-streams">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Lazy Generator Streams vs Eager Evaluation Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def is_prime(n: int) -&gt; bool:
+    if n &lt; 2: return False
+    if n == 2: return True
+    if n % 2 == 0: return False
+    for d in range(3, int(n**0.5) + 1, 2):
+        if n % d == 0: return False
+    return True
+
+eval_count = 0
+
+def infinite_naturals(start=1):
+    global eval_count
+    n = start
+    while True:
+        eval_count += 1
+        yield n
+        n += 1
+
+def lazy_filter(pred, stream):
+    for item in stream:
+        if pred(item):
+            yield item
+
+def lazy_map(fn, stream):
+    for item in stream:
+        yield fn(item)
+
+def lazy_take(k, stream):
+    result = []
+    for item in stream:
+        result.append(item)
+        if len(result) &gt;= k:
+            break
+    return result
+
+eval_count = 0
+nats = infinite_naturals(start=1)
+primes = lazy_filter(is_prime, nats)
+prime_squares = lazy_map(lambda p: p * p, primes)
+
+first_five = lazy_take(5, prime_squares)
+print(&quot;First 5 prime squares:&quot;, first_five)
+print(&quot;Total integers evaluated from infinite stream:&quot;, eval_count)
+
+assert first_five == [4, 9, 25, 49, 121]
+assert eval_count == 11
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-persistent-immutable-stack" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Persistent Immutable Stack with Node Structural Sharing</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a purely functional, persistent immutable stack (PersistentStack) using node-based structural sharing, ensuring push and pop operations execute in O(1) time without modifying original stack instances.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Tuple
+
+class StackNode:
+    def __init__(self, value: Any, next_node: &#x27;StackNode&#x27; = None):
+        self.value = value
+        self.next = next_node
+
+class PersistentStack:
+    def __init__(self, top: StackNode = None, size: int = 0):
+        self._top = top
+        self._size = size
+
+    def push(self, value: Any) -&gt; &#x27;PersistentStack&#x27;:
+        pass
+
+    def pop(self) -&gt; Tuple[Any, &#x27;PersistentStack&#x27;]:
+        pass
+
+    def peek(self) -&gt; Any:
+        pass
+
+    def is_empty(self) -&gt; bool:
+        pass
+
+    def __len__(self) -&gt; int:
+        pass
+
+    def to_list(self) -&gt; list:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_persistent_stack_immutability():
+    s0 = PersistentStack()
+    assert s0.is_empty()
+    assert len(s0) == 0
+    
+    s1 = s0.push(10)
+    s2 = s1.push(20)
+    s3 = s1.push(30)
+    
+    assert len(s0) == 0
+    assert len(s1) == 1
+    assert s1.to_list() == [10]
+    assert s2.to_list() == [20, 10]
+    assert s3.to_list() == [30, 10]
+
+def test_persistent_stack_pop():
+    s = PersistentStack().push(1).push(2).push(3)
+    assert s.peek() == 3
+    assert len(s) == 3
+    
+    val, s_popped = s.pop()
+    assert val == 3
+    assert s_popped.to_list() == [2, 1]
+    assert len(s_popped) == 2
+    assert s.to_list() == [3, 2, 1]
+
+def test_persistent_stack_empty_errors():
+    s = PersistentStack()
+    try:
+        s.peek()
+        assert False, &quot;Should raise IndexError&quot;
+    except IndexError:
+        pass
+    try:
+        s.pop()
+        assert False, &quot;Should raise IndexError&quot;
+    except IndexError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-result-monad-railway-programming" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Result Monad and Railway-Oriented Programming Abstraction</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement the Result algebraic sum type supporting functorial map, monadic bind, pattern matching via match, and safe unwrapping with fallback defaults, ensuring resilient railway-oriented error handling without raising uncaught exceptions in production pipelines.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Callable
+
+class Result:
+    def __init__(self, is_ok: bool, value: Any = None, error: Any = None):
+        self._is_ok = is_ok
+        self._value = value
+        self._error = error
+
+    @classmethod
+    def ok(cls, value: Any) -&gt; &#x27;Result&#x27;:
+        pass
+
+    @classmethod
+    def err(cls, error: Any) -&gt; &#x27;Result&#x27;:
+        pass
+
+    @property
+    def is_ok(self) -&gt; bool:
+        pass
+
+    @property
+    def is_err(self) -&gt; bool:
+        pass
+
+    def map(self, fn: Callable[[Any], Any]) -&gt; &#x27;Result&#x27;:
+        pass
+
+    def map_err(self, fn: Callable[[Any], Any]) -&gt; &#x27;Result&#x27;:
+        pass
+
+    def bind(self, fn: Callable[[Any], &#x27;Result&#x27;]) -&gt; &#x27;Result&#x27;:
+        pass
+
+    def match(self, on_ok: Callable[[Any], Any], on_err: Callable[[Any], Any]) -&gt; Any:
+        pass
+
+    def unwrap(self) -&gt; Any:
+        pass
+
+    def unwrap_or(self, default: Any) -&gt; Any:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_result_ok_flow():
+    r = Result.ok(10)
+    assert r.is_ok
+    assert not r.is_err
+    assert r.unwrap() == 10
+    assert r.unwrap_or(0) == 10
+    
+    r2 = r.map(lambda x: x * 2)
+    assert r2.is_ok and r2.unwrap() == 20
+    
+    r3 = r2.bind(lambda x: Result.ok(f&quot;val: {x}&quot;))
+    assert r3.unwrap() == &quot;val: 20&quot;
+
+def test_result_err_short_circuit():
+    r = Result.err(&quot;database timeout&quot;)
+    assert not r.is_ok
+    assert r.is_err
+    assert r.unwrap_or(42) == 42
+    
+    called = []
+    r2 = r.map(lambda x: called.append(&quot;map&quot;) or x + 1)
+    r3 = r2.bind(lambda x: called.append(&quot;bind&quot;) or Result.ok(x))
+    assert len(called) == 0
+    assert r3.is_err
+    
+    r_err_mapped = r.map_err(lambda e: f&quot;Error: {e}&quot;)
+    assert r_err_mapped.match(lambda v: &quot;ok&quot;, lambda e: e) == &quot;Error: database timeout&quot;
+
+def test_result_unwrap_raises_on_err():
+    r = Result.err(&quot;critical failure&quot;)
+    try:
+        r.unwrap()
+        assert False, &quot;Should raise ValueError&quot;
+    except ValueError as e:
+        assert str(e) == &quot;critical failure&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-lazy-infinite-stream-pipeline" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Lazy Infinite Stream and Higher-Order Pipelines</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a generator-backed lazy evaluation stream (LazyStream) supporting composable higher-order operations (map, filter, take, take_while, fold) over infinite sequences without unbounded evaluation.</p></div>
+<textarea class="code" spellcheck="false">from typing import Any, Callable, Iterator, List
+
+class LazyStream:
+    def __init__(self, source):
+        self._source = source
+
+    def __iter__(self) -&gt; Iterator:
+        pass
+
+    def map(self, fn: Callable[[Any], Any]) -&gt; &#x27;LazyStream&#x27;:
+        pass
+
+    def filter(self, pred: Callable[[Any], bool]) -&gt; &#x27;LazyStream&#x27;:
+        pass
+
+    def take(self, n: int) -&gt; List[Any]:
+        pass
+
+    def take_while(self, pred: Callable[[Any], bool]) -&gt; List[Any]:
+        pass
+
+    def fold(self, initial: Any, fn: Callable[[Any, Any], Any], limit: int = 1000) -&gt; Any:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_lazy_infinite_stream():
+    def naturals():
+        n = 1
+        while True:
+            yield n
+            n += 1
+
+    stream = LazyStream(naturals)
+    evens_times_three = stream.filter(lambda x: x % 2 == 0).map(lambda x: x * 3)
+    res = evens_times_three.take(5)
+    assert res == [6, 12, 18, 24, 30]
+
+def test_lazy_take_while():
+    stream = LazyStream([1, 2, 3, 4, 10, 2, 1])
+    res = stream.take_while(lambda x: x &lt; 5)
+    assert res == [1, 2, 3, 4]
+
+def test_lazy_fold():
+    stream = LazyStream([1, 2, 3, 4, 5])
+    total = stream.fold(0, lambda acc, x: acc + x)
+    assert total == 15
+    
+    def infinite_ones():
+        while True:
+            yield 1
+    total_limited = LazyStream(infinite_ones).fold(0, lambda acc, x: acc + x, limit=10)
+    assert total_limited == 10
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-affine-borrow-checker" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Affine Borrow Checker and Aliasing XOR Mutability Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a compile-time affine ownership and borrow checker (AffineBorrowChecker) tracking variable lifetimes, moves, shared references, and exclusive mutable borrows according to linear and affine type invariants.</p></div>
+<textarea class="code" spellcheck="false">class OwnershipError(Exception):
+    pass
+
+class AffineBorrowChecker:
+    def __init__(self):
+        pass
+
+    def declare(self, var: str, resource_id: str):
+        pass
+
+    def move_var(self, from_var: str, to_var: str):
+        pass
+
+    def borrow_shared(self, var: str, borrow_name: str):
+        pass
+
+    def borrow_mut(self, var: str, borrow_name: str):
+        pass
+
+    def release_borrow(self, borrow_name: str):
+        pass
+
+    def read_access(self, name: str) -&gt; bool:
+        pass
+
+    def write_access(self, name: str) -&gt; bool:
+        pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_ownership_move_semantics():
+    bc = AffineBorrowChecker()
+    bc.declare(&quot;v1&quot;, &quot;resA&quot;)
+    assert bc.read_access(&quot;v1&quot;)
+    assert bc.write_access(&quot;v1&quot;)
+    
+    bc.move_var(&quot;v1&quot;, &quot;v2&quot;)
+    assert bc.read_access(&quot;v2&quot;)
+    
+    try:
+        bc.read_access(&quot;v1&quot;)
+        assert False, &quot;Should raise OwnershipError on moved var&quot;
+    except OwnershipError:
+        pass
+
+def test_aliasing_xor_mutability_shared_borrows():
+    bc = AffineBorrowChecker()
+    bc.declare(&quot;data&quot;, &quot;res1&quot;)
+    
+    bc.borrow_shared(&quot;data&quot;, &quot;ref1&quot;)
+    bc.borrow_shared(&quot;data&quot;, &quot;ref2&quot;)
+    assert bc.read_access(&quot;ref1&quot;)
+    assert bc.read_access(&quot;ref2&quot;)
+    assert bc.read_access(&quot;data&quot;)
+    
+    try:
+        bc.write_access(&quot;data&quot;)
+        assert False, &quot;Should prohibit write while shared borrows exist&quot;
+    except OwnershipError:
+        pass
+    try:
+        bc.borrow_mut(&quot;data&quot;, &quot;mut_ref&quot;)
+        assert False, &quot;Should prohibit borrow_mut while shared borrows exist&quot;
+    except OwnershipError:
+        pass
+
+def test_exclusive_mutable_borrow():
+    bc = AffineBorrowChecker()
+    bc.declare(&quot;buffer&quot;, &quot;resBuf&quot;)
+    bc.borrow_mut(&quot;buffer&quot;, &quot;mut_b&quot;)
+    
+    assert bc.read_access(&quot;mut_b&quot;)
+    assert bc.write_access(&quot;mut_b&quot;)
+    
+    try:
+        bc.read_access(&quot;buffer&quot;)
+        assert False, &quot;Should prohibit owner read while mutably borrowed&quot;
+    except OwnershipError:
+        pass
+    
+    bc.release_borrow(&quot;mut_b&quot;)
+    assert bc.read_access(&quot;buffer&quot;)
+    assert bc.write_access(&quot;buffer&quot;)
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Functional programming is slow because creating new objects instead of mutating variables destroys CPU cache and memory."</strong> Persistent data structures use structural sharing (e.g. directed acyclic graphs and Trie bit-partitioning) where creating a modified collection reuses 99% of existing nodes without deep copies. Furthermore, immutability allows lock-free concurrency and zero-copy sharing across CPU threads.</li>
+<li><strong>"Monads are difficult mystical abstractions requiring deep expertise in abstract category theory."</strong> In practical programming, a monad is simply a design pattern with two methods: a way to wrap a normal value into a context (<code>unit</code> or <code>return</code>), and a way to chain functions that return wrapped values (<code>bind</code> or <code>flatMap</code>) while automatically handling intermediate plumbing like errors (<code>Result</code>), nulls (<code>Option</code>), or asynchronous futures (<code>Future</code>).</li>
+<li><strong>"Rust's borrow checker is an implementation of monads or functional IO wrappers."</strong> Rust's borrow checker is an affine substructural type system operating at compile time to enforce exclusive mutability and single ownership. It does not wrap runtime values in monadic containers or rely on category-theoretic composition.</li>
+<li><strong>"Pure functions cannot interact with the real world or perform user input/output."</strong> Pure functional programs represent side effects (network requests, disk writes, user inputs) as inert data descriptions or monadic values (like <code>IO[A]</code> or Flutter's declarative widget trees). The runtime system executes the described effects at the boundaries of the program, preserving mathematical purity within business logic.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Functional programming principles break or encounter severe performance penalties in specific domains:
+1. <strong>High-Performance In-Place Linear Algebra and Computer Graphics</strong>: Hardware GPUs and SIMD vector registers are fundamentally designed for contiguous arrays and destructive in-place buffer mutations. Forcing persistent immutable trees into a 4K 120fps physics simulation creates intolerable pointer-chasing and cache thrashing.
+2. <strong>Cycle Detection in Pure Immutable Graphs</strong>: Representing cyclical graph structures (such as bidirectional network topologies) in purely functional languages is notoriously awkward and requires knot-tying via laziness or explicit reference identifiers.
+3. <strong>Space Leaks in Lazy Evaluation</strong>: In call-by-need languages like Haskell, unforced thunk chains can accumulate silently in memory (e.g. <code>foldl</code> over a large list), leading to catastrophic out-of-memory crashes unless strict evaluation is explicitly enforced via <code>seq</code> or <code>foldl'</code>.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Functional programming techniques are standard operating procedure across production software engineering:
+- <strong>Flutter and React UI Frameworks</strong>: UI is modeled as a pure declarative function of state: <code>UI = f(State)</code>. Dart 3 sealed classes represent finite UI states (<code>Loading</code>, <code>Success</code>, <code>Error</code>), exhaustively matched in widget build methods.
+- <strong>Redux and Bloc State Management</strong>: Application state transitions are strictly governed by pure reducer functions that return new immutable state objects via structural sharing.
+- <strong>Data Engineering Pipelines</strong>: Apache Spark, Apache Flink, and Kafka Streams model petabyte-scale big data processing as higher-order <code>map</code>, <code>filter</code>, and <code>reduceByKey</code> operations distributed across thousands of worker nodes.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is referential transparency?</p></div><div class="a" hidden><p>The property where any expression can be replaced by its evaluated value without changing program behavior, guaranteeing freedom from hidden side effects.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the difference between a product type and a sum type?</p></div><div class="a" hidden><p>A product type (struct, tuple) holds all of its fields simultaneously (|A x B| = |A| * |B|), while a sum type (tagged union, enum) holds exactly one of several alternative variants (|A + B| = |A| + |B|).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What are the two core operations of a monad?</p></div><div class="a" hidden><p>Unit (return / pure), which wraps a raw value into the monadic container, and Bind (flatMap / &gt;&gt;=), which chains a function returning a monad while handling intermediate state or error logic.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How do persistent data structures make immutability computationally efficient?</p></div><div class="a" hidden><p>Through structural sharing: creating a new version of a collection reuses unmodified nodes of tree or DAG structures, achieving O(1) or O(log n) update time without defensive full-copying.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is an affine type system and how does Rust use it?</p></div><div class="a" hidden><p>An affine type system enforces that every resource is used at most once. Rust uses it to track ownership and move semantics, statically guaranteeing memory safety and data-race freedom at compile time without a garbage collector.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does Dart 3 implement algebraic data types and pattern matching?</p></div><div class="a" hidden><p>Using sealed class hierarchies to define closed sum types, allowing switch statements and expressions to be checked by the compiler for exhaustive coverage without default fallback cases.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can build purely functional persistent immutable data structures with structural sharing, implement algebraic types and monadic pipelines with Result, create lazy infinite streams with higher-order functions, and enforce compile-time ownership invariants using an affine borrow checker.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Church, Alonzo (1936). An Unsolvable Problem of Elementary Number Theory. American Journal of Mathematics, 58(2), 345-363.</li>
+<li>Backus, John (1978). Can Programming Be Liberated from the von Neumann Style? Communications of the ACM, 21(8), 613-641.</li>
+<li>Wadler, Philip (1995). Monads for Functional Programming. Advanced Functional Programming, Springer, 24-52.</li>
+<li>Milner, Robin (1978). A Theory of Type Polymorphism in Programming. Journal of Computer and System Sciences, 17(3), 348-375.</li>
+</ul></section>
+<footer class="pager"><a href="P15.html">&larr; P15 Parsing: from text to trees</a>
+<a href="S01.html">S01 Dart deep dive &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P18", "packages": ["numpy"], "exercises": {"ex1-persistent-immutable-stack": {"starter": "from typing import Any, Tuple\n\nclass StackNode:\n    def __init__(self, value: Any, next_node: 'StackNode' = None):\n        self.value = value\n        self.next = next_node\n\nclass PersistentStack:\n    def __init__(self, top: StackNode = None, size: int = 0):\n        self._top = top\n        self._size = size\n\n    def push(self, value: Any) -> 'PersistentStack':\n        pass\n\n    def pop(self) -> Tuple[Any, 'PersistentStack']:\n        pass\n\n    def peek(self) -> Any:\n        pass\n\n    def is_empty(self) -> bool:\n        pass\n\n    def __len__(self) -> int:\n        pass\n\n    def to_list(self) -> list:\n        pass\n", "solution": "from typing import Any, Tuple\n\nclass StackNode:\n    def __init__(self, value: Any, next_node: 'StackNode' = None):\n        self.value = value\n        self.next = next_node\n\nclass PersistentStack:\n    def __init__(self, top: StackNode = None, size: int = 0):\n        self._top = top\n        self._size = size\n\n    def push(self, value: Any) -> 'PersistentStack':\n        new_top = StackNode(value, self._top)\n        return PersistentStack(new_top, self._size + 1)\n\n    def pop(self) -> Tuple[Any, 'PersistentStack']:\n        if self._top is None:\n            raise IndexError(\"pop from empty stack\")\n        val = self._top.value\n        new_stack = PersistentStack(self._top.next, self._size - 1)\n        return val, new_stack\n\n    def peek(self) -> Any:\n        if self._top is None:\n            raise IndexError(\"peek from empty stack\")\n        return self._top.value\n\n    def is_empty(self) -> bool:\n        return self._top is None\n\n    def __len__(self) -> int:\n        return self._size\n\n    def to_list(self) -> list:\n        curr = self._top\n        res = []\n        while curr is not None:\n            res.append(curr.value)\n            curr = curr.next\n        return res\n", "tests": "def test_persistent_stack_immutability():\n    s0 = PersistentStack()\n    assert s0.is_empty()\n    assert len(s0) == 0\n    \n    s1 = s0.push(10)\n    s2 = s1.push(20)\n    s3 = s1.push(30)\n    \n    assert len(s0) == 0\n    assert len(s1) == 1\n    assert s1.to_list() == [10]\n    assert s2.to_list() == [20, 10]\n    assert s3.to_list() == [30, 10]\n\ndef test_persistent_stack_pop():\n    s = PersistentStack().push(1).push(2).push(3)\n    assert s.peek() == 3\n    assert len(s) == 3\n    \n    val, s_popped = s.pop()\n    assert val == 3\n    assert s_popped.to_list() == [2, 1]\n    assert len(s_popped) == 2\n    assert s.to_list() == [3, 2, 1]\n\ndef test_persistent_stack_empty_errors():\n    s = PersistentStack()\n    try:\n        s.peek()\n        assert False, \"Should raise IndexError\"\n    except IndexError:\n        pass\n    try:\n        s.pop()\n        assert False, \"Should raise IndexError\"\n    except IndexError:\n        pass\n", "mutants": ["class StackNode:\n    def __init__(self, value, next_node=None): self.value = value; self.next = next_node\nclass PersistentStack:\n    def __init__(self, top=None, size=0): self._top = top; self._size = size\n    def push(self, value): assert False, 'mutant injected'\n    def pop(self): pass\n    def peek(self): pass\n    def is_empty(self): pass\n    def __len__(self): pass\n    def to_list(self): pass\n", "class StackNode:\n    def __init__(self, value, next_node=None): self.value = value; self.next = next_node\nclass PersistentStack:\n    def __init__(self, top=None, size=0): self._top = top; self._size = size\n    def push(self, value):\n        self._top = StackNode(value, self._top)\n        self._size += 1\n        return self\n    def pop(self):\n        val = self._top.value\n        self._top = self._top.next\n        self._size -= 1\n        return val, self\n    def peek(self): return self._top.value\n    def is_empty(self): return self._top is None\n    def __len__(self): return self._size\n    def to_list(self):\n        res = []\n        curr = self._top\n        while curr: res.append(curr.value); curr = curr.next\n        return res\n"], "hints": ["Create a new PersistentStack object on push and pop, referencing previous nodes.", "Maintain size as an integer incremented on push and decremented on pop.", "Raise IndexError when popping or peeking an empty stack."], "level": "warmup", "title": "Persistent Immutable Stack with Node Structural Sharing"}, "ex2-result-monad-railway-programming": {"starter": "from typing import Any, Callable\n\nclass Result:\n    def __init__(self, is_ok: bool, value: Any = None, error: Any = None):\n        self._is_ok = is_ok\n        self._value = value\n        self._error = error\n\n    @classmethod\n    def ok(cls, value: Any) -> 'Result':\n        pass\n\n    @classmethod\n    def err(cls, error: Any) -> 'Result':\n        pass\n\n    @property\n    def is_ok(self) -> bool:\n        pass\n\n    @property\n    def is_err(self) -> bool:\n        pass\n\n    def map(self, fn: Callable[[Any], Any]) -> 'Result':\n        pass\n\n    def map_err(self, fn: Callable[[Any], Any]) -> 'Result':\n        pass\n\n    def bind(self, fn: Callable[[Any], 'Result']) -> 'Result':\n        pass\n\n    def match(self, on_ok: Callable[[Any], Any], on_err: Callable[[Any], Any]) -> Any:\n        pass\n\n    def unwrap(self) -> Any:\n        pass\n\n    def unwrap_or(self, default: Any) -> Any:\n        pass\n", "solution": "from typing import Any, Callable\n\nclass Result:\n    def __init__(self, is_ok: bool, value: Any = None, error: Any = None):\n        self._is_ok = is_ok\n        self._value = value\n        self._error = error\n\n    @classmethod\n    def ok(cls, value: Any) -> 'Result':\n        return cls(True, value=value, error=None)\n\n    @classmethod\n    def err(cls, error: Any) -> 'Result':\n        return cls(False, value=None, error=error)\n\n    @property\n    def is_ok(self) -> bool:\n        return self._is_ok\n\n    @property\n    def is_err(self) -> bool:\n        return not self._is_ok\n\n    def map(self, fn: Callable[[Any], Any]) -> 'Result':\n        if self._is_ok:\n            return Result.ok(fn(self._value))\n        return self\n\n    def map_err(self, fn: Callable[[Any], Any]) -> 'Result':\n        if not self._is_ok:\n            return Result.err(fn(self._error))\n        return self\n\n    def bind(self, fn: Callable[[Any], 'Result']) -> 'Result':\n        if self._is_ok:\n            return fn(self._value)\n        return self\n\n    def match(self, on_ok: Callable[[Any], Any], on_err: Callable[[Any], Any]) -> Any:\n        if self._is_ok:\n            return on_ok(self._value)\n        return on_err(self._error)\n\n    def unwrap(self) -> Any:\n        if self._is_ok:\n            return self._value\n        raise ValueError(self._error)\n\n    def unwrap_or(self, default: Any) -> Any:\n        if self._is_ok:\n            return self._value\n        return default\n", "tests": "def test_result_ok_flow():\n    r = Result.ok(10)\n    assert r.is_ok\n    assert not r.is_err\n    assert r.unwrap() == 10\n    assert r.unwrap_or(0) == 10\n    \n    r2 = r.map(lambda x: x * 2)\n    assert r2.is_ok and r2.unwrap() == 20\n    \n    r3 = r2.bind(lambda x: Result.ok(f\"val: {x}\"))\n    assert r3.unwrap() == \"val: 20\"\n\ndef test_result_err_short_circuit():\n    r = Result.err(\"database timeout\")\n    assert not r.is_ok\n    assert r.is_err\n    assert r.unwrap_or(42) == 42\n    \n    called = []\n    r2 = r.map(lambda x: called.append(\"map\") or x + 1)\n    r3 = r2.bind(lambda x: called.append(\"bind\") or Result.ok(x))\n    assert len(called) == 0\n    assert r3.is_err\n    \n    r_err_mapped = r.map_err(lambda e: f\"Error: {e}\")\n    assert r_err_mapped.match(lambda v: \"ok\", lambda e: e) == \"Error: database timeout\"\n\ndef test_result_unwrap_raises_on_err():\n    r = Result.err(\"critical failure\")\n    try:\n        r.unwrap()\n        assert False, \"Should raise ValueError\"\n    except ValueError as e:\n        assert str(e) == \"critical failure\"\n", "mutants": ["class Result:\n    def __init__(self, is_ok, value=None, error=None): pass\n    @classmethod\n    def ok(cls, value): return cls(True)\n    @classmethod\n    def err(cls, error): return cls(False)\n    @property\n    def is_ok(self): return True\n    @property\n    def is_err(self): return False\n    def map(self, fn): assert False, 'mutant injected'\n    def map_err(self, fn): pass\n    def bind(self, fn): pass\n    def match(self, on_ok, on_err): pass\n    def unwrap(self): pass\n    def unwrap_or(self, default): pass\n", "class Result:\n    def __init__(self, is_ok, value=None, error=None):\n        self._is_ok = is_ok; self._value = value; self._error = error\n    @classmethod\n    def ok(cls, value): return cls(True, value=value)\n    @classmethod\n    def err(cls, error): return cls(False, error=error)\n    @property\n    def is_ok(self): return self._is_ok\n    @property\n    def is_err(self): return not self._is_ok\n    def map(self, fn):\n        return Result.ok(fn(self._value))\n    def map_err(self, fn): return self\n    def bind(self, fn): return fn(self._value)\n    def match(self, on_ok, on_err): return on_ok(self._value)\n    def unwrap(self): return self._value\n    def unwrap_or(self, default): return self._value if self._is_ok else default\n"], "hints": ["Check self._is_ok in map and bind.", "In map, wrap the returned value in Result.ok.", "In bind, return the Result produced by fn directly."], "level": "core", "title": "Result Monad and Railway-Oriented Programming Abstraction"}, "ex3-lazy-infinite-stream-pipeline": {"starter": "from typing import Any, Callable, Iterator, List\n\nclass LazyStream:\n    def __init__(self, source):\n        self._source = source\n\n    def __iter__(self) -> Iterator:\n        pass\n\n    def map(self, fn: Callable[[Any], Any]) -> 'LazyStream':\n        pass\n\n    def filter(self, pred: Callable[[Any], bool]) -> 'LazyStream':\n        pass\n\n    def take(self, n: int) -> List[Any]:\n        pass\n\n    def take_while(self, pred: Callable[[Any], bool]) -> List[Any]:\n        pass\n\n    def fold(self, initial: Any, fn: Callable[[Any, Any], Any], limit: int = 1000) -> Any:\n        pass\n", "solution": "from typing import Any, Callable, Iterator, List\n\nclass LazyStream:\n    def __init__(self, source):\n        if callable(source):\n            self._source_fn = source\n        else:\n            self._source_fn = lambda: iter(source)\n\n    def __iter__(self) -> Iterator:\n        return self._source_fn()\n\n    def map(self, fn: Callable[[Any], Any]) -> 'LazyStream':\n        def gen():\n            for item in self:\n                yield fn(item)\n        return LazyStream(gen)\n\n    def filter(self, pred: Callable[[Any], bool]) -> 'LazyStream':\n        def gen():\n            for item in self:\n                if pred(item):\n                    yield item\n        return LazyStream(gen)\n\n    def take(self, n: int) -> List[Any]:\n        if n <= 0:\n            return []\n        res = []\n        for item in self:\n            res.append(item)\n            if len(res) >= n:\n                break\n        return res\n\n    def take_while(self, pred: Callable[[Any], bool]) -> List[Any]:\n        res = []\n        for item in self:\n            if not pred(item):\n                break\n            res.append(item)\n        return res\n\n    def fold(self, initial: Any, fn: Callable[[Any, Any], Any], limit: int = 1000) -> Any:\n        acc = initial\n        count = 0\n        for item in self:\n            acc = fn(acc, item)\n            count += 1\n            if count >= limit:\n                break\n        return acc\n", "tests": "def test_lazy_infinite_stream():\n    def naturals():\n        n = 1\n        while True:\n            yield n\n            n += 1\n\n    stream = LazyStream(naturals)\n    evens_times_three = stream.filter(lambda x: x % 2 == 0).map(lambda x: x * 3)\n    res = evens_times_three.take(5)\n    assert res == [6, 12, 18, 24, 30]\n\ndef test_lazy_take_while():\n    stream = LazyStream([1, 2, 3, 4, 10, 2, 1])\n    res = stream.take_while(lambda x: x < 5)\n    assert res == [1, 2, 3, 4]\n\ndef test_lazy_fold():\n    stream = LazyStream([1, 2, 3, 4, 5])\n    total = stream.fold(0, lambda acc, x: acc + x)\n    assert total == 15\n    \n    def infinite_ones():\n        while True:\n            yield 1\n    total_limited = LazyStream(infinite_ones).fold(0, lambda acc, x: acc + x, limit=10)\n    assert total_limited == 10\n", "mutants": ["class LazyStream:\n    def __init__(self, source): pass\n    def __iter__(self): assert False, 'mutant injected'\n    def map(self, fn): pass\n    def filter(self, pred): pass\n    def take(self, n): pass\n    def take_while(self, pred): pass\n    def fold(self, initial, fn, limit=1000): pass\n", "class LazyStream:\n    def __init__(self, source):\n        self.items = list(source() if callable(source) else source)\n    def __iter__(self): return iter(self.items)\n    def map(self, fn): return LazyStream([fn(x) for x in self.items])\n    def filter(self, pred): return LazyStream([x for x in self.items if pred(x)])\n    def take(self, n): return self.items[:n]\n    def take_while(self, pred):\n        res = []\n        for x in self.items:\n            if not pred(x): break\n            res.append(x)\n        return res\n    def fold(self, initial, fn, limit=1000):\n        acc = initial\n        for x in self.items[:limit]: acc = fn(acc, x)\n        return acc\n"], "hints": ["Use Python generator functions (yield) inside map and filter to ensure laziness.", "In take, break the loop as soon as the result list reaches length n.", "Store callable source functions to allow multiple re-iterations."], "level": "core", "title": "Lazy Infinite Stream and Higher-Order Pipelines"}, "ex4-affine-borrow-checker": {"starter": "class OwnershipError(Exception):\n    pass\n\nclass AffineBorrowChecker:\n    def __init__(self):\n        pass\n\n    def declare(self, var: str, resource_id: str):\n        pass\n\n    def move_var(self, from_var: str, to_var: str):\n        pass\n\n    def borrow_shared(self, var: str, borrow_name: str):\n        pass\n\n    def borrow_mut(self, var: str, borrow_name: str):\n        pass\n\n    def release_borrow(self, borrow_name: str):\n        pass\n\n    def read_access(self, name: str) -> bool:\n        pass\n\n    def write_access(self, name: str) -> bool:\n        pass\n", "solution": "class OwnershipError(Exception):\n    pass\n\nclass AffineBorrowChecker:\n    def __init__(self):\n        self._var_to_res = {}\n        self._shared_borrows = {}\n        self._mut_borrow = {}\n        self._borrows = {}\n        self._moved_vars = set()\n\n    def declare(self, var: str, resource_id: str):\n        self._var_to_res[var] = resource_id\n        self._shared_borrows[resource_id] = set()\n        self._mut_borrow[resource_id] = None\n        self._moved_vars.discard(var)\n\n    def _get_resource_for_var(self, var: str) -> str:\n        if var in self._moved_vars:\n            raise OwnershipError(f\"Use of moved variable: {var}\")\n        if var not in self._var_to_res:\n            raise OwnershipError(f\"Undeclared variable: {var}\")\n        return self._var_to_res[var]\n\n    def move_var(self, from_var: str, to_var: str):\n        res = self._get_resource_for_var(from_var)\n        if self._shared_borrows[res] or self._mut_borrow[res] is not None:\n            raise OwnershipError(f\"Cannot move variable {from_var} while borrowed\")\n        self._moved_vars.add(from_var)\n        self._var_to_res[to_var] = res\n\n    def borrow_shared(self, var: str, borrow_name: str):\n        res = self._get_resource_for_var(var)\n        if self._mut_borrow[res] is not None:\n            raise OwnershipError(f\"Cannot borrow {var} as shared while mutably borrowed\")\n        self._shared_borrows[res].add(borrow_name)\n        self._borrows[borrow_name] = (res, False)\n\n    def borrow_mut(self, var: str, borrow_name: str):\n        res = self._get_resource_for_var(var)\n        if self._mut_borrow[res] is not None:\n            raise OwnershipError(f\"Cannot borrow {var} as mut while already mutably borrowed\")\n        if len(self._shared_borrows[res]) > 0:\n            raise OwnershipError(f\"Cannot borrow {var} as mut while shared borrows exist\")\n        self._mut_borrow[res] = borrow_name\n        self._borrows[borrow_name] = (res, True)\n\n    def release_borrow(self, borrow_name: str):\n        if borrow_name not in self._borrows:\n            raise OwnershipError(f\"Unknown borrow: {borrow_name}\")\n        res, is_mut = self._borrows.pop(borrow_name)\n        if is_mut:\n            self._mut_borrow[res] = None\n        else:\n            self._shared_borrows[res].discard(borrow_name)\n\n    def read_access(self, name: str) -> bool:\n        if name in self._borrows:\n            return True\n        res = self._get_resource_for_var(name)\n        if self._mut_borrow[res] is not None:\n            raise OwnershipError(f\"Cannot read {name} while mutably borrowed\")\n        return True\n\n    def write_access(self, name: str) -> bool:\n        if name in self._borrows:\n            res, is_mut = self._borrows[name]\n            if is_mut:\n                return True\n            raise OwnershipError(f\"Cannot write through shared borrow: {name}\")\n        res = self._get_resource_for_var(name)\n        if self._mut_borrow[res] is not None:\n            raise OwnershipError(f\"Cannot write {name} while mutably borrowed\")\n        if len(self._shared_borrows[res]) > 0:\n            raise OwnershipError(f\"Cannot write {name} while shared borrows exist\")\n        return True\n", "tests": "def test_ownership_move_semantics():\n    bc = AffineBorrowChecker()\n    bc.declare(\"v1\", \"resA\")\n    assert bc.read_access(\"v1\")\n    assert bc.write_access(\"v1\")\n    \n    bc.move_var(\"v1\", \"v2\")\n    assert bc.read_access(\"v2\")\n    \n    try:\n        bc.read_access(\"v1\")\n        assert False, \"Should raise OwnershipError on moved var\"\n    except OwnershipError:\n        pass\n\ndef test_aliasing_xor_mutability_shared_borrows():\n    bc = AffineBorrowChecker()\n    bc.declare(\"data\", \"res1\")\n    \n    bc.borrow_shared(\"data\", \"ref1\")\n    bc.borrow_shared(\"data\", \"ref2\")\n    assert bc.read_access(\"ref1\")\n    assert bc.read_access(\"ref2\")\n    assert bc.read_access(\"data\")\n    \n    try:\n        bc.write_access(\"data\")\n        assert False, \"Should prohibit write while shared borrows exist\"\n    except OwnershipError:\n        pass\n    try:\n        bc.borrow_mut(\"data\", \"mut_ref\")\n        assert False, \"Should prohibit borrow_mut while shared borrows exist\"\n    except OwnershipError:\n        pass\n\ndef test_exclusive_mutable_borrow():\n    bc = AffineBorrowChecker()\n    bc.declare(\"buffer\", \"resBuf\")\n    bc.borrow_mut(\"buffer\", \"mut_b\")\n    \n    assert bc.read_access(\"mut_b\")\n    assert bc.write_access(\"mut_b\")\n    \n    try:\n        bc.read_access(\"buffer\")\n        assert False, \"Should prohibit owner read while mutably borrowed\"\n    except OwnershipError:\n        pass\n    \n    bc.release_borrow(\"mut_b\")\n    assert bc.read_access(\"buffer\")\n    assert bc.write_access(\"buffer\")\n", "mutants": ["class OwnershipError(Exception): pass\nclass AffineBorrowChecker:\n    def __init__(self): pass\n    def declare(self, var, resource_id): pass\n    def move_var(self, from_var, to_var): pass\n    def borrow_shared(self, var, borrow_name): pass\n    def borrow_mut(self, var, borrow_name): pass\n    def release_borrow(self, borrow_name): pass\n    def read_access(self, name): assert False, 'mutant injected'\n    def write_access(self, name): pass\n", "class OwnershipError(Exception): pass\nclass AffineBorrowChecker:\n    def __init__(self):\n        self.vars = {}\n    def declare(self, var, resource_id): self.vars[var] = resource_id\n    def move_var(self, from_var, to_var): self.vars[to_var] = self.vars.get(from_var)\n    def borrow_shared(self, var, borrow_name): pass\n    def borrow_mut(self, var, borrow_name): pass\n    def release_borrow(self, borrow_name): pass\n    def read_access(self, name): return True\n    def write_access(self, name): return True\n"], "hints": ["Track the mapping of variables to resource IDs and maintain a set of moved variables.", "Track active shared borrow sets and the single active mutable borrow per resource.", "Enforce that write_access requires zero active borrows on the resource, or ownership by the active mutable borrow."], "level": "boss", "title": "Affine Borrow Checker and Aliasing XOR Mutability Engine"}}, "demos": {"p18-oracle-monadic-pipeline": {"code": "class Result:\n    def __init__(self, is_ok: bool, value=None, error=None):\n        self.is_ok = is_ok\n        self.value = value\n        self.error = error\n\n    @classmethod\n    def ok(cls, val):\n        return cls(True, value=val)\n\n    @classmethod\n    def err(cls, err):\n        return cls(False, error=err)\n\n    def map(self, fn):\n        if self.is_ok:\n            return Result.ok(fn(self.value))\n        return self\n\n    def bind(self, fn):\n        if self.is_ok:\n            return fn(self.value)\n        return self\n\ndef parse_int(s: str) -> Result:\n    try:\n        return Result.ok(int(s.strip()))\n    except ValueError:\n        return Result.err(f\"Invalid integer: {s}\")\n\ndef validate_positive(n: int) -> Result:\n    if n > 0:\n        return Result.ok(n)\n    return Result.err(f\"Value must be positive, got {n}\")\n\ndef process_transaction(raw_text: str) -> Result:\n    return parse_int(raw_text).bind(validate_positive).map(lambda amount: amount * 100)\n\nraw_inputs = [\"50\", \"-12\", \"abc\", \"120\"]\nresults = [process_transaction(x) for x in raw_inputs]\n\nvalid_amounts = [r.value for r in results if r.is_ok]\ntotal_cents = sum(valid_amounts)\n\nprint(\"Valid amounts (cents):\", valid_amounts)\nprint(\"Total cents:\", total_cents)\nassert total_cents == 17000\nassert results[0].is_ok and results[0].value == 5000\nassert not results[1].is_ok\nassert not results[2].is_ok\n", "mutants": ["class Result:\n    def __init__(self, is_ok: bool, value=None, error=None):\n        self.is_ok = is_ok; self.value = value; self.error = error\n    @classmethod\n    def ok(cls, val): return cls(True, value=val)\n    @classmethod\n    def err(cls, err): return cls(False, error=err)\n    def map(self, fn): return Result.ok(fn(self.value)) if self.is_ok else self\n    def bind(self, fn):\n        if self.is_ok:\n            return Result.ok(0)\n        return self\n\ndef parse_int(s: str) -> Result:\n    try: return Result.ok(int(s.strip()))\n    except ValueError: return Result.err(f\"Invalid integer: {s}\")\n\ndef validate_positive(n: int) -> Result:\n    if n > 0: return Result.ok(n)\n    return Result.err(\"negative\")\n\ndef process_transaction(raw_text: str) -> Result:\n    return parse_int(raw_text).bind(validate_positive).map(lambda amount: amount * 100)\n\nraw_inputs = [\"50\", \"-12\", \"abc\", \"120\"]\nresults = [process_transaction(x) for x in raw_inputs]\nvalid_amounts = [r.value for r in results if r.is_ok]\ntotal_cents = sum(valid_amounts)\nassert total_cents == 17000\n"]}, "p18-experiment-lazy-streams": {"code": "def is_prime(n: int) -> bool:\n    if n < 2: return False\n    if n == 2: return True\n    if n % 2 == 0: return False\n    for d in range(3, int(n**0.5) + 1, 2):\n        if n % d == 0: return False\n    return True\n\neval_count = 0\n\ndef infinite_naturals(start=1):\n    global eval_count\n    n = start\n    while True:\n        eval_count += 1\n        yield n\n        n += 1\n\ndef lazy_filter(pred, stream):\n    for item in stream:\n        if pred(item):\n            yield item\n\ndef lazy_map(fn, stream):\n    for item in stream:\n        yield fn(item)\n\ndef lazy_take(k, stream):\n    result = []\n    for item in stream:\n        result.append(item)\n        if len(result) >= k:\n            break\n    return result\n\neval_count = 0\nnats = infinite_naturals(start=1)\nprimes = lazy_filter(is_prime, nats)\nprime_squares = lazy_map(lambda p: p * p, primes)\n\nfirst_five = lazy_take(5, prime_squares)\nprint(\"First 5 prime squares:\", first_five)\nprint(\"Total integers evaluated from infinite stream:\", eval_count)\n\nassert first_five == [4, 9, 25, 49, 121]\nassert eval_count == 11\n", "mutants": ["eval_count = 0\ndef infinite_naturals(start=1):\n    global eval_count\n    for i in range(100):\n        eval_count += 1\n        yield i\n\ndef is_prime(n): return n in (2, 3, 5, 7, 11)\ndef lazy_filter(pred, stream): return [x for x in stream if pred(x)]\ndef lazy_map(fn, stream): return [fn(x) for x in stream]\ndef lazy_take(k, stream): return stream[:k]\n\nnats = infinite_naturals()\nprimes = lazy_filter(is_prime, nats)\nprime_squares = lazy_map(lambda p: p * p, primes)\nfirst_five = lazy_take(5, prime_squares)\nassert eval_count == 11, f\"Expected 11 evaluations, got {eval_count}\"\n"]}}, "cards": [{"q": "What is referential transparency?", "a": "The property where any expression can be replaced by its evaluated value without changing program behavior, guaranteeing freedom from hidden side effects."}, {"q": "What is the difference between a product type and a sum type?", "a": "A product type (struct, tuple) holds all of its fields simultaneously (|A x B| = |A| * |B|), while a sum type (tagged union, enum) holds exactly one of several alternative variants (|A + B| = |A| + |B|)."}, {"q": "What are the two core operations of a monad?", "a": "Unit (return / pure), which wraps a raw value into the monadic container, and Bind (flatMap / >>=), which chains a function returning a monad while handling intermediate state or error logic."}, {"q": "How do persistent data structures make immutability computationally efficient?", "a": "Through structural sharing: creating a new version of a collection reuses unmodified nodes of tree or DAG structures, achieving O(1) or O(log n) update time without defensive full-copying."}, {"q": "What is an affine type system and how does Rust use it?", "a": "An affine type system enforces that every resource is used at most once. Rust uses it to track ownership and move semantics, statically guaranteeing memory safety and data-race freedom at compile time without a garbage collector."}, {"q": "How does Dart 3 implement algebraic data types and pattern matching?", "a": "Using sealed class hierarchies to define closed sum types, allowing switch statements and expressions to be checked by the compiler for exhaustive coverage without default fallback cases."}], "title": "Functional programming and types"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>P09 Computer networks</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="P09">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Computing foundations · UG-2 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">P09</p><h1>Computer networks</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="P01.html">P01</a> <a href="P06.html">P06</a></div><div><b>Covers:</b> CS2023 NC</div>
+<details><summary>Everything this module teaches (15 items)</summary><ul class="must"><li>layering (OSI and TCP/IP)</li><li>packets and links</li><li>IP addressing and routing</li><li>NAT</li><li>UDP</li><li>TCP: handshake, reliability, sliding-window flow control, congestion control (slow start, AIMD)</li><li>DNS</li><li>HTTP/1.1, HTTP/2, HTTP/3 and QUIC</li><li>the TLS 1.3 handshake (ECDHE)</li><li>latency vs bandwidth</li><li>bufferbloat in network buffers</li><li>mobile network realities</li><li>the sockets API: writing a TCP client and server</li><li>how the Internet is organised: ISPs, autonomous systems, BGP, and circuit vs packet switching</li><li>web architecture: the three-tier model, and cookies and sessions for state over stateless HTTP</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In May 1974, Vinton Cerf and Robert Kahn published their historic paper "A Protocol for Packet Network Intercommunication" in the IEEE Transactions on Communications. Prior to their breakthrough, computer networks were closed, proprietary islands that relied on dedicated circuit switching—monopolized telephone lines reserved end-to-end for a single conversation. Cerf and Kahn introduced the Transmission Control Protocol (TCP) and Internet Protocol (IP), proposing an open, decentralized architecture where autonomous networks could interconnect seamlessly. Data was carved into self-contained packets that hopped independently across intermediate gateways, dynamically routing around damaged links without centralized supervision.</p>
+<p>Twelve years later in October 1986, the young Internet suffered its first catastrophic crisis: the Internet Congestion Collapse. The data throughput across the transcontinental NSFNET backbone dropped by a factor of one thousand, plummeting from 32,000 bits per second to a pathetic 40 bits per second. Packets flooded network routers faster than outgoing links could transmit them, filling router buffers, triggering massive drops, and causing hosts to resend duplicates in an exponential feedback loop. UC Berkeley researcher Van Jacobson rescued the global Internet by inventing TCP congestion control. By formalizing Slow Start, Additive Increase Multiplicative Decrease (AIMD), and dynamic round-trip time estimation, Jacobson transformed TCP into a cooperative, self-stabilizing distributed algorithm that allowed the global Internet to scale to billions of connected devices.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>The Internet is a vast, decentralized web of connected machines that talk by passing digital envelopes called packets. Instead of reserving a continuous physical line between you and a website, your computer chops data into small numbered packets, stamps them with destination IP addresses, and hands them to routers. TCP ensures that packets arrive intact and in order, using a 3-way handshake to connect and a sliding window to regulate speed. If the network becomes congested, TCP automatically slows down via AIMD and ramps back up gently, ensuring fair sharing across millions of users.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Computer network protocols and transport flow control are governed by the following mathematical and architectural specifications:</p>
+<ol>
+<li>
+<p><strong>The TCP/IP Layered Architecture</strong>:
+$$\begin{array}{|l|l|l|}
+\hline
+\text{Layer} &amp; \text{Protocols} &amp; \text{Addressing Unit} \\
+\hline
+\text{Application} &amp; \text{HTTP/3, DNS, TLS 1.3} &amp; \text{URI, Hostname} \\
+\text{Transport} &amp; \text{TCP, UDP, QUIC} &amp; \text{Port (16-bit)} \\
+\text{Internet} &amp; \text{IPv4, IPv6, BGP, ICMP} &amp; \text{IP Address (32/128-bit)} \\
+\text{Link / Physical} &amp; \text{Ethernet, 802.11 Wi-Fi} &amp; \text{MAC Address (48-bit)} \\
+\hline
+\end{array}$$</p>
+</li>
+<li>
+<p><strong>Bandwidth-Delay Product (BDP) &amp; Little's Law</strong>:
+The volume of in-flight data required to saturate a network link is:
+$$\text{BDP} = \text{Bandwidth (bytes/sec)} \times \text{RTT (sec)}$$
+If the TCP receive window ($\text{rwnd}$) is less than $\text{BDP}$, maximum achievable throughput is constrained by:
+$$\text{Max Throughput} = \frac{\text{rwnd}}{\text{RTT}} &lt; \text{Bandwidth}$$</p>
+</li>
+<li>
+<p><strong>TCP Congestion Control (AIMD)</strong>:
+Maintains congestion window $cwnd$ and slow-start threshold $ssthresh$:
+- <strong>Slow Start ($cwnd &lt; ssthresh$)</strong>: For each ACK received, $cwnd \mathrel{+}= 1$ MSS (doubles every RTT).
+- <strong>Congestion Avoidance ($cwnd \ge ssthresh$)</strong>: Additive Increase: $cwnd \mathrel{+}= \frac{1}{cwnd}$ per ACK ($+1$ MSS per RTT).
+- <strong>Packet Loss (3 Duplicate ACKs)</strong>: Multiplicative Decrease:
+$$ssthresh = \max\left(2, \left\lfloor \frac{cwnd}{2} \right\rfloor\right), \quad cwnd = ssthresh$$
+- <strong>Timeout</strong>: $ssthresh = \max(2, \lfloor cwnd / 2 \rfloor), \quad cwnd = 1$ MSS.</p>
+</li>
+<li>
+<p><strong>Evolution of Web Protocols</strong>:
+- HTTP/1.1: Persistent connections; Head-of-Line (HoL) blocking on pipelined requests.
+- HTTP/2: Binary framing; multiplexed concurrent streams over a single TCP connection.
+- HTTP/3 (QUIC): Replaces TCP with UDP; independent stream flow control eliminates transport HoL blocking; 0-RTT TLS 1.3 connection resumption.</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why TCP/IP uses packet switching with end-to-end congestion control rather than circuit switching requires analyzing the economics and survivability of global communication networks. In traditional circuit-switched telecommunication networks (such as landline telephones), establishing a call reserves dedicated copper lines and switch capacity along the entire geographic path. If participants pause or stop talking, the reserved bandwidth sits completely idle and wasted. Furthermore, if any intermediate telephone exchange fails, the active circuit is severed instantly.</p>
+<p>Packet switching decouples data transmission from physical infrastructure:
+1. <strong>Statistical Multiplexing</strong>: Bandwidth is shared dynamically among thousands of active users. When one host is idle, other hosts burst their traffic, achieving near 100% link utilization.
+2. <strong>Dynamic Fault Tolerance</strong>: Because packets contain full destination IP headers, routers dynamically redirect packets around severed undersea cables or failed fiber links without dropping user connections.
+3. <strong>End-to-End Congestion Avoidance</strong>: By delegating congestion control to the edge endpoints (TCP on the sending host) rather than intermediate core routers, the core Internet remains simple, stateless, and exceptionally high-speed. Routers merely forward packets; endpoints infer congestion from packet drops and round-trip latency, scaling gracefully from kilobit dial-up to terabit fiber optics.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The TCP AIMD congestion control verification oracle simulates how a sending endpoint dynamically adjusts its congestion window (cwnd) across slow start, congestion avoidance, packet loss, and fast recovery. The interactive oracle verifies exponential growth during slow start, linear increments during congestion avoidance, and multiplicative halving upon packet loss detection. This simulation accurately captures Van Jacobson's self-stabilizing transport algorithm that prevents Internet congestion collapse across diverse network links.</p>
+<div class="lab demo" data-demo="p09-oracle-tcp-aimd">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>TCP Congestion Control AIMD State Machine Oracle</h3></div>
+
+<textarea class="code" spellcheck="false">def simulate_aimd(events: list, initial_ssthresh: int = 16) -&gt; dict:
+    cwnd = 1
+    ssthresh = initial_ssthresh
+    history = [cwnd]
+    
+    for event in events:
+        if event == &quot;ACK&quot;:
+            if cwnd &lt; ssthresh:
+                cwnd += 1  # Slow start: exponential doubling per RTT
+            else:
+                cwnd += 1  # Simplified linear increase per RTT
+        elif event == &quot;LOSS&quot;:
+            ssthresh = max(2, cwnd // 2)
+            cwnd = ssthresh  # Fast recovery
+        history.append(cwnd)
+        
+    return {&quot;final_cwnd&quot;: cwnd, &quot;final_ssthresh&quot;: ssthresh, &quot;history&quot;: history}
+
+# Run 4 ACKs (slow start 1..5), 1 LOSS (drops to 2), then 2 ACKs
+evts = [&quot;ACK&quot;, &quot;ACK&quot;, &quot;ACK&quot;, &quot;ACK&quot;, &quot;LOSS&quot;, &quot;ACK&quot;, &quot;ACK&quot;]
+res = simulate_aimd(evts, initial_ssthresh=8)
+
+# History: 1 -&gt; 2 -&gt; 3 -&gt; 4 -&gt; 5 -&gt; LOSS: ssthresh=2, cwnd=2 -&gt; 3 -&gt; 4
+assert res[&quot;history&quot;] == [1, 2, 3, 4, 5, 2, 3, 4]
+assert res[&quot;final_cwnd&quot;] == 4
+assert res[&quot;final_ssthresh&quot;] == 2
+
+print(&quot;TCP AIMD slow start and multiplicative decrease verified.&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally calculate the Bandwidth-Delay Product (BDP) across different network topologies (transcontinental fiber vs high-latency mobile 4G/5G). We verify that when the receiver's advertised window (rwnd) is smaller than the BDP, the connection throughput is strictly bottlenecked by the socket buffer size, wasting available link capacity. This proves why auto-tuning socket buffer sizing is essential for saturating high-bandwidth modern connections.</p>
+<div class="lab demo" data-demo="p09-exp-bdp-calculation">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Bandwidth-Delay Product and Window Sizing Experiment</h3></div>
+
+<textarea class="code" spellcheck="false">def calculate_bdp_bytes(bandwidth_mbps: float, rtt_ms: float) -&gt; int:
+    # BDP = (Bandwidth in bps * RTT in sec) / 8
+    bandwidth_bps = bandwidth_mbps * 1e6
+    rtt_sec = rtt_ms / 1000.0
+    return int((bandwidth_bps * rtt_sec) / 8)
+
+# Transcontinental fiber: 1 Gbps (1000 Mbps), 80 ms RTT
+bdp_fiber = calculate_bdp_bytes(1000.0, 80.0)
+# 1e9 * 0.08 / 8 = 10,000,000 bytes (~10 MB)
+assert bdp_fiber == 10_000_000
+
+# Default old TCP socket buffer = 64 KB (65536 bytes)
+old_socket_buffer = 65536
+max_throughput_mbps = (old_socket_buffer * 8) / (80.0 / 1000.0) / 1e6
+
+# With a 64KB buffer on an 80ms RTT link, max speed is ~6.55 Mbps despite a 1 Gbps physical link!
+assert round(max_throughput_mbps, 2) == 6.55
+print(f&quot;BDP experiment: 1 Gbps link limited to {max_throughput_mbps:.2f} Mbps by 64KB window buffer!&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-cidr-subnet-calculator" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>CIDR IPv4 Subnet and Mask Calculator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement calculate_cidr_subnet(ip_str: str, prefix_len: int) -&gt; dict that decomposes an IPv4 address and CIDR prefix length into its network address, broadcast address, netmask, and usable host count.</p></div>
+<textarea class="code" spellcheck="false">def calculate_cidr_subnet(ip_str: str, prefix_len: int) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cidr_slash24():
+    res = calculate_cidr_subnet(&quot;192.168.1.50&quot;, 24)
+    assert res[&quot;network_address&quot;] == &quot;192.168.1.0&quot;
+    assert res[&quot;broadcast_address&quot;] == &quot;192.168.1.255&quot;
+    assert res[&quot;netmask&quot;] == &quot;255.255.255.0&quot;
+    assert res[&quot;usable_hosts&quot;] == 254
+
+def test_cidr_slash16():
+    res = calculate_cidr_subnet(&quot;10.20.30.40&quot;, 16)
+    assert res[&quot;network_address&quot;] == &quot;10.20.0.0&quot;
+    assert res[&quot;broadcast_address&quot;] == &quot;10.20.255.255&quot;
+    assert res[&quot;netmask&quot;] == &quot;255.255.0.0&quot;
+    assert res[&quot;usable_hosts&quot;] == 65534
+
+def test_cidr_slash30():
+    res = calculate_cidr_subnet(&quot;172.16.0.1&quot;, 30)
+    assert res[&quot;network_address&quot;] == &quot;172.16.0.0&quot;
+    assert res[&quot;broadcast_address&quot;] == &quot;172.16.0.3&quot;
+    assert res[&quot;usable_hosts&quot;] == 2
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-tcp-aimd-congestion-controller" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>TCP Reno AIMD Congestion Control Engine</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_tcp_congestion(rtt_events: list[str], initial_ssthresh: int = 16) -&gt; dict that processes network events ('ACK', 'DUP_ACK_3', 'TIMEOUT') to update cwnd and ssthresh according to TCP Reno specifications.</p></div>
+<textarea class="code" spellcheck="false">def simulate_tcp_congestion(rtt_events: list[str], initial_ssthresh: int = 16) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_tcp_slow_start_to_congestion_avoidance():
+    # ssthresh = 4. Starts at 1.
+    # ACK -&gt; 2, ACK -&gt; 3, ACK -&gt; 4 (hits ssthresh), ACK -&gt; 5 (congestion avoidance)
+    res = simulate_tcp_congestion([&quot;ACK&quot;, &quot;ACK&quot;, &quot;ACK&quot;, &quot;ACK&quot;], initial_ssthresh=4)
+    assert res[&quot;history&quot;] == [1, 2, 3, 4, 5]
+    assert res[&quot;final_cwnd&quot;] == 5
+    assert res[&quot;final_ssthresh&quot;] == 4
+
+def test_tcp_fast_retransmit_and_recovery():
+    # At cwnd = 8, 3 dup acks arrive -&gt; ssthresh = 4, cwnd = 4
+    events = [&quot;ACK&quot;] * 7 + [&quot;DUP_ACK_3&quot;]
+    res = simulate_tcp_congestion(events, initial_ssthresh=16)
+    # Starts at 1 -&gt; 8 ACKs reach 8 -&gt; DUP_ACK_3 drops to 4
+    assert res[&quot;final_cwnd&quot;] == 4
+    assert res[&quot;final_ssthresh&quot;] == 4
+
+def test_tcp_timeout_collapse():
+    # At cwnd = 10, timeout collapses cwnd to 1
+    events = [&quot;ACK&quot;] * 9 + [&quot;TIMEOUT&quot;]
+    res = simulate_tcp_congestion(events, initial_ssthresh=16)
+    assert res[&quot;final_cwnd&quot;] == 1
+    assert res[&quot;final_ssthresh&quot;] == 5  # 10 // 2 = 5
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-sliding-window-flow-control" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Sliding Window Protocol Simulator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement simulate_sliding_window(window_size: int, total_packets: int, dropped_packet_seqs: set) -&gt; dict that models sender window progression, tracking in-flight packets, successful cumulative ACKs, and retransmissions.</p></div>
+<textarea class="code" spellcheck="false">def simulate_sliding_window(window_size: int, total_packets: int, dropped_packet_seqs: set) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_sliding_window_no_drops():
+    # 5 packets, window 3, no drops
+    res = simulate_sliding_window(window_size=3, total_packets=5, dropped_packet_seqs=set())
+    assert res[&quot;retransmissions&quot;] == 0
+    assert res[&quot;completed&quot;] is True
+    assert res[&quot;total_transmissions&quot;] == 5
+
+def test_sliding_window_with_retransmit():
+    # Packet 2 dropped once
+    res = simulate_sliding_window(window_size=3, total_packets=5, dropped_packet_seqs={2})
+    assert res[&quot;retransmissions&quot;] == 1
+    assert res[&quot;completed&quot;] is True
+    assert res[&quot;total_transmissions&quot;] &gt; 5  # repeated packet 2 and subsequent
+
+def test_sliding_window_empty():
+    res = simulate_sliding_window(window_size=4, total_packets=0, dropped_packet_seqs=set())
+    assert res[&quot;completed&quot;] is True
+    assert res[&quot;retransmissions&quot;] == 0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-http-header-and-cookie-parser" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>HTTP/1.1 Request and Cookie Parser</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement parse_http_request(raw_request: bytes) -&gt; dict to parse an incoming raw HTTP/1.1 byte payload into its method, request URI, protocol version, dictionary of normalized headers, parsed cookies dictionary, and content body.</p></div>
+<textarea class="code" spellcheck="false">def parse_http_request(raw_request: bytes) -&gt; dict:
+    pass
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/3)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_parse_http_get_with_cookies():
+    raw = (
+        b&quot;GET /api/v1/users?page=2 HTTP/1.1\r\n&quot;
+        b&quot;Host: example.com\r\n&quot;
+        b&quot;User-Agent: Mozilla/5.0\r\n&quot;
+        b&quot;Cookie: session_id=xyz123; theme=dark\r\n&quot;
+        b&quot;\r\n&quot;
+    )
+    res = parse_http_request(raw)
+    assert res[&quot;method&quot;] == &quot;GET&quot;
+    assert res[&quot;path&quot;] == &quot;/api/v1/users?page=2&quot;
+    assert res[&quot;version&quot;] == &quot;HTTP/1.1&quot;
+    assert res[&quot;headers&quot;][&quot;host&quot;] == &quot;example.com&quot;
+    assert res[&quot;cookies&quot;][&quot;session_id&quot;] == &quot;xyz123&quot;
+    assert res[&quot;cookies&quot;][&quot;theme&quot;] == &quot;dark&quot;
+    assert res[&quot;body&quot;] == b&quot;&quot;
+
+def test_parse_http_post_with_body():
+    raw = (
+        b&quot;POST /submit HTTP/1.1\r\n&quot;
+        b&quot;Host: api.example.com\r\n&quot;
+        b&quot;Content-Length: 13\r\n&quot;
+        b&quot;\r\n&quot;
+        b&quot;Hello, World!&quot;
+    )
+    res = parse_http_request(raw)
+    assert res[&quot;method&quot;] == &quot;POST&quot;
+    assert res[&quot;body&quot;] == b&quot;Hello, World!&quot;
+    assert res[&quot;headers&quot;][&quot;content-length&quot;] == &quot;13&quot;
+
+def test_parse_http_malformed():
+    try:
+        parse_http_request(b&quot;BAD_REQUEST\r\n\r\n&quot;)
+        assert False, &quot;Should raise ValueError for malformed request line&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"UDP is inherently unreliable and therefore inferior to TCP."</strong> UDP trades guaranteed delivery for minimal latency and zero connection overhead; it powers real-time multiplayer gaming, live video streaming, DNS lookups, and modern HTTP/3 QUIC transport.</li>
+<li><strong>"Bandwidth and latency are interchangeable measures of network speed."</strong> Bandwidth is the pipe width (bits per second); latency is the propagation delay (milliseconds). High bandwidth cannot overcome speed-of-light propagation latency on round trips.</li>
+<li><strong>"HTTP/2 solves all Head-of-Line (HoL) blocking problems."</strong> HTTP/2 multiplexes streams over a single TCP connection; a single lost packet on that TCP connection stalls all multiplexed streams at the transport layer. HTTP/3 solves this using QUIC over UDP.</li>
+<li><strong>"NAT (Network Address Translation) was designed as a security firewall."</strong> NAT was created as an emergency stopgap to mitigate IPv4 address exhaustion by sharing one public IP across multiple private LAN addresses; security benefits were purely accidental.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Computer network protocols break down under bufferbloat when unmanaged router queues grow excessively large, introducing seconds of queueing latency that ruin interactive voice and video calls. Furthermore, mobile wireless links violate traditional TCP assumptions: transient signal fades cause packet drops that TCP mistakenly interprets as network congestion, cutting throughput unnecessarily.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Network architecture and socket programming govern mobile application engineering (optimizing HTTP/3 connections in Flutter apps), distributed microservices (Envoy proxy gRPC load balancing), and global CDN edge routing (Cloudflare, Fastly) where BGP Anycast routes user DNS requests to the nearest data center.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the difference between TCP and UDP?</p></div><div class="a" hidden><p>TCP provides reliable, ordered, connection-oriented byte streams with congestion control; UDP provides lightweight, unordered, datagram-oriented transmission.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is the Bandwidth-Delay Product (BDP)?</p></div><div class="a" hidden><p>The maximum amount of data in flight required to fully saturate a link: Bandwidth * RTT.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is Additive Increase Multiplicative Decrease (AIMD)?</p></div><div class="a" hidden><p>The congestion control algorithm where cwnd increases linearly by 1 MSS per RTT and halves multiplicatively upon packet loss.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What causes Bufferbloat?</p></div><div class="a" hidden><p>Overly large packet buffers in routers that fill up and introduce seconds of latency without improving network throughput.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does HTTP/3 differ from HTTP/2?</p></div><div class="a" hidden><p>HTTP/3 replaces TCP with QUIC over UDP, eliminating transport Head-of-Line blocking and enabling 0-RTT handshakes.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the role of DNS?</p></div><div class="a" hidden><p>Translates human-readable domain names into 32-bit IPv4 or 128-bit IPv6 network addresses.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can calculate CIDR network subnets and BDP buffer requirements, trace TCP AIMD congestion states, analyze sliding-window flow control, and parse raw HTTP/1.1 requests.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Cerf, V., &amp; Kahn, R. (1974). A protocol for packet network intercommunication. IEEE Transactions on Communications, 22(5), 637-648.</li>
+<li>Jacobson, V. (1988). Congestion avoidance and control. ACM SIGCOMM Computer Communication Review, 18(4), 314-329.</li>
+<li>Gettys, J., &amp; Nichols, K. (2011). Bufferbloat: Dark buffers in the Internet. Communications of the ACM, 55(1), 57-65.</li>
+</ul></section>
+<footer class="pager"><a href="P07.html">&larr; P07 Operating systems II: memory and storage</a>
+<a href="P10.html">P10 Security and cryptography &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "P09", "packages": ["numpy"], "exercises": {"ex1-cidr-subnet-calculator": {"starter": "def calculate_cidr_subnet(ip_str: str, prefix_len: int) -> dict:\n    pass\n", "solution": "def calculate_cidr_subnet(ip_str: str, prefix_len: int) -> dict:\n    if not (0 <= prefix_len <= 32):\n        raise ValueError(\"Prefix length must be between 0 and 32\")\n    parts = [int(p) for p in ip_str.split(\".\")]\n    if len(parts) != 4 or any(p < 0 or p > 255 for p in parts):\n        raise ValueError(\"Invalid IPv4 address format\")\n        \n    ip_int = (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8) | parts[3]\n    mask_int = (0xFFFFFFFF << (32 - prefix_len)) & 0xFFFFFFFF if prefix_len > 0 else 0\n    \n    net_int = ip_int & mask_int\n    host_mask = (~mask_int) & 0xFFFFFFFF\n    bcast_int = net_int | host_mask\n    \n    def int_to_ip(n):\n        return f\"{(n >> 24) & 0xFF}.{(n >> 16) & 0xFF}.{(n >> 8) & 0xFF}.{n & 0xFF}\"\n        \n    usable_hosts = max(0, (1 << (32 - prefix_len)) - 2) if prefix_len < 31 else (2 if prefix_len == 31 else 1)\n    \n    return {\n        \"network_address\": int_to_ip(net_int),\n        \"broadcast_address\": int_to_ip(bcast_int),\n        \"netmask\": int_to_ip(mask_int),\n        \"usable_hosts\": usable_hosts\n    }\n", "tests": "def test_cidr_slash24():\n    res = calculate_cidr_subnet(\"192.168.1.50\", 24)\n    assert res[\"network_address\"] == \"192.168.1.0\"\n    assert res[\"broadcast_address\"] == \"192.168.1.255\"\n    assert res[\"netmask\"] == \"255.255.255.0\"\n    assert res[\"usable_hosts\"] == 254\n\ndef test_cidr_slash16():\n    res = calculate_cidr_subnet(\"10.20.30.40\", 16)\n    assert res[\"network_address\"] == \"10.20.0.0\"\n    assert res[\"broadcast_address\"] == \"10.20.255.255\"\n    assert res[\"netmask\"] == \"255.255.0.0\"\n    assert res[\"usable_hosts\"] == 65534\n\ndef test_cidr_slash30():\n    res = calculate_cidr_subnet(\"172.16.0.1\", 30)\n    assert res[\"network_address\"] == \"172.16.0.0\"\n    assert res[\"broadcast_address\"] == \"172.16.0.3\"\n    assert res[\"usable_hosts\"] == 2\n", "mutants": ["def calculate_cidr_subnet(ip_str, prefix_len): assert False, 'mutant injected'\n", "def calculate_cidr_subnet(ip_str, prefix_len):\n    return {\"network_address\": ip_str, \"broadcast_address\": ip_str, \"netmask\": \"255.255.255.255\", \"usable_hosts\": 0}\n"], "hints": ["Convert IP to 32-bit unsigned integer.", "netmask = (0xFFFFFFFF << (32 - prefix_len)) & 0xFFFFFFFF.", "Usable hosts = 2^(32 - prefix) - 2 for prefix < 31."], "level": "warmup", "title": "CIDR IPv4 Subnet and Mask Calculator"}, "ex2-tcp-aimd-congestion-controller": {"starter": "def simulate_tcp_congestion(rtt_events: list[str], initial_ssthresh: int = 16) -> dict:\n    pass\n", "solution": "def simulate_tcp_congestion(rtt_events: list[str], initial_ssthresh: int = 16) -> dict:\n    cwnd = 1\n    ssthresh = initial_ssthresh\n    history = [cwnd]\n    \n    for ev in rtt_events:\n        if ev == \"ACK\":\n            if cwnd < ssthresh:\n                cwnd += 1  # Slow start: double per RTT\n            else:\n                cwnd += 1  # Simplified integer approximation for additive increase per RTT\n        elif ev == \"DUP_ACK_3\":\n            # Fast recovery: multiplicative decrease\n            ssthresh = max(2, cwnd // 2)\n            cwnd = ssthresh\n        elif ev == \"TIMEOUT\":\n            # Timeout: severe collapse\n            ssthresh = max(2, cwnd // 2)\n            cwnd = 1\n        history.append(cwnd)\n        \n    return {\n        \"final_cwnd\": cwnd,\n        \"final_ssthresh\": ssthresh,\n        \"history\": history\n    }\n", "tests": "def test_tcp_slow_start_to_congestion_avoidance():\n    # ssthresh = 4. Starts at 1.\n    # ACK -> 2, ACK -> 3, ACK -> 4 (hits ssthresh), ACK -> 5 (congestion avoidance)\n    res = simulate_tcp_congestion([\"ACK\", \"ACK\", \"ACK\", \"ACK\"], initial_ssthresh=4)\n    assert res[\"history\"] == [1, 2, 3, 4, 5]\n    assert res[\"final_cwnd\"] == 5\n    assert res[\"final_ssthresh\"] == 4\n\ndef test_tcp_fast_retransmit_and_recovery():\n    # At cwnd = 8, 3 dup acks arrive -> ssthresh = 4, cwnd = 4\n    events = [\"ACK\"] * 7 + [\"DUP_ACK_3\"]\n    res = simulate_tcp_congestion(events, initial_ssthresh=16)\n    # Starts at 1 -> 8 ACKs reach 8 -> DUP_ACK_3 drops to 4\n    assert res[\"final_cwnd\"] == 4\n    assert res[\"final_ssthresh\"] == 4\n\ndef test_tcp_timeout_collapse():\n    # At cwnd = 10, timeout collapses cwnd to 1\n    events = [\"ACK\"] * 9 + [\"TIMEOUT\"]\n    res = simulate_tcp_congestion(events, initial_ssthresh=16)\n    assert res[\"final_cwnd\"] == 1\n    assert res[\"final_ssthresh\"] == 5  # 10 // 2 = 5\n", "mutants": ["def simulate_tcp_congestion(rtt_events, initial_ssthresh=16): assert False, 'mutant injected'\n", "def simulate_tcp_congestion(rtt_events, initial_ssthresh=16):\n    return {\"final_cwnd\": 1, \"final_ssthresh\": initial_ssthresh, \"history\": [1]}\n"], "hints": ["During slow start (cwnd < ssthresh), cwnd increases exponentially.", "DUP_ACK_3 sets ssthresh = cwnd // 2, cwnd = ssthresh.", "TIMEOUT drops cwnd to 1."], "level": "core", "title": "TCP Reno AIMD Congestion Control Engine"}, "ex3-sliding-window-flow-control": {"starter": "def simulate_sliding_window(window_size: int, total_packets: int, dropped_packet_seqs: set) -> dict:\n    pass\n", "solution": "def simulate_sliding_window(window_size: int, total_packets: int, dropped_packet_seqs: set) -> dict:\n    # Packet sequence numbers 0 to total_packets - 1\n    base = 0\n    next_seq = 0\n    transmissions = []\n    retransmissions = 0\n    \n    while base < total_packets:\n        # Send packets within window\n        while next_seq < base + window_size and next_seq < total_packets:\n            transmissions.append(next_seq)\n            if next_seq in dropped_packet_seqs:\n                # Simulates drop: base cannot advance past next_seq on this round\n                pass\n            next_seq += 1\n            \n        # Simulate timer expiry / ACK handling\n        if base in dropped_packet_seqs:\n            # Packet dropped! Retransmit base\n            retransmissions += 1\n            dropped_packet_seqs.remove(base)  # Succeeds on retransmit\n            next_seq = base  # Go-Back-N rewind\n        else:\n            # Advance base to next unacked or next_seq\n            base += 1\n            \n    return {\n        \"total_transmissions\": len(transmissions),\n        \"retransmissions\": retransmissions,\n        \"completed\": base == total_packets\n    }\n", "tests": "def test_sliding_window_no_drops():\n    # 5 packets, window 3, no drops\n    res = simulate_sliding_window(window_size=3, total_packets=5, dropped_packet_seqs=set())\n    assert res[\"retransmissions\"] == 0\n    assert res[\"completed\"] is True\n    assert res[\"total_transmissions\"] == 5\n\ndef test_sliding_window_with_retransmit():\n    # Packet 2 dropped once\n    res = simulate_sliding_window(window_size=3, total_packets=5, dropped_packet_seqs={2})\n    assert res[\"retransmissions\"] == 1\n    assert res[\"completed\"] is True\n    assert res[\"total_transmissions\"] > 5  # repeated packet 2 and subsequent\n\ndef test_sliding_window_empty():\n    res = simulate_sliding_window(window_size=4, total_packets=0, dropped_packet_seqs=set())\n    assert res[\"completed\"] is True\n    assert res[\"retransmissions\"] == 0\n", "mutants": ["def simulate_sliding_window(window_size, total_packets, dropped_packet_seqs):\n    assert False, 'mutant injected'\n", "def simulate_sliding_window(window_size, total_packets, dropped_packet_seqs):\n    return {\"total_transmissions\": total_packets, \"retransmissions\": 0, \"completed\": True}\n"], "hints": ["Maintain base pointer (oldest unacknowledged packet) and next_seq pointer.", "Window advances as base increases."], "level": "core", "title": "Sliding Window Protocol Simulator"}, "ex4-http-header-and-cookie-parser": {"starter": "def parse_http_request(raw_request: bytes) -> dict:\n    pass\n", "solution": "def parse_http_request(raw_request: bytes) -> dict:\n    if not raw_request:\n        raise ValueError(\"Empty HTTP request payload\")\n        \n    parts = raw_request.split(b\"\\r\\n\\r\\n\", 1)\n    header_section = parts[0].decode(\"utf-8\", errors=\"replace\")\n    body = parts[1] if len(parts) > 1 else b\"\"\n    \n    lines = header_section.split(\"\\r\\n\")\n    if not lines or not lines[0]:\n        raise ValueError(\"Missing HTTP request line\")\n        \n    req_line_parts = lines[0].split(\" \")\n    if len(req_line_parts) != 3:\n        raise ValueError(f\"Malformed request line: {lines[0]}\")\n        \n    method, path, version = req_line_parts\n    \n    headers = {}\n    cookies = {}\n    \n    for line in lines[1:]:\n        if not line.strip():\n            continue\n        if \":\" not in line:\n            raise ValueError(f\"Malformed header line: {line}\")\n        k, v = line.split(\":\", 1)\n        key = k.strip().lower()\n        val = v.strip()\n        headers[key] = val\n        \n        if key == \"cookie\":\n            cookie_pairs = val.split(\";\")\n            for pair in cookie_pairs:\n                if \"=\" in pair:\n                    ck, cv = pair.split(\"=\", 1)\n                    cookies[ck.strip()] = cv.strip()\n                    \n    return {\n        \"method\": method,\n        \"path\": path,\n        \"version\": version,\n        \"headers\": headers,\n        \"cookies\": cookies,\n        \"body\": body\n    }\n", "tests": "def test_parse_http_get_with_cookies():\n    raw = (\n        b\"GET /api/v1/users?page=2 HTTP/1.1\\r\\n\"\n        b\"Host: example.com\\r\\n\"\n        b\"User-Agent: Mozilla/5.0\\r\\n\"\n        b\"Cookie: session_id=xyz123; theme=dark\\r\\n\"\n        b\"\\r\\n\"\n    )\n    res = parse_http_request(raw)\n    assert res[\"method\"] == \"GET\"\n    assert res[\"path\"] == \"/api/v1/users?page=2\"\n    assert res[\"version\"] == \"HTTP/1.1\"\n    assert res[\"headers\"][\"host\"] == \"example.com\"\n    assert res[\"cookies\"][\"session_id\"] == \"xyz123\"\n    assert res[\"cookies\"][\"theme\"] == \"dark\"\n    assert res[\"body\"] == b\"\"\n\ndef test_parse_http_post_with_body():\n    raw = (\n        b\"POST /submit HTTP/1.1\\r\\n\"\n        b\"Host: api.example.com\\r\\n\"\n        b\"Content-Length: 13\\r\\n\"\n        b\"\\r\\n\"\n        b\"Hello, World!\"\n    )\n    res = parse_http_request(raw)\n    assert res[\"method\"] == \"POST\"\n    assert res[\"body\"] == b\"Hello, World!\"\n    assert res[\"headers\"][\"content-length\"] == \"13\"\n\ndef test_parse_http_malformed():\n    try:\n        parse_http_request(b\"BAD_REQUEST\\r\\n\\r\\n\")\n        assert False, \"Should raise ValueError for malformed request line\"\n    except ValueError:\n        pass\n", "mutants": ["def parse_http_request(raw_request: bytes) -> dict:\n    assert False, 'mutant injected'\n", "def parse_http_request(raw_request: bytes) -> dict:\n    return {\"method\": \"GET\", \"path\": \"/\", \"version\": \"HTTP/1.1\", \"headers\": {}, \"cookies\": {}, \"body\": b\"\"}\n"], "hints": ["Split by \\r\\n\\r\\n to separate header block from body.", "First line contains METHOD PATH VERSION.", "Parse Cookie header by splitting on ';' and '='."], "level": "boss", "title": "HTTP/1.1 Request and Cookie Parser"}}, "demos": {"p09-oracle-tcp-aimd": {"code": "def simulate_aimd(events: list, initial_ssthresh: int = 16) -> dict:\n    cwnd = 1\n    ssthresh = initial_ssthresh\n    history = [cwnd]\n    \n    for event in events:\n        if event == \"ACK\":\n            if cwnd < ssthresh:\n                cwnd += 1  # Slow start: exponential doubling per RTT\n            else:\n                cwnd += 1  # Simplified linear increase per RTT\n        elif event == \"LOSS\":\n            ssthresh = max(2, cwnd // 2)\n            cwnd = ssthresh  # Fast recovery\n        history.append(cwnd)\n        \n    return {\"final_cwnd\": cwnd, \"final_ssthresh\": ssthresh, \"history\": history}\n\n# Run 4 ACKs (slow start 1..5), 1 LOSS (drops to 2), then 2 ACKs\nevts = [\"ACK\", \"ACK\", \"ACK\", \"ACK\", \"LOSS\", \"ACK\", \"ACK\"]\nres = simulate_aimd(evts, initial_ssthresh=8)\n\n# History: 1 -> 2 -> 3 -> 4 -> 5 -> LOSS: ssthresh=2, cwnd=2 -> 3 -> 4\nassert res[\"history\"] == [1, 2, 3, 4, 5, 2, 3, 4]\nassert res[\"final_cwnd\"] == 4\nassert res[\"final_ssthresh\"] == 2\n\nprint(\"TCP AIMD slow start and multiplicative decrease verified.\")\n", "mutants": ["def simulate_aimd(events, initial_ssthresh=16): return {\"history\": []}\nres = simulate_aimd([\"ACK\"], 8)\nassert len(res[\"history\"]) > 0\n"]}, "p09-exp-bdp-calculation": {"code": "def calculate_bdp_bytes(bandwidth_mbps: float, rtt_ms: float) -> int:\n    # BDP = (Bandwidth in bps * RTT in sec) / 8\n    bandwidth_bps = bandwidth_mbps * 1e6\n    rtt_sec = rtt_ms / 1000.0\n    return int((bandwidth_bps * rtt_sec) / 8)\n\n# Transcontinental fiber: 1 Gbps (1000 Mbps), 80 ms RTT\nbdp_fiber = calculate_bdp_bytes(1000.0, 80.0)\n# 1e9 * 0.08 / 8 = 10,000,000 bytes (~10 MB)\nassert bdp_fiber == 10_000_000\n\n# Default old TCP socket buffer = 64 KB (65536 bytes)\nold_socket_buffer = 65536\nmax_throughput_mbps = (old_socket_buffer * 8) / (80.0 / 1000.0) / 1e6\n\n# With a 64KB buffer on an 80ms RTT link, max speed is ~6.55 Mbps despite a 1 Gbps physical link!\nassert round(max_throughput_mbps, 2) == 6.55\nprint(f\"BDP experiment: 1 Gbps link limited to {max_throughput_mbps:.2f} Mbps by 64KB window buffer!\")\n", "mutants": ["def calculate_bdp_bytes(bandwidth_mbps, rtt_ms): return 0\nassert calculate_bdp_bytes(1000.0, 80.0) == 10_000_000\n"]}}, "cards": [{"q": "What is the difference between TCP and UDP?", "a": "TCP provides reliable, ordered, connection-oriented byte streams with congestion control; UDP provides lightweight, unordered, datagram-oriented transmission."}, {"q": "What is the Bandwidth-Delay Product (BDP)?", "a": "The maximum amount of data in flight required to fully saturate a link: Bandwidth * RTT."}, {"q": "What is Additive Increase Multiplicative Decrease (AIMD)?", "a": "The congestion control algorithm where cwnd increases linearly by 1 MSS per RTT and halves multiplicatively upon packet loss."}, {"q": "What causes Bufferbloat?", "a": "Overly large packet buffers in routers that fill up and introduce seconds of latency without improving network throughput."}, {"q": "How does HTTP/3 differ from HTTP/2?", "a": "HTTP/3 replaces TCP with QUIC over UDP, eliminating transport Head-of-Line blocking and enabling 0-RTT handshakes."}, {"q": "What is the role of DNS?", "a": "Translates human-readable domain names into 32-bit IPv4 or 128-bit IPv6 network addresses."}], "title": "Computer networks"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M24 Integration</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M24">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~4h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M24</p><h1>Integration</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M22.html">M22</a></div><div><b>Covers:</b> NCERT 12: Integrals, NCERT 12: Application of Integrals</div>
+<details><summary>Everything this module teaches (9 items)</summary><ul class="must"><li>antiderivatives and standard integrals</li><li>substitution</li><li>integration by parts</li><li>partial fractions</li><li>the definite integral as a limit of Riemann sums</li><li>the Fundamental Theorem of Calculus with proof sketch</li><li>properties of definite integrals</li><li>area under and between curves</li><li>numerical integration: trapezoid and Simpson, and their error orders (tested on functions they do not integrate exactly)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Hema's grandfather owns a field beside the river. The three straight sides he can measure with a rope. The fourth side is the river, and the river wanders.</p>
+<p>The patwari wants an area. Grandfather shrugs: it cannot be done, the edge is not a shape.</p>
+<p>Hema disagrees. She walks the straight edge driving sticks in every ten paces, and at each stick she walks out to the river and measures. Now she has a row of widths. She treats the field as a row of rectangles, ten paces wide, each as tall as its stick's measurement. She adds them up.</p>
+<p>"Too big," says grandfather, pointing to a place where the river bulges in and her rectangle sticks out over the water.</p>
+<p>So she does it again with sticks every five paces. The rectangles are narrower and they hug the bank more closely. The total comes down a bit. Then two paces. The total comes down again, but less. Then one pace, and it barely moves at all.</p>
+<p>The numbers are settling.</p>
+<p>Here is the surprise: the field has a definite area even though its edge is a river, and she has found it without ever knowing the shape. She did not measure the area. She measured a <em>trend</em> — the limit of a sum of things she could measure — exactly as Priya found speed from a shrinking window in M22.</p>
+<p>And then grandfather, who was a surveyor, tells her the part that still astonishes people. There is a shortcut. If you know a function whose <em>rate of change</em> is the width of the field, you never have to add up a single rectangle.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Integration answers two questions that look unrelated and turn out to be the same one.</p>
+<p><strong>The area question.</strong> What is the area under a curve? Slice it into thin rectangles, add them up, and take the limit as the slices shrink. That is the <strong>definite integral</strong>, written $\int_a^b f(x)\,dx$.</p>
+<p><strong>The reversal question.</strong> Given a rate, what was the quantity? That is the <strong>antiderivative</strong> or <strong>indefinite integral</strong>: find $F$ with $F&#x27; = f$.</p>
+<p>The <strong>Fundamental Theorem of Calculus</strong> says these are the same operation. To find the area, find an antiderivative and subtract its values at the ends:</p>
+<p>$$\int_a^b f(x)\,dx = F(b)-F(a)$$</p>
+<p>That is the shortcut Hema's grandfather knew. An infinite summing process collapses into one subtraction — provided you can find $F$, which is the hard part and the reason most of this module is a toolbox of techniques.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Antiderivatives</h2>
+<p>$F$ is an <strong>antiderivative</strong> of $f$ when $F&#x27;=f$. Antiderivatives are not unique: if $F$ is one, so is $F+C$ for any constant, and these are all of them (two antiderivatives differ by a function with zero derivative, which the Mean Value Theorem forces to be constant). Hence</p>
+<p>$$\int f(x)\,dx = F(x)+C$$</p>
+<p><strong>Standard integrals</strong> (constants omitted):</p>
+<p>$$\int x^n dx = \frac{x^{n+1}}{n+1}\ (n\neq-1), \qquad \int \frac{1}{x}dx = \ln|x|, \qquad \int e^x dx = e^x, \qquad \int a^x dx = \frac{a^x}{\ln a}$$
+$$\int \sin x\,dx = -\cos x, \quad \int\cos x\,dx = \sin x, \quad \int\sec^2x\,dx = \tan x$$
+$$\int\frac{dx}{1+x^2} = \tan^{-1}x, \quad \int\frac{dx}{\sqrt{1-x^2}} = \sin^{-1}x, \quad \int\frac{dx}{x^2-a^2} = \frac{1}{2a}\ln\left|\frac{x-a}{x+a}\right|$$</p>
+<p>The $n=-1$ exception is not a quirk: $\frac{x^0}{0}$ is undefined, and the logarithm steps in precisely there. The absolute value in $\ln|x|$ matters, since $\frac1x$ is defined for negative $x$ too.</p>
+<h2>Techniques</h2>
+<p><strong>Substitution</strong> reverses the chain rule. If $u=g(x)$ then $du = g&#x27;(x)dx$ and</p>
+<p>$$\int f(g(x))g&#x27;(x)\,dx = \int f(u)\,du$$</p>
+<p>For a <strong>definite</strong> integral the limits must be transformed too: $\int_a^b$ becomes $\int_{g(a)}^{g(b)}$. Forgetting that is the standard error.</p>
+<p><strong>Integration by parts</strong> reverses the product rule. From $(uv)&#x27; = u&#x27;v+uv&#x27;$, integrating and rearranging:</p>
+<p>$$\int u\,dv = uv - \int v\,du$$</p>
+<p>Choosing which factor is $u$ decides whether the new integral is easier. The <strong>ILATE</strong> order — Inverse trigonometric, Logarithmic, Algebraic, Trigonometric, Exponential — is a useful rule of thumb for picking $u$.</p>
+<p><strong>Partial fractions</strong> splits a rational function into pieces that each integrate to a logarithm or an arctangent. For distinct linear factors,</p>
+<p>$$\frac{P(x)}{(x-a)(x-b)} = \frac{A}{x-a}+\frac{B}{x-b}$$</p>
+<p>with repeated factors contributing $\frac{A}{x-a}+\frac{B}{(x-a)^2}$ and irreducible quadratics contributing $\frac{Ax+B}{x^2+px+q}$. The method requires the numerator's degree to be <em>less</em> than the denominator's; otherwise divide first.</p>
+<h2>The definite integral</h2>
+<p>Partition $[a,b]$ into $n$ pieces and form a <strong>Riemann sum</strong> $\sum_{i} f(x_i^*)\Delta x_i$ with $x_i^*$ any point in the $i$-th piece. If these sums converge to one number as the mesh shrinks, regardless of the choices, that number is $\int_a^b f(x)dx$. Every continuous function on a closed bounded interval is integrable.</p>
+<p><strong>Properties:</strong></p>
+<p>$$\int_a^b f = -\int_b^a f, \qquad \int_a^a f = 0, \qquad \int_a^b f = \int_a^c f + \int_c^b f$$
+$$\int_a^b (\alpha f+\beta g) = \alpha\int_a^b f + \beta\int_a^b g, \qquad \left|\int_a^b f\right| \le \int_a^b|f|$$
+$$\int_0^a f(x)dx = \int_0^a f(a-x)dx, \qquad \int_{-a}^{a}f = \begin{cases}2\int_0^a f &amp; f \text{ even}\\ 0 &amp; f \text{ odd}\end{cases}$$</p>
+<h2>The Fundamental Theorem</h2>
+<p><strong>Part 1.</strong> If $f$ is continuous on $[a,b]$ and $G(x)=\int_a^x f(t)dt$, then $G$ is differentiable and $G&#x27;(x)=f(x)$. Integration and differentiation undo one another.</p>
+<p><strong>Part 2 (the evaluation theorem).</strong> If $F$ is any antiderivative of a continuous $f$, then</p>
+<p>$$\int_a^b f(x)\,dx = F(b)-F(a)$$</p>
+<h2>Area</h2>
+<p>The area between $y=f(x)$ and the $x$-axis from $a$ to $b$ is $\int_a^b |f|$. The plain integral gives <strong>signed</strong> area, counting regions below the axis as negative. Between two curves with $f\ge g$:</p>
+<p>$$\text{Area} = \int_a^b \left(f(x)-g(x)\right)dx$$</p>
+<p>When the curves cross, split at the crossings.</p>
+<h2>Numerical integration</h2>
+<p>For $n$ equal subintervals of width $h=\frac{b-a}{n}$:</p>
+<p>$$\textbf{Trapezoid: } \frac{h}{2}\left(f_0 + 2f_1 + \dots + 2f_{n-1} + f_n\right), \qquad \text{error } = -\frac{(b-a)h^2}{12}f&#x27;&#x27;(\xi)$$
+$$\textbf{Simpson: } \frac{h}{3}\left(f_0 + 4f_1+2f_2+4f_3+\dots+4f_{n-1}+f_n\right), \qquad \text{error } = -\frac{(b-a)h^4}{180}f^{(4)}(\xi)$$</p>
+<p>Simpson requires $n$ to be <strong>even</strong>. Its error involves the fourth derivative, so it is <strong>exact for every polynomial of degree at most 3</strong> — which is why you must test its error order on something like $e^x$ or $\sin x$, never on a cubic.</p>
+<h2>A pinch of history</h2>
+<p>The method of exhaustion — bounding an area by inscribed and circumscribed shapes — is Eudoxus's and Archimedes'; Archimedes found the area of a parabolic segment by exactly Hema's argument around 250 BCE. Cavalieri's "method of indivisibles" (1635) and Fermat's work on areas under $x^n$ brought it closer.</p>
+<p>The Kerala school reached remarkable results independently. The <em>Yuktibhasa</em> of Jyesthadeva (c. 1530), presenting Madhava's work, derives what amounts to $\int_0^1 x^n dx = \frac{1}{n+1}$ by summing powers, and uses term-by-term integration of a series to obtain the arctangent expansion.</p>
+<p>Newton and Leibniz, in the 1660s-1680s, supplied the Fundamental Theorem, turning area from a limit process into an inverse operation. Riemann gave the rigorous definition of the integral in 1854, and Lebesgue's far more powerful theory followed in 1902.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: Part 1 of the Fundamental Theorem.</strong></p>
+<ol>
+<li>Let $G(x)=\int_a^x f(t)dt$ with $f$ continuous. Then $G(x+h)-G(x) = \int_x^{x+h}f(t)dt$, by the additivity property.</li>
+<li>Since $f$ is continuous on $[x, x+h]$, it attains a minimum $m_h$ and a maximum $M_h$ there.</li>
+<li>So the integral over that sliver is squeezed: $m_h\,h \le \int_x^{x+h}f \le M_h\,h$.</li>
+<li>Divide by $h$: $m_h \le \frac{G(x+h)-G(x)}{h} \le M_h$.</li>
+<li><strong>The non-obvious step:</strong> as $h\to0$, continuity forces both $m_h$ and $M_h$ to tend to $f(x)$ — the function cannot vary much over a tiny interval.</li>
+<li>The squeeze gives $G&#x27;(x)=f(x)$.</li>
+</ol>
+<p>Continuity is doing real work in step 5. Without it the sliver could contain values far from $f(x)$ however small $h$ is, and the argument collapses.</p>
+<p><strong>Result 2: Part 2, the evaluation theorem.</strong></p>
+<ol>
+<li>Let $F$ be any antiderivative of $f$, and let $G(x)=\int_a^x f$. By Part 1, $G&#x27;=f=F&#x27;$.</li>
+<li>So $(F-G)&#x27;=0$ on $[a,b]$, and by the Mean Value Theorem a function with zero derivative on an interval is constant: $F = G + C$.</li>
+<li>Evaluate at $a$: $F(a) = G(a)+C = 0+C$, so $C=F(a)$.</li>
+<li>Evaluate at $b$: $F(b) = G(b)+F(a)$, hence $G(b) = F(b)-F(a)$.</li>
+<li>But $G(b)$ is precisely $\int_a^b f$.</li>
+</ol>
+<p>Note where the Mean Value Theorem appears — it is what guarantees that "zero derivative" means "constant", and that is the hinge of the whole argument.</p>
+<p><strong>Result 3: integration by parts, from the product rule.</strong> Integrate $(uv)&#x27; = u&#x27;v+uv&#x27;$ over $[a,b]$:</p>
+<p>$$\left[uv\right]_a^b = \int_a^b u&#x27;v\,dx + \int_a^b uv&#x27;\,dx$$</p>
+<p>Rearranging gives $\int_a^b uv&#x27;\,dx = \left[uv\right]_a^b - \int_a^b u&#x27;v\,dx$. It is the product rule read backwards, exactly as substitution is the chain rule read backwards.</p>
+<p><strong>Result 4: why Simpson's rule has fourth-order error.</strong> Simpson's rule is built by fitting a parabola through three equally spaced points and integrating it exactly. A parabola matches a cubic's integral too — the cubic error terms cancel by the symmetry of the interval about its midpoint — so the rule is exact for all polynomials up to degree 3. The first term it cannot capture is quartic, so the leading error involves $f^{(4)}$ and carries $h^4$. The trapezoid rule fits a straight line, is exact only up to degree 1, and its leading error involves $f&#x27;&#x27;$ with $h^2$.</p>
+<p>This explains the experimental prediction: halving $h$ should quarter the trapezoid error and divide Simpson's by sixteen.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes definite integrals two genuinely independent ways.</p>
+<p>The <strong>analytic</strong> route uses the Fundamental Theorem: evaluate a known antiderivative at the two endpoints and subtract. It never adds up a rectangle.</p>
+<p>The <strong>numerical</strong> route uses a fine composite Simpson rule: it only ever evaluates $f$ at points and combines the values with fixed weights. It has never heard of an antiderivative.</p>
+<p>If the Fundamental Theorem were false, or an antiderivative wrong, these would disagree. The demo also checks the symmetry properties and the additivity of the integral. The mutant below evaluates the antiderivative as $F(a)-F(b)$, reversing the limits — a sign error that is invisible until you compare against something real.</p>
+<div class="lab demo" data-demo="m24-ftc-vs-numerics">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>The Fundamental Theorem against a fine Simpson sum</h3></div>
+
+<textarea class="code" spellcheck="false">from math import sin, cos, exp, log, atan, pi, sqrt
+
+
+def simpson(f, a, b, n=2000):
+    &quot;&quot;&quot;Composite Simpson. Knows nothing about antiderivatives.&quot;&quot;&quot;
+    if n % 2:
+        n += 1
+    h = (b - a) / n
+    total = f(a) + f(b)
+    for i in range(1, n):
+        total += (4 if i % 2 else 2) * f(a + i * h)
+    return total * h / 3
+
+
+def by_ftc(F, a, b):
+    &quot;&quot;&quot;The shortcut: evaluate an antiderivative at the ends and subtract.&quot;&quot;&quot;
+    return F(b) - F(a)
+
+
+CASES = [
+    (&quot;x^2&quot;, lambda x: x * x, lambda x: x ** 3 / 3, 0.0, 3.0),
+    (&quot;sin x&quot;, sin, lambda x: -cos(x), 0.0, pi),
+    (&quot;cos x&quot;, cos, sin, 0.0, pi / 2),
+    (&quot;e^x&quot;, exp, exp, 0.0, 2.0),
+    (&quot;1/x&quot;, lambda x: 1 / x, lambda x: log(abs(x)), 1.0, 5.0),
+    (&quot;1/(1+x^2)&quot;, lambda x: 1 / (1 + x * x), atan, 0.0, 1.0),
+    (&quot;x e^x&quot;, lambda x: x * exp(x), lambda x: (x - 1) * exp(x), 0.0, 2.0),
+    # Start at 1, not 0: sqrt has an infinite derivative at the origin,
+    # so Simpson&#x27;s error bound (which needs a bounded 4th derivative)
+    # does not apply there and convergence is far slower.
+    (&quot;sqrt(x)&quot;, sqrt, lambda x: 2 * x ** 1.5 / 3, 1.0, 4.0),
+]
+
+print(f&quot;{&#x27;integrand&#x27;:&gt;12} {&#x27;by FTC&#x27;:&gt;16} {&#x27;by Simpson&#x27;:&gt;16} {&#x27;gap&#x27;:&gt;12}&quot;)
+for name, f, F, a, b in CASES:
+    exact = by_ftc(F, a, b)
+    numeric = simpson(f, a, b)
+    print(f&quot;{name:&gt;12} {exact:&gt;16.10f} {numeric:&gt;16.10f} {abs(exact - numeric):&gt;12.2e}&quot;)
+    assert abs(exact - numeric) &lt; 1e-7, f&quot;the two routes must agree for {name}&quot;
+
+print()
+# Hand-checked values.
+print(&quot;integral of sin from 0 to pi =&quot;, round(by_ftc(lambda x: -cos(x), 0.0, pi), 12))
+assert abs(by_ftc(lambda x: -cos(x), 0.0, pi) - 2.0) &lt; 1e-12
+print(&quot;integral of 1/(1+x^2) from 0 to 1 =&quot;, round(by_ftc(atan, 0.0, 1.0), 12), &quot; = pi/4&quot;)
+assert abs(by_ftc(atan, 0.0, 1.0) - pi / 4) &lt; 1e-12
+
+# Properties of the definite integral, measured.
+f = lambda x: x ** 3 - 2 * x + 1
+print()
+print(&quot;reversing the limits flips the sign:&quot;, round(simpson(f, 0, 2), 9), round(simpson(f, 2, 0), 9))
+assert abs(simpson(f, 0, 2) + simpson(f, 2, 0)) &lt; 1e-9
+assert abs(simpson(f, 1, 1)) &lt; 1e-12
+# additivity
+assert abs(simpson(f, 0, 3) - (simpson(f, 0, 1) + simpson(f, 1, 3))) &lt; 1e-7
+# an odd function over a symmetric interval integrates to zero
+odd = lambda x: x ** 3 - x
+print(&quot;odd function over [-2, 2]:&quot;, round(simpson(odd, -2, 2), 12))
+assert abs(simpson(odd, -2, 2)) &lt; 1e-9
+# an even function doubles the half-interval
+even = lambda x: x * x + cos(x)
+assert abs(simpson(even, -2, 2) - 2 * simpson(even, 0, 2)) &lt; 1e-7
+
+# Signed versus unsigned area.
+signed = simpson(sin, 0.0, 2 * pi)
+unsigned = simpson(lambda x: abs(sin(x)), 0.0, 2 * pi)
+print()
+print(&quot;sin over a full period: signed&quot;, round(signed, 9), &quot; unsigned&quot;, round(unsigned, 6))
+assert abs(signed) &lt; 1e-9, &quot;the positive and negative humps cancel&quot;
+assert abs(unsigned - 4.0) &lt; 1e-3, &quot;but the enclosed area is 4&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory predicts the <strong>order</strong> of each numerical rule: the trapezoid error falls like $h^2$ and Simpson's like $h^4$. So halving the step should quarter the trapezoid error and divide Simpson's by sixteen.</p>
+<p>There is a trap in testing this, and we walk into it deliberately. Simpson's rule is <em>exact</em> for every cubic, so measuring its error on $x^3$ gives zero at every step size and tells you nothing. The test must use a function the rule cannot integrate exactly — $e^x$ and $\sin x$ will do — and we show both cases side by side.</p>
+<div class="lab demo" data-demo="m24-trapezoid-vs-simpson">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Error orders, measured on a function Simpson cannot do exactly</h3></div>
+
+<textarea class="code" spellcheck="false">from math import sin, cos, exp
+
+
+def trapezoid(f, a, b, n):
+    h = (b - a) / n
+    total = (f(a) + f(b)) / 2
+    for i in range(1, n):
+        total += f(a + i * h)
+    return total * h
+
+
+def simpson(f, a, b, n):
+    if n % 2:
+        n += 1
+    h = (b - a) / n
+    total = f(a) + f(b)
+    for i in range(1, n):
+        total += (4 if i % 2 else 2) * f(a + i * h)
+    return total * h / 3
+
+
+# e^x on [0, 1]; exact value e - 1. Neither rule is exact here.
+F_EXACT = exp(1.0) - 1.0
+print(&quot;integral of e^x on [0,1], exact =&quot;, round(F_EXACT, 12))
+print(f&quot;{&#x27;n&#x27;:&gt;6} {&#x27;trapezoid error&#x27;:&gt;18} {&#x27;ratio&#x27;:&gt;8} {&#x27;Simpson error&#x27;:&gt;18} {&#x27;ratio&#x27;:&gt;8}&quot;)
+tr_prev = sp_prev = None
+tr_ratios, sp_ratios = [], []
+for n in (4, 8, 16, 32, 64, 128):
+    te = abs(trapezoid(exp, 0, 1, n) - F_EXACT)
+    se = abs(simpson(exp, 0, 1, n) - F_EXACT)
+    tr = (tr_prev / te) if tr_prev else float(&quot;nan&quot;)
+    sr = (sp_prev / se) if sp_prev else float(&quot;nan&quot;)
+    if tr_prev:
+        tr_ratios.append(tr)
+        sp_ratios.append(sr)
+    print(f&quot;{n:&gt;6} {te:&gt;18.3e} {tr:&gt;8.2f} {se:&gt;18.3e} {sr:&gt;8.2f}&quot;)
+    tr_prev, sp_prev = te, se
+
+print()
+print(&quot;predicted: halving h quarters the trapezoid error (order 2)&quot;)
+print(&quot;predicted: halving h divides Simpson&#x27;s error by 16 (order 4)&quot;)
+for r in tr_ratios:
+    assert 3.8 &lt; r &lt; 4.2, f&quot;trapezoid ratio {r} is not about 4&quot;
+for r in sp_ratios[:4]:
+    assert 14 &lt; r &lt; 18, f&quot;Simpson ratio {r} is not about 16&quot;
+
+# Simpson beats the trapezoid rule by an enormous margin at the same cost.
+n = 64
+te = abs(trapezoid(exp, 0, 1, n) - F_EXACT)
+se = abs(simpson(exp, 0, 1, n) - F_EXACT)
+print()
+print(f&quot;at n = {n}: trapezoid error {te:.3e}, Simpson error {se:.3e}&quot;)
+assert se &lt; te / 1000, &quot;Simpson must be dramatically more accurate&quot;
+
+# The trap: Simpson is EXACT for cubics, so a cubic measures nothing.
+cubic = lambda x: 3 * x ** 3 - 2 * x ** 2 + x - 5
+cubic_exact = (3 / 4) * 2 ** 4 - (2 / 3) * 2 ** 3 + (1 / 2) * 2 ** 2 - 5 * 2
+print()
+print(&quot;the trap: Simpson on a cubic over [0,2]&quot;)
+for n in (2, 4, 8):
+    err = abs(simpson(cubic, 0, 2, n) - cubic_exact)
+    print(f&quot;  n = {n:&gt;3}  Simpson error = {err:.3e}&quot;)
+    assert err &lt; 1e-12, &quot;Simpson is exact for cubics, so the error is zero&quot;
+print(&quot;  -&gt; the error is zero at every n, so a cubic cannot reveal the order&quot;)
+# the trapezoid rule is NOT exact for a cubic, so it still shows order 2
+t1 = abs(trapezoid(cubic, 0, 2, 8) - cubic_exact)
+t2 = abs(trapezoid(cubic, 0, 2, 16) - cubic_exact)
+print(f&quot;  trapezoid on the same cubic: ratio {t1 / t2:.2f}&quot;)
+assert 3.8 &lt; t1 / t2 &lt; 4.2, &quot;the trapezoid rule is still second order&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the Simpson ratios stop being 16 at the finest step shown, which is why the assertion above only checks the first four. The reason is the same trade-off as M22's derivative: once the truncation error drops near the rounding error of the summation itself, further refinement buys nothing and the measured ratio becomes noise. For $e^x$ on $[0,1]$ that happens around $n=128$, where Simpson's error is already about $10^{-13}$. The practical lesson is that a high-order rule reaches the floor faster, and beyond that point you need a different tool — Gaussian quadrature, or an adaptive scheme that refines only where the function misbehaves.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m24-ex1-antiderivatives" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Standard integrals and the evaluation theorem</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>antiderivative_power(n)</code> returning a callable for the antiderivative of <code>x**n</code>, handling the <code>n == -1</code> case with <code>log(abs(x))</code>. Write <code>definite(F, a, b)</code> returning <code>F(b) - F(a)</code>. Write <code>integral_power(n, a, b)</code> combining the two. Raise <code>ValueError</code> when <code>n == -1</code> and the interval straddles or touches zero, since <code>1/x</code> is not integrable across the origin.</p></div>
+<textarea class="code" spellcheck="false">def antiderivative_power(n):
+    &quot;&quot;&quot;A callable antiderivative of x**n.&quot;&quot;&quot;
+    return lambda x: 0.0
+
+
+def definite(F, a, b):
+    &quot;&quot;&quot;F(b) - F(a).&quot;&quot;&quot;
+    return 0.0
+
+
+def integral_power(n, a, b):
+    &quot;&quot;&quot;Definite integral of x**n from a to b.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_power_rule_hand_checked():
+    # integral of x^2 from 0 to 3 is 27/3 = 9
+    assert abs(integral_power(2, 0, 3) - 9.0) &lt; 1e-12
+    # integral of x from 0 to 2 is 2
+    assert abs(integral_power(1, 0, 2) - 2.0) &lt; 1e-12
+    # integral of a constant: x^0 from 1 to 5 is 4
+    assert abs(integral_power(0, 1, 5) - 4.0) &lt; 1e-12
+
+
+def test_the_minus_one_exception():
+    from math import log
+    # integral of 1/x from 1 to e is exactly 1
+    from math import e
+    assert abs(integral_power(-1, 1, e) - 1.0) &lt; 1e-12
+    assert abs(integral_power(-1, 1, 5) - log(5)) &lt; 1e-12
+    # it works on the negative side too, thanks to the absolute value
+    assert abs(integral_power(-1, -5, -1) - (-log(5))) &lt; 1e-12
+    for bad in ((-1, 1), (0, 2), (-2, 0)):
+        try:
+            integral_power(-1, bad[0], bad[1])
+            assert False, f&quot;1/x across zero must raise ValueError for {bad}&quot;
+        except ValueError:
+            pass
+
+
+def test_properties_of_the_definite_integral():
+    F = antiderivative_power(3)
+    # reversing the limits flips the sign
+    assert abs(definite(F, 0, 2) + definite(F, 2, 0)) &lt; 1e-12
+    # a degenerate interval gives zero
+    assert abs(definite(F, 2, 2)) &lt; 1e-12
+    # additivity
+    assert abs(definite(F, 0, 3) - (definite(F, 0, 1) + definite(F, 1, 3))) &lt; 1e-12
+    # the antiderivative really differentiates back to the integrand
+    h = 1e-6
+    for x in (0.5, 1.0, 2.0):
+        slope = (F(x + h) - F(x - h)) / (2 * h)
+        assert abs(slope - x ** 3) &lt; 1e-5
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m24-ex2-substitution" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Integration by substitution</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>substitute_definite(f, g, dg, a, b, n=2000)</code> which computes <code>integral of f(g(x)) * dg(x) dx from a to b</code> in two ways and returns the tuple <code>(direct, transformed)</code>: <code>direct</code> integrates the whole integrand over <code>[a, b]</code> with composite Simpson, and <code>transformed</code> integrates <code>f(u)</code> over <code>[g(a), g(b)]</code>. A correct implementation returns two numbers that agree. Write <code>simpson(f, a, b, n)</code> as the helper. Raise <code>ValueError</code> when <code>n</code> is not positive.</p></div>
+<textarea class="code" spellcheck="false">def simpson(f, a, b, n):
+    &quot;&quot;&quot;Composite Simpson&#x27;s rule.&quot;&quot;&quot;
+    return 0.0
+
+
+def substitute_definite(f, g, dg, a, b, n=2000):
+    &quot;&quot;&quot;Return (direct, transformed) values of the same integral.&quot;&quot;&quot;
+    return (0.0, 0.0)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_substitution_agrees_on_a_polynomial_case():
+    # integral of 2x * (x^2)^3 dx: u = x^2, du = 2x dx, so integral of u^3 du
+    f = lambda u: u ** 3
+    g = lambda x: x * x
+    dg = lambda x: 2 * x
+    direct, transformed = substitute_definite(f, g, dg, 0.0, 2.0)
+    assert abs(direct - transformed) &lt; 1e-6
+    # exact value: integral of u^3 from 0 to 4 = 4^4/4 = 64
+    assert abs(transformed - 64.0) &lt; 1e-6
+
+
+def test_substitution_on_trigonometric_and_exponential_cases():
+    from math import sin, cos, exp
+    # integral of cos(x) e^(sin x) dx: u = sin x
+    direct, transformed = substitute_definite(exp, sin, cos, 0.0, 1.0)
+    assert abs(direct - transformed) &lt; 1e-6
+    # exact: e^(sin 1) - e^0
+    assert abs(transformed - (exp(sin(1.0)) - 1.0)) &lt; 1e-6
+    # integral of 3x^2 cos(x^3) dx: u = x^3
+    direct, transformed = substitute_definite(cos, lambda x: x ** 3,
+                                              lambda x: 3 * x * x, 0.0, 1.2)
+    assert abs(direct - transformed) &lt; 1e-5
+    assert abs(transformed - sin(1.2 ** 3)) &lt; 1e-5
+
+
+def test_limits_must_be_transformed_and_errors():
+    from math import sin, cos
+    # a case where g(a) != a and g(b) != b, so untransformed limits would be wrong
+    f = lambda u: u
+    g = lambda x: x + 10
+    dg = lambda x: 1.0
+    direct, transformed = substitute_definite(f, g, dg, 0.0, 1.0)
+    assert abs(direct - transformed) &lt; 1e-6
+    # integral of (x+10) from 0 to 1 = 10.5, which is NOT integral of u from 0 to 1
+    assert abs(transformed - 10.5) &lt; 1e-6
+    assert abs(simpson(lambda u: u, 0.0, 1.0, 100) - 0.5) &lt; 1e-9
+    assert abs(simpson(sin, 1.0, 1.0, 100)) &lt; 1e-12
+    try:
+        simpson(sin, 0.0, 1.0, 0)
+        assert False, &quot;n = 0 must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m24-ex3-by-parts" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Integration by parts</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>by_parts(u, du, v, dv, a, b, n=2000)</code> returning the tuple <code>(direct, formula)</code> where <code>direct</code> integrates <code>u(x)*dv(x)</code> over <code>[a, b]</code> numerically and <code>formula</code> computes <code>u(b)v(b) - u(a)v(a) - integral of du(x)*v(x)</code>. A correct implementation returns two agreeing numbers. Write <code>integral_x_exp(a, b)</code> returning the exact value of <code>integral of x e^x</code> using the antiderivative <code>(x-1)e^x</code>. Write <code>integral_log(a, b)</code> for <code>integral of log x</code> using <code>x log x - x</code>, raising <code>ValueError</code> for a non-positive limit.</p></div>
+<textarea class="code" spellcheck="false">def by_parts(u, du, v, dv, a, b, n=2000):
+    &quot;&quot;&quot;Return (direct, formula) for the same integral.&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def integral_x_exp(a, b):
+    &quot;&quot;&quot;Exact integral of x e^x.&quot;&quot;&quot;
+    return 0.0
+
+
+def integral_log(a, b):
+    &quot;&quot;&quot;Exact integral of log x.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_by_parts_on_x_times_exp():
+    from math import exp
+    # u = x, dv = e^x dx, so v = e^x and du = 1
+    direct, formula = by_parts(lambda x: x, lambda x: 1.0, exp, exp, 0.0, 2.0)
+    assert abs(direct - formula) &lt; 1e-6
+    # and both match the exact antiderivative
+    assert abs(direct - integral_x_exp(0.0, 2.0)) &lt; 1e-6
+    # exact: (2-1)e^2 - (0-1)e^0 = e^2 + 1
+    assert abs(integral_x_exp(0.0, 2.0) - (exp(2) + 1)) &lt; 1e-12
+
+
+def test_by_parts_on_log_and_x_sin_x():
+    from math import log, sin, cos
+    # integral of log x: u = log x, dv = dx
+    direct, formula = by_parts(log, lambda x: 1 / x, lambda x: x, lambda x: 1.0,
+                               1.0, 3.0)
+    assert abs(direct - formula) &lt; 1e-6
+    assert abs(direct - integral_log(1.0, 3.0)) &lt; 1e-6
+    # exact: 3 log 3 - 3 - (1*0 - 1) = 3 log 3 - 2
+    assert abs(integral_log(1.0, 3.0) - (3 * log(3) - 2)) &lt; 1e-12
+    # integral of x sin x: u = x, dv = sin x dx, v = -cos x
+    direct, formula = by_parts(lambda x: x, lambda x: 1.0,
+                               lambda x: -cos(x), sin, 0.0, 3.14159265358979)
+    assert abs(direct - formula) &lt; 1e-5
+    # exact value is pi
+    assert abs(direct - 3.14159265358979) &lt; 1e-5
+
+
+def test_choice_of_u_and_errors():
+    from math import exp
+    # The formula holds whichever way you split, even a bad choice.
+    # u = e^x, dv = x dx  -&gt;  v = x^2/2, du = e^x
+    direct, formula = by_parts(exp, exp, lambda x: x * x / 2, lambda x: x,
+                               0.0, 1.5)
+    assert abs(direct - formula) &lt; 1e-6
+    try:
+        integral_log(0.0, 2.0)
+        assert False, &quot;a non-positive limit must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        integral_log(1.0, -1.0)
+        assert False, &quot;a negative limit must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m24-ex4-partial-fractions" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Partial fractions</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>partial_fractions_distinct(p_coeffs, a, b)</code> for <code>P(x) / ((x-a)(x-b))</code> with <code>a != b</code> and <code>P</code> of degree at most 1 given as <code>[constant, linear]</code>, returning <code>(A, B)</code> such that the expression equals <code>A/(x-a) + B/(x-b)</code>, using the cover-up rule. Write <code>integrate_partial(A, B, a, b, lo, hi)</code> returning the definite integral of <code>A/(x-a) + B/(x-b)</code> from <code>lo</code> to <code>hi</code>, raising <code>ValueError</code> when either pole lies in <code>[lo, hi]</code>. Raise <code>ValueError</code> when <code>a == b</code>.</p></div>
+<textarea class="code" spellcheck="false">def partial_fractions_distinct(p_coeffs, a, b):
+    &quot;&quot;&quot;Return (A, B) for P(x)/((x-a)(x-b)).&quot;&quot;&quot;
+    return (0.0, 0.0)
+
+
+def integrate_partial(A, B, a, b, lo, hi):
+    &quot;&quot;&quot;Definite integral of A/(x-a) + B/(x-b).&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cover_up_rule_hand_checked():
+    # 1 / ((x-1)(x-2)) = -1/(x-1) + 1/(x-2)
+    A, B = partial_fractions_distinct([1.0], 1.0, 2.0)
+    assert abs(A + 1.0) &lt; 1e-12
+    assert abs(B - 1.0) &lt; 1e-12
+    # x / ((x-1)(x-3)): A = 1/(1-3) = -0.5, B = 3/(3-1) = 1.5
+    A, B = partial_fractions_distinct([0.0, 1.0], 1.0, 3.0)
+    assert abs(A + 0.5) &lt; 1e-12
+    assert abs(B - 1.5) &lt; 1e-12
+
+
+def test_decomposition_reproduces_the_original():
+    cases = [([1.0], 1.0, 2.0), ([0.0, 1.0], 1.0, 3.0), ([2.0, -3.0], -1.0, 4.0)]
+    for p, a, b in cases:
+        A, B = partial_fractions_distinct(p, a, b)
+        c0 = p[0]
+        c1 = p[1] if len(p) &gt; 1 else 0.0
+        for x in (0.3, 5.5, -2.7, 7.1):
+            if abs(x - a) &lt; 1e-6 or abs(x - b) &lt; 1e-6:
+                continue
+            original = (c0 + c1 * x) / ((x - a) * (x - b))
+            split = A / (x - a) + B / (x - b)
+            assert abs(original - split) &lt; 1e-9, (p, a, b, x)
+    try:
+        partial_fractions_distinct([1.0], 2.0, 2.0)
+        assert False, &quot;equal poles must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_integration_matches_a_numerical_check():
+    from math import log
+    A, B = partial_fractions_distinct([1.0], 1.0, 2.0)
+    lo, hi = 3.0, 5.0
+    exact = integrate_partial(A, B, 1.0, 2.0, lo, hi)
+    # numerical check by the trapezoid rule on the ORIGINAL function
+    f = lambda x: 1.0 / ((x - 1) * (x - 2))
+    n = 20000
+    h = (hi - lo) / n
+    numeric = (f(lo) + f(hi)) / 2 + sum(f(lo + i * h) for i in range(1, n))
+    numeric *= h
+    assert abs(exact - numeric) &lt; 1e-6
+
+    # An interval entirely to the LEFT of both poles. Here x-a and x-b are both
+    # negative, so the antiderivative needs log|.|; the answer is still finite.
+    lo2, hi2 = -3.0, -1.0
+    exact2 = integrate_partial(A, B, 1.0, 2.0, lo2, hi2)
+    n = 20000
+    h2 = (hi2 - lo2) / n
+    numeric2 = (f(lo2) + f(hi2)) / 2 + sum(f(lo2 + i * h2) for i in range(1, n))
+    numeric2 *= h2
+    assert abs(exact2 - numeric2) &lt; 1e-6, (exact2, numeric2)
+    assert exact2 &gt; 0.18 and exact2 &lt; 0.19
+
+    try:
+        integrate_partial(A, B, 1.0, 2.0, 0.0, 3.0)
+        assert False, &quot;a pole inside the interval must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m24-ex5-numerical" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Riemann sums, the trapezoid and Simpson rules, and area between curves</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>riemann(f, a, b, n, kind)</code> for <code>kind</code> in <code>"left"</code>, <code>"right"</code>, <code>"midpoint"</code>. Write <code>trapezoid(f, a, b, n)</code> and <code>simpson(f, a, b, n)</code>, with Simpson rounding <code>n</code> up to an even number. Write <code>error_order(f, exact, a, b, rule, ns)</code> returning the list of consecutive error ratios as <code>n</code> doubles through <code>ns</code>. Write <code>area_between(f, g, a, b, n=4000)</code> returning the area enclosed between two curves, using the absolute difference so crossings are handled. Raise <code>ValueError</code> for a non-positive <code>n</code> or an unknown <code>kind</code>.</p></div>
+<textarea class="code" spellcheck="false">def riemann(f, a, b, n, kind):
+    &quot;&quot;&quot;Left, right or midpoint Riemann sum.&quot;&quot;&quot;
+    return 0.0
+
+
+def trapezoid(f, a, b, n):
+    &quot;&quot;&quot;Composite trapezoid rule.&quot;&quot;&quot;
+    return 0.0
+
+
+def simpson(f, a, b, n):
+    &quot;&quot;&quot;Composite Simpson&#x27;s rule.&quot;&quot;&quot;
+    return 0.0
+
+
+def error_order(f, exact, a, b, rule, ns):
+    &quot;&quot;&quot;Consecutive error ratios as n doubles.&quot;&quot;&quot;
+    return []
+
+
+def area_between(f, g, a, b, n=4000):
+    &quot;&quot;&quot;Area enclosed between two curves.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_riemann_sums_bracket_the_truth():
+    # x^2 on [0,1], exact 1/3. Increasing function: left under, right over.
+    f = lambda x: x * x
+    left = riemann(f, 0, 1, 1000, &quot;left&quot;)
+    right = riemann(f, 0, 1, 1000, &quot;right&quot;)
+    mid = riemann(f, 0, 1, 1000, &quot;midpoint&quot;)
+    assert left &lt; 1 / 3 &lt; right
+    assert abs(mid - 1 / 3) &lt; abs(left - 1 / 3)
+    assert abs(mid - 1 / 3) &lt; abs(right - 1 / 3)
+    # they all converge
+    assert abs(riemann(f, 0, 1, 200000, &quot;left&quot;) - 1 / 3) &lt; 1e-5
+    try:
+        riemann(f, 0, 1, 10, &quot;upper&quot;)
+        assert False, &quot;an unknown kind must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_error_orders_on_a_function_simpson_cannot_do_exactly():
+    from math import exp
+    exact = exp(1.0) - 1.0
+    ns = [4, 8, 16, 32, 64]
+    tr = error_order(exp, exact, 0.0, 1.0, trapezoid, ns)
+    sp = error_order(exp, exact, 0.0, 1.0, simpson, ns)
+    for r in tr:
+        assert 3.8 &lt; r &lt; 4.2, f&quot;trapezoid must be second order, got {r}&quot;
+    for r in sp[:3]:
+        assert 14 &lt; r &lt; 18, f&quot;Simpson must be fourth order, got {r}&quot;
+    # Simpson is exact for cubics, so a cubic reveals nothing about its order
+    cubic = lambda x: x ** 3 - 2 * x
+    cubic_exact = (2.0 ** 4) / 4 - 2 * (2.0 ** 2) / 2
+    for n in (2, 4, 8):
+        assert abs(simpson(cubic, 0, 2, n) - cubic_exact) &lt; 1e-12
+
+
+def test_area_between_curves():
+    from math import sin, pi
+    # between y = x and y = x^2 on [0,1]: integral of (x - x^2) = 1/2 - 1/3 = 1/6
+    a = area_between(lambda x: x, lambda x: x * x, 0.0, 1.0)
+    assert abs(a - 1 / 6) &lt; 1e-6
+    # the order of the curves must not matter
+    b = area_between(lambda x: x * x, lambda x: x, 0.0, 1.0)
+    assert abs(a - b) &lt; 1e-9
+    # curves that cross: sin x and 0 over a full period encloses 4
+    c = area_between(sin, lambda x: 0.0, 0.0, 2 * pi)
+    assert abs(c - 4.0) &lt; 1e-3
+    # the signed integral over the same range is zero, so absolute value matters
+    assert abs(simpson(sin, 0.0, 2 * pi, 4000)) &lt; 1e-6
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"The constant of integration is a formality."</strong> It is the whole truth that antiderivatives are a family, not a function. It disappears only in a definite integral, where it cancels in the subtraction.</li>
+<li><strong>"$\int \frac1x dx = \ln x$."</strong> It is $\ln|x|$. Dropping the absolute value makes the formula wrong for every negative $x$, where $\frac1x$ is perfectly well defined.</li>
+<li><strong>"The integral is the area."</strong> It is the <strong>signed</strong> area. $\int_0^{2\pi}\sin x\,dx = 0$ although the curve encloses an area of 4. To get enclosed area you must integrate $|f|$ or split at the zeros.</li>
+<li><strong>"In a substitution you can leave the limits alone."</strong> The limits belong to the old variable. Substituting $u=g(x)$ requires integrating from $g(a)$ to $g(b)$; keeping $a$ and $b$ silently computes a different integral.</li>
+<li><strong>"Simpson's rule is fourth order, so I can check that on any function."</strong> Not on a polynomial of degree 3 or less, where it is <em>exact</em> and its error is identically zero. The experiment showed this explicitly.</li>
+<li><strong>"Every elementary function has an elementary antiderivative."</strong> Most do not. $e^{-x^2}$, $\frac{\sin x}{x}$ and $\frac{1}{\ln x}$ have no antiderivative expressible in elementary terms — a theorem of Liouville, not a failure of ingenuity.</li>
+<li><strong>"A finer grid always gives a better numerical integral."</strong> Only until rounding error in the summation dominates, exactly as with numerical differentiation.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>The Fundamental Theorem as stated needs $f$ <strong>continuous</strong>. For functions with jumps you must split at the discontinuities, and for wilder functions the Riemann integral itself gives up — the indicator of the rationals has lower sum 0 and upper sum 1 at every partition, so it is not Riemann integrable at all. That failure is what motivated Lebesgue's theory, where that function integrates perfectly well to 0.</p>
+<p><strong>Improper integrals</strong> — infinite limits, or an integrand that blows up inside the range — are defined by a further limit and may diverge. $\int_1^\infty \frac{dx}{x}$ diverges while $\int_1^\infty\frac{dx}{x^2}$ converges, and the exercise's pole check exists because integrating across $\frac{1}{x-1}$ at $x=1$ is meaningless without care.</p>
+<p>Symbolically, integration is genuinely harder than differentiation. Differentiation is a mechanical algorithm that always succeeds; integration is a search, and Liouville's theorem says the search often has no answer in elementary terms. This asymmetry is why automatic differentiation is easy and automatic integration is not.</p>
+<p>Numerically, the error formulas assume the relevant derivative is bounded. For a function with a kink, a spike or an endpoint singularity, Simpson's $h^4$ promise evaporates and uniform grids perform badly; adaptive quadrature, which refines only where the function is difficult, is the practical answer.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Integration is accumulation, and accumulation is everywhere. Total bytes transferred is the integral of bandwidth; total energy drawn is the integral of power, which is exactly what a battery-usage report computes from sampled current; distance is the integral of velocity, which is how a step counter or dead-reckoning routine works from accelerometer samples.</p>
+<p>The numerical rules here are the actual implementation: sensor data arrives as samples, not formulas, so you are always doing a Riemann sum or a trapezoid rule whether you call it that or not. Knowing that the trapezoid rule is second order tells you how sampling rate trades against accuracy — halving the sample interval quarters the error — which is a real battery-versus-precision decision on a device.</p>
+<p>Smoothing a noisy signal with a moving average is a sliding integral. The area-between-curves computation is how you quantify the gap between two latency distributions or two cumulative curves. And the fact that most functions have no closed-form antiderivative is why numerical quadrature is not a fallback but the normal case.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>State both parts of the Fundamental Theorem of Calculus.</p></div><div class="a" hidden><p>Part 1: the derivative of the integral from a to x of f is f(x). Part 2: the integral from a to b equals F(b) - F(a) for any antiderivative F.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why does the power rule for integration need a special case at n = -1?</p></div><div class="a" hidden><p>Because the rule divides by n+1, which is zero there. The logarithm fills that gap.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What happens to the limits when you substitute u = g(x) in a definite integral?</p></div><div class="a" hidden><p>They become g(a) and g(b). Leaving them unchanged computes a different integral.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>Where does integration by parts come from?</p></div><div class="a" hidden><p>Integrating the product rule and rearranging. It is the product rule read backwards.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Does the integral give you the area under a curve?</p></div><div class="a" hidden><p>It gives the <em>signed</em> area. For enclosed area you must integrate the absolute value, or split at the zeros.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What are the error orders of the trapezoid and Simpson rules?</p></div><div class="a" hidden><p>Order h^2 for the trapezoid, order h^4 for Simpson, whose error involves the fourth derivative.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Why can you not measure Simpson's error order on a cubic?</p></div><div class="a" hidden><p>Because Simpson is exact for every polynomial of degree at most 3, so the error is identically zero and reveals nothing.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>Give three elementary functions with no elementary antiderivative.</p></div><div class="a" hidden><p>e^(-x^2), sin(x)/x, and 1/log(x). This is Liouville's theorem, not a lack of cleverness.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Why does the Fundamental Theorem's proof need the Mean Value Theorem?</p></div><div class="a" hidden><p>To conclude that two antiderivatives differ by a constant, since a function with zero derivative on an interval must be constant.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>What is the practical meaning of integrating a sampled signal?</p></div><div class="a" hidden><p>Accumulation: total energy from power samples, distance from velocity samples, bytes from bandwidth samples. You are computing a Riemann sum.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child how to find the area of a field with a river for one edge, you can state and sketch the proof of both parts of the Fundamental Theorem and say where continuity and the MVT are used, you can carry out substitution and by parts on a definite integral without mishandling the limits, you can say why Simpson's order cannot be measured on a cubic, you pass the boss exercise without hints, and you can explain why numerical quadrature is the normal case rather than a fallback.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 12, chapters on Integrals and Application of Integrals.</li>
+<li>Michael Spivak, <em>Calculus</em>, 4th edition, Publish or Perish.</li>
+<li>Jyesthadeva, <em>Yuktibhasa</em>, c. 1530 (summing powers and term-by-term integration).</li>
+<li>Press, Teukolsky, Vetterling and Flannery, <em>Numerical Recipes</em>, 3rd edition, chapter on numerical integration.</li>
+<li>Richard L. Burden and J. Douglas Faires, <em>Numerical Analysis</em>, Cengage.</li>
+</ul></section>
+<footer class="pager"><a href="M23.html">&larr; M23 Applications of derivatives</a>
+<a href="M25.html">M25 Differential equations &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M24", "packages": [], "exercises": {"m24-ex1-antiderivatives": {"starter": "def antiderivative_power(n):\n    \"\"\"A callable antiderivative of x**n.\"\"\"\n    return lambda x: 0.0\n\n\ndef definite(F, a, b):\n    \"\"\"F(b) - F(a).\"\"\"\n    return 0.0\n\n\ndef integral_power(n, a, b):\n    \"\"\"Definite integral of x**n from a to b.\"\"\"\n    return 0.0\n", "solution": "from math import log\n\n\ndef antiderivative_power(n):\n    \"\"\"A callable antiderivative of x**n.\"\"\"\n    if n == -1:\n        return lambda x: log(abs(x))\n    return lambda x: x ** (n + 1) / (n + 1)\n\n\ndef definite(F, a, b):\n    \"\"\"F(b) - F(a).\"\"\"\n    return F(b) - F(a)\n\n\ndef integral_power(n, a, b):\n    \"\"\"Definite integral of x**n from a to b.\"\"\"\n    if n == -1 and (a == 0 or b == 0 or a * b < 0):\n        raise ValueError(\"1/x is not integrable across or at the origin\")\n    return definite(antiderivative_power(n), a, b)\n", "tests": "def test_power_rule_hand_checked():\n    # integral of x^2 from 0 to 3 is 27/3 = 9\n    assert abs(integral_power(2, 0, 3) - 9.0) < 1e-12\n    # integral of x from 0 to 2 is 2\n    assert abs(integral_power(1, 0, 2) - 2.0) < 1e-12\n    # integral of a constant: x^0 from 1 to 5 is 4\n    assert abs(integral_power(0, 1, 5) - 4.0) < 1e-12\n\n\ndef test_the_minus_one_exception():\n    from math import log\n    # integral of 1/x from 1 to e is exactly 1\n    from math import e\n    assert abs(integral_power(-1, 1, e) - 1.0) < 1e-12\n    assert abs(integral_power(-1, 1, 5) - log(5)) < 1e-12\n    # it works on the negative side too, thanks to the absolute value\n    assert abs(integral_power(-1, -5, -1) - (-log(5))) < 1e-12\n    for bad in ((-1, 1), (0, 2), (-2, 0)):\n        try:\n            integral_power(-1, bad[0], bad[1])\n            assert False, f\"1/x across zero must raise ValueError for {bad}\"\n        except ValueError:\n            pass\n\n\ndef test_properties_of_the_definite_integral():\n    F = antiderivative_power(3)\n    # reversing the limits flips the sign\n    assert abs(definite(F, 0, 2) + definite(F, 2, 0)) < 1e-12\n    # a degenerate interval gives zero\n    assert abs(definite(F, 2, 2)) < 1e-12\n    # additivity\n    assert abs(definite(F, 0, 3) - (definite(F, 0, 1) + definite(F, 1, 3))) < 1e-12\n    # the antiderivative really differentiates back to the integrand\n    h = 1e-6\n    for x in (0.5, 1.0, 2.0):\n        slope = (F(x + h) - F(x - h)) / (2 * h)\n        assert abs(slope - x ** 3) < 1e-5\n", "mutants": ["from math import log\n\n\ndef antiderivative_power(n):\n    \"\"\"Bug: raises to the power n and divides by n, off by one.\"\"\"\n    if n == -1:\n        return lambda x: log(abs(x))\n    return lambda x: x ** n / n if n != 0 else x\n\n\ndef definite(F, a, b):\n    return F(b) - F(a)\n\n\ndef integral_power(n, a, b):\n    if n == -1 and (a == 0 or b == 0 or a * b < 0):\n        raise ValueError(\"1/x is not integrable across or at the origin\")\n    return definite(antiderivative_power(n), a, b)\n", "from math import log\n\n\ndef antiderivative_power(n):\n    \"\"\"Bug: forgets the absolute value in the logarithm.\"\"\"\n    if n == -1:\n        return lambda x: log(x)\n    return lambda x: x ** (n + 1) / (n + 1)\n\n\ndef definite(F, a, b):\n    \"\"\"Bug: subtracts the wrong way round.\"\"\"\n    return F(a) - F(b)\n\n\ndef integral_power(n, a, b):\n    if n == -1 and (a == 0 or b == 0 or a * b < 0):\n        raise ValueError(\"1/x is not integrable across or at the origin\")\n    return definite(antiderivative_power(n), a, b)\n"], "hints": ["The power rule raises the exponent by one and divides by the *new* exponent, which is why `n = -1` needs its own case.", "The evaluation theorem is `F(b) - F(a)`: the upper limit first."], "level": "warmup", "title": "Standard integrals and the evaluation theorem"}, "m24-ex2-substitution": {"starter": "def simpson(f, a, b, n):\n    \"\"\"Composite Simpson's rule.\"\"\"\n    return 0.0\n\n\ndef substitute_definite(f, g, dg, a, b, n=2000):\n    \"\"\"Return (direct, transformed) values of the same integral.\"\"\"\n    return (0.0, 0.0)\n", "solution": "def simpson(f, a, b, n):\n    \"\"\"Composite Simpson's rule.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef substitute_definite(f, g, dg, a, b, n=2000):\n    \"\"\"Return (direct, transformed) values of the same integral.\"\"\"\n    direct = simpson(lambda x: f(g(x)) * dg(x), a, b, n)\n    transformed = simpson(f, g(a), g(b), n)\n    return (direct, transformed)\n", "tests": "def test_substitution_agrees_on_a_polynomial_case():\n    # integral of 2x * (x^2)^3 dx: u = x^2, du = 2x dx, so integral of u^3 du\n    f = lambda u: u ** 3\n    g = lambda x: x * x\n    dg = lambda x: 2 * x\n    direct, transformed = substitute_definite(f, g, dg, 0.0, 2.0)\n    assert abs(direct - transformed) < 1e-6\n    # exact value: integral of u^3 from 0 to 4 = 4^4/4 = 64\n    assert abs(transformed - 64.0) < 1e-6\n\n\ndef test_substitution_on_trigonometric_and_exponential_cases():\n    from math import sin, cos, exp\n    # integral of cos(x) e^(sin x) dx: u = sin x\n    direct, transformed = substitute_definite(exp, sin, cos, 0.0, 1.0)\n    assert abs(direct - transformed) < 1e-6\n    # exact: e^(sin 1) - e^0\n    assert abs(transformed - (exp(sin(1.0)) - 1.0)) < 1e-6\n    # integral of 3x^2 cos(x^3) dx: u = x^3\n    direct, transformed = substitute_definite(cos, lambda x: x ** 3,\n                                              lambda x: 3 * x * x, 0.0, 1.2)\n    assert abs(direct - transformed) < 1e-5\n    assert abs(transformed - sin(1.2 ** 3)) < 1e-5\n\n\ndef test_limits_must_be_transformed_and_errors():\n    from math import sin, cos\n    # a case where g(a) != a and g(b) != b, so untransformed limits would be wrong\n    f = lambda u: u\n    g = lambda x: x + 10\n    dg = lambda x: 1.0\n    direct, transformed = substitute_definite(f, g, dg, 0.0, 1.0)\n    assert abs(direct - transformed) < 1e-6\n    # integral of (x+10) from 0 to 1 = 10.5, which is NOT integral of u from 0 to 1\n    assert abs(transformed - 10.5) < 1e-6\n    assert abs(simpson(lambda u: u, 0.0, 1.0, 100) - 0.5) < 1e-9\n    assert abs(simpson(sin, 1.0, 1.0, 100)) < 1e-12\n    try:\n        simpson(sin, 0.0, 1.0, 0)\n        assert False, \"n = 0 must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def simpson(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef substitute_definite(f, g, dg, a, b, n=2000):\n    \"\"\"Bug: forgets to transform the limits, integrating f(u) over [a, b].\"\"\"\n    direct = simpson(lambda x: f(g(x)) * dg(x), a, b, n)\n    transformed = simpson(f, a, b, n)\n    return (direct, transformed)\n", "def simpson(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef substitute_definite(f, g, dg, a, b, n=2000):\n    \"\"\"Bug: drops the dg(x) factor from the direct integrand.\"\"\"\n    direct = simpson(lambda x: f(g(x)), a, b, n)\n    transformed = simpson(f, g(a), g(b), n)\n    return (direct, transformed)\n"], "hints": ["When you substitute `u = g(x)` in a definite integral, the limits become `g(a)` and `g(b)`.", "The `dg(x)` factor is not optional: `du = g'(x) dx` is what makes the substitution legal."], "level": "core", "title": "Integration by substitution"}, "m24-ex3-by-parts": {"starter": "def by_parts(u, du, v, dv, a, b, n=2000):\n    \"\"\"Return (direct, formula) for the same integral.\"\"\"\n    return (0.0, 0.0)\n\n\ndef integral_x_exp(a, b):\n    \"\"\"Exact integral of x e^x.\"\"\"\n    return 0.0\n\n\ndef integral_log(a, b):\n    \"\"\"Exact integral of log x.\"\"\"\n    return 0.0\n", "solution": "from math import exp, log\n\n\ndef _simpson(f, a, b, n):\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef by_parts(u, du, v, dv, a, b, n=2000):\n    \"\"\"Return (direct, formula) for the same integral.\"\"\"\n    direct = _simpson(lambda x: u(x) * dv(x), a, b, n)\n    boundary = u(b) * v(b) - u(a) * v(a)\n    formula = boundary - _simpson(lambda x: du(x) * v(x), a, b, n)\n    return (direct, formula)\n\n\ndef integral_x_exp(a, b):\n    \"\"\"Exact integral of x e^x.\"\"\"\n    F = lambda x: (x - 1) * exp(x)\n    return F(b) - F(a)\n\n\ndef integral_log(a, b):\n    \"\"\"Exact integral of log x.\"\"\"\n    if a <= 0 or b <= 0:\n        raise ValueError(\"log is undefined for non-positive arguments\")\n    F = lambda x: x * log(x) - x\n    return F(b) - F(a)\n", "tests": "def test_by_parts_on_x_times_exp():\n    from math import exp\n    # u = x, dv = e^x dx, so v = e^x and du = 1\n    direct, formula = by_parts(lambda x: x, lambda x: 1.0, exp, exp, 0.0, 2.0)\n    assert abs(direct - formula) < 1e-6\n    # and both match the exact antiderivative\n    assert abs(direct - integral_x_exp(0.0, 2.0)) < 1e-6\n    # exact: (2-1)e^2 - (0-1)e^0 = e^2 + 1\n    assert abs(integral_x_exp(0.0, 2.0) - (exp(2) + 1)) < 1e-12\n\n\ndef test_by_parts_on_log_and_x_sin_x():\n    from math import log, sin, cos\n    # integral of log x: u = log x, dv = dx\n    direct, formula = by_parts(log, lambda x: 1 / x, lambda x: x, lambda x: 1.0,\n                               1.0, 3.0)\n    assert abs(direct - formula) < 1e-6\n    assert abs(direct - integral_log(1.0, 3.0)) < 1e-6\n    # exact: 3 log 3 - 3 - (1*0 - 1) = 3 log 3 - 2\n    assert abs(integral_log(1.0, 3.0) - (3 * log(3) - 2)) < 1e-12\n    # integral of x sin x: u = x, dv = sin x dx, v = -cos x\n    direct, formula = by_parts(lambda x: x, lambda x: 1.0,\n                               lambda x: -cos(x), sin, 0.0, 3.14159265358979)\n    assert abs(direct - formula) < 1e-5\n    # exact value is pi\n    assert abs(direct - 3.14159265358979) < 1e-5\n\n\ndef test_choice_of_u_and_errors():\n    from math import exp\n    # The formula holds whichever way you split, even a bad choice.\n    # u = e^x, dv = x dx  ->  v = x^2/2, du = e^x\n    direct, formula = by_parts(exp, exp, lambda x: x * x / 2, lambda x: x,\n                               0.0, 1.5)\n    assert abs(direct - formula) < 1e-6\n    try:\n        integral_log(0.0, 2.0)\n        assert False, \"a non-positive limit must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        integral_log(1.0, -1.0)\n        assert False, \"a negative limit must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import exp, log\n\n\ndef _simpson(f, a, b, n):\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef by_parts(u, du, v, dv, a, b, n=2000):\n    \"\"\"Bug: adds the second integral instead of subtracting it.\"\"\"\n    direct = _simpson(lambda x: u(x) * dv(x), a, b, n)\n    boundary = u(b) * v(b) - u(a) * v(a)\n    formula = boundary + _simpson(lambda x: du(x) * v(x), a, b, n)\n    return (direct, formula)\n\n\ndef integral_x_exp(a, b):\n    F = lambda x: (x - 1) * exp(x)\n    return F(b) - F(a)\n\n\ndef integral_log(a, b):\n    if a <= 0 or b <= 0:\n        raise ValueError(\"log is undefined for non-positive arguments\")\n    F = lambda x: x * log(x) - x\n    return F(b) - F(a)\n", "from math import exp, log\n\n\ndef _simpson(f, a, b, n):\n    if n % 2:\n        n += 1\n    if a == b:\n        return 0.0\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef by_parts(u, du, v, dv, a, b, n=2000):\n    direct = _simpson(lambda x: u(x) * dv(x), a, b, n)\n    boundary = u(b) * v(b) - u(a) * v(a)\n    formula = boundary - _simpson(lambda x: du(x) * v(x), a, b, n)\n    return (direct, formula)\n\n\ndef integral_x_exp(a, b):\n    \"\"\"Bug: uses (x+1)e^x, which differentiates to (x+2)e^x.\"\"\"\n    F = lambda x: (x + 1) * exp(x)\n    return F(b) - F(a)\n\n\ndef integral_log(a, b):\n    \"\"\"Bug: forgets the -x term in the antiderivative.\"\"\"\n    if a <= 0 or b <= 0:\n        raise ValueError(\"log is undefined for non-positive arguments\")\n    F = lambda x: x * log(x)\n    return F(b) - F(a)\n"], "hints": ["The formula is `[uv] - integral of v du`. The minus sign in front of the remaining integral is what makes it useful.", "Check an antiderivative by differentiating it. `(x-1)e^x` differentiates to `e^x + (x-1)e^x = x e^x`."], "level": "core", "title": "Integration by parts"}, "m24-ex4-partial-fractions": {"starter": "def partial_fractions_distinct(p_coeffs, a, b):\n    \"\"\"Return (A, B) for P(x)/((x-a)(x-b)).\"\"\"\n    return (0.0, 0.0)\n\n\ndef integrate_partial(A, B, a, b, lo, hi):\n    \"\"\"Definite integral of A/(x-a) + B/(x-b).\"\"\"\n    return 0.0\n", "solution": "from math import log\n\n\ndef partial_fractions_distinct(p_coeffs, a, b):\n    \"\"\"Return (A, B) for P(x)/((x-a)(x-b)).\"\"\"\n    if a == b:\n        raise ValueError(\"the two poles must be distinct\")\n    c0 = p_coeffs[0]\n    c1 = p_coeffs[1] if len(p_coeffs) > 1 else 0.0\n    P = lambda x: c0 + c1 * x\n    # Cover-up rule: multiply by (x-a) and evaluate at x = a.\n    A = P(a) / (a - b)\n    B = P(b) / (b - a)\n    return (A, B)\n\n\ndef integrate_partial(A, B, a, b, lo, hi):\n    \"\"\"Definite integral of A/(x-a) + B/(x-b).\"\"\"\n    for pole in (a, b):\n        if min(lo, hi) <= pole <= max(lo, hi):\n            raise ValueError(\"a pole lies inside the interval\")\n    F = lambda x: A * log(abs(x - a)) + B * log(abs(x - b))\n    return F(hi) - F(lo)\n", "tests": "def test_cover_up_rule_hand_checked():\n    # 1 / ((x-1)(x-2)) = -1/(x-1) + 1/(x-2)\n    A, B = partial_fractions_distinct([1.0], 1.0, 2.0)\n    assert abs(A + 1.0) < 1e-12\n    assert abs(B - 1.0) < 1e-12\n    # x / ((x-1)(x-3)): A = 1/(1-3) = -0.5, B = 3/(3-1) = 1.5\n    A, B = partial_fractions_distinct([0.0, 1.0], 1.0, 3.0)\n    assert abs(A + 0.5) < 1e-12\n    assert abs(B - 1.5) < 1e-12\n\n\ndef test_decomposition_reproduces_the_original():\n    cases = [([1.0], 1.0, 2.0), ([0.0, 1.0], 1.0, 3.0), ([2.0, -3.0], -1.0, 4.0)]\n    for p, a, b in cases:\n        A, B = partial_fractions_distinct(p, a, b)\n        c0 = p[0]\n        c1 = p[1] if len(p) > 1 else 0.0\n        for x in (0.3, 5.5, -2.7, 7.1):\n            if abs(x - a) < 1e-6 or abs(x - b) < 1e-6:\n                continue\n            original = (c0 + c1 * x) / ((x - a) * (x - b))\n            split = A / (x - a) + B / (x - b)\n            assert abs(original - split) < 1e-9, (p, a, b, x)\n    try:\n        partial_fractions_distinct([1.0], 2.0, 2.0)\n        assert False, \"equal poles must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_integration_matches_a_numerical_check():\n    from math import log\n    A, B = partial_fractions_distinct([1.0], 1.0, 2.0)\n    lo, hi = 3.0, 5.0\n    exact = integrate_partial(A, B, 1.0, 2.0, lo, hi)\n    # numerical check by the trapezoid rule on the ORIGINAL function\n    f = lambda x: 1.0 / ((x - 1) * (x - 2))\n    n = 20000\n    h = (hi - lo) / n\n    numeric = (f(lo) + f(hi)) / 2 + sum(f(lo + i * h) for i in range(1, n))\n    numeric *= h\n    assert abs(exact - numeric) < 1e-6\n\n    # An interval entirely to the LEFT of both poles. Here x-a and x-b are both\n    # negative, so the antiderivative needs log|.|; the answer is still finite.\n    lo2, hi2 = -3.0, -1.0\n    exact2 = integrate_partial(A, B, 1.0, 2.0, lo2, hi2)\n    n = 20000\n    h2 = (hi2 - lo2) / n\n    numeric2 = (f(lo2) + f(hi2)) / 2 + sum(f(lo2 + i * h2) for i in range(1, n))\n    numeric2 *= h2\n    assert abs(exact2 - numeric2) < 1e-6, (exact2, numeric2)\n    assert exact2 > 0.18 and exact2 < 0.19\n\n    try:\n        integrate_partial(A, B, 1.0, 2.0, 0.0, 3.0)\n        assert False, \"a pole inside the interval must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import log\n\n\ndef partial_fractions_distinct(p_coeffs, a, b):\n    \"\"\"Bug: both residues use the same denominator, so B has the wrong sign.\"\"\"\n    if a == b:\n        raise ValueError(\"the two poles must be distinct\")\n    c0 = p_coeffs[0]\n    c1 = p_coeffs[1] if len(p_coeffs) > 1 else 0.0\n    P = lambda x: c0 + c1 * x\n    A = P(a) / (a - b)\n    B = P(b) / (a - b)\n    return (A, B)\n\n\ndef integrate_partial(A, B, a, b, lo, hi):\n    for pole in (a, b):\n        if min(lo, hi) <= pole <= max(lo, hi):\n            raise ValueError(\"a pole lies inside the interval\")\n    F = lambda x: A * log(abs(x - a)) + B * log(abs(x - b))\n    return F(hi) - F(lo)\n", "from math import log\n\n\ndef partial_fractions_distinct(p_coeffs, a, b):\n    if a == b:\n        raise ValueError(\"the two poles must be distinct\")\n    c0 = p_coeffs[0]\n    c1 = p_coeffs[1] if len(p_coeffs) > 1 else 0.0\n    P = lambda x: c0 + c1 * x\n    A = P(a) / (a - b)\n    B = P(b) / (b - a)\n    return (A, B)\n\n\ndef integrate_partial(A, B, a, b, lo, hi):\n    \"\"\"Bug: never checks for a pole inside the interval, and drops the\n    absolute value inside the logarithm.\"\"\"\n    F = lambda x: A * log(x - a) + B * log(x - b)\n    return F(hi) - F(lo)\n"], "hints": ["The cover-up rule: to find A, multiply through by `(x-a)` and set `x = a`, which leaves `P(a)/(a-b)`.", "Each piece integrates to a logarithm of the absolute value, and the interval must avoid both poles."], "level": "core", "title": "Partial fractions"}, "m24-ex5-numerical": {"starter": "def riemann(f, a, b, n, kind):\n    \"\"\"Left, right or midpoint Riemann sum.\"\"\"\n    return 0.0\n\n\ndef trapezoid(f, a, b, n):\n    \"\"\"Composite trapezoid rule.\"\"\"\n    return 0.0\n\n\ndef simpson(f, a, b, n):\n    \"\"\"Composite Simpson's rule.\"\"\"\n    return 0.0\n\n\ndef error_order(f, exact, a, b, rule, ns):\n    \"\"\"Consecutive error ratios as n doubles.\"\"\"\n    return []\n\n\ndef area_between(f, g, a, b, n=4000):\n    \"\"\"Area enclosed between two curves.\"\"\"\n    return 0.0\n", "solution": "def riemann(f, a, b, n, kind):\n    \"\"\"Left, right or midpoint Riemann sum.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if kind not in (\"left\", \"right\", \"midpoint\"):\n        raise ValueError(\"kind must be left, right or midpoint\")\n    h = (b - a) / n\n    offset = {\"left\": 0.0, \"right\": 1.0, \"midpoint\": 0.5}[kind]\n    return h * sum(f(a + (i + offset) * h) for i in range(n))\n\n\ndef trapezoid(f, a, b, n):\n    \"\"\"Composite trapezoid rule.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    h = (b - a) / n\n    total = (f(a) + f(b)) / 2\n    for i in range(1, n):\n        total += f(a + i * h)\n    return total * h\n\n\ndef simpson(f, a, b, n):\n    \"\"\"Composite Simpson's rule.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef error_order(f, exact, a, b, rule, ns):\n    \"\"\"Consecutive error ratios as n doubles.\"\"\"\n    errors = [abs(rule(f, a, b, n) - exact) for n in ns]\n    out = []\n    for prev, cur in zip(errors, errors[1:]):\n        out.append(float(\"inf\") if cur == 0 else prev / cur)\n    return out\n\n\ndef area_between(f, g, a, b, n=4000):\n    \"\"\"Area enclosed between two curves.\"\"\"\n    return simpson(lambda x: abs(f(x) - g(x)), a, b, n)\n", "tests": "def test_riemann_sums_bracket_the_truth():\n    # x^2 on [0,1], exact 1/3. Increasing function: left under, right over.\n    f = lambda x: x * x\n    left = riemann(f, 0, 1, 1000, \"left\")\n    right = riemann(f, 0, 1, 1000, \"right\")\n    mid = riemann(f, 0, 1, 1000, \"midpoint\")\n    assert left < 1 / 3 < right\n    assert abs(mid - 1 / 3) < abs(left - 1 / 3)\n    assert abs(mid - 1 / 3) < abs(right - 1 / 3)\n    # they all converge\n    assert abs(riemann(f, 0, 1, 200000, \"left\") - 1 / 3) < 1e-5\n    try:\n        riemann(f, 0, 1, 10, \"upper\")\n        assert False, \"an unknown kind must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_error_orders_on_a_function_simpson_cannot_do_exactly():\n    from math import exp\n    exact = exp(1.0) - 1.0\n    ns = [4, 8, 16, 32, 64]\n    tr = error_order(exp, exact, 0.0, 1.0, trapezoid, ns)\n    sp = error_order(exp, exact, 0.0, 1.0, simpson, ns)\n    for r in tr:\n        assert 3.8 < r < 4.2, f\"trapezoid must be second order, got {r}\"\n    for r in sp[:3]:\n        assert 14 < r < 18, f\"Simpson must be fourth order, got {r}\"\n    # Simpson is exact for cubics, so a cubic reveals nothing about its order\n    cubic = lambda x: x ** 3 - 2 * x\n    cubic_exact = (2.0 ** 4) / 4 - 2 * (2.0 ** 2) / 2\n    for n in (2, 4, 8):\n        assert abs(simpson(cubic, 0, 2, n) - cubic_exact) < 1e-12\n\n\ndef test_area_between_curves():\n    from math import sin, pi\n    # between y = x and y = x^2 on [0,1]: integral of (x - x^2) = 1/2 - 1/3 = 1/6\n    a = area_between(lambda x: x, lambda x: x * x, 0.0, 1.0)\n    assert abs(a - 1 / 6) < 1e-6\n    # the order of the curves must not matter\n    b = area_between(lambda x: x * x, lambda x: x, 0.0, 1.0)\n    assert abs(a - b) < 1e-9\n    # curves that cross: sin x and 0 over a full period encloses 4\n    c = area_between(sin, lambda x: 0.0, 0.0, 2 * pi)\n    assert abs(c - 4.0) < 1e-3\n    # the signed integral over the same range is zero, so absolute value matters\n    assert abs(simpson(sin, 0.0, 2 * pi, 4000)) < 1e-6\n", "mutants": ["def riemann(f, a, b, n, kind):\n    \"\"\"Bug: the left and right offsets are swapped.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if kind not in (\"left\", \"right\", \"midpoint\"):\n        raise ValueError(\"kind must be left, right or midpoint\")\n    h = (b - a) / n\n    offset = {\"left\": 1.0, \"right\": 0.0, \"midpoint\": 0.5}[kind]\n    return h * sum(f(a + (i + offset) * h) for i in range(n))\n\n\ndef trapezoid(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    h = (b - a) / n\n    total = (f(a) + f(b)) / 2\n    for i in range(1, n):\n        total += f(a + i * h)\n    return total * h\n\n\ndef simpson(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef error_order(f, exact, a, b, rule, ns):\n    errors = [abs(rule(f, a, b, n) - exact) for n in ns]\n    return [float(\"inf\") if cur == 0 else prev / cur\n            for prev, cur in zip(errors, errors[1:])]\n\n\ndef area_between(f, g, a, b, n=4000):\n    return simpson(lambda x: abs(f(x) - g(x)), a, b, n)\n", "def riemann(f, a, b, n, kind):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if kind not in (\"left\", \"right\", \"midpoint\"):\n        raise ValueError(\"kind must be left, right or midpoint\")\n    h = (b - a) / n\n    offset = {\"left\": 0.0, \"right\": 1.0, \"midpoint\": 0.5}[kind]\n    return h * sum(f(a + (i + offset) * h) for i in range(n))\n\n\ndef trapezoid(f, a, b, n):\n    \"\"\"Bug: counts both endpoints at full weight instead of half.\"\"\"\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += f(a + i * h)\n    return total * h\n\n\ndef simpson(f, a, b, n):\n    if n <= 0:\n        raise ValueError(\"n must be positive\")\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef error_order(f, exact, a, b, rule, ns):\n    errors = [abs(rule(f, a, b, n) - exact) for n in ns]\n    return [float(\"inf\") if cur == 0 else prev / cur\n            for prev, cur in zip(errors, errors[1:])]\n\n\ndef area_between(f, g, a, b, n=4000):\n    \"\"\"Bug: uses the signed difference, so crossings cancel.\"\"\"\n    return simpson(lambda x: f(x) - g(x), a, b, n)\n"], "hints": ["The trapezoid rule halves the two endpoint weights; everything in between counts fully.", "Area between curves needs the *absolute* difference, otherwise a region where the curves swap order subtracts instead of adding."], "level": "boss", "title": "Riemann sums, the trapezoid and Simpson rules, and area between curves"}}, "demos": {"m24-ftc-vs-numerics": {"code": "from math import sin, cos, exp, log, atan, pi, sqrt\n\n\ndef simpson(f, a, b, n=2000):\n    \"\"\"Composite Simpson. Knows nothing about antiderivatives.\"\"\"\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef by_ftc(F, a, b):\n    \"\"\"The shortcut: evaluate an antiderivative at the ends and subtract.\"\"\"\n    return F(b) - F(a)\n\n\nCASES = [\n    (\"x^2\", lambda x: x * x, lambda x: x ** 3 / 3, 0.0, 3.0),\n    (\"sin x\", sin, lambda x: -cos(x), 0.0, pi),\n    (\"cos x\", cos, sin, 0.0, pi / 2),\n    (\"e^x\", exp, exp, 0.0, 2.0),\n    (\"1/x\", lambda x: 1 / x, lambda x: log(abs(x)), 1.0, 5.0),\n    (\"1/(1+x^2)\", lambda x: 1 / (1 + x * x), atan, 0.0, 1.0),\n    (\"x e^x\", lambda x: x * exp(x), lambda x: (x - 1) * exp(x), 0.0, 2.0),\n    # Start at 1, not 0: sqrt has an infinite derivative at the origin,\n    # so Simpson's error bound (which needs a bounded 4th derivative)\n    # does not apply there and convergence is far slower.\n    (\"sqrt(x)\", sqrt, lambda x: 2 * x ** 1.5 / 3, 1.0, 4.0),\n]\n\nprint(f\"{'integrand':>12} {'by FTC':>16} {'by Simpson':>16} {'gap':>12}\")\nfor name, f, F, a, b in CASES:\n    exact = by_ftc(F, a, b)\n    numeric = simpson(f, a, b)\n    print(f\"{name:>12} {exact:>16.10f} {numeric:>16.10f} {abs(exact - numeric):>12.2e}\")\n    assert abs(exact - numeric) < 1e-7, f\"the two routes must agree for {name}\"\n\nprint()\n# Hand-checked values.\nprint(\"integral of sin from 0 to pi =\", round(by_ftc(lambda x: -cos(x), 0.0, pi), 12))\nassert abs(by_ftc(lambda x: -cos(x), 0.0, pi) - 2.0) < 1e-12\nprint(\"integral of 1/(1+x^2) from 0 to 1 =\", round(by_ftc(atan, 0.0, 1.0), 12), \" = pi/4\")\nassert abs(by_ftc(atan, 0.0, 1.0) - pi / 4) < 1e-12\n\n# Properties of the definite integral, measured.\nf = lambda x: x ** 3 - 2 * x + 1\nprint()\nprint(\"reversing the limits flips the sign:\", round(simpson(f, 0, 2), 9), round(simpson(f, 2, 0), 9))\nassert abs(simpson(f, 0, 2) + simpson(f, 2, 0)) < 1e-9\nassert abs(simpson(f, 1, 1)) < 1e-12\n# additivity\nassert abs(simpson(f, 0, 3) - (simpson(f, 0, 1) + simpson(f, 1, 3))) < 1e-7\n# an odd function over a symmetric interval integrates to zero\nodd = lambda x: x ** 3 - x\nprint(\"odd function over [-2, 2]:\", round(simpson(odd, -2, 2), 12))\nassert abs(simpson(odd, -2, 2)) < 1e-9\n# an even function doubles the half-interval\neven = lambda x: x * x + cos(x)\nassert abs(simpson(even, -2, 2) - 2 * simpson(even, 0, 2)) < 1e-7\n\n# Signed versus unsigned area.\nsigned = simpson(sin, 0.0, 2 * pi)\nunsigned = simpson(lambda x: abs(sin(x)), 0.0, 2 * pi)\nprint()\nprint(\"sin over a full period: signed\", round(signed, 9), \" unsigned\", round(unsigned, 6))\nassert abs(signed) < 1e-9, \"the positive and negative humps cancel\"\nassert abs(unsigned - 4.0) < 1e-3, \"but the enclosed area is 4\"\n", "mutants": ["from math import sin, cos, exp, pi\n\n\ndef simpson(f, a, b, n=2000):\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\ndef by_ftc(F, a, b):\n    \"\"\"Bug: subtracts the wrong way round, reversing the limits.\"\"\"\n    return F(a) - F(b)\n\n\nCASES = [\n    (\"x^2\", lambda x: x * x, lambda x: x ** 3 / 3, 0.0, 3.0),\n    (\"sin x\", sin, lambda x: -cos(x), 0.0, pi),\n    (\"e^x\", exp, exp, 0.0, 2.0),\n]\n\nfor name, f, F, a, b in CASES:\n    exact = by_ftc(F, a, b)\n    numeric = simpson(f, a, b)\n    print(f\"{name:>12} {exact:>16.10f} {numeric:>16.10f} {abs(exact - numeric):>12.2e}\")\n    assert abs(exact - numeric) < 1e-7, f\"the two routes must agree for {name}\"\n"]}, "m24-trapezoid-vs-simpson": {"code": "from math import sin, cos, exp\n\n\ndef trapezoid(f, a, b, n):\n    h = (b - a) / n\n    total = (f(a) + f(b)) / 2\n    for i in range(1, n):\n        total += f(a + i * h)\n    return total * h\n\n\ndef simpson(f, a, b, n):\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (4 if i % 2 else 2) * f(a + i * h)\n    return total * h / 3\n\n\n# e^x on [0, 1]; exact value e - 1. Neither rule is exact here.\nF_EXACT = exp(1.0) - 1.0\nprint(\"integral of e^x on [0,1], exact =\", round(F_EXACT, 12))\nprint(f\"{'n':>6} {'trapezoid error':>18} {'ratio':>8} {'Simpson error':>18} {'ratio':>8}\")\ntr_prev = sp_prev = None\ntr_ratios, sp_ratios = [], []\nfor n in (4, 8, 16, 32, 64, 128):\n    te = abs(trapezoid(exp, 0, 1, n) - F_EXACT)\n    se = abs(simpson(exp, 0, 1, n) - F_EXACT)\n    tr = (tr_prev / te) if tr_prev else float(\"nan\")\n    sr = (sp_prev / se) if sp_prev else float(\"nan\")\n    if tr_prev:\n        tr_ratios.append(tr)\n        sp_ratios.append(sr)\n    print(f\"{n:>6} {te:>18.3e} {tr:>8.2f} {se:>18.3e} {sr:>8.2f}\")\n    tr_prev, sp_prev = te, se\n\nprint()\nprint(\"predicted: halving h quarters the trapezoid error (order 2)\")\nprint(\"predicted: halving h divides Simpson's error by 16 (order 4)\")\nfor r in tr_ratios:\n    assert 3.8 < r < 4.2, f\"trapezoid ratio {r} is not about 4\"\nfor r in sp_ratios[:4]:\n    assert 14 < r < 18, f\"Simpson ratio {r} is not about 16\"\n\n# Simpson beats the trapezoid rule by an enormous margin at the same cost.\nn = 64\nte = abs(trapezoid(exp, 0, 1, n) - F_EXACT)\nse = abs(simpson(exp, 0, 1, n) - F_EXACT)\nprint()\nprint(f\"at n = {n}: trapezoid error {te:.3e}, Simpson error {se:.3e}\")\nassert se < te / 1000, \"Simpson must be dramatically more accurate\"\n\n# The trap: Simpson is EXACT for cubics, so a cubic measures nothing.\ncubic = lambda x: 3 * x ** 3 - 2 * x ** 2 + x - 5\ncubic_exact = (3 / 4) * 2 ** 4 - (2 / 3) * 2 ** 3 + (1 / 2) * 2 ** 2 - 5 * 2\nprint()\nprint(\"the trap: Simpson on a cubic over [0,2]\")\nfor n in (2, 4, 8):\n    err = abs(simpson(cubic, 0, 2, n) - cubic_exact)\n    print(f\"  n = {n:>3}  Simpson error = {err:.3e}\")\n    assert err < 1e-12, \"Simpson is exact for cubics, so the error is zero\"\nprint(\"  -> the error is zero at every n, so a cubic cannot reveal the order\")\n# the trapezoid rule is NOT exact for a cubic, so it still shows order 2\nt1 = abs(trapezoid(cubic, 0, 2, 8) - cubic_exact)\nt2 = abs(trapezoid(cubic, 0, 2, 16) - cubic_exact)\nprint(f\"  trapezoid on the same cubic: ratio {t1 / t2:.2f}\")\nassert 3.8 < t1 / t2 < 4.2, \"the trapezoid rule is still second order\"\n", "mutants": ["from math import exp\n\n\ndef trapezoid(f, a, b, n):\n    h = (b - a) / n\n    total = (f(a) + f(b)) / 2\n    for i in range(1, n):\n        total += f(a + i * h)\n    return total * h\n\n\ndef simpson(f, a, b, n):\n    \"\"\"Bug: the 4 and 2 weights are swapped, destroying the order.\"\"\"\n    if n % 2:\n        n += 1\n    h = (b - a) / n\n    total = f(a) + f(b)\n    for i in range(1, n):\n        total += (2 if i % 2 else 4) * f(a + i * h)\n    return total * h / 3\n\n\nF_EXACT = exp(1.0) - 1.0\nsp_prev = None\nsp_ratios = []\nfor n in (4, 8, 16, 32, 64, 128):\n    se = abs(simpson(exp, 0, 1, n) - F_EXACT)\n    if sp_prev:\n        sp_ratios.append(sp_prev / se)\n    print(f\"  n={n:>4} Simpson error {se:.3e}\")\n    sp_prev = se\n\nprint(\"predicted: Simpson's error falls by 16 each time\")\nfor r in sp_ratios[:4]:\n    assert 14 < r < 18, f\"Simpson ratio {r} is not about 16\"\n"]}}, "cards": [{"q": "State both parts of the Fundamental Theorem of Calculus.", "a": "Part 1: the derivative of the integral from a to x of f is f(x). Part 2: the integral from a to b equals F(b) - F(a) for any antiderivative F."}, {"q": "Why does the power rule for integration need a special case at n = -1?", "a": "Because the rule divides by n+1, which is zero there. The logarithm fills that gap."}, {"q": "What happens to the limits when you substitute u = g(x) in a definite integral?", "a": "They become g(a) and g(b). Leaving them unchanged computes a different integral."}, {"q": "Where does integration by parts come from?", "a": "Integrating the product rule and rearranging. It is the product rule read backwards."}, {"q": "Does the integral give you the area under a curve?", "a": "It gives the *signed* area. For enclosed area you must integrate the absolute value, or split at the zeros."}, {"q": "What are the error orders of the trapezoid and Simpson rules?", "a": "Order h^2 for the trapezoid, order h^4 for Simpson, whose error involves the fourth derivative."}, {"q": "Why can you not measure Simpson's error order on a cubic?", "a": "Because Simpson is exact for every polynomial of degree at most 3, so the error is identically zero and reveals nothing."}, {"q": "Give three elementary functions with no elementary antiderivative.", "a": "e^(-x^2), sin(x)/x, and 1/log(x). This is Liouville's theorem, not a lack of cleverness."}, {"q": "Why does the Fundamental Theorem's proof need the Mean Value Theorem?", "a": "To conclude that two antiderivatives differ by a constant, since a function with zero derivative on an interval must be constant."}, {"q": "What is the practical meaning of integrating a sampled signal?", "a": "Accumulation: total energy from power samples, distance from velocity samples, bytes from bandwidth samples. You are computing a Riemann sum."}], "title": "Integration"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

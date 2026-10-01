@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M26 Matrices and determinants</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M26">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · Class 11-12 · ~4h00</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M26</p><h1>Matrices and determinants</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M12.html">M12</a></div><div><b>Covers:</b> NCERT 12: Matrices, NCERT 12: Determinants</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>types of matrices</li><li>addition and multiplication and why AB != BA</li><li>transpose</li><li>symmetric and skew-symmetric matrices</li><li>determinants and their properties</li><li>minors and cofactors</li><li>adjoint and inverse</li><li>solving systems by the matrix method</li><li>Cramer&#x27;s rule</li><li>area of a triangle as a determinant</li><li>elementary row operations</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Ishaan draws the letter <strong>F</strong> on squared paper, because an F looks different from its mirror image and different again when turned.</p>
+<p>His sister gives him two instructions on cards. One says <strong>turn a quarter-turn anticlockwise</strong>. The other says <strong>flip left-to-right</strong>.</p>
+<p>He does turn first, then flip. He gets an F lying on its back, facing one way.</p>
+<p>He rubs it out, redraws, and this time flips first, then turns. He gets an F lying on its back facing <em>the other way</em>.</p>
+<p>He checks three times, convinced he has made a mistake. He has not. Same two instructions, same drawing, different answers — because he did them in a different order.</p>
+<p>Then his sister asks the second question. She draws a small square on the paper and asks: after a transformation, is the square still the same size?</p>
+<p>Ishaan tries the turn: same size. The flip: same size. Then she writes a third card — <strong>stretch everything twice as wide</strong> — and the square becomes a rectangle of double the area.</p>
+<p>Here is the surprise: each instruction can be written as a little table of four numbers, doing them one after another is a kind of multiplication of those tables, and that multiplication is <em>not</em> commutative — exactly as Ishaan found with his pencil. And hidden in each table is a single number that tells you what it does to area. Both facts come free once you write transformations as matrices.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A <strong>matrix</strong> is a rectangular grid of numbers. On its own that is just bookkeeping. What makes it a subject is that a matrix <em>does</em> something: it transforms vectors.</p>
+<p><strong>Addition</strong> is entry by entry, and dull. <strong>Multiplication</strong> is the interesting one: $AB$ means "do $B$, then do $A$", and composing transformations in a different order generally gives a different result. So $AB \neq BA$, and that is a fact about the world, not an awkwardness of the notation.</p>
+<p>The <strong>determinant</strong> is one number squeezed out of a square matrix. Its magnitude is the factor by which areas (or volumes) are scaled, and its sign says whether orientation was flipped — Ishaan's mirror. A determinant of <strong>zero</strong> means the transformation squashed space flat, and that is exactly when the matrix has no inverse and a linear system fails to have a unique solution.</p>
+<p>That single number connects the geometry of M12, the solvability of a linear system, and the whole of M30.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Types and operations</h2>
+<p>An $m\times n$ matrix has $m$ rows and $n$ columns; $a_{ij}$ is the entry in row $i$, column $j$. Special types: <strong>row</strong> and <strong>column</strong> matrices; <strong>square</strong> ($m=n$); <strong>diagonal</strong> (off-diagonal entries zero); <strong>scalar</strong> (diagonal with equal entries); <strong>identity</strong> $I$ (ones on the diagonal); <strong>zero</strong>; <strong>upper/lower triangular</strong>.</p>
+<p><strong>Addition</strong> and <strong>scalar multiplication</strong> are entrywise and require matching shapes.</p>
+<p><strong>Multiplication</strong>: $AB$ is defined when $A$ is $m\times n$ and $B$ is $n\times p$, giving $m\times p$ with</p>
+<p>$$(AB)_{ij} = \sum_{k=1}^{n} a_{ik}b_{kj}$$</p>
+<p>Multiplication is <strong>associative</strong> and <strong>distributive</strong> but <strong>not commutative</strong>: in general $AB\neq BA$, and $AB$ may be defined while $BA$ is not. It also has <strong>zero divisors</strong>: $AB$ can be the zero matrix with neither $A$ nor $B$ zero.</p>
+<p><strong>Transpose</strong> $A^T$ swaps rows and columns, with $(AB)^T = B^TA^T$ — note the reversal.</p>
+<p>$A$ is <strong>symmetric</strong> when $A^T=A$ and <strong>skew-symmetric</strong> when $A^T=-A$ (forcing zeros on the diagonal). Every square matrix splits uniquely:</p>
+<p>$$A = \underbrace{\tfrac12(A+A^T)}_{\text{symmetric}} + \underbrace{\tfrac12(A-A^T)}_{\text{skew-symmetric}}$$</p>
+<h2>Determinants</h2>
+<p>For $2\times2$ and $3\times3$:</p>
+<p>$$\det\begin{pmatrix}a&amp;b\\c&amp;d\end{pmatrix} = ad-bc, \qquad \det A = \sum_{j} a_{1j}C_{1j}$$</p>
+<p>where the <strong>minor</strong> $M_{ij}$ is the determinant of the matrix with row $i$ and column $j$ deleted, and the <strong>cofactor</strong> is</p>
+<p>$$C_{ij} = (-1)^{i+j}M_{ij}$$</p>
+<p>Expansion may be along <strong>any</strong> row or column and always gives the same answer.</p>
+<p><strong>Properties.</strong> $\det(A^T)=\det A$. Swapping two rows negates it. Multiplying one row by $k$ multiplies it by $k$ (so $\det(kA) = k^n\det A$ for $n\times n$). Adding a multiple of one row to another leaves it unchanged. A matrix with two equal rows, or a zero row, has determinant 0. And crucially</p>
+<p>$$\det(AB) = \det A\,\det B$$</p>
+<p><strong>Geometric meaning:</strong> $|\det A|$ is the factor by which $A$ scales area (in 2-D) or volume (in 3-D); the sign records whether orientation is preserved. $\det A = 0$ means space is collapsed into a lower dimension.</p>
+<p><strong>Area of a triangle</strong> with vertices $(x_1,y_1),(x_2,y_2),(x_3,y_3)$:</p>
+<p>$$\text{Area} = \frac12\left|\det\begin{pmatrix}x_1&amp;y_1&amp;1\\x_2&amp;y_2&amp;1\\x_3&amp;y_3&amp;1\end{pmatrix}\right|$$</p>
+<p>which is M12's shoelace formula wearing a determinant.</p>
+<h2>Inverse</h2>
+<p>The <strong>adjoint</strong> (classical adjugate) is the transpose of the cofactor matrix: $\operatorname{adj}(A)_{ij} = C_{ji}$. Then</p>
+<p>$$A\,\operatorname{adj}(A) = \operatorname{adj}(A)\,A = (\det A)\,I, \qquad A^{-1} = \frac{1}{\det A}\operatorname{adj}(A) \ \ (\det A\neq0)$$</p>
+<p>A square matrix is <strong>invertible</strong> (non-singular) exactly when $\det A\neq0$. Also $(AB)^{-1} = B^{-1}A^{-1}$ — the reversal again.</p>
+<h2>Solving systems</h2>
+<p>Write $AX=B$. If $\det A\neq0$ the unique solution is $X = A^{-1}B$. <strong>Cramer's rule</strong> gives each unknown separately:</p>
+<p>$$x_i = \frac{\det A_i}{\det A}$$</p>
+<p>where $A_i$ is $A$ with its $i$-th column replaced by $B$. If $\det A = 0$ the system is either inconsistent (no solution) or dependent (infinitely many) — the three outcomes of M20, now in matrix form.</p>
+<p><strong>Elementary row operations</strong> — swapping two rows, scaling a row by a non-zero constant, adding a multiple of one row to another — do not change the solution set. Applying them to reach row-echelon form is <strong>Gaussian elimination</strong>; continuing to reduced row-echelon form, applied to $[A\,|\,I]$, produces $[I\,|\,A^{-1}]$.</p>
+<h2>A pinch of history</h2>
+<p>Determinants are older than matrices. The Chinese <em>Nine Chapters on the Mathematical Art</em> (by about the first century CE) solves simultaneous linear equations by an elimination procedure on a counting board essentially identical to Gaussian elimination. Seki Takakazu in Japan (1683) and Leibniz (in correspondence, 1693) both arrived at determinants; Cramer published his rule in 1750; Laplace gave cofactor expansion in 1772; Cauchy (1812) proved the product rule $\det(AB)=\det A\det B$ and fixed the modern terminology.</p>
+<p>The word <em>matrix</em> is James Joseph Sylvester's (1850), and Arthur Cayley's <em>Memoir on the Theory of Matrices</em> (1858) defined matrix multiplication as composition of transformations and stated what became the Cayley-Hamilton theorem. So matrices were named and axiomatised roughly two centuries after determinants were in use.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: why matrix multiplication is defined the way it is.</strong> Let $A$ and $B$ represent linear maps. Applying $B$ then $A$ to a vector $x$:</p>
+<p>$$(A(Bx))_i = \sum_k a_{ik}(Bx)_k = \sum_k a_{ik}\sum_j b_{kj}x_j = \sum_j \left(\sum_k a_{ik}b_{kj}\right)x_j$$</p>
+<p>The bracket is exactly the definition of $(AB)_{ij}$. So the "strange" row-times-column rule is <strong>forced</strong> by the requirement that matrix multiplication correspond to composing transformations. And since composing transformations in a different order gives a different result — Ishaan's F — non-commutativity is immediate.</p>
+<p><strong>Result 2: $\det A$ is the area scale factor, in 2-D.</strong></p>
+<ol>
+<li>Let $A=\begin{pmatrix}a&amp;b\\c&amp;d\end{pmatrix}$. It sends the unit square's edge vectors $(1,0)$ and $(0,1)$ to the columns $(a,c)$ and $(b,d)$.</li>
+<li>The image is the parallelogram spanned by those two vectors.</li>
+<li>Its area is the magnitude of the 2-D cross product of M21: $|ad-bc|$.</li>
+<li>That is $|\det A|$.</li>
+<li><strong>The non-obvious step</strong> is extending this from the unit square to every region: any region can be approximated by small squares (the Riemann-sum idea of M24), each scaled by the same factor, so the total area scales by $|\det A|$ too.</li>
+</ol>
+<p>The sign is the orientation: positive if the transformation preserves handedness, negative if it mirrors. Ishaan's flip card has determinant $-1$.</p>
+<p><strong>Result 3: $A\operatorname{adj}(A) = (\det A)I$.</strong> The $(i,i)$ entry of the product is $\sum_j a_{ij}C_{ij}$, which is the cofactor expansion of $\det A$ along row $i$. The $(i,k)$ entry for $i\neq k$ is $\sum_j a_{ij}C_{kj}$ — the cofactor expansion of the determinant of a matrix whose rows $i$ and $k$ are <em>identical</em>, which is zero. So the product is $\det A$ on the diagonal and zero off it. Dividing by $\det A$ gives the inverse formula, and the division is exactly why $\det A\neq0$ is required.</p>
+<p><strong>Result 4: Cramer's rule.</strong> Suppose $AX=B$ with $\det A\neq0$. Consider $A_i$, which is $A$ with column $i$ replaced by $B$. Substituting $B = AX$ and expanding, $\det A_i = x_i\det A$ — because the other columns of $X$ contribute multiples of existing columns, which add nothing to a determinant. Dividing gives $x_i = \frac{\det A_i}{\det A}$.</p>
+<p><strong>Result 5: row operations preserve the solution set.</strong> Each operation is reversible: swapping twice restores the order, scaling by $k$ undoes with $\frac1k$, and adding $k$ times a row undoes by subtracting it. A reversible transformation of the equations cannot gain or lose solutions, because any solution of the new system maps back to one of the old. Reversibility is the whole argument, and it is why scaling by <strong>zero</strong> is forbidden.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes determinants and inverses two genuinely independent ways.</p>
+<p>For the determinant: the <strong>cofactor expansion</strong> recursively expands along the first row with alternating signs, while <strong>row reduction</strong> performs Gaussian elimination and multiplies the pivots, tracking sign changes from row swaps. One is a recursive combinatorial sum; the other is an iterative elimination. They share no step.</p>
+<p>For the inverse: the <strong>adjoint formula</strong> divides the transposed cofactor matrix by the determinant, while <strong>Gauss-Jordan</strong> row-reduces $[A|I]$ to $[I|A^{-1}]$. Again, entirely different procedures.</p>
+<p>If a cofactor sign were wrong, or a pivot mishandled, the two would disagree. The mutant below drops the alternating sign in the cofactor expansion, which is correct for $2\times2$ and wrong from $3\times3$ upwards — a bug that passes a casual test.</p>
+<div class="lab demo" data-demo="m26-determinant-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Cofactor expansion against Gaussian elimination</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+
+def minor(m, i, j):
+    return [row[:j] + row[j + 1:] for k, row in enumerate(m) if k != i]
+
+
+def det_cofactor(m):
+    &quot;&quot;&quot;Recursive expansion along the first row, with alternating signs.&quot;&quot;&quot;
+    n = len(m)
+    if n == 1:
+        return m[0][0]
+    if n == 2:
+        return m[0][0] * m[1][1] - m[0][1] * m[1][0]
+    total = 0.0
+    for j in range(n):
+        total += ((-1) ** j) * m[0][j] * det_cofactor(minor(m, 0, j))
+    return total
+
+
+def det_rowreduce(m):
+    &quot;&quot;&quot;Gaussian elimination: multiply the pivots, counting row swaps.&quot;&quot;&quot;
+    a = [row[:] for row in m]
+    n = len(a)
+    sign = 1.0
+    for col in range(n):
+        pivot = None
+        for r in range(col, n):
+            if abs(a[r][col]) &gt; 1e-12:
+                pivot = r
+                break
+        if pivot is None:
+            return 0.0
+        if pivot != col:
+            a[col], a[pivot] = a[pivot], a[col]
+            sign = -sign
+        for r in range(col + 1, n):
+            factor = a[r][col] / a[col][col]
+            for c in range(col, n):
+                a[r][c] -= factor * a[col][c]
+    result = sign
+    for i in range(n):
+        result *= a[i][i]
+    return result
+
+
+rng = random.Random(1858)
+worst = 0.0
+for _ in range(400):
+    n = rng.randint(1, 5)
+    m = [[rng.uniform(-6, 6) for _ in range(n)] for _ in range(n)]
+    a, b = det_cofactor(m), det_rowreduce(m)
+    worst = max(worst, abs(a - b) / max(abs(a), 1.0))
+
+print(&quot;random matrices checked (sizes 1 to 5):&quot;, 400)
+print(&quot;largest relative disagreement:&quot;, f&quot;{worst:.3e}&quot;)
+assert worst &lt; 1e-9, &quot;both routes to the determinant must agree&quot;
+
+# Hand-checked values.
+print()
+print(&quot;det [[1,2],[3,4]] =&quot;, det_cofactor([[1, 2], [3, 4]]), &quot;(expected -2)&quot;)
+assert det_cofactor([[1, 2], [3, 4]]) == -2
+I3 = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
+assert det_cofactor(I3) == 1
+# a matrix with two equal rows has determinant zero
+assert abs(det_cofactor([[1, 2, 3], [1, 2, 3], [4, 5, 7]])) &lt; 1e-12
+# a zero row too
+assert abs(det_cofactor([[1, 2, 3], [0, 0, 0], [4, 5, 7]])) &lt; 1e-12
+
+# Properties, measured.
+def matmul(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(len(b)))
+             for j in range(len(b[0]))] for i in range(len(a))]
+
+
+def transpose(a):
+    return [list(col) for col in zip(*a)]
+
+
+for _ in range(200):
+    n = rng.randint(2, 4)
+    A = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]
+    B = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]
+    # det(AB) = det(A) det(B)
+    assert abs(det_cofactor(matmul(A, B)) - det_cofactor(A) * det_cofactor(B)) &lt; 1e-6
+    # det(A^T) = det(A)
+    assert abs(det_cofactor(transpose(A)) - det_cofactor(A)) &lt; 1e-9
+    # scaling every row by k multiplies the determinant by k^n
+    k = 2.0
+    scaled = [[k * v for v in row] for row in A]
+    assert abs(det_cofactor(scaled) - (k ** n) * det_cofactor(A)) &lt; 1e-6
+
+print(&quot;det(AB) = det(A)det(B), det(A^T) = det(A) and det(kA) = k^n det(A) all verified&quot;)
+
+# Expansion along ANY row gives the same answer.
+M = [[2.0, -1.0, 3.0], [0.0, 5.0, 2.0], [1.0, -1.0, 4.0]]
+base = det_cofactor(M)
+for i in range(3):
+    along = sum(((-1) ** (i + j)) * M[i][j] * det_cofactor(minor(M, i, j)) for j in range(3))
+    assert abs(along - base) &lt; 1e-12, f&quot;row {i} expansion disagreed&quot;
+print(&quot;expansion along every row of a 3x3 agreed:&quot;, round(base, 9))
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory claims the determinant is the <strong>area scale factor</strong>, and that its sign records whether orientation flips. Those are measurable statements, not definitions, so we measure them.</p>
+<p>We take a polygon of known area, apply a matrix to every vertex, and compute the new area with the shoelace formula of M12. The prediction is that the ratio of areas equals $|\det A|$, exactly, for every matrix and every polygon. We also check that the <em>signed</em> area changes sign precisely when $\det A &lt; 0$ — Ishaan's mirror — and that a singular matrix collapses the polygon to zero area.</p>
+<div class="lab demo" data-demo="m26-determinant-is-area">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Does the determinant really measure area?</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+from math import cos, sin, pi
+
+
+def det2(a):
+    return a[0][0] * a[1][1] - a[0][1] * a[1][0]
+
+
+def apply(a, p):
+    return (a[0][0] * p[0] + a[0][1] * p[1], a[1][0] * p[0] + a[1][1] * p[1])
+
+
+def signed_area(poly):
+    &quot;&quot;&quot;Shoelace: positive when the vertices run anticlockwise.&quot;&quot;&quot;
+    total = 0.0
+    n = len(poly)
+    for i in range(n):
+        x1, y1 = poly[i]
+        x2, y2 = poly[(i + 1) % n]
+        total += x1 * y2 - x2 * y1
+    return total / 2
+
+
+UNIT_SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+TRIANGLE = [(0.0, 0.0), (3.0, 0.0), (0.0, 4.0)]
+PENTAGON = [(cos(2 * pi * k / 5), sin(2 * pi * k / 5)) for k in range(5)]
+
+print(&quot;area of the unit square:&quot;, signed_area(UNIT_SQUARE))
+print(&quot;area of the 3-4 triangle:&quot;, signed_area(TRIANGLE), &quot;(expected 6)&quot;)
+assert abs(signed_area(UNIT_SQUARE) - 1.0) &lt; 1e-12
+assert abs(signed_area(TRIANGLE) - 6.0) &lt; 1e-12
+
+rng = random.Random(1750)
+worst = 0.0
+flips = 0
+tested = 0
+for _ in range(600):
+    A = [[rng.uniform(-3, 3) for _ in range(2)] for _ in range(2)]
+    d = det2(A)
+    if abs(d) &lt; 0.05:
+        continue
+    for poly in (UNIT_SQUARE, TRIANGLE, PENTAGON):
+        before = signed_area(poly)
+        after = signed_area([apply(A, p) for p in poly])
+        predicted = abs(d) * abs(before)
+        worst = max(worst, abs(abs(after) - predicted) / max(predicted, 1e-9))
+        # the sign of the signed area flips exactly when det &lt; 0
+        same_orientation = (after &gt; 0) == (before &gt; 0)
+        assert same_orientation == (d &gt; 0), &quot;orientation must follow the sign of det&quot;
+    if d &lt; 0:
+        flips += 1
+    tested += 1
+
+print()
+print(&quot;matrices tested:&quot;, tested, &quot; of which orientation-reversing:&quot;, flips)
+print(&quot;predicted: new area = |det A| * old area, exactly&quot;)
+print(&quot;largest relative disagreement:&quot;, f&quot;{worst:.3e}&quot;)
+assert tested &gt; 400
+assert flips &gt; 100, &quot;both orientations must be represented&quot;
+assert worst &lt; 1e-9, &quot;the determinant must be exactly the area scale factor&quot;
+
+# Named transformations, hand-checked.
+print()
+rot = [[cos(0.7), -sin(0.7)], [sin(0.7), cos(0.7)]]
+flip = [[-1.0, 0.0], [0.0, 1.0]]
+stretch = [[2.0, 0.0], [0.0, 1.0]]
+squash = [[1.0, 2.0], [2.0, 4.0]]          # rows are proportional
+for name, M in ((&quot;rotation&quot;, rot), (&quot;flip&quot;, flip), (&quot;stretch x2&quot;, stretch), (&quot;squash&quot;, squash)):
+    print(f&quot;  {name:&gt;12}: det = {det2(M):&gt;8.4f}&quot;)
+assert abs(det2(rot) - 1.0) &lt; 1e-12, &quot;a rotation preserves area and orientation&quot;
+assert abs(det2(flip) + 1.0) &lt; 1e-12, &quot;a flip preserves area and reverses orientation&quot;
+assert abs(det2(stretch) - 2.0) &lt; 1e-12, &quot;stretching doubles area&quot;
+assert abs(det2(squash)) &lt; 1e-12, &quot;a singular matrix collapses area to zero&quot;
+
+# The squash really does flatten the square onto a line.
+squashed = [apply(squash, p) for p in UNIT_SQUARE]
+print(&quot;  the squashed unit square has area&quot;, abs(signed_area(squashed)))
+assert abs(signed_area(squashed)) &lt; 1e-12
+
+# Composition multiplies the scale factors: det(AB) = det(A) det(B).
+def matmul2(a, b):
+    return [[sum(a[i][k] * b[k][j] for k in range(2)) for j in range(2)] for i in range(2)]
+
+print()
+print(&quot;predicted: doing a flip then a stretch scales area by |det(flip)|*|det(stretch)| = 2&quot;)
+combo = matmul2(stretch, flip)
+out = signed_area([apply(combo, p) for p in UNIT_SQUARE])
+print(&quot;measured area of the transformed unit square:&quot;, abs(out))
+assert abs(abs(out) - 2.0) &lt; 1e-12
+assert abs(det2(combo) - det2(stretch) * det2(flip)) &lt; 1e-12
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the agreement here is exact to rounding, because these are algebraic identities rather than approximations. The place reality does bite is the test <code>abs(d) &lt; 0.05</code>, which skips nearly singular matrices. For those, the transformed polygon is very thin, its computed area is the difference of nearly equal shoelace terms, and the <em>relative</em> error explodes even though the absolute error is tiny — the cancellation of M13 again. This is the practical face of <strong>conditioning</strong>: a matrix with a small determinant relative to its entries is one whose inverse amplifies error, and $\det A$ alone is a poor measure of that (scaling a matrix by $\frac12$ divides a $3\times3$ determinant by 8 without making it any harder to invert). The proper measure is the condition number, which waits for M31.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m26-ex1-operations" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Matrix arithmetic and why order matters</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Matrices are lists of lists of numbers. Write <code>shape(m)</code> returning <code>(rows, cols)</code>. Write <code>add(a, b)</code> and <code>scale(k, a)</code>. Write <code>multiply(a, b)</code> raising <code>ValueError</code> when the inner dimensions do not match. Write <code>transpose(a)</code>. Write <code>identity(n)</code>. Write <code>commutes(a, b)</code> returning <code>True</code> when <code>AB == BA</code> within 1e-9, raising <code>ValueError</code> unless both are square and the same size.</p></div>
+<textarea class="code" spellcheck="false">def shape(m):
+    &quot;&quot;&quot;(rows, cols).&quot;&quot;&quot;
+    return (0, 0)
+
+
+def add(a, b):
+    &quot;&quot;&quot;Entrywise sum.&quot;&quot;&quot;
+    return []
+
+
+def scale(k, a):
+    &quot;&quot;&quot;Multiply every entry by k.&quot;&quot;&quot;
+    return []
+
+
+def multiply(a, b):
+    &quot;&quot;&quot;Matrix product.&quot;&quot;&quot;
+    return []
+
+
+def transpose(a):
+    &quot;&quot;&quot;Swap rows and columns.&quot;&quot;&quot;
+    return []
+
+
+def identity(n):
+    &quot;&quot;&quot;The n by n identity.&quot;&quot;&quot;
+    return []
+
+
+def commutes(a, b):
+    &quot;&quot;&quot;True when AB equals BA.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_shapes_and_elementwise_operations():
+    m = [[1, 2, 3], [4, 5, 6]]
+    assert shape(m) == (2, 3)
+    assert add(m, m) == [[2, 4, 6], [8, 10, 12]]
+    assert scale(3, [[1, -2]]) == [[3, -6]]
+    assert transpose(m) == [[1, 4], [2, 5], [3, 6]]
+    assert transpose(transpose(m)) == m
+    try:
+        add(m, [[1, 2]])
+        assert False, &quot;mismatched shapes must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_multiplication_is_not_commutative():
+    # Ishaan&#x27;s cards: a quarter turn and a left-right flip
+    turn = [[0, -1], [1, 0]]
+    flip = [[-1, 0], [0, 1]]
+    assert multiply(turn, flip) != multiply(flip, turn)
+    assert commutes(turn, flip) is False
+    # but everything commutes with the identity
+    assert commutes(turn, identity(2)) is True
+    assert multiply(turn, identity(2)) == [[0.0, -1.0], [1.0, 0.0]]
+    # a hand-checked product
+    assert multiply([[1, 2], [3, 4]], [[5, 6], [7, 8]]) == [[19, 22], [43, 50]]
+    try:
+        multiply([[1, 2, 3]], [[1, 2, 3]])
+        assert False, &quot;mismatched inner dimensions must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_transpose_reverses_a_product_and_zero_divisors():
+    import random
+    rng = random.Random(1850)
+    for _ in range(100):
+        a = [[rng.uniform(-3, 3) for _ in range(3)] for _ in range(2)]
+        b = [[rng.uniform(-3, 3) for _ in range(4)] for _ in range(3)]
+        lhs = transpose(multiply(a, b))
+        rhs = multiply(transpose(b), transpose(a))
+        for i in range(len(lhs)):
+            for j in range(len(lhs[0])):
+                assert abs(lhs[i][j] - rhs[i][j]) &lt; 1e-9
+    # zero divisors: a product can vanish with neither factor zero
+    a = [[1, 0], [0, 0]]
+    b = [[0, 0], [0, 1]]
+    assert multiply(a, b) == [[0, 0], [0, 0]]
+    assert a != [[0, 0], [0, 0]] and b != [[0, 0], [0, 0]]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m26-ex2-symmetry" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Symmetric and skew-symmetric decomposition</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>is_symmetric(a)</code> and <code>is_skew_symmetric(a)</code> with a tolerance of 1e-9, raising <code>ValueError</code> for a non-square matrix. Write <code>symmetric_part(a)</code> and <code>skew_part(a)</code> returning <code>(A + A^T)/2</code> and <code>(A - A^T)/2</code>. Write <code>decompose(a)</code> returning the pair, such that adding them reconstructs <code>A</code>. Write <code>skew_diagonal_is_zero(a)</code> returning <code>True</code> when every diagonal entry of a skew-symmetric matrix vanishes.</p></div>
+<textarea class="code" spellcheck="false">def is_symmetric(a):
+    &quot;&quot;&quot;True when A equals its transpose.&quot;&quot;&quot;
+    return False
+
+
+def is_skew_symmetric(a):
+    &quot;&quot;&quot;True when A equals minus its transpose.&quot;&quot;&quot;
+    return False
+
+
+def symmetric_part(a):
+    &quot;&quot;&quot;(A + A^T) / 2.&quot;&quot;&quot;
+    return []
+
+
+def skew_part(a):
+    &quot;&quot;&quot;(A - A^T) / 2.&quot;&quot;&quot;
+    return []
+
+
+def decompose(a):
+    &quot;&quot;&quot;(symmetric part, skew part).&quot;&quot;&quot;
+    return ([], [])
+
+
+def skew_diagonal_is_zero(a):
+    &quot;&quot;&quot;True when the diagonal of a skew matrix is all zeros.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_recognising_symmetry():
+    sym = [[1, 2, 3], [2, 5, 6], [3, 6, 9]]
+    skew = [[0, 2, -3], [-2, 0, 6], [3, -6, 0]]
+    assert is_symmetric(sym) is True
+    assert is_skew_symmetric(sym) is False
+    assert is_skew_symmetric(skew) is True
+    assert is_symmetric(skew) is False
+    # a skew matrix must have a zero diagonal
+    assert skew_diagonal_is_zero(skew) is True
+    assert skew_diagonal_is_zero(sym) is False
+    try:
+        is_symmetric([[1, 2, 3], [4, 5, 6]])
+        assert False, &quot;a non-square matrix must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_decomposition_reconstructs_the_matrix():
+    import random
+    rng = random.Random(1858)
+    for _ in range(200):
+        n = rng.randint(1, 5)
+        A = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]
+        S, K = decompose(A)
+        assert is_symmetric(S) is True
+        assert is_skew_symmetric(K) is True
+        for i in range(n):
+            for j in range(n):
+                assert abs(S[i][j] + K[i][j] - A[i][j]) &lt; 1e-9
+
+
+def test_decomposition_is_the_identity_on_pure_cases():
+    sym = [[1.0, 2.0], [2.0, 5.0]]
+    skew = [[0.0, 3.0], [-3.0, 0.0]]
+    S, K = decompose(sym)
+    assert S == sym
+    assert all(abs(v) &lt; 1e-12 for row in K for v in row)
+    S2, K2 = decompose(skew)
+    assert all(abs(v) &lt; 1e-12 for row in S2 for v in row)
+    assert K2 == skew
+    # a 1x1 matrix is symmetric and its skew part is zero
+    S3, K3 = decompose([[7.0]])
+    assert S3 == [[7.0]] and abs(K3[0][0]) &lt; 1e-12
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m26-ex3-determinants" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Minors, cofactors and determinants</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>minor(a, i, j)</code> returning the submatrix with row <code>i</code> and column <code>j</code> removed. Write <code>cofactor(a, i, j)</code> returning <code>(-1)**(i+j) * det(minor)</code>. Write <code>det(a)</code> by cofactor expansion along the first row, raising <code>ValueError</code> for a non-square matrix. Write <code>det_by_row(a, i)</code> expanding along row <code>i</code> instead, which must give the same answer. Write <code>has_zero_determinant_reason(a)</code> returning <code>"zero row"</code>, <code>"equal rows"</code> or <code>None</code> for a quick structural check.</p></div>
+<textarea class="code" spellcheck="false">def minor(a, i, j):
+    &quot;&quot;&quot;The submatrix with row i and column j deleted.&quot;&quot;&quot;
+    return []
+
+
+def cofactor(a, i, j):
+    &quot;&quot;&quot;The signed minor.&quot;&quot;&quot;
+    return 0.0
+
+
+def det(a):
+    &quot;&quot;&quot;Determinant by cofactor expansion along the first row.&quot;&quot;&quot;
+    return 0.0
+
+
+def det_by_row(a, i):
+    &quot;&quot;&quot;Determinant by expansion along row i.&quot;&quot;&quot;
+    return 0.0
+
+
+def has_zero_determinant_reason(a):
+    &quot;&quot;&quot;&#x27;zero row&#x27;, &#x27;equal rows&#x27; or None.&quot;&quot;&quot;
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_small_determinants_hand_checked():
+    assert det([[5]]) == 5
+    assert det([[1, 2], [3, 4]]) == -2
+    assert det([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) == 1
+    # a 3x3 worked by hand: 2(5*4 - 2*(-1)) - (-1)(0*4 - 2*1) + 3(0*(-1) - 5*1)
+    # = 2*22 + 1*(-2) + 3*(-5) = 44 - 2 - 15 = 27
+    assert abs(det([[2, -1, 3], [0, 5, 2], [1, -1, 4]]) - 27) &lt; 1e-9
+
+
+def test_expansion_along_any_row_agrees():
+    import random
+    rng = random.Random(1772)
+    for _ in range(100):
+        n = rng.randint(2, 4)
+        A = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]
+        base = det(A)
+        for i in range(n):
+            assert abs(det_by_row(A, i) - base) &lt; 1e-9, i
+    # minors have the right shape
+    M = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
+    assert minor(M, 0, 0) == [[5, 6], [8, 9]]
+    assert minor(M, 1, 2) == [[1, 2], [7, 8]]
+    # cofactor signs alternate
+    assert cofactor([[1, 2], [3, 4]], 0, 0) == 4
+    assert cofactor([[1, 2], [3, 4]], 0, 1) == -3
+
+
+def test_structural_zeros_and_errors():
+    assert has_zero_determinant_reason([[1, 2], [0, 0]]) == &quot;zero row&quot;
+    assert has_zero_determinant_reason([[1, 2, 3], [1, 2, 3], [4, 5, 7]]) == &quot;equal rows&quot;
+    assert has_zero_determinant_reason([[1, 2], [3, 4]]) is None
+    # and the determinant really is zero in those cases
+    assert abs(det([[1, 2], [0, 0]])) &lt; 1e-12
+    assert abs(det([[1, 2, 3], [1, 2, 3], [4, 5, 7]])) &lt; 1e-12
+    # swapping two rows negates the determinant
+    A = [[2, -1, 3], [0, 5, 2], [1, -1, 4]]
+    B = [A[1], A[0], A[2]]
+    assert abs(det(A) + det(B)) &lt; 1e-9
+    try:
+        det([[1, 2, 3], [4, 5, 6]])
+        assert False, &quot;a non-square matrix must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m26-ex4-inverse" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Adjoint, inverse and solving a system</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>adjoint(a)</code> returning the transpose of the cofactor matrix. Write <code>inverse(a)</code> returning <code>adjoint(a) / det(a)</code>, raising <code>ValueError</code> when the determinant is zero within 1e-12. Write <code>solve_matrix_method(a, b)</code> returning the solution of <code>A X = B</code> as a list, where <code>b</code> is a list, raising <code>ValueError</code> for a singular <code>A</code>. Write <code>verify_inverse(a, inv)</code> returning <code>True</code> when both products give the identity within 1e-9.</p></div>
+<textarea class="code" spellcheck="false">def adjoint(a):
+    &quot;&quot;&quot;Transpose of the cofactor matrix.&quot;&quot;&quot;
+    return []
+
+
+def inverse(a):
+    &quot;&quot;&quot;The inverse matrix.&quot;&quot;&quot;
+    return []
+
+
+def solve_matrix_method(a, b):
+    &quot;&quot;&quot;Solve A X = B.&quot;&quot;&quot;
+    return []
+
+
+def verify_inverse(a, inv):
+    &quot;&quot;&quot;True when A times inv is the identity, both ways round.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_inverse_of_a_2x2():
+    A = [[4.0, 7.0], [2.0, 6.0]]
+    inv = inverse(A)
+    # det = 24 - 14 = 10, so the inverse is [[0.6, -0.7], [-0.2, 0.4]]
+    assert abs(inv[0][0] - 0.6) &lt; 1e-12
+    assert abs(inv[0][1] + 0.7) &lt; 1e-12
+    assert abs(inv[1][0] + 0.2) &lt; 1e-12
+    assert abs(inv[1][1] - 0.4) &lt; 1e-12
+    assert verify_inverse(A, inv) is True
+
+
+def test_adjoint_identity_and_random_inverses():
+    import random
+    rng = random.Random(1750)
+    checked = 0
+    for _ in range(200):
+        n = rng.randint(1, 4)
+        A = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]
+        try:
+            inv = inverse(A)
+        except ValueError:
+            continue
+        assert verify_inverse(A, inv) is True
+        # A * adj(A) = det(A) * I
+        adj = adjoint(A)
+        d = _det_helper(A)
+        for i in range(n):
+            for j in range(n):
+                value = sum(A[i][k] * adj[k][j] for k in range(n))
+                target = d if i == j else 0.0
+                assert abs(value - target) &lt; 1e-6 * max(1.0, abs(d))
+        checked += 1
+    assert checked &gt; 100
+
+
+def _det_helper(a):
+    n = len(a)
+    if n == 1:
+        return a[0][0]
+    if n == 2:
+        return a[0][0] * a[1][1] - a[0][1] * a[1][0]
+    def mn(m, i, j):
+        return [row[:j] + row[j + 1:] for k, row in enumerate(m) if k != i]
+    return sum(((-1) ** j) * a[0][j] * _det_helper(mn(a, 0, j)) for j in range(n))
+
+
+def test_solving_systems_and_singular_matrices():
+    # x + y = 5, x - y = 1  -&gt;  x = 3, y = 2
+    sol = solve_matrix_method([[1.0, 1.0], [1.0, -1.0]], [5.0, 1.0])
+    assert abs(sol[0] - 3.0) &lt; 1e-9 and abs(sol[1] - 2.0) &lt; 1e-9
+    # the solution really satisfies both equations
+    A = [[2.0, 1.0, -1.0], [-3.0, -1.0, 2.0], [-2.0, 1.0, 2.0]]
+    b = [8.0, -11.0, -3.0]
+    x = solve_matrix_method(A, b)
+    for i in range(3):
+        assert abs(sum(A[i][j] * x[j] for j in range(3)) - b[i]) &lt; 1e-9
+    try:
+        inverse([[1.0, 2.0], [2.0, 4.0]])
+        assert False, &quot;a singular matrix must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m26-ex5-cramer-and-elimination" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Cramer&#x27;s rule, row operations and Gauss-Jordan</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>replace_column(a, j, b)</code> returning <code>A</code> with column <code>j</code> replaced by the list <code>b</code>. Write <code>cramer(a, b)</code> returning the solution by Cramer's rule, raising <code>ValueError</code> for a singular matrix. Write <code>row_swap(a, i, k)</code>, <code>row_scale(a, i, k)</code> (raising <code>ValueError</code> for <code>k == 0</code>) and <code>row_add(a, i, k, factor)</code> adding <code>factor</code> times row <code>k</code> to row <code>i</code>, each returning a new matrix. Write <code>gauss_jordan_inverse(a)</code> computing the inverse by reducing <code>[A|I]</code>. Write <code>triangle_area_determinant(p, q, r)</code> using the 3x3 determinant form.</p></div>
+<textarea class="code" spellcheck="false">def replace_column(a, j, b):
+    &quot;&quot;&quot;A with column j replaced by b.&quot;&quot;&quot;
+    return []
+
+
+def cramer(a, b):
+    &quot;&quot;&quot;Solve A X = B by Cramer&#x27;s rule.&quot;&quot;&quot;
+    return []
+
+
+def row_swap(a, i, k):
+    &quot;&quot;&quot;Swap two rows.&quot;&quot;&quot;
+    return []
+
+
+def row_scale(a, i, k):
+    &quot;&quot;&quot;Multiply row i by k.&quot;&quot;&quot;
+    return []
+
+
+def row_add(a, i, k, factor):
+    &quot;&quot;&quot;Add factor times row k to row i.&quot;&quot;&quot;
+    return []
+
+
+def gauss_jordan_inverse(a):
+    &quot;&quot;&quot;Inverse by reducing [A | I].&quot;&quot;&quot;
+    return []
+
+
+def triangle_area_determinant(p, q, r):
+    &quot;&quot;&quot;Area of a triangle from the 3x3 determinant.&quot;&quot;&quot;
+    return 0.0
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cramer_matches_substitution():
+    # x + y = 5, x - y = 1
+    sol = cramer([[1.0, 1.0], [1.0, -1.0]], [5.0, 1.0])
+    assert abs(sol[0] - 3.0) &lt; 1e-9 and abs(sol[1] - 2.0) &lt; 1e-9
+    # a 3x3 system, verified by substitution
+    A = [[2.0, 1.0, -1.0], [-3.0, -1.0, 2.0], [-2.0, 1.0, 2.0]]
+    b = [8.0, -11.0, -3.0]
+    x = cramer(A, b)
+    for i in range(3):
+        assert abs(sum(A[i][j] * x[j] for j in range(3)) - b[i]) &lt; 1e-9
+    assert replace_column([[1, 2], [3, 4]], 0, [9, 9]) == [[9, 2], [9, 4]]
+    try:
+        cramer([[1.0, 2.0], [2.0, 4.0]], [1.0, 2.0])
+        assert False, &quot;a singular matrix must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_row_operations_preserve_the_solution():
+    A = [[2.0, 1.0], [1.0, 3.0]]
+    b = [5.0, 10.0]
+    base = cramer(A, b)
+    # swapping two equations
+    A2, b2 = row_swap(A, 0, 1), [b[1], b[0]]
+    assert all(abs(p - q) &lt; 1e-9 for p, q in zip(cramer(A2, b2), base))
+    # scaling an equation
+    A3 = row_scale(A, 0, 3.0)
+    b3 = [b[0] * 3.0, b[1]]
+    assert all(abs(p - q) &lt; 1e-9 for p, q in zip(cramer(A3, b3), base))
+    # adding a multiple of one equation to another
+    A4 = row_add(A, 1, 0, -2.0)
+    b4 = [b[0], b[1] - 2.0 * b[0]]
+    assert all(abs(p - q) &lt; 1e-9 for p, q in zip(cramer(A4, b4), base))
+    try:
+        row_scale(A, 0, 0.0)
+        assert False, &quot;scaling by zero must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_gauss_jordan_and_triangle_area():
+    import random
+    rng = random.Random(1812)
+    checked = 0
+    for _ in range(150):
+        n = rng.randint(1, 4)
+        A = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]
+        try:
+            inv = gauss_jordan_inverse(A)
+        except ValueError:
+            continue
+        for i in range(n):
+            for j in range(n):
+                value = sum(A[i][k] * inv[k][j] for k in range(n))
+                assert abs(value - (1.0 if i == j else 0.0)) &lt; 1e-6
+        checked += 1
+    assert checked &gt; 80
+    # the determinant form of a triangle&#x27;s area, against the 3-4-5 triangle
+    assert abs(triangle_area_determinant((0, 0), (3, 0), (0, 4)) - 6.0) &lt; 1e-12
+    # collinear points enclose nothing
+    assert abs(triangle_area_determinant((0, 0), (2, 2), (5, 5))) &lt; 1e-12
+    try:
+        gauss_jordan_inverse([[1.0, 2.0], [2.0, 4.0]])
+        assert False, &quot;a singular matrix must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"$AB = BA$, surely."</strong> Almost never. $AB$ means "do $B$ then $A$", and order matters for transformations — Ishaan's F is the proof. $AB$ may even be defined when $BA$ is not.</li>
+<li><strong>"If $AB=0$ then $A=0$ or $B=0$."</strong> False for matrices. Two non-zero matrices can multiply to zero, because each can annihilate what the other leaves behind. Matrices are not a field.</li>
+<li><strong>"The determinant is just a formula to compute."</strong> It is the area or volume scale factor of the transformation, and the experiment measured exactly that. Its vanishing <em>means</em> space was collapsed.</li>
+<li><strong>"A small determinant means a nearly singular matrix."</strong> Not by itself. Multiplying a $3\times3$ matrix by $\frac12$ divides its determinant by 8 without making it harder to invert. The honest measure is the condition number.</li>
+<li><strong>"The adjoint is the cofactor matrix."</strong> It is the <strong>transpose</strong> of it. Skipping the transpose gives a wrong inverse for every non-symmetric matrix, and the mutant above exploits exactly that.</li>
+<li><strong>"$(AB)^{-1} = A^{-1}B^{-1}$."</strong> It is $B^{-1}A^{-1}$ — to undo "do B then A" you must undo A first. The same reversal applies to transposes.</li>
+<li><strong>"Compute the inverse, then multiply, to solve a system."</strong> Mathematically fine and numerically poor. Gaussian elimination solves $AX=B$ directly with fewer operations and better accuracy; computing an explicit inverse is rarely the right move.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Cofactor expansion is correct and catastrophically slow: its cost is $O(n!)$, so a $20\times20$ determinant would take longer than the age of the universe. Row reduction does the same job in $O(n^3)$. Every practical library uses elimination, and the demo's two methods are a correctness check, not a performance comparison.</p>
+<p>Cramer's rule has the same problem, magnified: it needs $n+1$ determinants. It is a beautiful theoretical statement and an unusable algorithm beyond $3\times3$.</p>
+<p>Numerically, elimination without <strong>pivoting</strong> is unstable: a tiny pivot makes the multipliers enormous and amplifies rounding error. The exercise uses partial pivoting (choosing the largest available pivot would be better still), and the general theory is M30's.</p>
+<p>Testing $\det A = 0$ in floating point is unreliable, because the determinant of a scaled matrix scales by $k^n$ and can be tiny or huge without any change in how invertible the matrix is. The right diagnostic is the singular-value spread, which is M31.</p>
+<p>Finally, everything here is about square matrices and exact inverses. Non-square systems — more equations than unknowns, or fewer — have no inverse at all, and the right answers are least squares and the pseudoinverse, which need the machinery of M30 and M31.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>A $4\times4$ matrix is the universal currency of graphics: every translation, rotation, scale and perspective projection in a rendering pipeline is one, and composing them is matrix multiplication whose non-commutativity is a daily source of bugs — "the object rotated about the wrong point" almost always means two matrices were multiplied in the wrong order. Flutter's <code>Matrix4</code>, Android's <code>Matrix</code> and CSS's <code>transform</code> are all this.</p>
+<p>The determinant's sign is how you detect that a transform has mirrored your geometry, which flips winding order and breaks backface culling. Its magnitude tells you how a transform scales areas, which matters when deciding texture resolution.</p>
+<p>Beyond graphics, a matrix is any table of coefficients: a system of constraints in a layout engine, a transition table in M40, a batch of feature vectors. And the practical lesson that outlives the hand computations here is the last one in <em>Where it breaks</em> — you almost never want an explicit inverse. <code>solve</code> beats <code>inv</code> and multiply, in every library, for both speed and accuracy.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>Why is matrix multiplication defined by the row-times-column rule?</p></div><div class="a" hidden><p>Because it is forced by requiring that the matrix product correspond to composing the two transformations.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why is AB generally different from BA?</p></div><div class="a" hidden><p>Because doing transformation B then A is generally not the same as doing A then B. Order matters for transformations.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What does the determinant mean geometrically?</p></div><div class="a" hidden><p>Its magnitude is the factor by which areas or volumes are scaled, and its sign says whether orientation is preserved.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What does a zero determinant tell you?</p></div><div class="a" hidden><p>The transformation collapses space into a lower dimension, so the matrix has no inverse and the linear system has no unique solution.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>What is the relation between the adjoint and the inverse?</p></div><div class="a" hidden><p>A times adj(A) equals det(A) times the identity, so the inverse is adj(A) divided by det(A).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>State Cramer's rule and its practical limitation.</p></div><div class="a" hidden><p>x_i is det(A_i)/det(A), where A_i replaces column i with the right-hand side. It needs n+1 determinants, so it is unusable beyond tiny systems.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>Why do elementary row operations not change the solution set?</p></div><div class="a" hidden><p>Each one is reversible, so any solution of the new system corresponds to one of the old. That is why scaling by zero is forbidden.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>What is (AB)^-1, and why?</p></div><div class="a" hidden><p>B^-1 A^-1. To undo "do B then A" you must undo A first.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Is a small determinant a reliable sign that a matrix is nearly singular?</p></div><div class="a" hidden><p>No. Scaling a matrix changes the determinant by k^n without changing how invertible it is. Use the condition number instead.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>Why should you rarely compute an explicit matrix inverse?</p></div><div class="a" hidden><p>Because solving the system directly by elimination is faster and more accurate than forming the inverse and multiplying.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why turning then flipping differs from flipping then turning, you can derive the multiplication rule from composition rather than recall it, you can compute a 3x3 determinant by cofactors and by elimination and say which one a computer should use, you can state exactly what a zero determinant means for solvability and for geometry, you pass the boss exercise without hints, and you can explain why <code>solve(A, b)</code> is preferable to <code>inv(A) @ b</code>.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>NCERT, <em>Mathematics</em> Class 12, chapters on Matrices and on Determinants.</li>
+<li>Gilbert Strang, <em>Introduction to Linear Algebra</em>, Wellesley-Cambridge Press.</li>
+<li>Arthur Cayley, "A Memoir on the Theory of Matrices", <em>Philosophical Transactions of the Royal Society</em>, 1858.</li>
+<li><em>Nine Chapters on the Mathematical Art</em>, chapter 8 (Fangcheng), on elimination.</li>
+<li>Trefethen and Bau, <em>Numerical Linear Algebra</em>, SIAM.</li>
+</ul></section>
+<footer class="pager"><a href="M25.html">&larr; M25 Differential equations</a>
+<a href="V02.html">V02 Measurement: turning the world into numbers &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M26", "packages": [], "exercises": {"m26-ex1-operations": {"starter": "def shape(m):\n    \"\"\"(rows, cols).\"\"\"\n    return (0, 0)\n\n\ndef add(a, b):\n    \"\"\"Entrywise sum.\"\"\"\n    return []\n\n\ndef scale(k, a):\n    \"\"\"Multiply every entry by k.\"\"\"\n    return []\n\n\ndef multiply(a, b):\n    \"\"\"Matrix product.\"\"\"\n    return []\n\n\ndef transpose(a):\n    \"\"\"Swap rows and columns.\"\"\"\n    return []\n\n\ndef identity(n):\n    \"\"\"The n by n identity.\"\"\"\n    return []\n\n\ndef commutes(a, b):\n    \"\"\"True when AB equals BA.\"\"\"\n    return False\n", "solution": "def shape(m):\n    \"\"\"(rows, cols).\"\"\"\n    if not m or not m[0]:\n        raise ValueError(\"the matrix must be non-empty\")\n    cols = len(m[0])\n    if any(len(row) != cols for row in m):\n        raise ValueError(\"all rows must have the same length\")\n    return (len(m), cols)\n\n\ndef add(a, b):\n    \"\"\"Entrywise sum.\"\"\"\n    if shape(a) != shape(b):\n        raise ValueError(\"shapes must match for addition\")\n    return [[x + y for x, y in zip(ra, rb)] for ra, rb in zip(a, b)]\n\n\ndef scale(k, a):\n    \"\"\"Multiply every entry by k.\"\"\"\n    shape(a)\n    return [[k * x for x in row] for row in a]\n\n\ndef multiply(a, b):\n    \"\"\"Matrix product.\"\"\"\n    ra, ca = shape(a)\n    rb, cb = shape(b)\n    if ca != rb:\n        raise ValueError(\"inner dimensions must agree\")\n    return [[sum(a[i][k] * b[k][j] for k in range(ca)) for j in range(cb)]\n            for i in range(ra)]\n\n\ndef transpose(a):\n    \"\"\"Swap rows and columns.\"\"\"\n    shape(a)\n    return [list(col) for col in zip(*a)]\n\n\ndef identity(n):\n    \"\"\"The n by n identity.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n\n\ndef commutes(a, b):\n    \"\"\"True when AB equals BA.\"\"\"\n    ra, ca = shape(a)\n    rb, cb = shape(b)\n    if ra != ca or rb != cb or ra != rb:\n        raise ValueError(\"both matrices must be square and the same size\")\n    ab, ba = multiply(a, b), multiply(b, a)\n    return all(abs(ab[i][j] - ba[i][j]) < 1e-9 for i in range(ra) for j in range(ca))\n", "tests": "def test_shapes_and_elementwise_operations():\n    m = [[1, 2, 3], [4, 5, 6]]\n    assert shape(m) == (2, 3)\n    assert add(m, m) == [[2, 4, 6], [8, 10, 12]]\n    assert scale(3, [[1, -2]]) == [[3, -6]]\n    assert transpose(m) == [[1, 4], [2, 5], [3, 6]]\n    assert transpose(transpose(m)) == m\n    try:\n        add(m, [[1, 2]])\n        assert False, \"mismatched shapes must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_multiplication_is_not_commutative():\n    # Ishaan's cards: a quarter turn and a left-right flip\n    turn = [[0, -1], [1, 0]]\n    flip = [[-1, 0], [0, 1]]\n    assert multiply(turn, flip) != multiply(flip, turn)\n    assert commutes(turn, flip) is False\n    # but everything commutes with the identity\n    assert commutes(turn, identity(2)) is True\n    assert multiply(turn, identity(2)) == [[0.0, -1.0], [1.0, 0.0]]\n    # a hand-checked product\n    assert multiply([[1, 2], [3, 4]], [[5, 6], [7, 8]]) == [[19, 22], [43, 50]]\n    try:\n        multiply([[1, 2, 3]], [[1, 2, 3]])\n        assert False, \"mismatched inner dimensions must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_transpose_reverses_a_product_and_zero_divisors():\n    import random\n    rng = random.Random(1850)\n    for _ in range(100):\n        a = [[rng.uniform(-3, 3) for _ in range(3)] for _ in range(2)]\n        b = [[rng.uniform(-3, 3) for _ in range(4)] for _ in range(3)]\n        lhs = transpose(multiply(a, b))\n        rhs = multiply(transpose(b), transpose(a))\n        for i in range(len(lhs)):\n            for j in range(len(lhs[0])):\n                assert abs(lhs[i][j] - rhs[i][j]) < 1e-9\n    # zero divisors: a product can vanish with neither factor zero\n    a = [[1, 0], [0, 0]]\n    b = [[0, 0], [0, 1]]\n    assert multiply(a, b) == [[0, 0], [0, 0]]\n    assert a != [[0, 0], [0, 0]] and b != [[0, 0], [0, 0]]\n", "mutants": ["def shape(m):\n    if not m or not m[0]:\n        raise ValueError(\"the matrix must be non-empty\")\n    cols = len(m[0])\n    if any(len(row) != cols for row in m):\n        raise ValueError(\"all rows must have the same length\")\n    return (len(m), cols)\n\n\ndef add(a, b):\n    if shape(a) != shape(b):\n        raise ValueError(\"shapes must match for addition\")\n    return [[x + y for x, y in zip(ra, rb)] for ra, rb in zip(a, b)]\n\n\ndef scale(k, a):\n    shape(a)\n    return [[k * x for x in row] for row in a]\n\n\ndef multiply(a, b):\n    \"\"\"Bug: multiplies entrywise instead of row by column.\"\"\"\n    ra, ca = shape(a)\n    rb, cb = shape(b)\n    if ca != rb:\n        raise ValueError(\"inner dimensions must agree\")\n    if (ra, ca) != (rb, cb):\n        return [[sum(a[i][k] * b[k][j] for k in range(ca)) for j in range(cb)]\n                for i in range(ra)]\n    return [[a[i][j] * b[i][j] for j in range(ca)] for i in range(ra)]\n\n\ndef transpose(a):\n    shape(a)\n    return [list(col) for col in zip(*a)]\n\n\ndef identity(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n\n\ndef commutes(a, b):\n    ra, ca = shape(a)\n    rb, cb = shape(b)\n    if ra != ca or rb != cb or ra != rb:\n        raise ValueError(\"both matrices must be square and the same size\")\n    ab, ba = multiply(a, b), multiply(b, a)\n    return all(abs(ab[i][j] - ba[i][j]) < 1e-9 for i in range(ra) for j in range(ca))\n", "def shape(m):\n    if not m or not m[0]:\n        raise ValueError(\"the matrix must be non-empty\")\n    cols = len(m[0])\n    if any(len(row) != cols for row in m):\n        raise ValueError(\"all rows must have the same length\")\n    return (len(m), cols)\n\n\ndef add(a, b):\n    if shape(a) != shape(b):\n        raise ValueError(\"shapes must match for addition\")\n    return [[x + y for x, y in zip(ra, rb)] for ra, rb in zip(a, b)]\n\n\ndef scale(k, a):\n    shape(a)\n    return [[k * x for x in row] for row in a]\n\n\ndef multiply(a, b):\n    ra, ca = shape(a)\n    rb, cb = shape(b)\n    if ca != rb:\n        raise ValueError(\"inner dimensions must agree\")\n    return [[sum(a[i][k] * b[k][j] for k in range(ca)) for j in range(cb)]\n            for i in range(ra)]\n\n\ndef transpose(a):\n    \"\"\"Bug: returns the matrix unchanged, which is right only for symmetric ones.\"\"\"\n    shape(a)\n    return [row[:] for row in a]\n\n\ndef identity(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    return [[1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n\n\ndef commutes(a, b):\n    ra, ca = shape(a)\n    rb, cb = shape(b)\n    if ra != ca or rb != cb or ra != rb:\n        raise ValueError(\"both matrices must be square and the same size\")\n    ab, ba = multiply(a, b), multiply(b, a)\n    return all(abs(ab[i][j] - ba[i][j]) < 1e-9 for i in range(ra) for j in range(ca))\n"], "hints": ["Entry `(i, j)` of the product is row `i` of A dotted with column `j` of B.", "`(AB)^T = B^T A^T`: the transpose of a product reverses the order."], "level": "warmup", "title": "Matrix arithmetic and why order matters"}, "m26-ex2-symmetry": {"starter": "def is_symmetric(a):\n    \"\"\"True when A equals its transpose.\"\"\"\n    return False\n\n\ndef is_skew_symmetric(a):\n    \"\"\"True when A equals minus its transpose.\"\"\"\n    return False\n\n\ndef symmetric_part(a):\n    \"\"\"(A + A^T) / 2.\"\"\"\n    return []\n\n\ndef skew_part(a):\n    \"\"\"(A - A^T) / 2.\"\"\"\n    return []\n\n\ndef decompose(a):\n    \"\"\"(symmetric part, skew part).\"\"\"\n    return ([], [])\n\n\ndef skew_diagonal_is_zero(a):\n    \"\"\"True when the diagonal of a skew matrix is all zeros.\"\"\"\n    return False\n", "solution": "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef is_symmetric(a):\n    \"\"\"True when A equals its transpose.\"\"\"\n    n = _square(a)\n    return all(abs(a[i][j] - a[j][i]) < 1e-9 for i in range(n) for j in range(n))\n\n\ndef is_skew_symmetric(a):\n    \"\"\"True when A equals minus its transpose.\"\"\"\n    n = _square(a)\n    return all(abs(a[i][j] + a[j][i]) < 1e-9 for i in range(n) for j in range(n))\n\n\ndef symmetric_part(a):\n    \"\"\"(A + A^T) / 2.\"\"\"\n    n = _square(a)\n    return [[(a[i][j] + a[j][i]) / 2 for j in range(n)] for i in range(n)]\n\n\ndef skew_part(a):\n    \"\"\"(A - A^T) / 2.\"\"\"\n    n = _square(a)\n    return [[(a[i][j] - a[j][i]) / 2 for j in range(n)] for i in range(n)]\n\n\ndef decompose(a):\n    \"\"\"(symmetric part, skew part).\"\"\"\n    return (symmetric_part(a), skew_part(a))\n\n\ndef skew_diagonal_is_zero(a):\n    \"\"\"True when the diagonal of a skew matrix is all zeros.\"\"\"\n    n = _square(a)\n    return all(abs(a[i][i]) < 1e-9 for i in range(n))\n", "tests": "def test_recognising_symmetry():\n    sym = [[1, 2, 3], [2, 5, 6], [3, 6, 9]]\n    skew = [[0, 2, -3], [-2, 0, 6], [3, -6, 0]]\n    assert is_symmetric(sym) is True\n    assert is_skew_symmetric(sym) is False\n    assert is_skew_symmetric(skew) is True\n    assert is_symmetric(skew) is False\n    # a skew matrix must have a zero diagonal\n    assert skew_diagonal_is_zero(skew) is True\n    assert skew_diagonal_is_zero(sym) is False\n    try:\n        is_symmetric([[1, 2, 3], [4, 5, 6]])\n        assert False, \"a non-square matrix must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_decomposition_reconstructs_the_matrix():\n    import random\n    rng = random.Random(1858)\n    for _ in range(200):\n        n = rng.randint(1, 5)\n        A = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]\n        S, K = decompose(A)\n        assert is_symmetric(S) is True\n        assert is_skew_symmetric(K) is True\n        for i in range(n):\n            for j in range(n):\n                assert abs(S[i][j] + K[i][j] - A[i][j]) < 1e-9\n\n\ndef test_decomposition_is_the_identity_on_pure_cases():\n    sym = [[1.0, 2.0], [2.0, 5.0]]\n    skew = [[0.0, 3.0], [-3.0, 0.0]]\n    S, K = decompose(sym)\n    assert S == sym\n    assert all(abs(v) < 1e-12 for row in K for v in row)\n    S2, K2 = decompose(skew)\n    assert all(abs(v) < 1e-12 for row in S2 for v in row)\n    assert K2 == skew\n    # a 1x1 matrix is symmetric and its skew part is zero\n    S3, K3 = decompose([[7.0]])\n    assert S3 == [[7.0]] and abs(K3[0][0]) < 1e-12\n", "mutants": ["def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef is_symmetric(a):\n    n = _square(a)\n    return all(abs(a[i][j] - a[j][i]) < 1e-9 for i in range(n) for j in range(n))\n\n\ndef is_skew_symmetric(a):\n    \"\"\"Bug: tests A == A^T rather than A == -A^T.\"\"\"\n    n = _square(a)\n    return all(abs(a[i][j] - a[j][i]) < 1e-9 for i in range(n) for j in range(n))\n\n\ndef symmetric_part(a):\n    n = _square(a)\n    return [[(a[i][j] + a[j][i]) / 2 for j in range(n)] for i in range(n)]\n\n\ndef skew_part(a):\n    n = _square(a)\n    return [[(a[i][j] - a[j][i]) / 2 for j in range(n)] for i in range(n)]\n\n\ndef decompose(a):\n    return (symmetric_part(a), skew_part(a))\n\n\ndef skew_diagonal_is_zero(a):\n    n = _square(a)\n    return all(abs(a[i][i]) < 1e-9 for i in range(n))\n", "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef is_symmetric(a):\n    n = _square(a)\n    return all(abs(a[i][j] - a[j][i]) < 1e-9 for i in range(n) for j in range(n))\n\n\ndef is_skew_symmetric(a):\n    n = _square(a)\n    return all(abs(a[i][j] + a[j][i]) < 1e-9 for i in range(n) for j in range(n))\n\n\ndef symmetric_part(a):\n    \"\"\"Bug: forgets to halve, so the parts no longer add back to A.\"\"\"\n    n = _square(a)\n    return [[a[i][j] + a[j][i] for j in range(n)] for i in range(n)]\n\n\ndef skew_part(a):\n    n = _square(a)\n    return [[(a[i][j] - a[j][i]) / 2 for j in range(n)] for i in range(n)]\n\n\ndef decompose(a):\n    return (symmetric_part(a), skew_part(a))\n\n\ndef skew_diagonal_is_zero(a):\n    n = _square(a)\n    return all(abs(a[i][i]) < 1e-9 for i in range(n))\n"], "hints": ["Skew-symmetric means `a[i][j] == -a[j][i]`, which forces every diagonal entry to equal its own negative, hence zero.", "Both halves carry a factor of one half, so that adding them gives back A exactly."], "level": "core", "title": "Symmetric and skew-symmetric decomposition"}, "m26-ex3-determinants": {"starter": "def minor(a, i, j):\n    \"\"\"The submatrix with row i and column j deleted.\"\"\"\n    return []\n\n\ndef cofactor(a, i, j):\n    \"\"\"The signed minor.\"\"\"\n    return 0.0\n\n\ndef det(a):\n    \"\"\"Determinant by cofactor expansion along the first row.\"\"\"\n    return 0.0\n\n\ndef det_by_row(a, i):\n    \"\"\"Determinant by expansion along row i.\"\"\"\n    return 0.0\n\n\ndef has_zero_determinant_reason(a):\n    \"\"\"'zero row', 'equal rows' or None.\"\"\"\n    return None\n", "solution": "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef minor(a, i, j):\n    \"\"\"The submatrix with row i and column j deleted.\"\"\"\n    _square(a)\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef det(a):\n    \"\"\"Determinant by cofactor expansion along the first row.\"\"\"\n    n = _square(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * det(minor(a, 0, j)) for j in range(n))\n\n\ndef cofactor(a, i, j):\n    \"\"\"The signed minor.\"\"\"\n    n = _square(a)\n    if n == 1:\n        return 1.0\n    return ((-1) ** (i + j)) * det(minor(a, i, j))\n\n\ndef det_by_row(a, i):\n    \"\"\"Determinant by expansion along row i.\"\"\"\n    n = _square(a)\n    if n == 1:\n        return a[0][0]\n    return sum(a[i][j] * cofactor(a, i, j) for j in range(n))\n\n\ndef has_zero_determinant_reason(a):\n    \"\"\"'zero row', 'equal rows' or None.\"\"\"\n    n = _square(a)\n    for row in a:\n        if all(abs(v) < 1e-12 for v in row):\n            return \"zero row\"\n    for i in range(n):\n        for k in range(i + 1, n):\n            if all(abs(a[i][j] - a[k][j]) < 1e-12 for j in range(n)):\n                return \"equal rows\"\n    return None\n", "tests": "def test_small_determinants_hand_checked():\n    assert det([[5]]) == 5\n    assert det([[1, 2], [3, 4]]) == -2\n    assert det([[1, 0, 0], [0, 1, 0], [0, 0, 1]]) == 1\n    # a 3x3 worked by hand: 2(5*4 - 2*(-1)) - (-1)(0*4 - 2*1) + 3(0*(-1) - 5*1)\n    # = 2*22 + 1*(-2) + 3*(-5) = 44 - 2 - 15 = 27\n    assert abs(det([[2, -1, 3], [0, 5, 2], [1, -1, 4]]) - 27) < 1e-9\n\n\ndef test_expansion_along_any_row_agrees():\n    import random\n    rng = random.Random(1772)\n    for _ in range(100):\n        n = rng.randint(2, 4)\n        A = [[rng.uniform(-5, 5) for _ in range(n)] for _ in range(n)]\n        base = det(A)\n        for i in range(n):\n            assert abs(det_by_row(A, i) - base) < 1e-9, i\n    # minors have the right shape\n    M = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\n    assert minor(M, 0, 0) == [[5, 6], [8, 9]]\n    assert minor(M, 1, 2) == [[1, 2], [7, 8]]\n    # cofactor signs alternate\n    assert cofactor([[1, 2], [3, 4]], 0, 0) == 4\n    assert cofactor([[1, 2], [3, 4]], 0, 1) == -3\n\n\ndef test_structural_zeros_and_errors():\n    assert has_zero_determinant_reason([[1, 2], [0, 0]]) == \"zero row\"\n    assert has_zero_determinant_reason([[1, 2, 3], [1, 2, 3], [4, 5, 7]]) == \"equal rows\"\n    assert has_zero_determinant_reason([[1, 2], [3, 4]]) is None\n    # and the determinant really is zero in those cases\n    assert abs(det([[1, 2], [0, 0]])) < 1e-12\n    assert abs(det([[1, 2, 3], [1, 2, 3], [4, 5, 7]])) < 1e-12\n    # swapping two rows negates the determinant\n    A = [[2, -1, 3], [0, 5, 2], [1, -1, 4]]\n    B = [A[1], A[0], A[2]]\n    assert abs(det(A) + det(B)) < 1e-9\n    try:\n        det([[1, 2, 3], [4, 5, 6]])\n        assert False, \"a non-square matrix must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef minor(a, i, j):\n    _square(a)\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef det(a):\n    \"\"\"Bug: no alternating sign, correct for 2x2 and wrong from 3x3 up.\"\"\"\n    n = _square(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(a[0][j] * det(minor(a, 0, j)) for j in range(n))\n\n\ndef cofactor(a, i, j):\n    n = _square(a)\n    if n == 1:\n        return 1.0\n    return ((-1) ** (i + j)) * det(minor(a, i, j))\n\n\ndef det_by_row(a, i):\n    n = _square(a)\n    if n == 1:\n        return a[0][0]\n    return sum(a[i][j] * cofactor(a, i, j) for j in range(n))\n\n\ndef has_zero_determinant_reason(a):\n    n = _square(a)\n    for row in a:\n        if all(abs(v) < 1e-12 for v in row):\n            return \"zero row\"\n    for i in range(n):\n        for k in range(i + 1, n):\n            if all(abs(a[i][j] - a[k][j]) < 1e-12 for j in range(n)):\n                return \"equal rows\"\n    return None\n", "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef minor(a, i, j):\n    \"\"\"Bug: deletes column j but keeps row i, deleting row j instead.\"\"\"\n    _square(a)\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != j]\n\n\ndef det(a):\n    n = _square(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * det(minor(a, 0, j)) for j in range(n))\n\n\ndef cofactor(a, i, j):\n    n = _square(a)\n    if n == 1:\n        return 1.0\n    return ((-1) ** (i + j)) * det(minor(a, i, j))\n\n\ndef det_by_row(a, i):\n    n = _square(a)\n    if n == 1:\n        return a[0][0]\n    return sum(a[i][j] * cofactor(a, i, j) for j in range(n))\n\n\ndef has_zero_determinant_reason(a):\n    n = _square(a)\n    for row in a:\n        if all(abs(v) < 1e-12 for v in row):\n            return \"zero row\"\n    for i in range(n):\n        for k in range(i + 1, n):\n            if all(abs(a[i][j] - a[k][j]) < 1e-12 for j in range(n)):\n                return \"equal rows\"\n    return None\n"], "hints": ["The cofactor sign is `(-1)**(i+j)`, giving the familiar checkerboard of plus and minus.", "A minor deletes row `i` *and* column `j`. Check the shape of the result on a 3x3."], "level": "core", "title": "Minors, cofactors and determinants"}, "m26-ex4-inverse": {"starter": "def adjoint(a):\n    \"\"\"Transpose of the cofactor matrix.\"\"\"\n    return []\n\n\ndef inverse(a):\n    \"\"\"The inverse matrix.\"\"\"\n    return []\n\n\ndef solve_matrix_method(a, b):\n    \"\"\"Solve A X = B.\"\"\"\n    return []\n\n\ndef verify_inverse(a, inv):\n    \"\"\"True when A times inv is the identity, both ways round.\"\"\"\n    return False\n", "solution": "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef _minor(a, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef _det(a):\n    n = len(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * _det(_minor(a, 0, j)) for j in range(n))\n\n\ndef adjoint(a):\n    \"\"\"Transpose of the cofactor matrix.\"\"\"\n    n = _square(a)\n    if n == 1:\n        return [[1.0]]\n    cof = [[((-1) ** (i + j)) * _det(_minor(a, i, j)) for j in range(n)]\n           for i in range(n)]\n    return [[cof[j][i] for j in range(n)] for i in range(n)]\n\n\ndef inverse(a):\n    \"\"\"The inverse matrix.\"\"\"\n    n = _square(a)\n    d = _det(a)\n    if abs(d) < 1e-12:\n        raise ValueError(\"a singular matrix has no inverse\")\n    adj = adjoint(a)\n    return [[adj[i][j] / d for j in range(n)] for i in range(n)]\n\n\ndef solve_matrix_method(a, b):\n    \"\"\"Solve A X = B.\"\"\"\n    n = _square(a)\n    if len(b) != n:\n        raise ValueError(\"the right-hand side must match the matrix size\")\n    inv = inverse(a)\n    return [sum(inv[i][j] * b[j] for j in range(n)) for i in range(n)]\n\n\ndef verify_inverse(a, inv):\n    \"\"\"True when A times inv is the identity, both ways round.\"\"\"\n    n = _square(a)\n    for left, right in ((a, inv), (inv, a)):\n        for i in range(n):\n            for j in range(n):\n                value = sum(left[i][k] * right[k][j] for k in range(n))\n                target = 1.0 if i == j else 0.0\n                if abs(value - target) > 1e-9:\n                    return False\n    return True\n", "tests": "def test_inverse_of_a_2x2():\n    A = [[4.0, 7.0], [2.0, 6.0]]\n    inv = inverse(A)\n    # det = 24 - 14 = 10, so the inverse is [[0.6, -0.7], [-0.2, 0.4]]\n    assert abs(inv[0][0] - 0.6) < 1e-12\n    assert abs(inv[0][1] + 0.7) < 1e-12\n    assert abs(inv[1][0] + 0.2) < 1e-12\n    assert abs(inv[1][1] - 0.4) < 1e-12\n    assert verify_inverse(A, inv) is True\n\n\ndef test_adjoint_identity_and_random_inverses():\n    import random\n    rng = random.Random(1750)\n    checked = 0\n    for _ in range(200):\n        n = rng.randint(1, 4)\n        A = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]\n        try:\n            inv = inverse(A)\n        except ValueError:\n            continue\n        assert verify_inverse(A, inv) is True\n        # A * adj(A) = det(A) * I\n        adj = adjoint(A)\n        d = _det_helper(A)\n        for i in range(n):\n            for j in range(n):\n                value = sum(A[i][k] * adj[k][j] for k in range(n))\n                target = d if i == j else 0.0\n                assert abs(value - target) < 1e-6 * max(1.0, abs(d))\n        checked += 1\n    assert checked > 100\n\n\ndef _det_helper(a):\n    n = len(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    def mn(m, i, j):\n        return [row[:j] + row[j + 1:] for k, row in enumerate(m) if k != i]\n    return sum(((-1) ** j) * a[0][j] * _det_helper(mn(a, 0, j)) for j in range(n))\n\n\ndef test_solving_systems_and_singular_matrices():\n    # x + y = 5, x - y = 1  ->  x = 3, y = 2\n    sol = solve_matrix_method([[1.0, 1.0], [1.0, -1.0]], [5.0, 1.0])\n    assert abs(sol[0] - 3.0) < 1e-9 and abs(sol[1] - 2.0) < 1e-9\n    # the solution really satisfies both equations\n    A = [[2.0, 1.0, -1.0], [-3.0, -1.0, 2.0], [-2.0, 1.0, 2.0]]\n    b = [8.0, -11.0, -3.0]\n    x = solve_matrix_method(A, b)\n    for i in range(3):\n        assert abs(sum(A[i][j] * x[j] for j in range(3)) - b[i]) < 1e-9\n    try:\n        inverse([[1.0, 2.0], [2.0, 4.0]])\n        assert False, \"a singular matrix must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef _minor(a, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef _det(a):\n    n = len(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * _det(_minor(a, 0, j)) for j in range(n))\n\n\ndef adjoint(a):\n    \"\"\"Bug: forgets to transpose the cofactor matrix.\"\"\"\n    n = _square(a)\n    if n == 1:\n        return [[1.0]]\n    return [[((-1) ** (i + j)) * _det(_minor(a, i, j)) for j in range(n)]\n            for i in range(n)]\n\n\ndef inverse(a):\n    n = _square(a)\n    d = _det(a)\n    if abs(d) < 1e-12:\n        raise ValueError(\"a singular matrix has no inverse\")\n    adj = adjoint(a)\n    return [[adj[i][j] / d for j in range(n)] for i in range(n)]\n\n\ndef solve_matrix_method(a, b):\n    n = _square(a)\n    if len(b) != n:\n        raise ValueError(\"the right-hand side must match the matrix size\")\n    inv = inverse(a)\n    return [sum(inv[i][j] * b[j] for j in range(n)) for i in range(n)]\n\n\ndef verify_inverse(a, inv):\n    n = _square(a)\n    for left, right in ((a, inv), (inv, a)):\n        for i in range(n):\n            for j in range(n):\n                value = sum(left[i][k] * right[k][j] for k in range(n))\n                target = 1.0 if i == j else 0.0\n                if abs(value - target) > 1e-9:\n                    return False\n    return True\n", "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef _minor(a, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef _det(a):\n    n = len(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * _det(_minor(a, 0, j)) for j in range(n))\n\n\ndef adjoint(a):\n    n = _square(a)\n    if n == 1:\n        return [[1.0]]\n    cof = [[((-1) ** (i + j)) * _det(_minor(a, i, j)) for j in range(n)]\n           for i in range(n)]\n    return [[cof[j][i] for j in range(n)] for i in range(n)]\n\n\ndef inverse(a):\n    \"\"\"Bug: multiplies by the determinant instead of dividing.\"\"\"\n    n = _square(a)\n    d = _det(a)\n    if abs(d) < 1e-12:\n        raise ValueError(\"a singular matrix has no inverse\")\n    adj = adjoint(a)\n    return [[adj[i][j] * d for j in range(n)] for i in range(n)]\n\n\ndef solve_matrix_method(a, b):\n    n = _square(a)\n    if len(b) != n:\n        raise ValueError(\"the right-hand side must match the matrix size\")\n    inv = inverse(a)\n    return [sum(inv[i][j] * b[j] for j in range(n)) for i in range(n)]\n\n\ndef verify_inverse(a, inv):\n    n = _square(a)\n    for left, right in ((a, inv), (inv, a)):\n        for i in range(n):\n            for j in range(n):\n                value = sum(left[i][k] * right[k][j] for k in range(n))\n                target = 1.0 if i == j else 0.0\n                if abs(value - target) > 1e-9:\n                    return False\n    return True\n"], "hints": ["The adjoint is the *transpose* of the cofactor matrix. Skipping the transpose gives the wrong inverse for every non-symmetric matrix.", "`A^-1 = adj(A) / det(A)`. Dividing is what makes `A adj(A) = det(A) I` collapse to the identity."], "level": "core", "title": "Adjoint, inverse and solving a system"}, "m26-ex5-cramer-and-elimination": {"starter": "def replace_column(a, j, b):\n    \"\"\"A with column j replaced by b.\"\"\"\n    return []\n\n\ndef cramer(a, b):\n    \"\"\"Solve A X = B by Cramer's rule.\"\"\"\n    return []\n\n\ndef row_swap(a, i, k):\n    \"\"\"Swap two rows.\"\"\"\n    return []\n\n\ndef row_scale(a, i, k):\n    \"\"\"Multiply row i by k.\"\"\"\n    return []\n\n\ndef row_add(a, i, k, factor):\n    \"\"\"Add factor times row k to row i.\"\"\"\n    return []\n\n\ndef gauss_jordan_inverse(a):\n    \"\"\"Inverse by reducing [A | I].\"\"\"\n    return []\n\n\ndef triangle_area_determinant(p, q, r):\n    \"\"\"Area of a triangle from the 3x3 determinant.\"\"\"\n    return 0.0\n", "solution": "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef _minor(a, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef _det(a):\n    n = len(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * _det(_minor(a, 0, j)) for j in range(n))\n\n\ndef replace_column(a, j, b):\n    \"\"\"A with column j replaced by b.\"\"\"\n    n = _square(a)\n    if len(b) != n:\n        raise ValueError(\"the replacement column has the wrong length\")\n    return [[b[i] if c == j else a[i][c] for c in range(n)] for i in range(n)]\n\n\ndef cramer(a, b):\n    \"\"\"Solve A X = B by Cramer's rule.\"\"\"\n    n = _square(a)\n    d = _det(a)\n    if abs(d) < 1e-12:\n        raise ValueError(\"Cramer's rule needs a non-zero determinant\")\n    return [_det(replace_column(a, j, b)) / d for j in range(n)]\n\n\ndef row_swap(a, i, k):\n    out = [row[:] for row in a]\n    out[i], out[k] = out[k], out[i]\n    return out\n\n\ndef row_scale(a, i, k):\n    if k == 0:\n        raise ValueError(\"scaling a row by zero is not reversible\")\n    out = [row[:] for row in a]\n    out[i] = [k * v for v in out[i]]\n    return out\n\n\ndef row_add(a, i, k, factor):\n    out = [row[:] for row in a]\n    out[i] = [v + factor * w for v, w in zip(out[i], out[k])]\n    return out\n\n\ndef gauss_jordan_inverse(a):\n    \"\"\"Inverse by reducing [A | I].\"\"\"\n    n = _square(a)\n    aug = [a[i][:] + [1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n    for col in range(n):\n        pivot = None\n        for r in range(col, n):\n            if abs(aug[r][col]) > 1e-12:\n                pivot = r\n                break\n        if pivot is None:\n            raise ValueError(\"a singular matrix has no inverse\")\n        aug[col], aug[pivot] = aug[pivot], aug[col]\n        p = aug[col][col]\n        aug[col] = [v / p for v in aug[col]]\n        for r in range(n):\n            if r != col and abs(aug[r][col]) > 1e-15:\n                f = aug[r][col]\n                aug[r] = [v - f * w for v, w in zip(aug[r], aug[col])]\n    return [row[n:] for row in aug]\n\n\ndef triangle_area_determinant(p, q, r):\n    \"\"\"Area of a triangle from the 3x3 determinant.\"\"\"\n    m = [[p[0], p[1], 1.0], [q[0], q[1], 1.0], [r[0], r[1], 1.0]]\n    return abs(_det(m)) / 2\n", "tests": "def test_cramer_matches_substitution():\n    # x + y = 5, x - y = 1\n    sol = cramer([[1.0, 1.0], [1.0, -1.0]], [5.0, 1.0])\n    assert abs(sol[0] - 3.0) < 1e-9 and abs(sol[1] - 2.0) < 1e-9\n    # a 3x3 system, verified by substitution\n    A = [[2.0, 1.0, -1.0], [-3.0, -1.0, 2.0], [-2.0, 1.0, 2.0]]\n    b = [8.0, -11.0, -3.0]\n    x = cramer(A, b)\n    for i in range(3):\n        assert abs(sum(A[i][j] * x[j] for j in range(3)) - b[i]) < 1e-9\n    assert replace_column([[1, 2], [3, 4]], 0, [9, 9]) == [[9, 2], [9, 4]]\n    try:\n        cramer([[1.0, 2.0], [2.0, 4.0]], [1.0, 2.0])\n        assert False, \"a singular matrix must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_row_operations_preserve_the_solution():\n    A = [[2.0, 1.0], [1.0, 3.0]]\n    b = [5.0, 10.0]\n    base = cramer(A, b)\n    # swapping two equations\n    A2, b2 = row_swap(A, 0, 1), [b[1], b[0]]\n    assert all(abs(p - q) < 1e-9 for p, q in zip(cramer(A2, b2), base))\n    # scaling an equation\n    A3 = row_scale(A, 0, 3.0)\n    b3 = [b[0] * 3.0, b[1]]\n    assert all(abs(p - q) < 1e-9 for p, q in zip(cramer(A3, b3), base))\n    # adding a multiple of one equation to another\n    A4 = row_add(A, 1, 0, -2.0)\n    b4 = [b[0], b[1] - 2.0 * b[0]]\n    assert all(abs(p - q) < 1e-9 for p, q in zip(cramer(A4, b4), base))\n    try:\n        row_scale(A, 0, 0.0)\n        assert False, \"scaling by zero must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_gauss_jordan_and_triangle_area():\n    import random\n    rng = random.Random(1812)\n    checked = 0\n    for _ in range(150):\n        n = rng.randint(1, 4)\n        A = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]\n        try:\n            inv = gauss_jordan_inverse(A)\n        except ValueError:\n            continue\n        for i in range(n):\n            for j in range(n):\n                value = sum(A[i][k] * inv[k][j] for k in range(n))\n                assert abs(value - (1.0 if i == j else 0.0)) < 1e-6\n        checked += 1\n    assert checked > 80\n    # the determinant form of a triangle's area, against the 3-4-5 triangle\n    assert abs(triangle_area_determinant((0, 0), (3, 0), (0, 4)) - 6.0) < 1e-12\n    # collinear points enclose nothing\n    assert abs(triangle_area_determinant((0, 0), (2, 2), (5, 5))) < 1e-12\n    try:\n        gauss_jordan_inverse([[1.0, 2.0], [2.0, 4.0]])\n        assert False, \"a singular matrix must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef _minor(a, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef _det(a):\n    n = len(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * _det(_minor(a, 0, j)) for j in range(n))\n\n\ndef replace_column(a, j, b):\n    \"\"\"Bug: replaces row j instead of column j.\"\"\"\n    n = _square(a)\n    if len(b) != n:\n        raise ValueError(\"the replacement column has the wrong length\")\n    return [b[:] if i == j else a[i][:] for i in range(n)]\n\n\ndef cramer(a, b):\n    n = _square(a)\n    d = _det(a)\n    if abs(d) < 1e-12:\n        raise ValueError(\"Cramer's rule needs a non-zero determinant\")\n    return [_det(replace_column(a, j, b)) / d for j in range(n)]\n\n\ndef row_swap(a, i, k):\n    out = [row[:] for row in a]\n    out[i], out[k] = out[k], out[i]\n    return out\n\n\ndef row_scale(a, i, k):\n    if k == 0:\n        raise ValueError(\"scaling a row by zero is not reversible\")\n    out = [row[:] for row in a]\n    out[i] = [k * v for v in out[i]]\n    return out\n\n\ndef row_add(a, i, k, factor):\n    out = [row[:] for row in a]\n    out[i] = [v + factor * w for v, w in zip(out[i], out[k])]\n    return out\n\n\ndef gauss_jordan_inverse(a):\n    n = _square(a)\n    aug = [a[i][:] + [1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n    for col in range(n):\n        pivot = None\n        for r in range(col, n):\n            if abs(aug[r][col]) > 1e-12:\n                pivot = r\n                break\n        if pivot is None:\n            raise ValueError(\"a singular matrix has no inverse\")\n        aug[col], aug[pivot] = aug[pivot], aug[col]\n        p = aug[col][col]\n        aug[col] = [v / p for v in aug[col]]\n        for r in range(n):\n            if r != col and abs(aug[r][col]) > 1e-15:\n                f = aug[r][col]\n                aug[r] = [v - f * w for v, w in zip(aug[r], aug[col])]\n    return [row[n:] for row in aug]\n\n\ndef triangle_area_determinant(p, q, r):\n    m = [[p[0], p[1], 1.0], [q[0], q[1], 1.0], [r[0], r[1], 1.0]]\n    return abs(_det(m)) / 2\n", "def _square(a):\n    n = len(a)\n    if n == 0 or any(len(row) != n for row in a):\n        raise ValueError(\"the matrix must be square\")\n    return n\n\n\ndef _minor(a, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(a) if k != i]\n\n\ndef _det(a):\n    n = len(a)\n    if n == 1:\n        return a[0][0]\n    if n == 2:\n        return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n    return sum(((-1) ** j) * a[0][j] * _det(_minor(a, 0, j)) for j in range(n))\n\n\ndef replace_column(a, j, b):\n    n = _square(a)\n    if len(b) != n:\n        raise ValueError(\"the replacement column has the wrong length\")\n    return [[b[i] if c == j else a[i][c] for c in range(n)] for i in range(n)]\n\n\ndef cramer(a, b):\n    \"\"\"Bug: divides by the replaced determinant instead of det(A).\"\"\"\n    n = _square(a)\n    d = _det(a)\n    if abs(d) < 1e-12:\n        raise ValueError(\"Cramer's rule needs a non-zero determinant\")\n    return [d / _det(replace_column(a, j, b)) for j in range(n)]\n\n\ndef row_swap(a, i, k):\n    out = [row[:] for row in a]\n    out[i], out[k] = out[k], out[i]\n    return out\n\n\ndef row_scale(a, i, k):\n    \"\"\"Bug: allows scaling by zero, which destroys information.\"\"\"\n    out = [row[:] for row in a]\n    out[i] = [k * v for v in out[i]]\n    return out\n\n\ndef row_add(a, i, k, factor):\n    out = [row[:] for row in a]\n    out[i] = [v + factor * w for v, w in zip(out[i], out[k])]\n    return out\n\n\ndef gauss_jordan_inverse(a):\n    n = _square(a)\n    aug = [a[i][:] + [1.0 if i == j else 0.0 for j in range(n)] for i in range(n)]\n    for col in range(n):\n        pivot = None\n        for r in range(col, n):\n            if abs(aug[r][col]) > 1e-12:\n                pivot = r\n                break\n        if pivot is None:\n            raise ValueError(\"a singular matrix has no inverse\")\n        aug[col], aug[pivot] = aug[pivot], aug[col]\n        p = aug[col][col]\n        aug[col] = [v / p for v in aug[col]]\n        for r in range(n):\n            if r != col and abs(aug[r][col]) > 1e-15:\n                f = aug[r][col]\n                aug[r] = [v - f * w for v, w in zip(aug[r], aug[col])]\n    return [row[n:] for row in aug]\n\n\ndef triangle_area_determinant(p, q, r):\n    m = [[p[0], p[1], 1.0], [q[0], q[1], 1.0], [r[0], r[1], 1.0]]\n    return abs(_det(m)) / 2\n"], "hints": ["Cramer's rule replaces the `j`-th *column* of A with the right-hand side, then divides that determinant by `det(A)`.", "Scaling a row by zero is not an elementary row operation, because it is not reversible and destroys the equation."], "level": "boss", "title": "Cramer's rule, row operations and Gauss-Jordan"}}, "demos": {"m26-determinant-two-ways": {"code": "import random\n\n\ndef minor(m, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(m) if k != i]\n\n\ndef det_cofactor(m):\n    \"\"\"Recursive expansion along the first row, with alternating signs.\"\"\"\n    n = len(m)\n    if n == 1:\n        return m[0][0]\n    if n == 2:\n        return m[0][0] * m[1][1] - m[0][1] * m[1][0]\n    total = 0.0\n    for j in range(n):\n        total += ((-1) ** j) * m[0][j] * det_cofactor(minor(m, 0, j))\n    return total\n\n\ndef det_rowreduce(m):\n    \"\"\"Gaussian elimination: multiply the pivots, counting row swaps.\"\"\"\n    a = [row[:] for row in m]\n    n = len(a)\n    sign = 1.0\n    for col in range(n):\n        pivot = None\n        for r in range(col, n):\n            if abs(a[r][col]) > 1e-12:\n                pivot = r\n                break\n        if pivot is None:\n            return 0.0\n        if pivot != col:\n            a[col], a[pivot] = a[pivot], a[col]\n            sign = -sign\n        for r in range(col + 1, n):\n            factor = a[r][col] / a[col][col]\n            for c in range(col, n):\n                a[r][c] -= factor * a[col][c]\n    result = sign\n    for i in range(n):\n        result *= a[i][i]\n    return result\n\n\nrng = random.Random(1858)\nworst = 0.0\nfor _ in range(400):\n    n = rng.randint(1, 5)\n    m = [[rng.uniform(-6, 6) for _ in range(n)] for _ in range(n)]\n    a, b = det_cofactor(m), det_rowreduce(m)\n    worst = max(worst, abs(a - b) / max(abs(a), 1.0))\n\nprint(\"random matrices checked (sizes 1 to 5):\", 400)\nprint(\"largest relative disagreement:\", f\"{worst:.3e}\")\nassert worst < 1e-9, \"both routes to the determinant must agree\"\n\n# Hand-checked values.\nprint()\nprint(\"det [[1,2],[3,4]] =\", det_cofactor([[1, 2], [3, 4]]), \"(expected -2)\")\nassert det_cofactor([[1, 2], [3, 4]]) == -2\nI3 = [[1, 0, 0], [0, 1, 0], [0, 0, 1]]\nassert det_cofactor(I3) == 1\n# a matrix with two equal rows has determinant zero\nassert abs(det_cofactor([[1, 2, 3], [1, 2, 3], [4, 5, 7]])) < 1e-12\n# a zero row too\nassert abs(det_cofactor([[1, 2, 3], [0, 0, 0], [4, 5, 7]])) < 1e-12\n\n# Properties, measured.\ndef matmul(a, b):\n    return [[sum(a[i][k] * b[k][j] for k in range(len(b)))\n             for j in range(len(b[0]))] for i in range(len(a))]\n\n\ndef transpose(a):\n    return [list(col) for col in zip(*a)]\n\n\nfor _ in range(200):\n    n = rng.randint(2, 4)\n    A = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]\n    B = [[rng.uniform(-4, 4) for _ in range(n)] for _ in range(n)]\n    # det(AB) = det(A) det(B)\n    assert abs(det_cofactor(matmul(A, B)) - det_cofactor(A) * det_cofactor(B)) < 1e-6\n    # det(A^T) = det(A)\n    assert abs(det_cofactor(transpose(A)) - det_cofactor(A)) < 1e-9\n    # scaling every row by k multiplies the determinant by k^n\n    k = 2.0\n    scaled = [[k * v for v in row] for row in A]\n    assert abs(det_cofactor(scaled) - (k ** n) * det_cofactor(A)) < 1e-6\n\nprint(\"det(AB) = det(A)det(B), det(A^T) = det(A) and det(kA) = k^n det(A) all verified\")\n\n# Expansion along ANY row gives the same answer.\nM = [[2.0, -1.0, 3.0], [0.0, 5.0, 2.0], [1.0, -1.0, 4.0]]\nbase = det_cofactor(M)\nfor i in range(3):\n    along = sum(((-1) ** (i + j)) * M[i][j] * det_cofactor(minor(M, i, j)) for j in range(3))\n    assert abs(along - base) < 1e-12, f\"row {i} expansion disagreed\"\nprint(\"expansion along every row of a 3x3 agreed:\", round(base, 9))\n", "mutants": ["import random\n\n\ndef minor(m, i, j):\n    return [row[:j] + row[j + 1:] for k, row in enumerate(m) if k != i]\n\n\ndef det_cofactor(m):\n    \"\"\"Bug: drops the alternating sign. Correct for 2x2, wrong from 3x3 up.\"\"\"\n    n = len(m)\n    if n == 1:\n        return m[0][0]\n    if n == 2:\n        return m[0][0] * m[1][1] - m[0][1] * m[1][0]\n    total = 0.0\n    for j in range(n):\n        total += m[0][j] * det_cofactor(minor(m, 0, j))\n    return total\n\n\ndef det_rowreduce(m):\n    a = [row[:] for row in m]\n    n = len(a)\n    sign = 1.0\n    for col in range(n):\n        pivot = None\n        for r in range(col, n):\n            if abs(a[r][col]) > 1e-12:\n                pivot = r\n                break\n        if pivot is None:\n            return 0.0\n        if pivot != col:\n            a[col], a[pivot] = a[pivot], a[col]\n            sign = -sign\n        for r in range(col + 1, n):\n            factor = a[r][col] / a[col][col]\n            for c in range(col, n):\n                a[r][c] -= factor * a[col][c]\n    result = sign\n    for i in range(n):\n        result *= a[i][i]\n    return result\n\n\nrng = random.Random(1858)\nworst = 0.0\nfor _ in range(400):\n    n = rng.randint(1, 5)\n    m = [[rng.uniform(-6, 6) for _ in range(n)] for _ in range(n)]\n    a, b = det_cofactor(m), det_rowreduce(m)\n    worst = max(worst, abs(a - b) / max(abs(a), 1.0))\n\nprint(\"random matrices checked (sizes 1 to 5):\", 400)\nprint(\"largest relative disagreement:\", f\"{worst:.3e}\")\nassert worst < 1e-9, \"both routes to the determinant must agree\"\n"]}, "m26-determinant-is-area": {"code": "import random\nfrom math import cos, sin, pi\n\n\ndef det2(a):\n    return a[0][0] * a[1][1] - a[0][1] * a[1][0]\n\n\ndef apply(a, p):\n    return (a[0][0] * p[0] + a[0][1] * p[1], a[1][0] * p[0] + a[1][1] * p[1])\n\n\ndef signed_area(poly):\n    \"\"\"Shoelace: positive when the vertices run anticlockwise.\"\"\"\n    total = 0.0\n    n = len(poly)\n    for i in range(n):\n        x1, y1 = poly[i]\n        x2, y2 = poly[(i + 1) % n]\n        total += x1 * y2 - x2 * y1\n    return total / 2\n\n\nUNIT_SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]\nTRIANGLE = [(0.0, 0.0), (3.0, 0.0), (0.0, 4.0)]\nPENTAGON = [(cos(2 * pi * k / 5), sin(2 * pi * k / 5)) for k in range(5)]\n\nprint(\"area of the unit square:\", signed_area(UNIT_SQUARE))\nprint(\"area of the 3-4 triangle:\", signed_area(TRIANGLE), \"(expected 6)\")\nassert abs(signed_area(UNIT_SQUARE) - 1.0) < 1e-12\nassert abs(signed_area(TRIANGLE) - 6.0) < 1e-12\n\nrng = random.Random(1750)\nworst = 0.0\nflips = 0\ntested = 0\nfor _ in range(600):\n    A = [[rng.uniform(-3, 3) for _ in range(2)] for _ in range(2)]\n    d = det2(A)\n    if abs(d) < 0.05:\n        continue\n    for poly in (UNIT_SQUARE, TRIANGLE, PENTAGON):\n        before = signed_area(poly)\n        after = signed_area([apply(A, p) for p in poly])\n        predicted = abs(d) * abs(before)\n        worst = max(worst, abs(abs(after) - predicted) / max(predicted, 1e-9))\n        # the sign of the signed area flips exactly when det < 0\n        same_orientation = (after > 0) == (before > 0)\n        assert same_orientation == (d > 0), \"orientation must follow the sign of det\"\n    if d < 0:\n        flips += 1\n    tested += 1\n\nprint()\nprint(\"matrices tested:\", tested, \" of which orientation-reversing:\", flips)\nprint(\"predicted: new area = |det A| * old area, exactly\")\nprint(\"largest relative disagreement:\", f\"{worst:.3e}\")\nassert tested > 400\nassert flips > 100, \"both orientations must be represented\"\nassert worst < 1e-9, \"the determinant must be exactly the area scale factor\"\n\n# Named transformations, hand-checked.\nprint()\nrot = [[cos(0.7), -sin(0.7)], [sin(0.7), cos(0.7)]]\nflip = [[-1.0, 0.0], [0.0, 1.0]]\nstretch = [[2.0, 0.0], [0.0, 1.0]]\nsquash = [[1.0, 2.0], [2.0, 4.0]]          # rows are proportional\nfor name, M in ((\"rotation\", rot), (\"flip\", flip), (\"stretch x2\", stretch), (\"squash\", squash)):\n    print(f\"  {name:>12}: det = {det2(M):>8.4f}\")\nassert abs(det2(rot) - 1.0) < 1e-12, \"a rotation preserves area and orientation\"\nassert abs(det2(flip) + 1.0) < 1e-12, \"a flip preserves area and reverses orientation\"\nassert abs(det2(stretch) - 2.0) < 1e-12, \"stretching doubles area\"\nassert abs(det2(squash)) < 1e-12, \"a singular matrix collapses area to zero\"\n\n# The squash really does flatten the square onto a line.\nsquashed = [apply(squash, p) for p in UNIT_SQUARE]\nprint(\"  the squashed unit square has area\", abs(signed_area(squashed)))\nassert abs(signed_area(squashed)) < 1e-12\n\n# Composition multiplies the scale factors: det(AB) = det(A) det(B).\ndef matmul2(a, b):\n    return [[sum(a[i][k] * b[k][j] for k in range(2)) for j in range(2)] for i in range(2)]\n\nprint()\nprint(\"predicted: doing a flip then a stretch scales area by |det(flip)|*|det(stretch)| = 2\")\ncombo = matmul2(stretch, flip)\nout = signed_area([apply(combo, p) for p in UNIT_SQUARE])\nprint(\"measured area of the transformed unit square:\", abs(out))\nassert abs(abs(out) - 2.0) < 1e-12\nassert abs(det2(combo) - det2(stretch) * det2(flip)) < 1e-12\n", "mutants": ["import random\nfrom math import cos, sin, pi\n\n\ndef det2(a):\n    \"\"\"Bug: adds the off-diagonal product instead of subtracting it.\"\"\"\n    return a[0][0] * a[1][1] + a[0][1] * a[1][0]\n\n\ndef apply(a, p):\n    return (a[0][0] * p[0] + a[0][1] * p[1], a[1][0] * p[0] + a[1][1] * p[1])\n\n\ndef signed_area(poly):\n    total = 0.0\n    n = len(poly)\n    for i in range(n):\n        x1, y1 = poly[i]\n        x2, y2 = poly[(i + 1) % n]\n        total += x1 * y2 - x2 * y1\n    return total / 2\n\n\nUNIT_SQUARE = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]\nrng = random.Random(1750)\nworst = 0.0\ntested = 0\nfor _ in range(600):\n    A = [[rng.uniform(-3, 3) for _ in range(2)] for _ in range(2)]\n    d = det2(A)\n    if abs(d) < 0.05:\n        continue\n    before = signed_area(UNIT_SQUARE)\n    after = signed_area([apply(A, p) for p in UNIT_SQUARE])\n    predicted = abs(d) * abs(before)\n    worst = max(worst, abs(abs(after) - predicted) / max(predicted, 1e-9))\n    tested += 1\n\nprint(\"matrices tested:\", tested)\nprint(\"largest relative disagreement:\", f\"{worst:.3e}\")\nassert tested > 400\nassert worst < 1e-9, \"the determinant must be exactly the area scale factor\"\n"]}}, "cards": [{"q": "Why is matrix multiplication defined by the row-times-column rule?", "a": "Because it is forced by requiring that the matrix product correspond to composing the two transformations."}, {"q": "Why is AB generally different from BA?", "a": "Because doing transformation B then A is generally not the same as doing A then B. Order matters for transformations."}, {"q": "What does the determinant mean geometrically?", "a": "Its magnitude is the factor by which areas or volumes are scaled, and its sign says whether orientation is preserved."}, {"q": "What does a zero determinant tell you?", "a": "The transformation collapses space into a lower dimension, so the matrix has no inverse and the linear system has no unique solution."}, {"q": "What is the relation between the adjoint and the inverse?", "a": "A times adj(A) equals det(A) times the identity, so the inverse is adj(A) divided by det(A)."}, {"q": "State Cramer's rule and its practical limitation.", "a": "x_i is det(A_i)/det(A), where A_i replaces column i with the right-hand side. It needs n+1 determinants, so it is unusable beyond tiny systems."}, {"q": "Why do elementary row operations not change the solution set?", "a": "Each one is reversible, so any solution of the new system corresponds to one of the old. That is why scaling by zero is forbidden."}, {"q": "What is (AB)^-1, and why?", "a": "B^-1 A^-1. To undo \"do B then A\" you must undo A first."}, {"q": "Is a small determinant a reliable sign that a matrix is nearly singular?", "a": "No. Scaling a matrix changes the determinant by k^n without changing how invertible it is. Use the condition number instead."}, {"q": "Why should you rarely compute an explicit matrix inverse?", "a": "Because solving the system directly by elimination is faster and more accurate than forming the inverse and multiplying."}], "title": "Matrices and determinants"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

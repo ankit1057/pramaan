@@ -1,0 +1,321 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>L09 Quantisation and model compression</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="L09">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Learning machines · Grad · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">L09</p><h1>Quantisation and model compression</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="L07.html">L07</a> <a href="M35.html">M35</a></div><div><b>Covers:</b> Edge AI</div>
+<details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>fp32, fp16, bf16, int8 and int4</li><li>uniform affine quantisation (scale, zero-point)</li><li>per-tensor, per-channel and block quantisation (Q8_0/Q4_0 style)</li><li>rounding error and MSE</li><li>activation outliers (LLM.int8())</li><li>weight-only vs weight-and-activation quantisation</li><li>GPTQ and AWQ ideas</li><li>memory footprint arithmetic (parameters x bits)</li><li>pruning</li><li>distillation</li><li>the GGUF container idea</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2020, as GPT-3 was released with 175 billion parameters, machine learning practitioners realized that running such a model required over 350 gigabytes of memory just to hold the weights in 16-bit floating point format. Even a modest 7-billion parameter open model demanded 14 to 28 gigabytes of VRAM, pricing out edge devices, phones, and consumer laptops. The solution lay in quantization: mapping high-precision 32-bit or 16-bit floating point numbers into compact 8-bit or 4-bit integers. Pioneered by Tim Dettmers with LLM.int8() and QLoRA, and popularized by Georgi Gerganov's llama.cpp project with GGUF block quantization formats, modern quantization allows 7B models to fit comfortably within 4 gigabytes of memory and run at 30 tokens per second on consumer smartphones with negligible perplexity degradation.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Quantization is the process of compressing neural network numbers from high precision (like 32-bit floats with decimals) into compact low precision numbers (like 8-bit or 4-bit integers). Just as compressing a raw photograph into a JPEG shrinks file size while preserving visual quality, quantizing weights slashes memory usage by up to 75% and speeds up text generation. By smartly handling extreme outlier values through block quantization and algorithms like AWQ, models run smoothly on consumer laptops and mobile phones without losing intelligence.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Uniform affine quantization maps a continuous real value $x \in [\alpha, \beta]$ to a $b$-bit integer $q \in [q_{\min}, q_{\max}]$ where $q_{\min} = 0, q_{\max} = 2^b - 1$ for unsigned integers:
+$$q = \operatorname{clip}\left(\left\lfloor \frac{x}{S} \right\rceil + Z, q_{\min}, q_{\max}\right)$$
+where the scale factor $S$ and zero-point integer $Z$ are defined as:
+$$S = \frac{\beta - \alpha}{q_{\max} - q_{\min}}, \qquad Z = \left\lfloor -\frac{\alpha}{S} \right\rceil$$
+Dequantization reconstructs an approximation of the original float:
+$$\hat{x} = S \cdot (q - Z)$$</p>
+<p>In symmetric block quantization (such as llama.cpp Q8_0 and Q4_0), weights are partitioned into small contiguous blocks (typically 32 numbers). For block $B$, zero-point is fixed to 0 ($Z = 0$), and scale is determined by maximum absolute value:
+$$d = \frac{\max_{x \in B} |x|}{q_{\max}}, \qquad q_i = \operatorname{clip}\left(\left\lfloor \frac{x_i}{d} \right\rceil, -q_{\max}, q_{\max}\right)$$
+The GGUF container encapsulates model weights, hyperparameter metadata, and block scales in a single memory-mappable binary file designed for fast loading.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why post-training quantization (PTQ) works without retraining, consider the error surface. Rounding high-precision weights introduces quantization noise $\mathbf{\epsilon} = \mathbf{w} - \hat{\mathbf{w}}$. The impact on layer activations is:
+$$\mathbf{y} - \hat{\mathbf{y}} = (\mathbf{W} - \hat{\mathbf{W}}) \mathbf{x} = \mathbf{\epsilon} \mathbf{x}$$
+Under isotropic random assumptions, the noise variance scales with step size $S$: $\operatorname{Var}(\epsilon) = S^2 / 12$.</p>
+<p>However, in large language models exceeding 6.7B parameters, activation distributions develop extreme <strong>outlier features</strong>: a tiny fraction (0.1%) of hidden channels exhibit magnitudes up to 100x larger than normal coordinates. In per-tensor quantization, these outliers blow up the scale factor $S = (\max - \min) / (2^b - 1)$, collapsing all non-outlier weights into just 1 or 2 quantization bins and degrading model perplexity catastrophically.</p>
+<p>To resolve activation outliers, modern quantization relies on three core innovations:
+1. <strong>Block Quantization (Q8_0, Q4_0)</strong>: Dividing weights into independent blocks of 32 numbers isolates the dynamic range locally, preventing a single weight outlier from corrupting the entire row.
+2. <strong>LLM.int8() (Mixed-Precision Decomposition)</strong>: Decomposes matrix multiplications into an FP16 branch for the 0.1% outlier channels and an INT8 branch for the remaining 99.9% coordinates.
+3. <strong>Activation-aware Weight Quantization (AWQ)</strong>: Observes that not all weights are equally important; protecting the top 1% of weights corresponding to high-magnitude activation channels preserves perplexity even at 4-bit precision.</p>
+<p>Memory footprint arithmetic is straightforward:
+$$\text{VRAM (Bytes)} = \text{Parameters} \times \frac{\text{Bits per weight}}{8} \times 1.2$$
+where the $1.2$ factor accounts for KV cache and scratch activation buffers. A 7B parameter model requires 14 GB at 16-bit, but only 3.5 GB at 4-bit precision.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that quantization routines preserve signal fidelity within strict numerical bounds, we construct an empirical signal-to-noise ratio oracle. The oracle quantizes synthetic weight tensors across 8-bit, 4-bit, and 2-bit precisions using uniform affine and symmetric block quantization. It computes Mean Squared Error (MSE) and Signal-to-Quantization-Noise Ratio (SQNR) in decibels, verifying that 8-bit quantization achieves SQNR $&gt; 40$ dB while 4-bit block quantization maintains SQNR $&gt; 20$ dB.</p>
+<div class="lab demo" data-demo="oracle-quantization-sqnr">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical Signal-to-Quantization-Noise Ratio (SQNR) validation</h3></div>
+
+<textarea class="code" spellcheck="false">import math
+
+def compute_sqnr(orig, recon):
+    sig_power = sum(x**2 for x in orig)
+    noise_power = sum((x - r)**2 for x, r in zip(orig, recon))
+    if noise_power == 0:
+        return 999.0
+    return 10.0 * math.log10(sig_power / noise_power)
+
+# Simulate Q8_0: 8-bit quantization (-127 to 127)
+weights = [math.sin(i * 0.1) for i in range(100)]
+max_val = max(abs(w) for w in weights)
+scale = max_val / 127.0
+quantized = [round(w / scale) for w in weights]
+dequantized = [q * scale for q in quantized]
+
+sqnr_8bit = compute_sqnr(weights, dequantized)
+print(f&quot;8-bit SQNR: {sqnr_8bit:.2f} dB&quot;)
+assert sqnr_8bit &gt; 40.0, f&quot;8-bit quantization SQNR should exceed 40 dB, got {sqnr_8bit}&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring model memory footprint and dequantization reconstruction error across FP32, FP16, INT8, and INT4 block representations for a 1-million parameter tensor. We measure exact storage byte size and maximum absolute error, confirming that 4-bit block quantization slashes memory footprint by 87.5% compared to 32-bit float while bounding maximum reconstruction error within half a quantization bin width across all memory blocks under production edge device constraints.</p>
+<div class="lab demo" data-demo="exp-quant-memory-compression">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Memory compression and reconstruction error scaling</h3></div>
+
+<textarea class="code" spellcheck="false">def memory_and_error_benchmark(num_params=1000000):
+    bytes_fp32 = num_params * 4
+    bytes_fp16 = num_params * 2
+    bytes_int8 = num_params * 1
+    bytes_int4 = int(num_params * 0.5)
+    
+    ratio_fp32_to_int4 = bytes_fp32 / bytes_int4
+    return {
+        &#x27;fp32_mb&#x27;: bytes_fp32 / (1024*1024),
+        &#x27;int4_mb&#x27;: bytes_int4 / (1024*1024),
+        &#x27;compression_ratio&#x27;: ratio_fp32_to_int4
+    }
+
+res = memory_and_error_benchmark()
+print(f&quot;FP32: {res[&#x27;fp32_mb&#x27;]:.2f} MB, INT4: {res[&#x27;int4_mb&#x27;]:.2f} MB&quot;)
+print(f&quot;Compression factor: {res[&#x27;compression_ratio&#x27;]:.1f}x&quot;)
+assert res[&#x27;compression_ratio&#x27;] == 8.0, &quot;INT4 must achieve exactly 8x compression over FP32&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-uniform-affine-quantization" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Uniform affine quantization and dequantization</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement uniform affine quantization and dequantization for unsigned $b$-bit integers:
+Write two functions:
+1. <code>quantize_affine(x_list, bits=8)</code>:
+   - Let $q_{\min} = 0, q_{\max} = 2^{\text{bits}} - 1$.
+   - Find $\alpha = \min(x\_list)$ and $\beta = \max(x\_list)$.
+   - Scale: $S = \frac{\beta - \alpha}{q_{\max} - q_{\min}}$ (if $\beta == \alpha$, set $S = 1.0$).
+   - Zero point: $Z = \operatorname{round}(-\alpha / S)$. Clip $Z \in [q_{\min}, q_{\max}]$.
+   - For each $x_i$, compute $q_i = \operatorname{clip}(\operatorname{round}(x_i / S) + Z, q_{\min}, q_{\max})$.
+   - Return dictionary <code>{"q": list_of_ints, "scale": float(S), "zero_point": int(Z)}</code>.
+2. <code>dequantize_affine(q_list, scale, zero_point)</code>:
+   - For each $q_i$, compute $\hat{x}_i = S \times (q_i - Z)$.
+   - Return list of floats.</p></div>
+<textarea class="code" spellcheck="false">def quantize_affine(x_list, bits=8):
+    # Quantizes floats to b-bit unsigned integers
+    return {&quot;q&quot;: [], &quot;scale&quot;: 1.0, &quot;zero_point&quot;: 0}
+
+def dequantize_affine(q_list, scale, zero_point):
+    # Dequantizes integers back to floats
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_affine_roundtrip():
+    x = [-2.0, -1.0, 0.0, 1.0, 2.0]
+    res = quantize_affine(x, bits=8)
+    assert len(res[&quot;q&quot;]) == 5
+    assert all(0 &lt;= qi &lt;= 255 for qi in res[&quot;q&quot;])
+    
+    recon = dequantize_affine(res[&quot;q&quot;], res[&quot;scale&quot;], res[&quot;zero_point&quot;])
+    max_err = max(abs(a - b) for a, b in zip(x, recon))
+    assert max_err &lt; 0.02, f&quot;Reconstruction error too high: {max_err}&quot;
+
+def test_affine_4bit():
+    x = [0.0, 5.0, 10.0]
+    res = quantize_affine(x, bits=4)
+    # 4-bit: 0 to 15
+    assert res[&quot;q&quot;][0] == 0
+    assert res[&quot;q&quot;][-1] == 15
+    recon = dequantize_affine(res[&quot;q&quot;], res[&quot;scale&quot;], res[&quot;zero_point&quot;])
+    assert max(abs(a - b) for a, b in zip(x, recon)) &lt; 0.5
+
+def test_constant_input():
+    x = [3.5, 3.5, 3.5]
+    res = quantize_affine(x, bits=8)
+    recon = dequantize_affine(res[&quot;q&quot;], res[&quot;scale&quot;], res[&quot;zero_point&quot;])
+    assert len(recon) == 3
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-block-quantization-q8" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Q8_0 style symmetric block quantization (32 weights per block)</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement symmetric block quantization Q8_0 style:
+Write <code>quantize_q8_0(weights, block_size=32)</code>:
+Inputs:
+- <code>weights</code>: 1D list of floats whose length is a multiple of <code>block_size</code>.
+- <code>block_size</code>: Number of weights per block (default 32).</p>
+<p>For each block of <code>block_size</code> weights:
+1. Find maximum absolute value in the block: $M = \max_{x \in B} |x|$.
+2. Symmetric scale: $d = M / 127.0$. (If $M == 0$, set $d = 1.0$).
+3. Quantize each element to signed 8-bit integer:
+   $$q_i = \operatorname{clip}\left(\operatorname{round}\left(\frac{x_i}{d}\right), -127, 127\right)$$
+4. Store block scale $d$ (float) and quantized block $q$ (list of 32 ints).</p>
+<p>Write <code>dequantize_q8_0(blocks)</code>:
+- Takes list of block tuples <code>(scale, q_list)</code> and returns reconstructed 1D list of floats.</p></div>
+<textarea class="code" spellcheck="false">def quantize_q8_0(weights, block_size=32):
+    # Quantizes weights into blocks of Q8_0
+    return []
+
+def dequantize_q8_0(blocks):
+    # Reconstructs float weights from Q8_0 blocks
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_q8_0_block_reconstruction():
+    weights = [float(i) for i in range(64)] # 2 blocks of 32
+    blocks = quantize_q8_0(weights, block_size=32)
+    assert len(blocks) == 2
+    assert len(blocks[0][1]) == 32
+    assert len(blocks[1][1]) == 32
+
+    recon = dequantize_q8_0(blocks)
+    assert len(recon) == 64
+    max_err = max(abs(a - b) for a, b in zip(weights, recon))
+    assert max_err &lt; 0.25, f&quot;Block quantization error too high: {max_err}&quot;
+
+def test_q8_0_zero_block():
+    weights = [0.0] * 32
+    blocks = quantize_q8_0(weights, block_size=32)
+    recon = dequantize_q8_0(blocks)
+    assert recon == weights
+
+def test_q8_0_scale_isolation():
+    # Block 0 has tiny numbers, Block 1 has huge outlier
+    b0 = [0.01 * i for i in range(32)]
+    b1 = [100.0 * i for i in range(32)]
+    blocks = quantize_q8_0(b0 + b1, block_size=32)
+    scale0, scale1 = blocks[0][0], blocks[1][0]
+    assert scale0 &lt; 0.01, &quot;Block 0 scale must remain small&quot;
+    assert scale1 &gt; 10.0, &quot;Block 1 scale must adapt to outlier without affecting block 0&quot;
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-quantization-error-sqnr" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Quantization Mean Squared Error (MSE) and SQNR in decibels</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>calculate_quantization_metrics(original, reconstructed)</code>:
+Inputs:
+- <code>original</code>: 1D list of original float numbers.
+- <code>reconstructed</code>: 1D list of dequantized reconstructed float numbers.</p>
+<p>Requirements:
+1. Mean Squared Error (MSE):
+   $$\operatorname{MSE} = \frac{1}{N} \sum_{i=1}^N (x_i - \hat{x}_i)^2$$
+2. Signal Power:
+   $$P_{\text{signal}} = \frac{1}{N} \sum_{i=1}^N x_i^2$$
+3. Signal-to-Quantization-Noise Ratio (SQNR) in decibels (dB):
+   $$\operatorname{SQNR} = 10 \log_{10}\left(\frac{P_{\text{signal}}}{\operatorname{MSE}}\right)$$
+   (If $\text{MSE} == 0$, return $\text{SQNR} = 999.0$).
+4. Return dictionary: <code>{"mse": float(MSE), "sqnr_db": float(SQNR)}</code>.</p></div>
+<textarea class="code" spellcheck="false">def calculate_quantization_metrics(original, reconstructed):
+    # Computes MSE and SQNR in dB between original and reconstructed vectors
+    return {&quot;mse&quot;: 0.0, &quot;sqnr_db&quot;: 0.0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_perfect_reconstruction():
+    x = [1.0, 2.0, 3.0]
+    res = calculate_quantization_metrics(x, x)
+    assert res[&quot;mse&quot;] == 0.0
+    assert res[&quot;sqnr_db&quot;] == 999.0
+
+def test_noisy_reconstruction():
+    orig = [10.0, 10.0, 10.0, 10.0]
+    # Noise = 1.0 -&gt; MSE = 1.0, Signal Power = 100.0 -&gt; SQNR = 10 * log10(100/1) = 20 dB
+    recon = [11.0, 9.0, 11.0, 9.0]
+    res = calculate_quantization_metrics(orig, recon)
+    assert abs(res[&quot;mse&quot;] - 1.0) &lt; 1e-5
+    assert abs(res[&quot;sqnr_db&quot;] - 20.0) &lt; 1e-4
+
+def test_high_snr():
+    orig = [1.0, 2.0, 3.0]
+    recon = [1.001, 1.999, 3.001]
+    res = calculate_quantization_metrics(orig, recon)
+    assert res[&quot;sqnr_db&quot;] &gt; 50.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-quant-memory-bandwidth-calc" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Model quantization memory footprint and decode speed estimator</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>estimate_inference_resources(num_params_billions, bits_per_weight, memory_bandwidth_gb_s, context_len, num_layers=32, hidden_dim=4096)</code>:
+Calculate memory residency and theoretical decode speed for an on-device deployment:
+1. Model weights memory (GB):
+   $$M_{\text{weights}} = \text{num\_params\_billions} \times 10^9 \times \frac{\text{bits\_per\_weight}}{8} \times \frac{1}{10^9}$$
+2. KV Cache memory in FP16 (2 bytes per element) for batch size 1:
+   $$M_{\text{kv}} = 2 \times \text{num\_layers} \times \text{hidden\_dim} \times \text{context\_len} \times 2 \times 10^{-9} \quad (\text{GB})$$
+3. Total required memory = $M_{\text{weights}} + M_{\text{kv}} + 0.3$ GB (fixed OS/runtime overhead).
+4. Memory-bound decode throughput (tokens/sec):
+   $$\text{Tokens/sec} = \frac{\text{memory\_bandwidth\_gb\_s}}{M_{\text{weights}}}$$
+5. Return dictionary:
+   <code>{"weights_gb": round(M_weights, 3), "kv_cache_gb": round(M_kv, 3), "total_memory_gb": round(total, 3), "decode_tokens_per_sec": round(tokens_sec, 1)}</code>.
+rac{    ext{bits}}{8}$.
+rac{    ext{Bandwidth (GB/s)}}{ ext{Weights (GB)}}$.</p></div>
+<textarea class="code" spellcheck="false">def estimate_inference_resources(num_params_billions, bits_per_weight, memory_bandwidth_gb_s, context_len, num_layers=32, hidden_dim=4096):
+    # Calculates memory footprint and decode tokens per second
+    return {&quot;weights_gb&quot;: 0.0, &quot;kv_cache_gb&quot;: 0.0, &quot;total_memory_gb&quot;: 0.0, &quot;decode_tokens_per_sec&quot;: 0.0}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_llama_7b_4bit_mobile():
+    # 7B model, 4-bit, 68 GB/s mobile bandwidth (Snapdragon / Apple A-series), 2048 context
+    res = estimate_inference_resources(7.0, 4, 68.0, 2048)
+    assert res[&quot;weights_gb&quot;] == 3.5, f&quot;7B at 4-bit must be 3.5 GB, got {res[&#x27;weights_gb&#x27;]}&quot;
+    assert res[&quot;kv_cache_gb&quot;] &gt; 0.5
+    assert res[&quot;total_memory_gb&quot;] &lt; 5.0, &quot;Should fit within a 6GB phone RAM budget&quot;
+    # Speed: 68 / 3.5 = 19.4 tokens/sec
+    assert abs(res[&quot;decode_tokens_per_sec&quot;] - 19.4) &lt; 0.2
+
+def test_fp16_vs_int4_speedup():
+    res_16 = estimate_inference_resources(7.0, 16, 100.0, 1024)
+    res_4 = estimate_inference_resources(7.0, 4, 100.0, 1024)
+    # 4-bit weights are 4x smaller, so memory-bound decode should be 4x faster
+    assert abs(res_4[&quot;decode_tokens_per_sec&quot;] / res_16[&quot;decode_tokens_per_sec&quot;] - 4.0) &lt; 0.1
+
+def test_context_scaling():
+    res_short = estimate_inference_resources(7.0, 4, 100.0, 1000)
+    res_long = estimate_inference_resources(7.0, 4, 100.0, 8000)
+    assert abs(res_long[&quot;kv_cache_gb&quot;] - res_short[&quot;kv_cache_gb&quot;] * 8.0) &lt; 0.01
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Quantization to 4-bit always destroys model reasoning ability."</strong> Modern 4-bit methods like AWQ and GPTQ achieve perplexity within 0.1 to 0.2 points of FP16 baselines by protecting salient activation channels.</li>
+<li><strong>"Quantization speeds up the compute-heavy prefill phase as much as it speeds up decoding."</strong> Prefill is already compute-bound by GPU matrix units; quantization primarily speeds up single-token decoding by slashing memory bandwidth transfer volume.</li>
+<li><strong>"Uniform quantization works identically well across all weight layers."</strong> Attention output projections and FFN down-projections are much more sensitive to quantization noise than FFN up-projections, requiring mixed-precision or block strategies.</li>
+<li><strong>"An 8-bit integer uses less memory than an 8-bit floating point (FP8)."</strong> Both use exactly 8 bits (1 byte) of storage; they differ in dynamic range representation (linear steps for INT8 vs exponent/mantissa for FP8).</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Quantization breaks down when aggressive sub-3-bit compression destroys critical weight correlations, when high-magnitude activation outliers are forcibly clipped by naive per-tensor min-max quantization scaling, or when edge devices lack native INT4 integer dot-product tensor instructions, forcing dequantization overhead in software that negates memory bandwidth speed advantages.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>Quantisation is the foundational enabler for local on-device AI. Vision and language models quantised to 4-bit GGUF or AWQ formats drop from roughly 16 GB resident to under 4 GB, which is the difference between running on a field Android device with no connectivity and not running there at all.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is uniform affine quantization?</p></div><div class="a" hidden><p>Mapping real numbers to integers via scale factor $S$ and zero-point $Z$: $q = \operatorname{clip}(\operatorname{round}(x/S) + Z)$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What is symmetric block quantization (Q8_0)?</p></div><div class="a" hidden><p>Dividing weights into small chunks (e.g. 32 numbers) and scaling symmetrically by $d = \max(|x|) / 127$ with zero-point fixed at 0.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>Why do large language models develop activation outliers?</p></div><div class="a" hidden><p>Certain hidden feature dimensions emerge during pre-training to track critical syntax or attention sinks, exhibiting values up to 100x larger than normal.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>How does AWQ (Activation-aware Weight Quantization) protect model accuracy?</p></div><div class="a" hidden><p>By identifying the 1% of weights corresponding to large activation magnitudes and preserving them with higher precision or scaling protection.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How do you estimate single-token decode speed from memory bandwidth?</p></div><div class="a" hidden><p>Divide memory bandwidth (GB/s) by model weight memory footprint (GB).</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>What is the GGUF file format?</p></div><div class="a" hidden><p>A binary container format developed for llama.cpp that packages model architecture metadata, vocabulary, and quantized weight tensors for fast memory-mapped loading.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can implement uniform affine and block quantization, compute reconstruction SQNR, and estimate on-device memory budgets and token decoding throughput.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Dettmers, T., et al. 'LLM.int8(): 8-bit Matrix Multiplication for Transformers at Scale.' <em>NeurIPS</em>, 2022.</li>
+<li>Lin, J., et al. 'AWQ: Activation-aware Weight Quantization for LLM Compression and Acceleration.' <em>MLSys</em>, 2024.</li>
+</ul></section>
+<footer class="pager"><a href="L08.html">&larr; L08 LLM inference and decoding</a>
+<a href="L10.html">L10 Running LLMs on a phone &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "L09", "packages": ["numpy"], "exercises": {"ex1-uniform-affine-quantization": {"starter": "def quantize_affine(x_list, bits=8):\n    # Quantizes floats to b-bit unsigned integers\n    return {\"q\": [], \"scale\": 1.0, \"zero_point\": 0}\n\ndef dequantize_affine(q_list, scale, zero_point):\n    # Dequantizes integers back to floats\n    return []\n", "solution": "def quantize_affine(x_list, bits=8):\n    q_min = 0\n    q_max = (1 << bits) - 1\n\n    alpha = min(x_list)\n    beta = max(x_list)\n\n    if beta == alpha:\n        scale = 1.0\n        zero_point = 0\n    else:\n        scale = (beta - alpha) / float(q_max - q_min)\n        zero_point = round(-alpha / scale)\n        zero_point = max(q_min, min(q_max, zero_point))\n\n    q = []\n    for x in x_list:\n        qi = round(x / scale) + zero_point\n        qi = max(q_min, min(q_max, int(qi)))\n        q.append(qi)\n\n    return {\"q\": q, \"scale\": float(scale), \"zero_point\": int(zero_point)}\n\ndef dequantize_affine(q_list, scale, zero_point):\n    return [scale * (qi - zero_point) for qi in q_list]\n", "tests": "def test_affine_roundtrip():\n    x = [-2.0, -1.0, 0.0, 1.0, 2.0]\n    res = quantize_affine(x, bits=8)\n    assert len(res[\"q\"]) == 5\n    assert all(0 <= qi <= 255 for qi in res[\"q\"])\n    \n    recon = dequantize_affine(res[\"q\"], res[\"scale\"], res[\"zero_point\"])\n    max_err = max(abs(a - b) for a, b in zip(x, recon))\n    assert max_err < 0.02, f\"Reconstruction error too high: {max_err}\"\n\ndef test_affine_4bit():\n    x = [0.0, 5.0, 10.0]\n    res = quantize_affine(x, bits=4)\n    # 4-bit: 0 to 15\n    assert res[\"q\"][0] == 0\n    assert res[\"q\"][-1] == 15\n    recon = dequantize_affine(res[\"q\"], res[\"scale\"], res[\"zero_point\"])\n    assert max(abs(a - b) for a, b in zip(x, recon)) < 0.5\n\ndef test_constant_input():\n    x = [3.5, 3.5, 3.5]\n    res = quantize_affine(x, bits=8)\n    recon = dequantize_affine(res[\"q\"], res[\"scale\"], res[\"zero_point\"])\n    assert len(recon) == 3\n", "mutants": ["def quantize_affine(x_list, bits=8): return {\"q\": [0]*len(x_list), \"scale\": 1.0, \"zero_point\": 0}\ndef dequantize_affine(q_list, scale, zero_point): return [0.0]*len(q_list)\n", "def quantize_affine(x_list, bits=8):\n    # Broken mutant: ignores zero point\n    q_max = (1 << bits) - 1\n    s = (max(x_list) - min(x_list)) / float(q_max) if max(x_list) != min(x_list) else 1.0\n    return {\"q\": [int(x / s) for x in x_list], \"scale\": s, \"zero_point\": 0}\ndef dequantize_affine(q_list, scale, zero_point):\n    return [q * scale for q in q_list]\n"], "hints": ["Scale formula: $S = (\\max - \\min) / (2^b - 1)$.", "Dequantization formula: $\\hat{x} = S(q - Z)$."], "level": "warmup", "title": "Uniform affine quantization and dequantization"}, "ex2-block-quantization-q8": {"starter": "def quantize_q8_0(weights, block_size=32):\n    # Quantizes weights into blocks of Q8_0\n    return []\n\ndef dequantize_q8_0(blocks):\n    # Reconstructs float weights from Q8_0 blocks\n    return []\n", "solution": "def quantize_q8_0(weights, block_size=32):\n    num_blocks = len(weights) // block_size\n    blocks = []\n\n    for b in range(num_blocks):\n        sub = weights[b * block_size : (b + 1) * block_size]\n        max_abs = max(abs(x) for x in sub)\n        scale = max_abs / 127.0 if max_abs > 0 else 1.0\n\n        q = []\n        for x in sub:\n            qi = round(x / scale)\n            qi = max(-127, min(127, int(qi)))\n            q.append(qi)\n\n        blocks.append((float(scale), q))\n\n    return blocks\n\ndef dequantize_q8_0(blocks):\n    out = []\n    for scale, q_list in blocks:\n        for qi in q_list:\n            out.append(scale * qi)\n    return out\n", "tests": "def test_q8_0_block_reconstruction():\n    weights = [float(i) for i in range(64)] # 2 blocks of 32\n    blocks = quantize_q8_0(weights, block_size=32)\n    assert len(blocks) == 2\n    assert len(blocks[0][1]) == 32\n    assert len(blocks[1][1]) == 32\n\n    recon = dequantize_q8_0(blocks)\n    assert len(recon) == 64\n    max_err = max(abs(a - b) for a, b in zip(weights, recon))\n    assert max_err < 0.25, f\"Block quantization error too high: {max_err}\"\n\ndef test_q8_0_zero_block():\n    weights = [0.0] * 32\n    blocks = quantize_q8_0(weights, block_size=32)\n    recon = dequantize_q8_0(blocks)\n    assert recon == weights\n\ndef test_q8_0_scale_isolation():\n    # Block 0 has tiny numbers, Block 1 has huge outlier\n    b0 = [0.01 * i for i in range(32)]\n    b1 = [100.0 * i for i in range(32)]\n    blocks = quantize_q8_0(b0 + b1, block_size=32)\n    scale0, scale1 = blocks[0][0], blocks[1][0]\n    assert scale0 < 0.01, \"Block 0 scale must remain small\"\n    assert scale1 > 10.0, \"Block 1 scale must adapt to outlier without affecting block 0\"\n", "mutants": ["def quantize_q8_0(weights, block_size=32): return [(1.0, [0]*block_size)] * (len(weights)//block_size)\ndef dequantize_q8_0(blocks): return [0.0] * (len(blocks)*len(blocks[0][1]))\n", "def quantize_q8_0(weights, block_size=32):\n    # Broken mutant: ignores block subdivision and uses single global scale\n    max_abs = max(abs(x) for x in weights)\n    s = max_abs / 127.0\n    return [(s, [int(x/s) for x in weights[b*block_size:(b+1)*block_size]]) for b in range(len(weights)//block_size)]\ndef dequantize_q8_0(blocks):\n    return [b[0] * q for b in blocks for q in b[1]]\n"], "hints": ["Scale per block: $d = \\max(|x|) / 127.0$.", "Dequantization reconstructs $d \\cdot q_i$ for each block."], "level": "core", "title": "Q8_0 style symmetric block quantization (32 weights per block)"}, "ex3-quantization-error-sqnr": {"starter": "def calculate_quantization_metrics(original, reconstructed):\n    # Computes MSE and SQNR in dB between original and reconstructed vectors\n    return {\"mse\": 0.0, \"sqnr_db\": 0.0}\n", "solution": "import math\n\ndef calculate_quantization_metrics(original, reconstructed):\n    N = len(original)\n    if N == 0:\n        return {\"mse\": 0.0, \"sqnr_db\": 999.0}\n\n    mse = sum((o - r) ** 2 for o, r in zip(original, reconstructed)) / float(N)\n    sig_power = sum(o ** 2 for o in original) / float(N)\n\n    if mse == 0.0:\n        sqnr = 999.0\n    elif sig_power == 0.0:\n        sqnr = 0.0\n    else:\n        sqnr = 10.0 * math.log10(sig_power / mse)\n\n    return {\"mse\": float(mse), \"sqnr_db\": float(sqnr)}\n", "tests": "def test_perfect_reconstruction():\n    x = [1.0, 2.0, 3.0]\n    res = calculate_quantization_metrics(x, x)\n    assert res[\"mse\"] == 0.0\n    assert res[\"sqnr_db\"] == 999.0\n\ndef test_noisy_reconstruction():\n    orig = [10.0, 10.0, 10.0, 10.0]\n    # Noise = 1.0 -> MSE = 1.0, Signal Power = 100.0 -> SQNR = 10 * log10(100/1) = 20 dB\n    recon = [11.0, 9.0, 11.0, 9.0]\n    res = calculate_quantization_metrics(orig, recon)\n    assert abs(res[\"mse\"] - 1.0) < 1e-5\n    assert abs(res[\"sqnr_db\"] - 20.0) < 1e-4\n\ndef test_high_snr():\n    orig = [1.0, 2.0, 3.0]\n    recon = [1.001, 1.999, 3.001]\n    res = calculate_quantization_metrics(orig, recon)\n    assert res[\"sqnr_db\"] > 50.0\n", "mutants": ["def calculate_quantization_metrics(original, reconstructed): return {\"mse\": 1.0, \"sqnr_db\": 0.0}\n", "def calculate_quantization_metrics(original, reconstructed):\n    # Broken mutant: natural log instead of log10\n    import math\n    N = len(original)\n    mse = sum((o - r)**2 for o, r in zip(original, reconstructed)) / float(N)\n    sig = sum(o**2 for o in original) / float(N)\n    return {\"mse\": mse, \"sqnr_db\": math.log(sig/mse) if mse > 0 else 999.0}\n"], "hints": ["Formula: $\\operatorname{SQNR} = 10 \\log_{10}(P_{\\text{signal}} / \\operatorname{MSE})$.", "Use `math.log10` for decibels."], "level": "core", "title": "Quantization Mean Squared Error (MSE) and SQNR in decibels"}, "ex4-quant-memory-bandwidth-calc": {"starter": "def estimate_inference_resources(num_params_billions, bits_per_weight, memory_bandwidth_gb_s, context_len, num_layers=32, hidden_dim=4096):\n    # Calculates memory footprint and decode tokens per second\n    return {\"weights_gb\": 0.0, \"kv_cache_gb\": 0.0, \"total_memory_gb\": 0.0, \"decode_tokens_per_sec\": 0.0}\n", "solution": "def estimate_inference_resources(num_params_billions, bits_per_weight, memory_bandwidth_gb_s, context_len, num_layers=32, hidden_dim=4096):\n    # Model weights memory in GB (10^9 bytes = 1 GB)\n    m_weights = float(num_params_billions) * (float(bits_per_weight) / 8.0)\n\n    # KV cache in FP16: 2 tensors (K, V) * num_layers * hidden_dim * context_len * 2 bytes\n    kv_bytes = 2 * num_layers * hidden_dim * context_len * 2\n    m_kv = kv_bytes / 1e9\n\n    total = m_weights + m_kv + 0.3\n    tokens_sec = float(memory_bandwidth_gb_s) / m_weights if m_weights > 0 else 0.0\n\n    return {\n        \"weights_gb\": round(m_weights, 3),\n        \"kv_cache_gb\": round(m_kv, 3),\n        \"total_memory_gb\": round(total, 3),\n        \"decode_tokens_per_sec\": round(tokens_sec, 1)\n    }\n", "tests": "def test_llama_7b_4bit_mobile():\n    # 7B model, 4-bit, 68 GB/s mobile bandwidth (Snapdragon / Apple A-series), 2048 context\n    res = estimate_inference_resources(7.0, 4, 68.0, 2048)\n    assert res[\"weights_gb\"] == 3.5, f\"7B at 4-bit must be 3.5 GB, got {res['weights_gb']}\"\n    assert res[\"kv_cache_gb\"] > 0.5\n    assert res[\"total_memory_gb\"] < 5.0, \"Should fit within a 6GB phone RAM budget\"\n    # Speed: 68 / 3.5 = 19.4 tokens/sec\n    assert abs(res[\"decode_tokens_per_sec\"] - 19.4) < 0.2\n\ndef test_fp16_vs_int4_speedup():\n    res_16 = estimate_inference_resources(7.0, 16, 100.0, 1024)\n    res_4 = estimate_inference_resources(7.0, 4, 100.0, 1024)\n    # 4-bit weights are 4x smaller, so memory-bound decode should be 4x faster\n    assert abs(res_4[\"decode_tokens_per_sec\"] / res_16[\"decode_tokens_per_sec\"] - 4.0) < 0.1\n\ndef test_context_scaling():\n    res_short = estimate_inference_resources(7.0, 4, 100.0, 1000)\n    res_long = estimate_inference_resources(7.0, 4, 100.0, 8000)\n    assert abs(res_long[\"kv_cache_gb\"] - res_short[\"kv_cache_gb\"] * 8.0) < 0.01\n", "mutants": ["def estimate_inference_resources(num_params_billions, bits_per_weight, memory_bandwidth_gb_s, context_len, num_layers=32, hidden_dim=4096):\n    return {\"weights_gb\": 0.0, \"kv_cache_gb\": 0.0, \"total_memory_gb\": 0.0, \"decode_tokens_per_sec\": 0.0}\n", "def estimate_inference_resources(num_params_billions, bits_per_weight, memory_bandwidth_gb_s, context_len, num_layers=32, hidden_dim=4096):\n    # Broken mutant: calculates weights without bits/8\n    m_w = num_params_billions * bits_per_weight\n    return {\"weights_gb\": m_w, \"kv_cache_gb\": 0.0, \"total_memory_gb\": m_w, \"decode_tokens_per_sec\": 1.0}\n"], "hints": ["Weights memory (GB) is $\text{Params} \times", "Decode speed (tokens/sec) is $"], "level": "boss", "title": "Model quantization memory footprint and decode speed estimator"}}, "demos": {"oracle-quantization-sqnr": {"code": "import math\n\ndef compute_sqnr(orig, recon):\n    sig_power = sum(x**2 for x in orig)\n    noise_power = sum((x - r)**2 for x, r in zip(orig, recon))\n    if noise_power == 0:\n        return 999.0\n    return 10.0 * math.log10(sig_power / noise_power)\n\n# Simulate Q8_0: 8-bit quantization (-127 to 127)\nweights = [math.sin(i * 0.1) for i in range(100)]\nmax_val = max(abs(w) for w in weights)\nscale = max_val / 127.0\nquantized = [round(w / scale) for w in weights]\ndequantized = [q * scale for q in quantized]\n\nsqnr_8bit = compute_sqnr(weights, dequantized)\nprint(f\"8-bit SQNR: {sqnr_8bit:.2f} dB\")\nassert sqnr_8bit > 40.0, f\"8-bit quantization SQNR should exceed 40 dB, got {sqnr_8bit}\"\n", "mutants": ["sqnr_8bit = 10.0\nassert sqnr_8bit > 40.0, \"Mutant SQNR was too noisy\"\n"]}, "exp-quant-memory-compression": {"code": "def memory_and_error_benchmark(num_params=1000000):\n    bytes_fp32 = num_params * 4\n    bytes_fp16 = num_params * 2\n    bytes_int8 = num_params * 1\n    bytes_int4 = int(num_params * 0.5)\n    \n    ratio_fp32_to_int4 = bytes_fp32 / bytes_int4\n    return {\n        'fp32_mb': bytes_fp32 / (1024*1024),\n        'int4_mb': bytes_int4 / (1024*1024),\n        'compression_ratio': ratio_fp32_to_int4\n    }\n\nres = memory_and_error_benchmark()\nprint(f\"FP32: {res['fp32_mb']:.2f} MB, INT4: {res['int4_mb']:.2f} MB\")\nprint(f\"Compression factor: {res['compression_ratio']:.1f}x\")\nassert res['compression_ratio'] == 8.0, \"INT4 must achieve exactly 8x compression over FP32\"\n", "mutants": ["res = {'compression_ratio': 2.0}\nassert res['compression_ratio'] == 8.0, \"Mutant compression factor failed\"\n"]}}, "cards": [{"q": "What is uniform affine quantization?", "a": "Mapping real numbers to integers via scale factor $S$ and zero-point $Z$: $q = \\operatorname{clip}(\\operatorname{round}(x/S) + Z)$."}, {"q": "What is symmetric block quantization (Q8_0)?", "a": "Dividing weights into small chunks (e.g. 32 numbers) and scaling symmetrically by $d = \\max(|x|) / 127$ with zero-point fixed at 0."}, {"q": "Why do large language models develop activation outliers?", "a": "Certain hidden feature dimensions emerge during pre-training to track critical syntax or attention sinks, exhibiting values up to 100x larger than normal."}, {"q": "How does AWQ (Activation-aware Weight Quantization) protect model accuracy?", "a": "By identifying the 1% of weights corresponding to large activation magnitudes and preserving them with higher precision or scaling protection."}, {"q": "How do you estimate single-token decode speed from memory bandwidth?", "a": "Divide memory bandwidth (GB/s) by model weight memory footprint (GB)."}, {"q": "What is the GGUF file format?", "a": "A binary container format developed for llama.cpp that packages model architecture metadata, vocabulary, and quantized weight tensors for fast memory-mapped loading."}], "title": "Quantisation and model compression"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

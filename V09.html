@@ -1,0 +1,283 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>V09 Designing experiments</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="V09">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Verification and science · UG-3 · ~3h00</span>
+<span class="progress-chip" data-progress>0 / 4 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">V09</p><h1>Designing experiments</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="V06.html">V06</a> <a href="V08.html">V08</a></div><div><b>Covers:</b> research methods</div>
+<details><summary>Everything this module teaches (13 items)</summary><ul class="must"><li>from question to hypothesis to prediction</li><li>controls</li><li>randomisation</li><li>blocking and stratification</li><li>factorial designs</li><li>ablations</li><li>pre-registration</li><li>stopping rules and why peeking inflates false positives</li><li>threats to internal, external, construct and statistical-conclusion validity</li><li>replication</li><li>reporting every outcome</li><li>analysing designed experiments with regression: interaction terms, residual checks, mixed-effects models with random effects per subject or program</li><li>online controlled experiments at scale: guardrail metrics, novelty and primacy effects, variance reduction (CUPED)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Imagine you want to build a magical paper airplane that flies farther than any other paper airplane on the school playground. You wonder: should you fold the wings narrow or wide? Should you use thick yellow construction paper or thin white notebook paper? Should you put a shiny metal paperclip on the nose or leave it off?</p>
+<p>If you change all three things at once—folding a wide-wing plane out of heavy yellow paper with a paperclip, and comparing it to a narrow-wing plane out of thin white paper without a paperclip—and the yellow plane flies ten feet farther, which change helped? Was it the wide wings? The heavy paper? The paperclip? Or did the wind blow a lucky gust just as you threw?</p>
+<p>You cannot tell, because you changed three things together! A true scientist tests one change at a time, or uses a special grid called a factorial design where every combination is tested fairly. You throw each plane three times from the exact same spot in a gym with no wind. You make sure your arm does not get tired on the tenth throw by shuffling the order. That is how you discover the truth.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Experimental design transforms informal exploration into rigorous causal inference. Key principles include randomisation (eliminating systematic bias), local control and blocking (grouping homogeneous units to reduce residual noise), and factorial designs (efficiently evaluating multiple factors and their interactions).</p>
+<p>Pre-registration of hypotheses and stopping rules protects against p-hacking and optional stopping, where continuously monitoring data until $p &lt; 0.05$ inflates false positive rates. In large-scale online experimentation, variance reduction techniques like CUPED (Controlled-experiment Using Pre-Experiment Data) leverage pre-experiment user covariates to shrink confidence intervals and dramatically reduce sample size requirements.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let an experiment evaluate factor treatments on outcome $Y$.
+1. <strong>Factorial Model with Interactions:</strong> For two factors $A$ ($I$ levels) and $B$ ($J$ levels):
+   $$Y_{ijk} = \mu + \alpha_i + \beta_j + (\alpha\beta)_{ij} + \epsilon_{ijk}, \quad \epsilon_{ijk} \sim \mathcal{N}(0, \sigma^2)$$
+   An interaction $(\alpha\beta)_{ij}$ indicates that the effect of factor $A$ depends on the level of factor $B$.
+2. <strong>Peeking and Optional Stopping:</strong> If an experimenter continuously computes test statistic $T_n$ after each observation and stops as soon as $|T_n| \ge 1.96$:
+   $$\mathbb{P}_{H_0}(\exists n \le N: |T_n| \ge 1.96) \gg 0.05$$
+   As $N \to \infty$, the false positive rate approaches 1.0 by the law of the iterated logarithm.
+3. <strong>CUPED Variance Reduction:</strong> For metric $Y$ and pre-experiment covariate $X$:
+   $$\hat{Y}_{\text{CUPED}} = Y - \theta (X - \mathbb{E}[X]), \quad \text{where } \theta = \frac{\text{Cov}(Y, X)}{\text{Var}(X)}$$
+   The variance shrinks by factor $1 - \rho_{XY}^2$: $\text{Var}(\hat{Y}_{\text{CUPED}}) = \text{Var}(Y)(1 - \rho^2)$.
+4. <strong>Validity Taxonomy (Cook &amp; Campbell):</strong>
+   - <em>Internal:</em> Is the observed change genuinely caused by the treatment?
+   - <em>External:</em> Does the effect generalize to other populations and environments?
+   - <em>Construct:</em> Does the operational metric reflect the theoretical entity?
+   - <em>Statistical Conclusion:</em> Are statistical power and error rates correctly controlled?</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why does optional stopping (peeking at data and stopping when significant) drastically inflate the Type I error rate, and how does CUPED reduce variance?</p>
+<p><strong>Step 1 (The random walk of the test statistic):</strong> Under the null hypothesis $H_0$, let $S_n = \sum_{i=1}^n X_i$ where $X_i \sim \mathcal{N}(0, 1)$. The standardized test statistic $Z_n = S_n / \sqrt{n}$ is standard normal for any <em>fixed</em> $n$. However, viewed across continuous time $n = 1, 2, \dots, N$, $S_n$ is a discrete Wiener process (Brownian random walk).</p>
+<p><strong>Step 2 (The boundary crossing probability):</strong> By the reflection principle of Brownian motion, the maximum of a random walk over a continuous interval exceeds a fixed threshold with substantially higher probability than any point evaluation:
+$$\mathbb{P}\left(\max_{1 \le n \le N} |Z_n| \ge z_\alpha\right) \approx 2 - 2\Phi(z_\alpha) + \frac{z_\alpha \phi(z_\alpha) \ln(N)}{\pi}$$
+Even for modest $N=1000$ peeks, the Type I error rate inflates from $5\%$ to over $35\%$. Pre-registering sample size or applying alpha-spending functions is mathematically required.</p>
+<p><strong>Step 3 (The optimal CUPED derivation):</strong> To reduce variance, define adjusted estimator $Y^* = Y - \theta X$. Expanding variance:
+$$\text{Var}(Y^*) = \text{Var}(Y) - 2\theta \text{Cov}(Y, X) + \theta^2 \text{Var}(X)$$
+Differentiating with respect to $\theta$ and setting to zero:
+$$\frac{d}{d\theta} \text{Var}(Y^*) = -2\text{Cov}(Y, X) + 2\theta \text{Var}(X) = 0 \implies \theta^* = \frac{\text{Cov}(Y, X)}{\text{Var}(X)}$$
+Substituting $\theta^*$ back yields $\text{Var}(Y^*) = \text{Var}(Y) (1 - \rho_{XY}^2)$. When pre-experiment activity correlates at $\rho = 0.8$, variance drops by $64\%$, equivalent to nearly tripling sample size for free!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>We compare the CUPED formula against an ordinary least squares (OLS) regression adjustment on simulated user metric data. Method 1 computes $\theta^* = \text{Cov}(Y, X) / \text{Var}(X)$ and adjusts $Y^* = Y - \theta^*(X - \bar{X})$. Method 2 fits a linear model $Y \sim \beta_0 + \beta_1 X$ and evaluates residual variance. Both independent approaches must achieve identical variance reduction to six decimal places. The broken mutant uses unadjusted raw variance.</p>
+<div class="lab demo" data-demo="oracle-cuped-ols">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>CUPED variance reduction vs OLS covariate adjustment equivalence</h3></div>
+
+<textarea class="code" spellcheck="false">import random
+
+rng = random.Random(42)
+n = 500
+# Simulate pre-experiment metric X and post-experiment metric Y with correlation rho=0.8
+x = [rng.gauss(100.0, 15.0) for _ in range(n)]
+y = [0.8 * xi + rng.gauss(20.0, 9.0) for xi in x]
+
+# Method 1: Closed-form CUPED
+mean_x = sum(x) / n
+mean_y = sum(y) / n
+cov_xy = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y)) / (n - 1)
+var_x = sum((xi - mean_x) ** 2 for xi in x) / (n - 1)
+theta = cov_xy / var_x
+
+y_cuped = [yi - theta * (xi - mean_x) for xi, yi in zip(x, y)]
+var_raw = sum((yi - mean_y) ** 2 for yi in y) / (n - 1)
+var_cuped = sum((yi - sum(y_cuped)/n) ** 2 for yi in y_cuped) / (n - 1)
+
+# Method 2: OLS residual variance
+# beta1 = Cov(X, Y)/Var(X), beta0 = mean_y - beta1*mean_x
+resids = [yi - (mean_y + theta * (xi - mean_x)) for xi, yi in zip(x, y)]
+var_ols = sum(r ** 2 for r in resids) / (n - 1)
+
+print(f&quot;Raw Variance: {var_raw:.2f}, CUPED Variance: {var_cuped:.2f}&quot;)
+print(f&quot;Variance reduction: {(1.0 - var_cuped/var_raw)*100:.1f}%&quot;)
+assert abs(var_cuped - var_ols) &lt; 1e-6, &quot;CUPED variance diverged from OLS residual variance&quot;
+assert var_cuped &lt; var_raw * 0.50, &quot;CUPED failed to achieve expected variance reduction&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We simulate the optional stopping (peeking) inflation of Type I errors. We simulate 1000 null A/B experiments ($H_0$ is true: treatment has zero effect). In each experiment, data is collected up to $N=500$ observations. An unprincipled researcher peeks every 10 observations (at $n=10, 20, \dots, 500$) and stops immediately if $|Z_n| \ge 1.96$. Theory predicts that continuous peeking inflates the false positive rate from the nominal 5% to approximately 25-30%. We measure the empirical rejection rate across the 1000 peeking trials and print the results.</p>
+<div class="lab demo" data-demo="exp-peeking-false-positives">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Optional stopping: false positive rate under continuous peeking</h3></div>
+
+<textarea class="code" spellcheck="false">import random, math
+
+rng = random.Random(1337)
+n_experiments = 1000
+max_n = 500
+peek_interval = 10
+
+false_positives = 0
+
+for _ in range(n_experiments):
+    cum_sum = 0.0
+    rejected = False
+    for n in range(1, max_n + 1):
+        cum_sum += rng.gauss(0.0, 1.0)
+        if n % peek_interval == 0:
+            z = cum_sum / math.sqrt(n)
+            if abs(z) &gt;= 1.96:
+                rejected = True
+                break
+    if rejected:
+        false_positives += 1
+
+emp_fpr = false_positives / n_experiments
+print(f&quot;Nominal Alpha: 0.05, Experiments: {n_experiments}&quot;)
+print(f&quot;Empirical False Positive Rate under Peeking: {emp_fpr:.4f}&quot;)
+
+assert emp_fpr &gt; 0.20, &quot;Optional stopping failed to exhibit severe error inflation&quot;
+assert emp_fpr &lt; 0.40, &quot;Empirical rate fell outside expected peeking range&quot;
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="ex1-factorial-effects" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Compute main effects and interaction in 2x2 factorial design</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>factorial_2x2_effects(means)</code> where <code>means</code> is a dictionary with keys <code>'A0_B0'</code>, <code>'A1_B0'</code>, <code>'A0_B1'</code>, <code>'A1_B1'</code> representing cell means. Compute: (1) Main effect of A: $\frac{1}{2}[(A_1B_1 + A_1B_0) - (A_0B_1 + A_0B_0)]$, (2) Main effect of B: $\frac{1}{2}[(A_1B_1 + A_0B_1) - (A_1B_0 + A_0B_0)]$, and (3) Interaction $AB$: $\frac{1}{2}[(A_1B_1 - A_1B_0) - (A_0B_1 - A_0B_0)]$. Return a dictionary with keys <code>'main_a'</code>, <code>'main_b'</code>, <code>'interaction_ab'</code> rounded to 4 decimal places. Raise <code>ValueError</code> if any required key is missing.</p></div>
+<textarea class="code" spellcheck="false">def factorial_2x2_effects(means):
+    &quot;&quot;&quot;Computes main effects and interaction for a 2x2 factorial experiment.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_additive_factorial():
+    # A adds +10, B adds +5, zero interaction
+    means = {&#x27;A0_B0&#x27;: 100.0, &#x27;A1_B0&#x27;: 110.0, &#x27;A0_B1&#x27;: 105.0, &#x27;A1_B1&#x27;: 115.0}
+    res = factorial_2x2_effects(means)
+    assert res[&#x27;main_a&#x27;] == 10.0
+    assert res[&#x27;main_b&#x27;] == 5.0
+    assert res[&#x27;interaction_ab&#x27;] == 0.0
+
+def test_synergistic_interaction():
+    # Interaction: A and B together add +20 instead of +15
+    means = {&#x27;A0_B0&#x27;: 100.0, &#x27;A1_B0&#x27;: 110.0, &#x27;A0_B1&#x27;: 105.0, &#x27;A1_B1&#x27;: 120.0}
+    res = factorial_2x2_effects(means)
+    assert res[&#x27;interaction_ab&#x27;] == 2.5
+
+def test_missing_key_raises():
+    try:
+        factorial_2x2_effects({&#x27;A0_B0&#x27;: 1.0})
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex2-cuped-adjuster" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Implement CUPED variance reduction transformation</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement <code>cuped_transform(pre_metric, post_metric)</code>. Given two equal-length lists of floats representing user metric values before ($X$) and during ($Y$) an experiment, compute optimal $\theta = \text{Cov}(Y, X) / \text{Var}(X)$. Compute the adjusted values $Y^*_i = Y_i - \theta(X_i - \bar{X})$. Return <code>{'adjusted_values': list_of_floats, 'theta': round(theta, 4), 'variance_reduction_ratio': round(var_ratio, 4)}</code> where <code>variance_reduction_ratio</code> is $\text{Var}(Y^*) / \text{Var}(Y)$. If lengths differ or are less than 3, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def cuped_transform(pre_metric, post_metric):
+    &quot;&quot;&quot;Computes CUPED-adjusted metric values and variance reduction ratio.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_cuped_strong_correlation():
+    x = [10.0, 20.0, 30.0, 40.0, 50.0]
+    y = [11.0, 19.5, 30.5, 39.8, 50.2]
+    res = cuped_transform(x, y)
+    assert res[&#x27;theta&#x27;] &gt; 0.95
+    assert res[&#x27;variance_reduction_ratio&#x27;] &lt; 0.05  # Near 100% variance reduction!
+
+def test_length_mismatch():
+    try:
+        cuped_transform([1, 2], [1, 2, 3])
+        assert False
+    except ValueError:
+        pass
+
+def test_zero_correlation():
+    x = [1.0, 2.0, 3.0, 4.0]
+    y = [10.0, 10.0, 10.0, 10.0]
+    res = cuped_transform(x, y)
+    assert res[&#x27;variance_reduction_ratio&#x27;] == 1.0
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex3-stratified-block-randomizer" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Permuted block randomization with covariates</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a balanced experiment allocator: <code>permuted_block_randomizer(subjects, block_size=4, seed=42)</code>. <code>subjects</code> is a list of user IDs. <code>block_size</code> is an even integer. Divide the subjects into sequential blocks of size <code>block_size</code>. Within each block, randomly allocate exactly half to Treatment (<code>'T'</code>) and half to Control (<code>'C'</code>) using <code>random.Random(seed)</code>. If the last block has remaining subjects, allocate alternating T and C. Return a dictionary mapping <code>user_id -&gt; 'T' | 'C'</code>. If <code>block_size</code> is odd or $\le 0$, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def permuted_block_randomizer(subjects, block_size=4, seed=42):
+    &quot;&quot;&quot;Allocates subjects using permuted block randomization.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_block_balance():
+    users = [f&quot;user_{i}&quot; for i in range(20)]
+    res = permuted_block_randomizer(users, block_size=4)
+    # Total T and C must be exactly equal
+    t_count = sum(1 for v in res.values() if v == &#x27;T&#x27;)
+    c_count = sum(1 for v in res.values() if v == &#x27;C&#x27;)
+    assert t_count == 10 and c_count == 10
+
+def test_odd_block_size_raises():
+    try:
+        permuted_block_randomizer([&#x27;u1&#x27;, &#x27;u2&#x27;], block_size=3)
+        assert False
+    except ValueError:
+        pass
+
+def test_empty_subjects():
+    assert permuted_block_randomizer([]) == {}
+</pre></details>
+</div>
+<div class="lab ex" data-ex="ex4-sequential-pocock-boss" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Sequential A/B testing with Pocock alpha-spending boundary</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Implement a sequential experiment evaluator: <code>evaluate_sequential_test(stages_z_scores, alpha=0.05)</code>. To prevent optional stopping inflation across $K$ planned interim looks, Pocock boundaries allocate a constant critical value $c_K$ at each look such that overall false positive rate is $\alpha$. For $K \in \{2, 3, 4, 5\}$ at $\alpha=0.05$, the Pocock critical boundaries $c_K$ are: $K=2: 2.178$, $K=3: 2.289$, $K=4: 2.361$, $K=5: 2.413$. Given <code>stages_z_scores</code> (a list of $Z$-statistics observed at planned interim looks), determine if the experiment stops early for efficacy. Return <code>{'stopped_early': bool, 'stopped_stage': int_or_None, 'pocock_boundary': float}</code>. If stages length is not between 1 and 5, raise <code>ValueError</code>.</p></div>
+<textarea class="code" spellcheck="false">def evaluate_sequential_test(stages_z_scores, alpha=0.05):
+    &quot;&quot;&quot;Evaluates sequential testing interim looks using Pocock boundaries.&quot;&quot;&quot;
+    return {}
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_stops_early_stage2():
+    # 4 planned stages, boundary 2.361. Stage 2 exceeds boundary!
+    z_scores = [1.2, 2.5, 1.8, 1.9]
+    res = evaluate_sequential_test(z_scores)
+    assert res[&#x27;stopped_early&#x27;] is True
+    assert res[&#x27;stopped_stage&#x27;] == 2
+    assert res[&#x27;pocock_boundary&#x27;] == 2.361
+
+def test_does_not_stop():
+    z_scores = [1.5, 1.8, 2.1]
+    res = evaluate_sequential_test(z_scores)
+    assert res[&#x27;stopped_early&#x27;] is False
+    assert res[&#x27;stopped_stage&#x27;] is None
+
+def test_invalid_stages_length():
+    try:
+        evaluate_sequential_test([1.0] * 6)
+        assert False
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Looking at an A/B test dashboard every morning is harmless as long as we only stop when $p &lt; 0.05$."</strong> Continuous monitoring without sequential alpha correction inflates false positive rates from 5% to over 30% through optional stopping.</li>
+<li><strong>"Changing multiple factors simultaneously is always bad science."</strong> Factorial designs test multiple factors simultaneously with complete statistical validity, and are the <em>only</em> way to detect synergistic interactions between factors.</li>
+<li><strong>"Pre-registration is only needed in academic medicine."</strong> Pre-registration in software prevents teams from secretly shifting target metrics after seeing which telemetry numbers improved.</li>
+<li><strong>"CUPED changes the metric being measured."</strong> CUPED removes pre-existing variance without altering the expectation of the treatment effect, producing an unbiased estimator with smaller error bars.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>CUPED variance reduction breaks down when pre-experiment user history is missing (e.g. newly acquired users, cold-start devices), or when pre-experiment and post-experiment metrics have low correlation ($
+ho &lt; 0.2$), yielding negligible benefit. Factorial designs break down when higher-order interactions ($A   imes B  imes C$) cannot be reliably estimated without massive sample sizes.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>In feature flags and A/B testing, engineering teams frequently suffer from peeking bias: checking dashboard metrics daily and pulling the launch lever on day 4 when $p = 0.04$. Sequential Pocock boundaries or pre-experiment CUPED covariates enable faster, statistically sound decisions without inflating the false discovery rate.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>What is the primary danger of optional stopping (peeking) in A/B testing?</p></div><div class="a" hidden><p>Continuous data monitoring inflates Type I error because random walk noise eventually crosses the nominal critical boundary even under a true null.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>What does CUPED stand for and what does it achieve?</p></div><div class="a" hidden><p>Controlled-experiment Using Pre-Experiment Data; it uses pre-experiment covariates to reduce metric variance by factor $1 - \rho^2$, shrinking required sample size.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>What is an interaction effect in a factorial design?</p></div><div class="a" hidden><p>When the effect of one independent variable on the outcome depends upon the specific level of another independent variable.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is the difference between internal validity and external validity?</p></div><div class="a" hidden><p>Internal validity asks whether the experimental treatment genuinely caused the outcome within the study; external validity asks whether the conclusion holds in other populations and environments.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>Why is permuted block randomisation preferred over pure coin-flip assignment?</p></div><div class="a" hidden><p>It ensures exact balance in sample sizes between treatment arms across time and within prognostic strata, preventing temporal confounding.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>How does a Pocock boundary control the error rate across multiple interim looks?</p></div><div class="a" hidden><p>It raises the critical significance threshold (e.g. from 1.96 to 2.36) so that the cumulative probability of a false rejection across all planned looks remains exactly $\alpha$.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain why dashboard peeking inflates false positive rates to an executive, implement CUPED variance reduction on user logs, and calculate interaction terms in a factorial design.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Deng, A., Xu, Y., Kohavi, R., and Walker, T. 'Improving the Sensitivity of Online Controlled Experiments by Utilizing Pre-Experiment Data.' <em>WSDM</em>, 2013.</li>
+<li>Pocock, Stuart J. 'Group Sequential Methods in the Design and Analysis of Clinical Trials.' <em>Biometrika</em>, 64(2), 1977.</li>
+</ul></section>
+<footer class="pager"><a href="V13.html">&larr; V13 Property-based testing and fuzzing</a>
+<a href="V10.html">V10 Benchmarking and performance measurement &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "V09", "packages": ["numpy"], "exercises": {"ex1-factorial-effects": {"starter": "def factorial_2x2_effects(means):\n    \"\"\"Computes main effects and interaction for a 2x2 factorial experiment.\"\"\"\n    return {}\n", "solution": "def factorial_2x2_effects(means):\n    \"\"\"Computes main effects and interaction for a 2x2 factorial experiment.\"\"\"\n    req = {'A0_B0', 'A1_B0', 'A0_B1', 'A1_B1'}\n    if not req.issubset(means.keys()):\n        raise ValueError(\"Missing factorial cell keys\")\n    y00 = means['A0_B0']\n    y10 = means['A1_B0']\n    y01 = means['A0_B1']\n    y11 = means['A1_B1']\n    \n    main_a = 0.5 * ((y11 + y10) - (y01 + y00))\n    main_b = 0.5 * ((y11 + y01) - (y10 + y00))\n    inter = 0.5 * ((y11 - y10) - (y01 - y00))\n    \n    return {\n        'main_a': round(main_a, 4),\n        'main_b': round(main_b, 4),\n        'interaction_ab': round(inter, 4)\n    }\n", "tests": "def test_additive_factorial():\n    # A adds +10, B adds +5, zero interaction\n    means = {'A0_B0': 100.0, 'A1_B0': 110.0, 'A0_B1': 105.0, 'A1_B1': 115.0}\n    res = factorial_2x2_effects(means)\n    assert res['main_a'] == 10.0\n    assert res['main_b'] == 5.0\n    assert res['interaction_ab'] == 0.0\n\ndef test_synergistic_interaction():\n    # Interaction: A and B together add +20 instead of +15\n    means = {'A0_B0': 100.0, 'A1_B0': 110.0, 'A0_B1': 105.0, 'A1_B1': 120.0}\n    res = factorial_2x2_effects(means)\n    assert res['interaction_ab'] == 2.5\n\ndef test_missing_key_raises():\n    try:\n        factorial_2x2_effects({'A0_B0': 1.0})\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def factorial_2x2_effects(means):\n    # Ignores interaction\n    if len(means) < 4: raise ValueError(\"bad\")\n    return {'main_a': 10.0, 'main_b': 5.0, 'interaction_ab': 0.0}\n", "def factorial_2x2_effects(means):\n    # Does not validate missing keys\n    return {}\n"], "hints": ["Main effect of A averages across B levels.", "Interaction measures whether effect of A changes across B."], "level": "warmup", "title": "Compute main effects and interaction in 2x2 factorial design"}, "ex2-cuped-adjuster": {"starter": "def cuped_transform(pre_metric, post_metric):\n    \"\"\"Computes CUPED-adjusted metric values and variance reduction ratio.\"\"\"\n    return {}\n", "solution": "def cuped_transform(pre_metric, post_metric):\n    \"\"\"Computes CUPED-adjusted metric values and variance reduction ratio.\"\"\"\n    n = len(pre_metric)\n    if n != len(post_metric) or n < 3:\n        raise ValueError(\"Must have equal lengths with at least 3 elements\")\n        \n    mean_x = sum(pre_metric) / n\n    mean_y = sum(post_metric) / n\n    \n    cov_xy = sum((x - mean_x) * (y - mean_y) for x, y in zip(pre_metric, post_metric)) / (n - 1)\n    var_x = sum((x - mean_x) ** 2 for x in pre_metric) / (n - 1)\n    var_y = sum((y - mean_y) ** 2 for y in post_metric) / (n - 1)\n    \n    if var_x == 0 or var_y == 0:\n        return {'adjusted_values': list(post_metric), 'theta': 0.0, 'variance_reduction_ratio': 1.0}\n        \n    theta = cov_xy / var_x\n    adj = [round(y - theta * (x - mean_x), 4) for x, y in zip(pre_metric, post_metric)]\n    \n    mean_adj = sum(adj) / n\n    var_adj = sum((a - mean_adj) ** 2 for a in adj) / (n - 1)\n    \n    return {\n        'adjusted_values': adj,\n        'theta': round(theta, 4),\n        'variance_reduction_ratio': round(var_adj / var_y, 4)\n    }\n", "tests": "def test_cuped_strong_correlation():\n    x = [10.0, 20.0, 30.0, 40.0, 50.0]\n    y = [11.0, 19.5, 30.5, 39.8, 50.2]\n    res = cuped_transform(x, y)\n    assert res['theta'] > 0.95\n    assert res['variance_reduction_ratio'] < 0.05  # Near 100% variance reduction!\n\ndef test_length_mismatch():\n    try:\n        cuped_transform([1, 2], [1, 2, 3])\n        assert False\n    except ValueError:\n        pass\n\ndef test_zero_correlation():\n    x = [1.0, 2.0, 3.0, 4.0]\n    y = [10.0, 10.0, 10.0, 10.0]\n    res = cuped_transform(x, y)\n    assert res['variance_reduction_ratio'] == 1.0\n", "mutants": ["def cuped_transform(pre_metric, post_metric):\n    # Sets theta to 0 always\n    if len(pre_metric) != len(post_metric) or len(pre_metric) < 3: raise ValueError(\"bad\")\n    return {'adjusted_values': list(post_metric), 'theta': 0.0, 'variance_reduction_ratio': 1.0}\n", "def cuped_transform(pre_metric, post_metric):\n    # Does not validate length\n    return {}\n"], "hints": ["$\\theta = \\text{Cov}(Y, X) / \\text{Var}(X)$.", "Adjusted value is $y - \\theta (x - \\bar{x})$."], "level": "core", "title": "Implement CUPED variance reduction transformation"}, "ex3-stratified-block-randomizer": {"starter": "def permuted_block_randomizer(subjects, block_size=4, seed=42):\n    \"\"\"Allocates subjects using permuted block randomization.\"\"\"\n    return {}\n", "solution": "import random\n\ndef permuted_block_randomizer(subjects, block_size=4, seed=42):\n    \"\"\"Allocates subjects using permuted block randomization.\"\"\"\n    if block_size <= 0 or block_size % 2 != 0:\n        raise ValueError(\"block_size must be a positive even integer\")\n    if not subjects:\n        return {}\n        \n    rng = random.Random(seed)\n    allocations = {}\n    n = len(subjects)\n    \n    for i in range(0, n, block_size):\n        chunk = subjects[i : i + block_size]\n        k = len(chunk)\n        if k == block_size:\n            pattern = ['T'] * (block_size // 2) + ['C'] * (block_size // 2)\n            rng.shuffle(pattern)\n        else:\n            pattern = ['T', 'C'] * (k // 2 + 1)\n            pattern = pattern[:k]\n            rng.shuffle(pattern)\n        for uid, arm in zip(chunk, pattern):\n            allocations[uid] = arm\n            \n    return allocations\n", "tests": "def test_block_balance():\n    users = [f\"user_{i}\" for i in range(20)]\n    res = permuted_block_randomizer(users, block_size=4)\n    # Total T and C must be exactly equal\n    t_count = sum(1 for v in res.values() if v == 'T')\n    c_count = sum(1 for v in res.values() if v == 'C')\n    assert t_count == 10 and c_count == 10\n\ndef test_odd_block_size_raises():\n    try:\n        permuted_block_randomizer(['u1', 'u2'], block_size=3)\n        assert False\n    except ValueError:\n        pass\n\ndef test_empty_subjects():\n    assert permuted_block_randomizer([]) == {}\n", "mutants": ["def permuted_block_randomizer(subjects, block_size=4, seed=42):\n    # Pure unblocked coin flips that may create imbalance\n    if block_size <= 0 or block_size % 2 != 0: raise ValueError(\"bad\")\n    return {u: 'T' for u in subjects}\n", "def permuted_block_randomizer(subjects, block_size=4, seed=42):\n    # Does not raise on odd block size\n    return {}\n"], "hints": ["Block size must be an even integer.", "Shuffle equal counts of T and C inside each block."], "level": "core", "title": "Permuted block randomization with covariates"}, "ex4-sequential-pocock-boss": {"starter": "def evaluate_sequential_test(stages_z_scores, alpha=0.05):\n    \"\"\"Evaluates sequential testing interim looks using Pocock boundaries.\"\"\"\n    return {}\n", "solution": "def evaluate_sequential_test(stages_z_scores, alpha=0.05):\n    \"\"\"Evaluates sequential testing interim looks using Pocock boundaries.\"\"\"\n    k = len(stages_z_scores)\n    if k < 1 or k > 5:\n        raise ValueError(\"Stages count must be between 1 and 5\")\n    pocock_bounds = {1: 1.960, 2: 2.178, 3: 2.289, 4: 2.361, 5: 2.413}\n    bound = pocock_bounds[k]\n    \n    for stage_idx, z in enumerate(stages_z_scores):\n        if abs(z) >= bound:\n            return {\n                'stopped_early': True,\n                'stopped_stage': stage_idx + 1,\n                'pocock_boundary': bound\n            }\n            \n    return {\n        'stopped_early': False,\n        'stopped_stage': None,\n        'pocock_boundary': bound\n    }\n", "tests": "def test_stops_early_stage2():\n    # 4 planned stages, boundary 2.361. Stage 2 exceeds boundary!\n    z_scores = [1.2, 2.5, 1.8, 1.9]\n    res = evaluate_sequential_test(z_scores)\n    assert res['stopped_early'] is True\n    assert res['stopped_stage'] == 2\n    assert res['pocock_boundary'] == 2.361\n\ndef test_does_not_stop():\n    z_scores = [1.5, 1.8, 2.1]\n    res = evaluate_sequential_test(z_scores)\n    assert res['stopped_early'] is False\n    assert res['stopped_stage'] is None\n\ndef test_invalid_stages_length():\n    try:\n        evaluate_sequential_test([1.0] * 6)\n        assert False\n    except ValueError:\n        pass\n", "mutants": ["def evaluate_sequential_test(stages_z_scores, alpha=0.05):\n    # Uses unadjusted 1.96 boundary at all stages (fails to adjust for peeking)\n    if len(stages_z_scores) < 1 or len(stages_z_scores) > 5: raise ValueError(\"bad\")\n    for i, z in enumerate(stages_z_scores):\n        if abs(z) >= 1.96: return {'stopped_early': True, 'stopped_stage': i+1, 'pocock_boundary': 1.96}\n    return {'stopped_early': False, 'stopped_stage': None, 'pocock_boundary': 1.96}\n", "def evaluate_sequential_test(stages_z_scores, alpha=0.05):\n    # Does not raise on > 5 stages\n    return {'stopped_early': False, 'stopped_stage': None, 'pocock_boundary': 2.0}\n"], "hints": ["Use lookup table for Pocock critical boundaries.", "Return 1-indexed stage where boundary was breached."], "level": "boss", "title": "Sequential A/B testing with Pocock alpha-spending boundary"}}, "demos": {"oracle-cuped-ols": {"code": "import random\n\nrng = random.Random(42)\nn = 500\n# Simulate pre-experiment metric X and post-experiment metric Y with correlation rho=0.8\nx = [rng.gauss(100.0, 15.0) for _ in range(n)]\ny = [0.8 * xi + rng.gauss(20.0, 9.0) for xi in x]\n\n# Method 1: Closed-form CUPED\nmean_x = sum(x) / n\nmean_y = sum(y) / n\ncov_xy = sum((xi - mean_x) * (yi - mean_y) for xi, yi in zip(x, y)) / (n - 1)\nvar_x = sum((xi - mean_x) ** 2 for xi in x) / (n - 1)\ntheta = cov_xy / var_x\n\ny_cuped = [yi - theta * (xi - mean_x) for xi, yi in zip(x, y)]\nvar_raw = sum((yi - mean_y) ** 2 for yi in y) / (n - 1)\nvar_cuped = sum((yi - sum(y_cuped)/n) ** 2 for yi in y_cuped) / (n - 1)\n\n# Method 2: OLS residual variance\n# beta1 = Cov(X, Y)/Var(X), beta0 = mean_y - beta1*mean_x\nresids = [yi - (mean_y + theta * (xi - mean_x)) for xi, yi in zip(x, y)]\nvar_ols = sum(r ** 2 for r in resids) / (n - 1)\n\nprint(f\"Raw Variance: {var_raw:.2f}, CUPED Variance: {var_cuped:.2f}\")\nprint(f\"Variance reduction: {(1.0 - var_cuped/var_raw)*100:.1f}%\")\nassert abs(var_cuped - var_ols) < 1e-6, \"CUPED variance diverged from OLS residual variance\"\nassert var_cuped < var_raw * 0.50, \"CUPED failed to achieve expected variance reduction\"\n", "mutants": ["var_raw = 100.0\nvar_cuped = 100.0  # Mutant fails to reduce variance\nassert var_cuped < var_raw * 0.50, \"CUPED correctly caught\"\n"]}, "exp-peeking-false-positives": {"code": "import random, math\n\nrng = random.Random(1337)\nn_experiments = 1000\nmax_n = 500\npeek_interval = 10\n\nfalse_positives = 0\n\nfor _ in range(n_experiments):\n    cum_sum = 0.0\n    rejected = False\n    for n in range(1, max_n + 1):\n        cum_sum += rng.gauss(0.0, 1.0)\n        if n % peek_interval == 0:\n            z = cum_sum / math.sqrt(n)\n            if abs(z) >= 1.96:\n                rejected = True\n                break\n    if rejected:\n        false_positives += 1\n\nemp_fpr = false_positives / n_experiments\nprint(f\"Nominal Alpha: 0.05, Experiments: {n_experiments}\")\nprint(f\"Empirical False Positive Rate under Peeking: {emp_fpr:.4f}\")\n\nassert emp_fpr > 0.20, \"Optional stopping failed to exhibit severe error inflation\"\nassert emp_fpr < 0.40, \"Empirical rate fell outside expected peeking range\"\n", "mutants": ["# Flawed assumption: peeking does not alter the nominal 5% error rate\nemp_fpr = 0.05\nassert emp_fpr > 0.20, \"Peeking correctly caught\"\n"]}}, "cards": [{"q": "What is the primary danger of optional stopping (peeking) in A/B testing?", "a": "Continuous data monitoring inflates Type I error because random walk noise eventually crosses the nominal critical boundary even under a true null."}, {"q": "What does CUPED stand for and what does it achieve?", "a": "Controlled-experiment Using Pre-Experiment Data; it uses pre-experiment covariates to reduce metric variance by factor $1 - \\rho^2$, shrinking required sample size."}, {"q": "What is an interaction effect in a factorial design?", "a": "When the effect of one independent variable on the outcome depends upon the specific level of another independent variable."}, {"q": "What is the difference between internal validity and external validity?", "a": "Internal validity asks whether the experimental treatment genuinely caused the outcome within the study; external validity asks whether the conclusion holds in other populations and environments."}, {"q": "Why is permuted block randomisation preferred over pure coin-flip assignment?", "a": "It ensures exact balance in sample sizes between treatment arms across time and within prognostic strata, preventing temporal confounding."}, {"q": "How does a Pocock boundary control the error rate across multiple interim looks?", "a": "It raises the critical significance threshold (e.g. from 1.96 to 2.36) so that the cumulative probability of a false rejection across all planned looks remains exactly $\\alpha$."}], "title": "Designing experiments"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>

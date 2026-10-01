@@ -1,0 +1,853 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>M29 Number theory for computing</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.css">
+<link rel="stylesheet" href="assets/academy.css">
+
+</head><body data-page="module" data-module="M29">
+<header class="top"><a class="home" href="index.html">&larr; Academy</a>
+<span class="crumb">Mathematics · UG-1 · ~4h30</span>
+<span class="progress-chip" data-progress>0 / 5 exercises</span></header>
+<div class="layout"><nav class="toc"><a href="#s-story">The story</a><a href="#s-simply">Say it simply</a><a href="#s-precisely">Say it precisely</a><a href="#s-why-it-s-true">Why it&#x27;s true</a><a href="#s-oracle">Oracle lab</a><a href="#s-experiment">Experiment lab</a><a href="#s-exercises">Exercises</a><a href="#s-misconceptions">Misconceptions</a><a href="#s-where-it-breaks">Where it breaks</a><a href="#s-real-work">In your real work</a><a href="#s-cards">Flash cards</a><a href="#s-stop-when">Stop when</a><a href="#s-sources">Sources</a></nav><main>
+
+<p class="mid">M29</p><h1>Number theory for computing</h1>
+<div class="meta"><div><b>Needs first:</b> <a href="M02.html">M02</a> <a href="M17.html">M17</a></div><div><b>Covers:</b> CS2023 MSF, CS2023 SEC</div>
+<details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>modular arithmetic and congruences</li><li>extended Euclid and Bezout&#x27;s identity</li><li>modular inverses</li><li>Fermat&#x27;s little theorem</li><li>Euler&#x27;s theorem and the totient function</li><li>the Chinese Remainder Theorem</li><li>fast modular exponentiation</li><li>primality testing: trial division, Fermat test, Carmichael numbers, Miller-Rabin</li><li>hashing modulo primes</li><li>check digits (Luhn, Verhoeff)</li></ul></details>
+<div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
+If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
+<section id="s-story" class="story"><h2>The story</h2><p>Nikhil's grandmother has a wall clock with twelve hours and no minute hand, and she uses it to teach him a game.</p>
+<p>"It is three o'clock. What is it in twenty-five hours?"</p>
+<p>He counts round on his fingers and lands on four. Then he notices he did not need to count: twenty-five is twice round the clock plus one, and the two whole loops do not matter. Only the leftover matters. He has invented remainder arithmetic on his own.</p>
+<p>Then she asks the question that stops him. "Start at twelve. Which number can I multiply by five to land exactly on one?"</p>
+<p>He tries. Five fives is twenty-five, which is one. It works.</p>
+<p>"Now try with six instead of five."</p>
+<p>Six, twelve, eighteen, twenty-four, thirty — on the clock those are six, twelve, six, twelve, six. Six and twelve, forever. He can never reach one. He tries every multiplier and none of them work.</p>
+<p>"Why does five have a partner and six does not?"</p>
+<p>Nikhil stares at the clock and eventually sees it. Six shares a factor with twelve — they are both even, and both divide by six. Five shares nothing with twelve. The numbers that have partners are exactly the ones with no common factor with twelve.</p>
+<p>Here is the surprise: on a clock, division sometimes works and sometimes does not, and whether it works is decided entirely by a <em>greatest common divisor</em>. That single observation — which numbers are invertible modulo $n$ — is the foundation of RSA, of hash tables, of error-detecting codes on your bank card, and of most of modern cryptography.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p><strong>Modular arithmetic</strong> is arithmetic on a clock: you work with remainders after dividing by a fixed modulus $n$, and multiples of $n$ vanish.</p>
+<p>Addition, subtraction and multiplication all behave normally. <strong>Division</strong> is the interesting one. Dividing by $a$ means multiplying by its <strong>inverse</strong> — a number $b$ with $ab\equiv1$ — and such a $b$ exists exactly when $\gcd(a,n)=1$. That is Nikhil's discovery, and the <strong>extended Euclidean algorithm</strong> finds the inverse when it exists.</p>
+<p>Then come the two theorems that make cryptography possible. <strong>Fermat's little theorem</strong> says $a^{p-1}\equiv1$ for a prime $p$; <strong>Euler's theorem</strong> generalises it using the totient function. Combined with <strong>fast modular exponentiation</strong> — which computes $a^k \bmod n$ in about $\log k$ multiplications instead of $k$ — they let you raise enormous numbers to enormous powers cheaply, which is exactly what RSA does.</p>
+<p>Finally, <strong>primality testing</strong>: how to tell whether a 2048-bit number is prime without factoring it, and why the obvious test can be fooled.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>Congruences</h2>
+<p>$a\equiv b\pmod n$ means $n$ divides $a-b$. Congruence respects arithmetic:</p>
+<p>$$a\equiv b,\ c\equiv d \implies a+c\equiv b+d,\quad a-c\equiv b-d,\quad ac\equiv bd \pmod n$$</p>
+<p><strong>Cancellation fails in general</strong>: $2\cdot3\equiv2\cdot 9\pmod{12}$ but $3\not\equiv9$. You may cancel $a$ only when $\gcd(a,n)=1$.</p>
+<h2>GCD, Bezout and inverses</h2>
+<p>The <strong>Euclidean algorithm</strong> uses $\gcd(a,b)=\gcd(b,a\bmod b)$ with $\gcd(a,0)=a$.</p>
+<p><strong>Bezout's identity:</strong> for any integers $a,b$ there exist $x,y$ with</p>
+<p>$$ax+by=\gcd(a,b)$$</p>
+<p>The <strong>extended Euclidean algorithm</strong> produces $x$ and $y$ alongside the gcd.</p>
+<p><strong>Modular inverse.</strong> $a$ has an inverse modulo $n$ iff $\gcd(a,n)=1$. Then Bezout gives $ax+ny=1$, so $ax\equiv1\pmod n$ and $x\bmod n$ is the inverse. Nikhil's clock: $\gcd(5,12)=1$ so 5 is invertible ($5\cdot5=25\equiv1$), while $\gcd(6,12)=6$ so 6 is not.</p>
+<p>The invertible residues modulo $n$ form a group under multiplication, of size $\varphi(n)$.</p>
+<h2>Euler's totient, Fermat and Euler</h2>
+<p>$\varphi(n)$ counts the integers in $1..n$ coprime to $n$. It is <strong>multiplicative</strong> for coprime arguments, and</p>
+<p>$$\varphi(p)=p-1,\qquad \varphi(p^k)=p^k-p^{k-1},\qquad \varphi(n)=n\prod_{p\mid n}\left(1-\frac1p\right)$$</p>
+<p><strong>Fermat's little theorem.</strong> For prime $p$ and $p\nmid a$:</p>
+<p>$$a^{p-1}\equiv1\pmod p$$</p>
+<p><strong>Euler's theorem.</strong> For $\gcd(a,n)=1$:</p>
+<p>$$a^{\varphi(n)}\equiv1\pmod n$$</p>
+<p>Fermat is the special case $n=p$. These are what let RSA decrypt: exponents can be reduced modulo $\varphi(n)$.</p>
+<h2>Fast modular exponentiation</h2>
+<p>Square-and-multiply computes $a^k\bmod n$ using the binary expansion of $k$:</p>
+<p>$$a^k = \prod_{\text{bits } b_i=1} a^{2^i}$$</p>
+<p>requiring $O(\log k)$ multiplications, each on numbers below $n^2$. Computing $a^k$ first and then reducing is catastrophic — $2^{1000}$ has over three hundred digits — so the reduction must happen at every step.</p>
+<h2>The Chinese Remainder Theorem</h2>
+<p>If $n_1,\dots,n_k$ are pairwise coprime with product $N$, the system</p>
+<p>$$x\equiv a_i \pmod{n_i}$$</p>
+<p>has a unique solution modulo $N$. Constructively, with $N_i = N/n_i$ and $M_i$ the inverse of $N_i$ modulo $n_i$:</p>
+<p>$$x \equiv \sum_i a_iN_iM_i \pmod N$$</p>
+<h2>Primality testing</h2>
+<p><strong>Trial division</strong> tests divisors up to $\sqrt n$: correct, and hopeless beyond about 20 digits.</p>
+<p><strong>Fermat test.</strong> Pick a base $a$; if $a^{n-1}\not\equiv1\pmod n$ then $n$ is definitely composite. If it <em>is</em> $1$, $n$ is "probably prime" — but there are composites that pass for <strong>every</strong> base coprime to them. These are the <strong>Carmichael numbers</strong>; the smallest is $561 = 3\times11\times17$. Fermat's test cannot be fixed by trying more bases.</p>
+<p><strong>Miller-Rabin</strong> repairs it. Write $n-1 = 2^s d$ with $d$ odd. $n$ is a <em>strong probable prime</em> to base $a$ if $a^d\equiv1$ or $a^{2^rd}\equiv-1$ for some $0\le r&lt;s$. At most $\frac14$ of bases can fool a composite, so $k$ random bases give error at most $4^{-k}$. For $n&lt;3{,}215{,}031{,}751$, testing bases $2,3,5,7$ is <strong>deterministic</strong>.</p>
+<h2>Hashing and check digits</h2>
+<p><strong>Hashing modulo a prime.</strong> A table size that is a power of two uses only the low bits of the hash, so keys differing in the high bits collide. A prime modulus mixes all the bits in. Polynomial string hashing, $h=\sum s_ix^i \bmod p$, is standard.</p>
+<p><strong>Luhn's algorithm</strong> (bank cards): from the right, double every second digit, subtract 9 if the result exceeds 9, sum everything; valid iff the total is $\equiv0\pmod{10}$. It catches all single-digit errors and almost all adjacent transpositions — but <strong>not</strong> $09\leftrightarrow90$. <strong>Verhoeff's</strong> scheme uses the dihedral group $D_5$ instead of modular addition and catches all single-digit errors and <em>all</em> adjacent transpositions; the Aadhaar number uses it.</p>
+<h2>A pinch of history</h2>
+<p>The Euclidean algorithm is in Euclid's <em>Elements</em> (c. 300 BCE). In India the same procedure is the <strong>kuttaka</strong> ("pulveriser") of Aryabhata (499 CE), developed for astronomical problems and used by Brahmagupta (628) and Bhaskara II to solve linear Diophantine equations — essentially Bezout's identity, a millennium before Bezout.</p>
+<p>The Chinese Remainder Theorem appears in Sun Zi's <em>Suanjing</em> (3rd–5th century CE) and was generalised by Qin Jiushao in 1247; Aryabhata's kuttaka solves the same problems. Fermat stated his little theorem in a 1640 letter; Euler published the first proof in 1736 and the generalisation in 1763.</p>
+<p>Carmichael numbers were found by Robert Carmichael in 1910, and it was proved only in 1994 (Alford, Granville and Pomerance) that there are infinitely many. The Miller-Rabin test is Gary Miller's (1976) and Michael Rabin's (1980). Hans Peter Luhn patented his checksum in 1960; Jacobus Verhoeff published his in 1969.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: $a$ is invertible modulo $n$ iff $\gcd(a,n)=1$.</strong></p>
+<p><em>If.</em> Bezout gives $x,y$ with $ax+ny=1$. Reducing modulo $n$ kills the $ny$ term, leaving $ax\equiv1$.</p>
+<p><em>Only if.</em> Suppose $ax\equiv1\pmod n$, so $ax-1=kn$ for some integer $k$, that is $ax-kn=1$. Any common divisor of $a$ and $n$ divides the left side, hence divides 1, so the gcd is 1.</p>
+<p><strong>The non-obvious direction is the first</strong>, and it is entirely Bezout's doing: the identity <em>constructs</em> the inverse rather than merely proving it exists, which is why the extended Euclidean algorithm is an algorithm and not an existence proof.</p>
+<p><strong>Result 2: Fermat's little theorem</strong>, by a counting argument.</p>
+<ol>
+<li>Let $p$ be prime and $p\nmid a$. Consider $a,2a,3a,\dots,(p-1)a$ modulo $p$.</li>
+<li>No two are congruent: if $ia\equiv ja$ then $p\mid a(i-j)$, and since $p\nmid a$ and $p$ is prime, $p\mid(i-j)$, impossible for $1\le i,j\le p-1$ distinct.</li>
+<li>None is $0$, for the same reason.</li>
+<li>So these $p-1$ values are a permutation of $1,2,\dots,p-1$ modulo $p$.</li>
+<li>Multiply them all: $a^{p-1}(p-1)! \equiv (p-1)!\pmod p$.</li>
+<li>$(p-1)!$ is coprime to $p$, so it may be cancelled, leaving $a^{p-1}\equiv1$.</li>
+</ol>
+<p>Step 2 uses Euclid's lemma — if a prime divides a product it divides a factor — and that is exactly where <strong>primality</strong> enters. For composite $n$ the argument breaks, which is why the converse fails.</p>
+<p><strong>Result 3: why Carmichael numbers defeat the Fermat test.</strong> Korselt's criterion: $n$ is Carmichael iff $n$ is squarefree and $(p-1)\mid(n-1)$ for every prime $p\mid n$. Check $561=3\cdot11\cdot17$: it is squarefree, $n-1=560$, and $2\mid560$, $10\mid560$, $16\mid560$. So for any $a$ coprime to 561, Fermat's theorem modulo each prime factor gives $a^{560}\equiv1$ modulo 3, 11 and 17, and the Chinese Remainder Theorem assembles those into $a^{560}\equiv1\pmod{561}$. The test is passed for <em>every</em> legitimate base. More bases do not help.</p>
+<p><strong>Result 4: why Miller-Rabin is not fooled.</strong> For an odd prime $p$, the equation $x^2\equiv1\pmod p$ has only the solutions $x\equiv\pm1$, because $p\mid(x-1)(x+1)$ forces $p$ to divide one factor. So when you square your way up from $a^d$ to $a^{n-1}$, the first time you reach 1 you must have come from $-1$. Miller-Rabin checks exactly that. A composite $n$ has <em>extra</em> square roots of 1 — this is where it differs from a prime — and the test catches a sighting of 1 arriving from something other than $\pm1$.</p>
+<p><strong>Result 5: square-and-multiply is correct and fast.</strong> Write $k$ in binary. Then $a^k$ is the product of $a^{2^i}$ over the set bits, and the successive squares are computed by repeated squaring. There are $\lfloor\log_2 k\rfloor+1$ squarings and at most that many multiplications, so $O(\log k)$ operations. Reducing modulo $n$ after every step keeps every intermediate below $n^2$, which is what makes 2048-bit RSA feasible at all.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle computes modular inverses and powers two genuinely independent ways.</p>
+<p>For the <strong>inverse</strong>: the extended Euclidean algorithm produces Bezout coefficients in $O(\log n)$ steps, while a brute-force search tries every residue until one multiplies to 1. One is algebraic, the other exhaustive; they share nothing.</p>
+<p>For <strong>exponentiation</strong>: square-and-multiply against naive repeated multiplication.</p>
+<p>For the <strong>totient</strong>: the product formula over prime factors against a direct count of coprime residues.</p>
+<p>The mutant below swaps the roles of the Bezout coefficients, which still produces a plausible-looking number and is wrong.</p>
+<div class="lab demo" data-demo="m29-inverses-two-ways">
+<div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Extended Euclid against exhaustive search</h3></div>
+
+<textarea class="code" spellcheck="false">from math import gcd
+
+
+def ext_gcd(a, b):
+    &quot;&quot;&quot;Return (g, x, y) with a*x + b*y = g = gcd(a, b).&quot;&quot;&quot;
+    if b == 0:
+        return (a, 1, 0)
+    g, x1, y1 = ext_gcd(b, a % b)
+    return (g, y1, x1 - (a // b) * y1)
+
+
+def inverse_by_euclid(a, n):
+    g, x, _ = ext_gcd(a % n, n)
+    if g != 1:
+        return None
+    return x % n
+
+
+def inverse_by_search(a, n):
+    &quot;&quot;&quot;Try every residue. No algebra at all.&quot;&quot;&quot;
+    for b in range(n):
+        if (a * b) % n == 1:
+            return b
+    return None
+
+
+mismatch = 0
+invertible = 0
+for n in range(2, 120):
+    for a in range(0, n):
+        e = inverse_by_euclid(a, n)
+        s = inverse_by_search(a, n)
+        if e != s:
+            mismatch += 1
+        if s is not None:
+            invertible += 1
+            assert (a * s) % n == 1
+            assert gcd(a, n) == 1, &quot;an invertible residue must be coprime to n&quot;
+        else:
+            assert gcd(a, n) != 1, &quot;a non-invertible residue must share a factor&quot;
+
+print(&quot;checked every residue for every modulus from 2 to 119&quot;)
+print(&quot;  mismatches between Euclid and exhaustive search:&quot;, mismatch)
+print(&quot;  invertible pairs found:&quot;, invertible)
+assert mismatch == 0, &quot;both routes to the inverse must agree&quot;
+
+# Nikhil&#x27;s clock.
+print()
+print(&quot;on a 12-hour clock: inverse of 5 is&quot;, inverse_by_euclid(5, 12),
+      &quot; inverse of 6 is&quot;, inverse_by_euclid(6, 12))
+assert inverse_by_euclid(5, 12) == 5 and (5 * 5) % 12 == 1
+assert inverse_by_euclid(6, 12) is None
+assert gcd(6, 12) == 6
+
+# Bezout&#x27;s identity really holds.
+import random
+rng = random.Random(499)
+for _ in range(500):
+    a = rng.randint(1, 10 ** 6)
+    b = rng.randint(1, 10 ** 6)
+    g, x, y = ext_gcd(a, b)
+    assert g == gcd(a, b)
+    assert a * x + b * y == g, &quot;Bezout&#x27;s identity must hold exactly&quot;
+print(&quot;Bezout&#x27;s identity verified on 500 random pairs&quot;)
+
+# --- fast modular exponentiation against naive repeated multiplication ---
+def modexp_fast(a, k, n):
+    result = 1
+    a %= n
+    while k &gt; 0:
+        if k &amp; 1:
+            result = (result * a) % n
+        a = (a * a) % n
+        k &gt;&gt;= 1
+    return result
+
+
+def modexp_naive(a, k, n):
+    result = 1
+    for _ in range(k):
+        result = (result * a) % n
+    return result
+
+
+for _ in range(300):
+    n = rng.randint(2, 5000)
+    a = rng.randint(0, n - 1)
+    k = rng.randint(0, 300)
+    assert modexp_fast(a, k, n) == modexp_naive(a, k, n)
+print(&quot;fast and naive modular exponentiation agree on 300 random cases&quot;)
+print(&quot;  2^1000 mod 1009 =&quot;, modexp_fast(2, 1000, 1009),
+      &quot; (naive would need 1000 multiplications)&quot;)
+assert modexp_fast(2, 1000, 1009) == modexp_naive(2, 1000, 1009)
+
+# --- the totient, two ways ---
+def totient_by_count(n):
+    return sum(1 for k in range(1, n + 1) if gcd(k, n) == 1)
+
+
+def totient_by_formula(n):
+    result = n
+    m = n
+    p = 2
+    while p * p &lt;= m:
+        if m % p == 0:
+            while m % p == 0:
+                m //= p
+            result -= result // p
+        p += 1
+    if m &gt; 1:
+        result -= result // m
+    return result
+
+
+for n in range(1, 400):
+    assert totient_by_count(n) == totient_by_formula(n), n
+print()
+print(&quot;Euler&#x27;s totient agrees by counting and by the product formula for n = 1..399&quot;)
+print(&quot;  phi(12) =&quot;, totient_by_formula(12), &quot; phi(13) =&quot;, totient_by_formula(13),
+      &quot; phi(36) =&quot;, totient_by_formula(36))
+assert totient_by_formula(12) == 4 and totient_by_formula(13) == 12
+
+# Fermat and Euler, checked directly.
+for p in (7, 11, 13, 101, 1009):
+    for a in (2, 3, 5, 77):
+        if a % p:
+            assert modexp_fast(a, p - 1, p) == 1, f&quot;Fermat failed for {a}, {p}&quot;
+for n in (10, 12, 21, 100):
+    phi = totient_by_formula(n)
+    for a in range(1, n):
+        if gcd(a, n) == 1:
+            assert modexp_fast(a, phi, n) == 1, f&quot;Euler failed for {a}, {n}&quot;
+print(&quot;Fermat&#x27;s little theorem and Euler&#x27;s theorem verified&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Theory makes an uncomfortable prediction: the Fermat primality test has composites that pass for <strong>every</strong> base coprime to them, so no amount of extra testing fixes it. Theory also predicts Miller-Rabin catches those same numbers. We measure both.</p>
+<p>Then a second prediction, about hashing: taking a hash modulo a power of two keeps only the low bits, so keys that differ only in their high bits collide catastrophically, while a prime modulus does not. We construct exactly such a key set and count collisions.</p>
+<div class="lab demo" data-demo="m29-carmichael-and-hashing">
+<div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Fooling the Fermat test, and why hash tables use primes</h3></div>
+
+<textarea class="code" spellcheck="false">from math import gcd
+
+
+def modexp(a, k, n):
+    r = 1
+    a %= n
+    while k:
+        if k &amp; 1:
+            r = r * a % n
+        a = a * a % n
+        k &gt;&gt;= 1
+    return r
+
+
+def is_prime_trial(n):
+    if n &lt; 2:
+        return False
+    if n % 2 == 0:
+        return n == 2
+    d = 3
+    while d * d &lt;= n:
+        if n % d == 0:
+            return False
+        d += 2
+    return True
+
+
+def fermat_test(n, a):
+    &quot;&quot;&quot;True means &#x27;probably prime to this base&#x27;.&quot;&quot;&quot;
+    return modexp(a, n - 1, n) == 1
+
+
+def miller_rabin(n, bases=(2, 3, 5, 7)):
+    if n &lt; 2:
+        return False
+    for p in (2, 3, 5, 7, 11, 13):
+        if n % p == 0:
+            return n == p
+    d, s = n - 1, 0
+    while d % 2 == 0:
+        d //= 2
+        s += 1
+    for a in bases:
+        a %= n
+        if a == 0:
+            continue
+        x = modexp(a, d, n)
+        if x == 1 or x == n - 1:
+            continue
+        for _ in range(s - 1):
+            x = x * x % n
+            if x == n - 1:
+                break
+        else:
+            return False
+    return True
+
+
+CARMICHAEL = [561, 1105, 1729, 2465, 2821, 6601, 8911]
+print(&quot;Carmichael numbers: composite, yet they pass Fermat for EVERY coprime base&quot;)
+print(f&quot;{&#x27;n&#x27;:&gt;7} {&#x27;factors&#x27;:&gt;18} {&#x27;composite?&#x27;:&gt;12} {&#x27;Fermat bases passed&#x27;:&gt;22} {&#x27;Miller-Rabin&#x27;:&gt;14}&quot;)
+for n in CARMICHAEL:
+    assert not is_prime_trial(n), f&quot;{n} must be composite&quot;
+    coprime_bases = [a for a in range(2, n) if gcd(a, n) == 1]
+    passed = sum(1 for a in coprime_bases if fermat_test(n, a))
+    factors = []
+    m, p = n, 2
+    while p * p &lt;= m:
+        while m % p == 0:
+            factors.append(p)
+            m //= p
+        p += 1
+    if m &gt; 1:
+        factors.append(m)
+    mr = miller_rabin(n)
+    print(f&quot;{n:&gt;7} {&#x27;x&#x27;.join(map(str, factors)):&gt;18} {&#x27;yes&#x27;:&gt;12} &quot;
+          f&quot;{f&#x27;{passed}/{len(coprime_bases)}&#x27;:&gt;22} {str(mr):&gt;14}&quot;)
+    assert passed == len(coprime_bases), f&quot;{n} must fool Fermat for every coprime base&quot;
+    assert mr is False, f&quot;Miller-Rabin must catch {n}&quot;
+
+print()
+print(&quot;561 = 3 x 11 x 17; Korselt&#x27;s criterion: squarefree, and (p-1) | 560 for each p&quot;)
+for p in (3, 11, 17):
+    print(f&quot;  (p-1) = {p - 1:&gt;2} divides 560? {560 % (p - 1) == 0}&quot;)
+    assert 560 % (p - 1) == 0
+assert 3 * 11 * 17 == 561
+
+# Miller-Rabin with bases 2,3,5,7 is deterministic below 3,215,031,751.
+print()
+wrong = 0
+for n in range(2, 20000):
+    if miller_rabin(n) != is_prime_trial(n):
+        wrong += 1
+print(&quot;Miller-Rabin vs trial division for n = 2..19999; disagreements:&quot;, wrong)
+assert wrong == 0, &quot;Miller-Rabin must be exact in this range&quot;
+
+# --- hashing: a prime modulus versus a power of two ---
+print()
+print(&quot;keys that differ only in their HIGH bits&quot;)
+keys = [i * 65536 + 7 for i in range(1000)]
+for name, modulus in ((&quot;power of two (1024)&quot;, 1024), (&quot;prime (1021)&quot;, 1021)):
+    buckets = {}
+    for k in keys:
+        b = k % modulus
+        buckets[b] = buckets.get(b, 0) + 1
+    occupied = len(buckets)
+    worst = max(buckets.values())
+    print(f&quot;  {name:&gt;22}: buckets used {occupied:&gt;5}, worst bucket {worst:&gt;5}&quot;)
+    if modulus == 1024:
+        assert occupied == 1, &quot;a power-of-two modulus keeps only the low bits&quot;
+        assert worst == 1000, &quot;so every key lands in one bucket&quot;
+    else:
+        assert occupied &gt; 500, &quot;a prime modulus spreads the keys out&quot;
+        assert worst &lt; 5, &quot;and no bucket is overloaded&quot;
+
+print()
+print(&quot;predicted: the power of two collapses to one bucket; the prime spreads out&quot;)
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run</button>
+<button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<pre class="out" hidden></pre>
+</div>
+<p>Where reality disagrees: the Fermat test is not merely <em>usually</em> fooled by 561 — it is fooled by <strong>every single one</strong> of the 320 bases coprime to it, which is why no probabilistic argument rescues it. That is a qualitative failure, not a bad error rate, and it is the reason real code uses Miller-Rabin. The hashing half fails just as completely: a power-of-two modulus put all one thousand keys in a single bucket, turning an $O(1)$ lookup into an $O(n)$ scan. Note, though, that the prime modulus is not magic either — it defends against <em>structured</em> keys, and a hash function that is already well mixed (as a cryptographic or a good non-cryptographic hash is) makes the table size much less critical. Java's <code>HashMap</code> uses power-of-two tables precisely because it first applies a bit-spreading step to the hash.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m29-ex1-congruences" data-level="warmup">
+<div class="lab-head"><span class="badge warmup">Warm-up</span><h3>Modular arithmetic and congruences</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>mod_add(a, b, n)</code>, <code>mod_sub(a, b, n)</code> and <code>mod_mul(a, b, n)</code> returning results in <code>0..n-1</code>, raising <code>ValueError</code> for <code>n &lt;= 0</code>. Write <code>congruent(a, b, n)</code> returning <code>True</code> when <code>n</code> divides <code>a - b</code>. Write <code>residue_class(a, n, count)</code> returning the first <code>count</code> integers congruent to <code>a</code> modulo <code>n</code> starting from <code>a % n</code> and increasing. Write <code>cancellation_valid(a, n)</code> returning <code>True</code> when you may cancel <code>a</code> from a congruence modulo <code>n</code>, which happens exactly when <code>gcd(a, n) == 1</code>.</p></div>
+<textarea class="code" spellcheck="false">def mod_add(a, b, n):
+    &quot;&quot;&quot;(a + b) mod n.&quot;&quot;&quot;
+    return 0
+
+
+def mod_sub(a, b, n):
+    &quot;&quot;&quot;(a - b) mod n.&quot;&quot;&quot;
+    return 0
+
+
+def mod_mul(a, b, n):
+    &quot;&quot;&quot;(a * b) mod n.&quot;&quot;&quot;
+    return 0
+
+
+def congruent(a, b, n):
+    &quot;&quot;&quot;True when a is congruent to b modulo n.&quot;&quot;&quot;
+    return False
+
+
+def residue_class(a, n, count):
+    &quot;&quot;&quot;The first `count` members of a&#x27;s residue class.&quot;&quot;&quot;
+    return []
+
+
+def cancellation_valid(a, n):
+    &quot;&quot;&quot;True when a may be cancelled from a congruence mod n.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_clock_arithmetic():
+    # Nikhil&#x27;s clock: 3 o&#x27;clock plus 25 hours
+    assert mod_add(3, 25, 12) == 4
+    assert mod_sub(3, 5, 12) == 10          # negatives wrap round
+    assert mod_mul(5, 5, 12) == 1           # five fives is one on the clock
+    assert mod_mul(6, 2, 12) == 0
+    # results always land in 0..n-1
+    for a in (-30, -1, 0, 7, 100):
+        assert 0 &lt;= mod_add(a, 0, 12) &lt; 12
+    try:
+        mod_add(1, 2, 0)
+        assert False, &quot;a zero modulus must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_congruence_respects_arithmetic():
+    import random
+    rng = random.Random(640)
+    for _ in range(400):
+        n = rng.randint(2, 50)
+        a, b = rng.randint(-100, 100), rng.randint(-100, 100)
+        c, d = a + rng.randint(-5, 5) * n, b + rng.randint(-5, 5) * n
+        assert congruent(a, c, n) and congruent(b, d, n)
+        # congruences may be added and multiplied
+        assert congruent(a + b, c + d, n)
+        assert congruent(a * b, c * d, n)
+    assert congruent(25, 1, 12) is True
+    assert congruent(25, 2, 12) is False
+
+
+def test_cancellation_and_residue_classes():
+    # the classic failure: 2*3 == 2*9 mod 12 but 3 is not 9
+    assert mod_mul(2, 3, 12) == mod_mul(2, 9, 12)
+    assert not congruent(3, 9, 12)
+    assert cancellation_valid(2, 12) is False
+    # 5 is coprime to 12, so it may be cancelled
+    assert cancellation_valid(5, 12) is True
+    assert cancellation_valid(7, 12) is True
+    assert cancellation_valid(6, 12) is False
+    # every non-zero residue is cancellable modulo a prime
+    for a in range(1, 13):
+        assert cancellation_valid(a, 13) is True
+    assert residue_class(25, 12, 4) == [1, 13, 25, 37]
+    assert residue_class(-1, 12, 3) == [11, 23, 35]
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m29-ex2-euclid" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Euclid, Bezout and modular inverses</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>gcd_euclid(a, b)</code> by repeated remainder. Write <code>ext_gcd(a, b)</code> returning <code>(g, x, y)</code> with <code>a*x + b*y == g</code>. Write <code>bezout_holds(a, b)</code> verifying the identity. Write <code>mod_inverse(a, n)</code> returning the inverse in <code>0..n-1</code> or <code>None</code> when it does not exist, raising <code>ValueError</code> for <code>n &lt;= 1</code>. Write <code>solve_linear_congruence(a, b, n)</code> returning the sorted list of solutions to <code>a x == b (mod n)</code>, which has <code>gcd(a, n)</code> solutions when that gcd divides <code>b</code> and none otherwise.</p></div>
+<textarea class="code" spellcheck="false">def gcd_euclid(a, b):
+    &quot;&quot;&quot;Greatest common divisor.&quot;&quot;&quot;
+    return 0
+
+
+def ext_gcd(a, b):
+    &quot;&quot;&quot;(g, x, y) with a x + b y = g.&quot;&quot;&quot;
+    return (0, 0, 0)
+
+
+def bezout_holds(a, b):
+    &quot;&quot;&quot;True when the returned coefficients satisfy the identity.&quot;&quot;&quot;
+    return False
+
+
+def mod_inverse(a, n):
+    &quot;&quot;&quot;Inverse of a modulo n, or None.&quot;&quot;&quot;
+    return None
+
+
+def solve_linear_congruence(a, b, n):
+    &quot;&quot;&quot;All solutions of a x = b (mod n).&quot;&quot;&quot;
+    return []
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_gcd_and_bezout():
+    assert gcd_euclid(12, 18) == 6
+    assert gcd_euclid(17, 5) == 1
+    assert gcd_euclid(0, 7) == 7
+    assert gcd_euclid(270, 192) == 6
+    import random
+    rng = random.Random(300)
+    for _ in range(400):
+        a, b = rng.randint(0, 10 ** 6), rng.randint(0, 10 ** 6)
+        if a == 0 and b == 0:
+            continue
+        assert bezout_holds(a, b) is True
+        g, x, y = ext_gcd(a, b)
+        assert a * x + b * y == g
+
+
+def test_modular_inverses():
+    from math import gcd
+    assert mod_inverse(5, 12) == 5
+    assert mod_inverse(6, 12) is None
+    assert mod_inverse(3, 7) == 5           # 3*5 = 15 = 1 mod 7
+    for n in range(2, 60):
+        for a in range(n):
+            inv = mod_inverse(a, n)
+            if gcd(a, n) == 1:
+                assert inv is not None and (a * inv) % n == 1, (a, n)
+                assert 0 &lt;= inv &lt; n
+            else:
+                assert inv is None, (a, n)
+    try:
+        mod_inverse(3, 1)
+        assert False, &quot;a modulus of 1 must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_linear_congruences():
+    # 3x = 6 (mod 9): gcd(3,9) = 3 divides 6, so three solutions
+    sols = solve_linear_congruence(3, 6, 9)
+    assert len(sols) == 3
+    for x in sols:
+        assert (3 * x) % 9 == 6 % 9
+    assert sols == [2, 5, 8]
+    # 2x = 3 (mod 4): gcd is 2, which does not divide 3, so no solutions
+    assert solve_linear_congruence(2, 3, 4) == []
+    # a unique solution when a is invertible
+    sols = solve_linear_congruence(5, 3, 12)
+    assert len(sols) == 1 and (5 * sols[0]) % 12 == 3
+    # every claimed solution really works, over many cases
+    for a in range(1, 13):
+        for b in range(12):
+            for x in solve_linear_congruence(a, b, 12):
+                assert (a * x) % 12 == b % 12
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m29-ex3-exponentiation" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>Fast modular exponentiation, Fermat and Euler</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>modexp(a, k, n)</code> by square-and-multiply, raising <code>ValueError</code> for a negative <code>k</code> or <code>n &lt;= 0</code>. Write <code>totient(n)</code> by the product formula over prime factors. Write <code>fermat_holds(a, p)</code> checking <code>a^(p-1) == 1 (mod p)</code> for a prime <code>p</code> not dividing <code>a</code>. Write <code>euler_holds(a, n)</code> checking <code>a^phi(n) == 1 (mod n)</code> when <code>gcd(a, n) == 1</code>. Write <code>multiplicative_order(a, n)</code> returning the smallest positive <code>k</code> with <code>a^k == 1 (mod n)</code>, or <code>None</code> when <code>a</code> is not invertible.</p></div>
+<textarea class="code" spellcheck="false">def modexp(a, k, n):
+    &quot;&quot;&quot;a^k mod n by square-and-multiply.&quot;&quot;&quot;
+    return 0
+
+
+def totient(n):
+    &quot;&quot;&quot;Euler&#x27;s totient.&quot;&quot;&quot;
+    return 0
+
+
+def fermat_holds(a, p):
+    &quot;&quot;&quot;True when Fermat&#x27;s little theorem holds.&quot;&quot;&quot;
+    return False
+
+
+def euler_holds(a, n):
+    &quot;&quot;&quot;True when Euler&#x27;s theorem holds.&quot;&quot;&quot;
+    return False
+
+
+def multiplicative_order(a, n):
+    &quot;&quot;&quot;Smallest k with a^k = 1 mod n, or None.&quot;&quot;&quot;
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_modexp_matches_plain_powers():
+    import random
+    rng = random.Random(1736)
+    for _ in range(400):
+        n = rng.randint(2, 500)
+        a = rng.randint(0, 200)
+        k = rng.randint(0, 40)
+        assert modexp(a, k, n) == pow(a, k) % n, (a, k, n)
+    # it handles enormous exponents that pow-then-reduce could not
+    assert modexp(2, 1000, 1009) == pow(2, 1000, 1009)
+    assert modexp(3, 10 ** 6, 1000003) == pow(3, 10 ** 6, 1000003)
+    assert modexp(5, 0, 7) == 1
+    try:
+        modexp(2, -1, 7)
+        assert False, &quot;a negative exponent must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_totient_and_the_two_theorems():
+    from math import gcd
+    # phi by the formula must match a direct count
+    for n in range(1, 300):
+        direct = sum(1 for k in range(1, n + 1) if gcd(k, n) == 1)
+        assert totient(n) == direct, n
+    assert totient(12) == 4 and totient(13) == 12 and totient(36) == 12
+    # Fermat for several primes
+    for p in (7, 11, 13, 97, 1009):
+        for a in (2, 3, 5, 50):
+            if a % p:
+                assert fermat_holds(a, p) is True
+    # Euler for composite moduli
+    for n in (10, 12, 21, 100, 561):
+        for a in range(2, 30):
+            if gcd(a, n) == 1:
+                assert euler_holds(a, n) is True
+
+
+def test_multiplicative_order():
+    # the order divides phi(n), by Lagrange
+    for n in (7, 10, 12, 13, 21):
+        phi = totient(n)
+        for a in range(1, n):
+            k = multiplicative_order(a, n)
+            if k is None:
+                continue
+            assert modexp(a, k, n) == 1 % n
+            assert phi % k == 0, (a, n, k, phi)
+            # and no smaller exponent works
+            for j in range(1, k):
+                assert modexp(a, j, n) != 1 % n
+    assert multiplicative_order(5, 12) == 2          # 5*5 = 25 = 1 mod 12
+    assert multiplicative_order(6, 12) is None       # not invertible
+    assert multiplicative_order(10, 7) == 6          # 10 = 3 mod 7, a generator
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m29-ex4-crt" data-level="core">
+<div class="lab-head"><span class="badge core">Core</span><h3>The Chinese Remainder Theorem</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>pairwise_coprime(mods)</code> returning <code>True</code> when every pair has gcd 1. Write <code>crt(residues, mods)</code> returning the unique solution modulo the product, raising <code>ValueError</code> when the lists differ in length, a modulus is below 1, or the moduli are not pairwise coprime. Write <code>crt_verify(x, residues, mods)</code> checking the solution satisfies every congruence. Write <code>crt_general(residues, mods)</code> handling non-coprime moduli by merging congruences pairwise and returning <code>None</code> when they are inconsistent.</p></div>
+<textarea class="code" spellcheck="false">def pairwise_coprime(mods):
+    &quot;&quot;&quot;True when the moduli are pairwise coprime.&quot;&quot;&quot;
+    return False
+
+
+def crt(residues, mods):
+    &quot;&quot;&quot;The unique solution modulo the product.&quot;&quot;&quot;
+    return 0
+
+
+def crt_verify(x, residues, mods):
+    &quot;&quot;&quot;True when x satisfies every congruence.&quot;&quot;&quot;
+    return False
+
+
+def crt_general(residues, mods):
+    &quot;&quot;&quot;Solve without assuming coprimality, or None if inconsistent.&quot;&quot;&quot;
+    return None
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_classic_sun_zi_problem():
+    # x = 2 (mod 3), 3 (mod 5), 2 (mod 7)  -&gt;  x = 23 mod 105
+    x = crt([2, 3, 2], [3, 5, 7])
+    assert x == 23
+    assert crt_verify(x, [2, 3, 2], [3, 5, 7]) is True
+    # the solution is unique modulo the product
+    assert crt_verify(x + 105, [2, 3, 2], [3, 5, 7]) is True
+    assert crt_verify(x + 1, [2, 3, 2], [3, 5, 7]) is False
+
+
+def test_random_systems_and_coprimality():
+    import random
+    rng = random.Random(1247)
+    primes = [3, 5, 7, 11, 13, 17, 19, 23]
+    for _ in range(300):
+        k = rng.randint(2, 4)
+        mods = rng.sample(primes, k)
+        residues = [rng.randrange(m) for m in mods]
+        x = crt(residues, mods)
+        assert crt_verify(x, residues, mods) is True
+        total = 1
+        for m in mods:
+            total *= m
+        assert 0 &lt;= x &lt; total
+    assert pairwise_coprime([3, 5, 7]) is True
+    assert pairwise_coprime([4, 6]) is False
+    # A clash between NON-adjacent moduli must also be found: 3 and 6 share
+    # a factor even though each is coprime to the 5 between them.
+    assert pairwise_coprime([3, 5, 6]) is False
+    assert pairwise_coprime([4, 9, 5, 6]) is False
+    try:
+        crt([1, 2, 3], [3, 5, 6])
+        assert False, &quot;a non-adjacent clash must still raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        crt([1, 2], [4, 6])
+        assert False, &quot;non-coprime moduli must raise ValueError&quot;
+    except ValueError:
+        pass
+
+
+def test_the_general_version_handles_overlap():
+    # x = 1 (mod 4) and x = 3 (mod 6): gcd is 2, and 1 and 3 agree mod 2
+    x = crt_general([1, 3], [4, 6])
+    assert x is not None
+    assert x % 4 == 1 and x % 6 == 3
+    assert x == 9
+    # x = 1 (mod 4) and x = 2 (mod 6): 1 and 2 disagree mod 2, so no solution
+    assert crt_general([1, 2], [4, 6]) is None
+    # it agrees with the coprime version when the moduli are coprime
+    assert crt_general([2, 3, 2], [3, 5, 7]) == crt([2, 3, 2], [3, 5, 7])
+</pre></details>
+</div>
+<div class="lab ex" data-ex="m29-ex5-primality-and-checksums" data-level="boss">
+<div class="lab-head"><span class="badge boss">Boss</span><h3>Primality testing and check digits</h3>
+<span class="ex-status" data-status>not tried</span></div>
+<div class="prose"><p>Write <code>is_prime_trial(n)</code> by trial division to the square root. Write <code>fermat_test(n, a)</code> returning whether <code>n</code> passes for base <code>a</code>. Write <code>is_carmichael(n)</code> returning <code>True</code> when <code>n</code> is composite, odd and passes the Fermat test for every base coprime to it. Write <code>miller_rabin(n, bases=(2, 3, 5, 7))</code>. Write <code>luhn_valid(digits)</code> and <code>luhn_check_digit(digits)</code> producing the digit that makes a number valid. Write <code>luhn_catches_transposition(digits, i)</code> returning <code>True</code> when swapping positions <code>i</code> and <code>i+1</code> is detected.</p></div>
+<textarea class="code" spellcheck="false">def is_prime_trial(n):
+    &quot;&quot;&quot;Primality by trial division.&quot;&quot;&quot;
+    return False
+
+
+def fermat_test(n, a):
+    &quot;&quot;&quot;True when n passes the Fermat test for base a.&quot;&quot;&quot;
+    return False
+
+
+def is_carmichael(n):
+    &quot;&quot;&quot;True when n is a Carmichael number.&quot;&quot;&quot;
+    return False
+
+
+def miller_rabin(n, bases=(2, 3, 5, 7)):
+    &quot;&quot;&quot;Strong probable-prime test.&quot;&quot;&quot;
+    return False
+
+
+def luhn_valid(digits):
+    &quot;&quot;&quot;True when the digit string passes the Luhn check.&quot;&quot;&quot;
+    return False
+
+
+def luhn_check_digit(digits):
+    &quot;&quot;&quot;The digit that completes a valid Luhn number.&quot;&quot;&quot;
+    return 0
+
+
+def luhn_catches_transposition(digits, i):
+    &quot;&quot;&quot;True when swapping positions i and i+1 is detected.&quot;&quot;&quot;
+    return False
+</textarea>
+<div class="actions"><button class="primary" data-act="run">Run tests</button>
+<button data-act="hint">Hint (0/2)</button>
+<button data-act="bug" title="Run a plausible wrong solution and watch the tests catch it">Watch a bug get caught</button>
+<button data-act="solution">Show solution</button>
+<button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
+<ol class="hints"></ol>
+<div class="results" hidden></div>
+<details class="tests"><summary>Read the tests</summary><pre>def test_trial_division_and_miller_rabin_agree():
+    primes = [n for n in range(2, 2000) if is_prime_trial(n)]
+    assert primes[:10] == [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]
+    assert len(primes) == 303          # primes below 2000
+    for n in range(2, 5000):
+        assert miller_rabin(n) == is_prime_trial(n), n
+    assert miller_rabin(1000003) is True
+    assert miller_rabin(1000001) is False
+
+
+def test_carmichael_numbers_defeat_fermat():
+    from math import gcd
+    assert is_carmichael(561) is True
+    assert is_carmichael(1105) is True
+    assert is_carmichael(1729) is True
+    # a prime is not a Carmichael number
+    assert is_carmichael(563) is False
+    # an ordinary composite fails Fermat for some base
+    assert is_carmichael(15) is False
+    assert any(not fermat_test(15, a) for a in range(2, 15) if gcd(a, 15) == 1)
+    # 561 passes for EVERY coprime base, yet is composite
+    assert not is_prime_trial(561)
+    assert all(fermat_test(561, a) for a in range(2, 561) if gcd(a, 561) == 1)
+    # Miller-Rabin is not fooled
+    for n in (561, 1105, 1729, 2465, 2821):
+        assert miller_rabin(n) is False
+
+
+def test_luhn_checksum():
+    # a known-valid test number
+    assert luhn_valid(&quot;4539148803436467&quot;) is True
+    assert luhn_valid(&quot;4539148803436468&quot;) is False
+    # the check digit completes the number
+    assert luhn_check_digit(&quot;453914880343646&quot;) == 7
+    assert luhn_check_digit(&quot;7992739871&quot;) == 3
+    for body in (&quot;7992739871&quot;, &quot;123456789&quot;, &quot;4111111111111&quot;):
+        d = luhn_check_digit(body)
+        assert luhn_valid(body + str(d)) is True
+    # single-digit errors are always caught
+    good = &quot;4539148803436467&quot;
+    for i in range(len(good)):
+        for r in &quot;0123456789&quot;:
+            if r != good[i]:
+                bad = good[:i] + r + good[i + 1:]
+                assert luhn_valid(bad) is False, bad
+    # Transpositions must be judged starting from a VALID number.
+    # Every adjacent swap in this card number is caught...
+    for i in range(len(good) - 1):
+        if good[i] != good[i + 1]:
+            assert luhn_catches_transposition(good, i) is True, i
+    # ...but the famous blind spot is not: &quot;0901&quot; is valid and so is &quot;9001&quot;.
+    assert luhn_valid(&quot;0901&quot;) is True
+    assert luhn_valid(&quot;9001&quot;) is True
+    assert luhn_catches_transposition(&quot;0901&quot;, 0) is False
+    try:
+        luhn_catches_transposition(&quot;1234&quot;, 0)
+        assert False, &quot;an invalid starting number must raise ValueError&quot;
+    except ValueError:
+        pass
+    try:
+        luhn_valid(&quot;12a4&quot;)
+        assert False, &quot;a non-digit must raise ValueError&quot;
+    except ValueError:
+        pass
+</pre></details>
+</div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
+<li><strong>"Division works modulo $n$."</strong> Only by numbers coprime to $n$. On a 12-hour clock 6 has no inverse at all, and $\frac{1}{6}$ is meaningless there.</li>
+<li><strong>"You can always cancel a common factor from a congruence."</strong> $2\cdot3\equiv2\cdot9\pmod{12}$ does not give $3\equiv9$. Cancellation needs $\gcd(a,n)=1$.</li>
+<li><strong>"If $a^{n-1}\equiv1\pmod n$ then $n$ is prime."</strong> The converse of Fermat's little theorem is <strong>false</strong>, and Carmichael numbers fail it for every coprime base. 561 is the smallest.</li>
+<li><strong>"Trying more bases fixes the Fermat test."</strong> Not for Carmichael numbers, which pass for all of them. The fix is a structurally different test, not more trials.</li>
+<li><strong>"Compute $a^k$, then reduce modulo $n$."</strong> $2^{1000}$ has 302 digits. Reduce at every step, or the computation is impossible for cryptographic sizes.</li>
+<li><strong>"Miller-Rabin might say a prime is composite."</strong> It is one-sided: a "composite" verdict is always correct, and only "probably prime" carries any doubt.</li>
+<li><strong>"Any table size works if the hash function is decent."</strong> With a power-of-two size you keep only the low bits, and structured keys collapse into one bucket — the experiment put all 1000 keys in a single slot. A prime modulus, or a bit-spreading step first, is what saves you.</li>
+</ul></section><section id="s-where-it-breaks" class=""><h2>Where it breaks</h2><p>Trial division is correct and useless at cryptographic scale: a 2048-bit number has about $10^{308}$ candidate divisors below its square root. Miller-Rabin is the practical answer, and its guarantee is <em>probabilistic</em> for random bases — with $k$ rounds the error is at most $4^{-k}$, which for $k=40$ is far below the chance of a hardware fault, but it is not zero. The deterministic small-base sets (such as $2,3,5,7$ below about $3.2\times10^9$) are verified results, not general theorems.</p>
+<p>A <strong>probable prime</strong> is not a proven prime. For contexts where certainty matters there are primality <em>proofs</em> — ECPP, or the polynomial-time AKS algorithm (2002) — which are far slower.</p>
+<p>Modular arithmetic says nothing about <strong>factoring</strong>. RSA's security rests on factoring being hard, and that is a conjecture, not a theorem; Shor's algorithm factors in polynomial time on a quantum computer, which is why post-quantum cryptography exists.</p>
+<p>In code, the hazard is overflow: <code>a * b % n</code> can overflow a 64-bit integer when $n$ approaches $2^{32}$, long before you reach cryptographic sizes. Python's unbounded integers hide this; C, Java and Dart do not. And a modular exponentiation whose timing depends on the secret exponent leaks it — constant-time implementations exist precisely because the straightforward square-and-multiply is a side channel.</p>
+<p>Finally, Luhn catches all single-digit errors and most adjacent transpositions, but <strong>not</strong> $09\leftrightarrow90$, as the exercise shows. Verhoeff's scheme, using the dihedral group $D_5$ rather than modular addition, catches all of them — which is why Aadhaar uses it.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>This module is the arithmetic underneath things you use hourly. TLS key exchange is modular exponentiation in a group; RSA is Euler's theorem with $e$ and $d$ inverse modulo $\varphi(n)$; Diffie-Hellman is the difficulty of the discrete logarithm, which M38 returns to. Generating a key pair means generating large probable primes with Miller-Rabin.</p>
+<p>Hash tables are the daily application of the prime-modulus result, and the experiment is exactly the failure mode behind a <code>HashMap</code> that mysteriously degrades to linear time on structured keys. Rolling hashes for substring search (Rabin-Karp) are polynomial hashing modulo a prime, and choosing a prime large enough to avoid collisions is this module's arithmetic.</p>
+<p>Check digits are everywhere: credit cards (Luhn), ISBNs (mod 11), IMEI numbers, and Aadhaar (Verhoeff). Implementing one correctly, and knowing which errors it does and does not catch, is a small piece of engineering that this module makes routine. The caveat about timing side channels is the kind of thing that distinguishes code that is correct from code that is safe.</p></section><section id="s-cards" class=""><h2>Flash cards</h2><div class="cards"><div class="card" data-card="0"><div class="q"><p>When does a number have a multiplicative inverse modulo n?</p></div><div class="a" hidden><p>Exactly when it is coprime to n. The extended Euclidean algorithm constructs the inverse from Bezout's identity.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="1"><div class="q"><p>Why can you not always cancel a factor from a congruence?</p></div><div class="a" hidden><p>Because cancellation is multiplication by an inverse, which exists only when the factor is coprime to the modulus.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="2"><div class="q"><p>State Fermat's little theorem and say where primality is used in its proof.</p></div><div class="a" hidden><p>For prime p not dividing a, a^(p-1) = 1 mod p. Primality is used to conclude that p dividing a product divides a factor.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="3"><div class="q"><p>What is a Carmichael number and why does it matter?</p></div><div class="a" hidden><p>A composite that passes the Fermat test for every coprime base. It shows the Fermat test cannot be repaired by trying more bases. The smallest is 561.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="4"><div class="q"><p>How does Miller-Rabin improve on the Fermat test?</p></div><div class="a" hidden><p>It tracks the square roots of 1 encountered while squaring up to a^(n-1). A prime has only +-1 as square roots of 1; a composite may have others.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="5"><div class="q"><p>Why must you reduce modulo n at every step of exponentiation?</p></div><div class="a" hidden><p>Because the intermediate powers grow astronomically. Reducing keeps every value below n^2 and makes the computation feasible.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="6"><div class="q"><p>State the Chinese Remainder Theorem.</p></div><div class="a" hidden><p>For pairwise coprime moduli, a system of congruences has a unique solution modulo their product.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="7"><div class="q"><p>What is Euler's totient and what theorem uses it?</p></div><div class="a" hidden><p>The count of integers up to n coprime to n. Euler's theorem says a^phi(n) = 1 mod n whenever a is coprime to n.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="8"><div class="q"><p>Why do hash tables often use a prime modulus?</p></div><div class="a" hidden><p>A power-of-two modulus keeps only the low bits, so keys differing in high bits all collide. A prime mixes every bit into the index.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div><div class="card" data-card="9"><div class="q"><p>Which error does the Luhn check fail to catch, and what fixes it?</p></div><div class="a" hidden><p>The adjacent transposition 09 to 90. Verhoeff's scheme, based on the dihedral group D5, catches all adjacent transpositions.</p></div><div class="card-actions"><button data-act="flip">Show answer</button><span class="grade" hidden><button data-grade="0">Again</button><button data-grade="1">Good</button><button data-grade="2">Easy</button></span></div></div></div></section><section id="s-stop-when" class="stopwhen"><h2>Stop when</h2><p>You can explain to a child why 5 has a partner on a 12-hour clock and 6 does not, you can run the extended Euclidean algorithm by hand and read an inverse off it, you can state Fermat's little theorem and explain exactly why its converse fails, you can describe how Miller-Rabin differs structurally from the Fermat test, you pass the boss exercise without hints, and you can explain to a colleague why their hash table degraded on structured keys.</p></section><section id="s-sources" class=""><h2>Sources</h2><ul>
+<li>Kenneth H. Rosen, <em>Elementary Number Theory and Its Applications</em>, Pearson.</li>
+<li>G. H. Hardy and E. M. Wright, <em>An Introduction to the Theory of Numbers</em>, Oxford University Press.</li>
+<li>Aryabhata, <em>Aryabhatiya</em>, 499 CE (the kuttaka algorithm).</li>
+<li>Alford, Granville and Pomerance, "There are infinitely many Carmichael numbers", <em>Annals of Mathematics</em>, 1994.</li>
+<li>Cormen, Leiserson, Rivest and Stein, <em>Introduction to Algorithms</em>, chapter on number-theoretic algorithms.</li>
+</ul></section>
+<footer class="pager"><a href="M28.html">&larr; M28 Discrete maths: graphs, recurrences and generating functions</a>
+<a href="D03.html">D03 Hashing &rarr;</a></footer>
+</main></div>
+<script type="application/json" id="av2-data">{"id": "M29", "packages": [], "exercises": {"m29-ex1-congruences": {"starter": "def mod_add(a, b, n):\n    \"\"\"(a + b) mod n.\"\"\"\n    return 0\n\n\ndef mod_sub(a, b, n):\n    \"\"\"(a - b) mod n.\"\"\"\n    return 0\n\n\ndef mod_mul(a, b, n):\n    \"\"\"(a * b) mod n.\"\"\"\n    return 0\n\n\ndef congruent(a, b, n):\n    \"\"\"True when a is congruent to b modulo n.\"\"\"\n    return False\n\n\ndef residue_class(a, n, count):\n    \"\"\"The first `count` members of a's residue class.\"\"\"\n    return []\n\n\ndef cancellation_valid(a, n):\n    \"\"\"True when a may be cancelled from a congruence mod n.\"\"\"\n    return False\n", "solution": "from math import gcd\n\n\ndef _check(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be a positive integer\")\n\n\ndef mod_add(a, b, n):\n    \"\"\"(a + b) mod n.\"\"\"\n    _check(n)\n    return (a + b) % n\n\n\ndef mod_sub(a, b, n):\n    \"\"\"(a - b) mod n.\"\"\"\n    _check(n)\n    return (a - b) % n\n\n\ndef mod_mul(a, b, n):\n    \"\"\"(a * b) mod n.\"\"\"\n    _check(n)\n    return (a * b) % n\n\n\ndef congruent(a, b, n):\n    \"\"\"True when a is congruent to b modulo n.\"\"\"\n    _check(n)\n    return (a - b) % n == 0\n\n\ndef residue_class(a, n, count):\n    \"\"\"The first `count` members of a's residue class.\"\"\"\n    _check(n)\n    if count < 0:\n        raise ValueError(\"count must be non-negative\")\n    start = a % n\n    return [start + k * n for k in range(count)]\n\n\ndef cancellation_valid(a, n):\n    \"\"\"True when a may be cancelled from a congruence mod n.\"\"\"\n    _check(n)\n    return gcd(a, n) == 1\n", "tests": "def test_clock_arithmetic():\n    # Nikhil's clock: 3 o'clock plus 25 hours\n    assert mod_add(3, 25, 12) == 4\n    assert mod_sub(3, 5, 12) == 10          # negatives wrap round\n    assert mod_mul(5, 5, 12) == 1           # five fives is one on the clock\n    assert mod_mul(6, 2, 12) == 0\n    # results always land in 0..n-1\n    for a in (-30, -1, 0, 7, 100):\n        assert 0 <= mod_add(a, 0, 12) < 12\n    try:\n        mod_add(1, 2, 0)\n        assert False, \"a zero modulus must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_congruence_respects_arithmetic():\n    import random\n    rng = random.Random(640)\n    for _ in range(400):\n        n = rng.randint(2, 50)\n        a, b = rng.randint(-100, 100), rng.randint(-100, 100)\n        c, d = a + rng.randint(-5, 5) * n, b + rng.randint(-5, 5) * n\n        assert congruent(a, c, n) and congruent(b, d, n)\n        # congruences may be added and multiplied\n        assert congruent(a + b, c + d, n)\n        assert congruent(a * b, c * d, n)\n    assert congruent(25, 1, 12) is True\n    assert congruent(25, 2, 12) is False\n\n\ndef test_cancellation_and_residue_classes():\n    # the classic failure: 2*3 == 2*9 mod 12 but 3 is not 9\n    assert mod_mul(2, 3, 12) == mod_mul(2, 9, 12)\n    assert not congruent(3, 9, 12)\n    assert cancellation_valid(2, 12) is False\n    # 5 is coprime to 12, so it may be cancelled\n    assert cancellation_valid(5, 12) is True\n    assert cancellation_valid(7, 12) is True\n    assert cancellation_valid(6, 12) is False\n    # every non-zero residue is cancellable modulo a prime\n    for a in range(1, 13):\n        assert cancellation_valid(a, 13) is True\n    assert residue_class(25, 12, 4) == [1, 13, 25, 37]\n    assert residue_class(-1, 12, 3) == [11, 23, 35]\n", "mutants": ["from math import gcd\n\n\ndef _check(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be a positive integer\")\n\n\ndef mod_add(a, b, n):\n    _check(n)\n    return (a + b) % n\n\n\ndef mod_sub(a, b, n):\n    \"\"\"Bug: uses abs(), so negative results do not wrap correctly.\"\"\"\n    _check(n)\n    return abs(a - b) % n\n\n\ndef mod_mul(a, b, n):\n    _check(n)\n    return (a * b) % n\n\n\ndef congruent(a, b, n):\n    _check(n)\n    return (a - b) % n == 0\n\n\ndef residue_class(a, n, count):\n    _check(n)\n    if count < 0:\n        raise ValueError(\"count must be non-negative\")\n    return [a % n + k * n for k in range(count)]\n\n\ndef cancellation_valid(a, n):\n    _check(n)\n    return gcd(a, n) == 1\n", "from math import gcd\n\n\ndef _check(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be a positive integer\")\n\n\ndef mod_add(a, b, n):\n    _check(n)\n    return (a + b) % n\n\n\ndef mod_sub(a, b, n):\n    _check(n)\n    return (a - b) % n\n\n\ndef mod_mul(a, b, n):\n    _check(n)\n    return (a * b) % n\n\n\ndef congruent(a, b, n):\n    _check(n)\n    return (a - b) % n == 0\n\n\ndef residue_class(a, n, count):\n    _check(n)\n    if count < 0:\n        raise ValueError(\"count must be non-negative\")\n    return [a % n + k * n for k in range(count)]\n\n\ndef cancellation_valid(a, n):\n    \"\"\"Bug: allows cancellation whenever a is non-zero.\"\"\"\n    _check(n)\n    return a % n != 0\n"], "hints": ["Python's `%` already returns a non-negative result for a positive modulus, so `(a - b) % n` handles negatives correctly \u2014 taking an absolute value does not.", "You may cancel `a` only when it shares no factor with the modulus, which is exactly `gcd(a, n) == 1`."], "level": "warmup", "title": "Modular arithmetic and congruences"}, "m29-ex2-euclid": {"starter": "def gcd_euclid(a, b):\n    \"\"\"Greatest common divisor.\"\"\"\n    return 0\n\n\ndef ext_gcd(a, b):\n    \"\"\"(g, x, y) with a x + b y = g.\"\"\"\n    return (0, 0, 0)\n\n\ndef bezout_holds(a, b):\n    \"\"\"True when the returned coefficients satisfy the identity.\"\"\"\n    return False\n\n\ndef mod_inverse(a, n):\n    \"\"\"Inverse of a modulo n, or None.\"\"\"\n    return None\n\n\ndef solve_linear_congruence(a, b, n):\n    \"\"\"All solutions of a x = b (mod n).\"\"\"\n    return []\n", "solution": "def gcd_euclid(a, b):\n    \"\"\"Greatest common divisor.\"\"\"\n    a, b = abs(a), abs(b)\n    while b:\n        a, b = b, a % b\n    return a\n\n\ndef ext_gcd(a, b):\n    \"\"\"(g, x, y) with a x + b y = g.\"\"\"\n    if b == 0:\n        return (a, 1, 0)\n    g, x1, y1 = ext_gcd(b, a % b)\n    return (g, y1, x1 - (a // b) * y1)\n\n\ndef bezout_holds(a, b):\n    \"\"\"True when the returned coefficients satisfy the identity.\"\"\"\n    g, x, y = ext_gcd(a, b)\n    return a * x + b * y == g and g == gcd_euclid(a, b)\n\n\ndef mod_inverse(a, n):\n    \"\"\"Inverse of a modulo n, or None.\"\"\"\n    if not isinstance(n, int) or n <= 1:\n        raise ValueError(\"the modulus must exceed 1\")\n    g, x, _ = ext_gcd(a % n, n)\n    if g != 1:\n        return None\n    return x % n\n\n\ndef solve_linear_congruence(a, b, n):\n    \"\"\"All solutions of a x = b (mod n).\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be positive\")\n    g = gcd_euclid(a, n)\n    if b % g != 0:\n        return []\n    a2, b2, n2 = a // g, b // g, n // g\n    inv = mod_inverse(a2 % n2, n2) if n2 > 1 else 0\n    x0 = (b2 * inv) % n2 if n2 > 1 else 0\n    return sorted((x0 + k * n2) % n for k in range(g))\n", "tests": "def test_gcd_and_bezout():\n    assert gcd_euclid(12, 18) == 6\n    assert gcd_euclid(17, 5) == 1\n    assert gcd_euclid(0, 7) == 7\n    assert gcd_euclid(270, 192) == 6\n    import random\n    rng = random.Random(300)\n    for _ in range(400):\n        a, b = rng.randint(0, 10 ** 6), rng.randint(0, 10 ** 6)\n        if a == 0 and b == 0:\n            continue\n        assert bezout_holds(a, b) is True\n        g, x, y = ext_gcd(a, b)\n        assert a * x + b * y == g\n\n\ndef test_modular_inverses():\n    from math import gcd\n    assert mod_inverse(5, 12) == 5\n    assert mod_inverse(6, 12) is None\n    assert mod_inverse(3, 7) == 5           # 3*5 = 15 = 1 mod 7\n    for n in range(2, 60):\n        for a in range(n):\n            inv = mod_inverse(a, n)\n            if gcd(a, n) == 1:\n                assert inv is not None and (a * inv) % n == 1, (a, n)\n                assert 0 <= inv < n\n            else:\n                assert inv is None, (a, n)\n    try:\n        mod_inverse(3, 1)\n        assert False, \"a modulus of 1 must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_linear_congruences():\n    # 3x = 6 (mod 9): gcd(3,9) = 3 divides 6, so three solutions\n    sols = solve_linear_congruence(3, 6, 9)\n    assert len(sols) == 3\n    for x in sols:\n        assert (3 * x) % 9 == 6 % 9\n    assert sols == [2, 5, 8]\n    # 2x = 3 (mod 4): gcd is 2, which does not divide 3, so no solutions\n    assert solve_linear_congruence(2, 3, 4) == []\n    # a unique solution when a is invertible\n    sols = solve_linear_congruence(5, 3, 12)\n    assert len(sols) == 1 and (5 * sols[0]) % 12 == 3\n    # every claimed solution really works, over many cases\n    for a in range(1, 13):\n        for b in range(12):\n            for x in solve_linear_congruence(a, b, 12):\n                assert (a * x) % 12 == b % 12\n", "mutants": ["def gcd_euclid(a, b):\n    a, b = abs(a), abs(b)\n    while b:\n        a, b = b, a % b\n    return a\n\n\ndef ext_gcd(a, b):\n    \"\"\"Bug: forgets the quotient term in the coefficient update.\"\"\"\n    if b == 0:\n        return (a, 1, 0)\n    g, x1, y1 = ext_gcd(b, a % b)\n    return (g, y1, x1 - y1)\n\n\ndef bezout_holds(a, b):\n    g, x, y = ext_gcd(a, b)\n    return a * x + b * y == g and g == gcd_euclid(a, b)\n\n\ndef mod_inverse(a, n):\n    if not isinstance(n, int) or n <= 1:\n        raise ValueError(\"the modulus must exceed 1\")\n    g, x, _ = ext_gcd(a % n, n)\n    if g != 1:\n        return None\n    return x % n\n\n\ndef solve_linear_congruence(a, b, n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be positive\")\n    g = gcd_euclid(a, n)\n    if b % g != 0:\n        return []\n    a2, b2, n2 = a // g, b // g, n // g\n    inv = mod_inverse(a2 % n2, n2) if n2 > 1 else 0\n    x0 = (b2 * inv) % n2 if n2 > 1 else 0\n    return sorted((x0 + k * n2) % n for k in range(g))\n", "def gcd_euclid(a, b):\n    a, b = abs(a), abs(b)\n    while b:\n        a, b = b, a % b\n    return a\n\n\ndef ext_gcd(a, b):\n    if b == 0:\n        return (a, 1, 0)\n    g, x1, y1 = ext_gcd(b, a % b)\n    return (g, y1, x1 - (a // b) * y1)\n\n\ndef bezout_holds(a, b):\n    g, x, y = ext_gcd(a, b)\n    return a * x + b * y == g and g == gcd_euclid(a, b)\n\n\ndef mod_inverse(a, n):\n    \"\"\"Bug: returns an inverse even when the gcd is not 1.\"\"\"\n    if not isinstance(n, int) or n <= 1:\n        raise ValueError(\"the modulus must exceed 1\")\n    _, x, _ = ext_gcd(a % n, n)\n    return x % n\n\n\ndef solve_linear_congruence(a, b, n):\n    \"\"\"Bug: always returns a single solution, ignoring the gcd multiplicity.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be positive\")\n    g = gcd_euclid(a, n)\n    if b % g != 0:\n        return []\n    inv = mod_inverse(a % n, n)\n    if inv is None:\n        return []\n    return [(b * inv) % n]\n"], "hints": ["In the extended algorithm the new coefficients are `(y1, x1 - (a // b) * y1)` \u2014 the quotient matters.", "`a x = b (mod n)` has exactly `gcd(a, n)` solutions when that gcd divides `b`, spaced `n / gcd` apart."], "level": "core", "title": "Euclid, Bezout and modular inverses"}, "m29-ex3-exponentiation": {"starter": "def modexp(a, k, n):\n    \"\"\"a^k mod n by square-and-multiply.\"\"\"\n    return 0\n\n\ndef totient(n):\n    \"\"\"Euler's totient.\"\"\"\n    return 0\n\n\ndef fermat_holds(a, p):\n    \"\"\"True when Fermat's little theorem holds.\"\"\"\n    return False\n\n\ndef euler_holds(a, n):\n    \"\"\"True when Euler's theorem holds.\"\"\"\n    return False\n\n\ndef multiplicative_order(a, n):\n    \"\"\"Smallest k with a^k = 1 mod n, or None.\"\"\"\n    return None\n", "solution": "from math import gcd\n\n\ndef modexp(a, k, n):\n    \"\"\"a^k mod n by square-and-multiply.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be positive\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"the exponent must be non-negative\")\n    result = 1 % n\n    a %= n\n    while k > 0:\n        if k & 1:\n            result = result * a % n\n        a = a * a % n\n        k >>= 1\n    return result\n\n\ndef totient(n):\n    \"\"\"Euler's totient.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    result = n\n    m = n\n    p = 2\n    while p * p <= m:\n        if m % p == 0:\n            while m % p == 0:\n                m //= p\n            result -= result // p\n        p += 1\n    if m > 1:\n        result -= result // m\n    return result\n\n\ndef fermat_holds(a, p):\n    \"\"\"True when Fermat's little theorem holds.\"\"\"\n    if a % p == 0:\n        raise ValueError(\"Fermat's theorem needs p not to divide a\")\n    return modexp(a, p - 1, p) == 1\n\n\ndef euler_holds(a, n):\n    \"\"\"True when Euler's theorem holds.\"\"\"\n    if gcd(a, n) != 1:\n        raise ValueError(\"Euler's theorem needs a coprime to n\")\n    return modexp(a, totient(n), n) == 1\n\n\ndef multiplicative_order(a, n):\n    \"\"\"Smallest k with a^k = 1 mod n, or None.\"\"\"\n    if gcd(a, n) != 1:\n        return None\n    k = 1\n    value = a % n\n    while value != 1 % n:\n        value = value * a % n\n        k += 1\n        if k > n:\n            return None\n    return k\n", "tests": "def test_modexp_matches_plain_powers():\n    import random\n    rng = random.Random(1736)\n    for _ in range(400):\n        n = rng.randint(2, 500)\n        a = rng.randint(0, 200)\n        k = rng.randint(0, 40)\n        assert modexp(a, k, n) == pow(a, k) % n, (a, k, n)\n    # it handles enormous exponents that pow-then-reduce could not\n    assert modexp(2, 1000, 1009) == pow(2, 1000, 1009)\n    assert modexp(3, 10 ** 6, 1000003) == pow(3, 10 ** 6, 1000003)\n    assert modexp(5, 0, 7) == 1\n    try:\n        modexp(2, -1, 7)\n        assert False, \"a negative exponent must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_totient_and_the_two_theorems():\n    from math import gcd\n    # phi by the formula must match a direct count\n    for n in range(1, 300):\n        direct = sum(1 for k in range(1, n + 1) if gcd(k, n) == 1)\n        assert totient(n) == direct, n\n    assert totient(12) == 4 and totient(13) == 12 and totient(36) == 12\n    # Fermat for several primes\n    for p in (7, 11, 13, 97, 1009):\n        for a in (2, 3, 5, 50):\n            if a % p:\n                assert fermat_holds(a, p) is True\n    # Euler for composite moduli\n    for n in (10, 12, 21, 100, 561):\n        for a in range(2, 30):\n            if gcd(a, n) == 1:\n                assert euler_holds(a, n) is True\n\n\ndef test_multiplicative_order():\n    # the order divides phi(n), by Lagrange\n    for n in (7, 10, 12, 13, 21):\n        phi = totient(n)\n        for a in range(1, n):\n            k = multiplicative_order(a, n)\n            if k is None:\n                continue\n            assert modexp(a, k, n) == 1 % n\n            assert phi % k == 0, (a, n, k, phi)\n            # and no smaller exponent works\n            for j in range(1, k):\n                assert modexp(a, j, n) != 1 % n\n    assert multiplicative_order(5, 12) == 2          # 5*5 = 25 = 1 mod 12\n    assert multiplicative_order(6, 12) is None       # not invertible\n    assert multiplicative_order(10, 7) == 6          # 10 = 3 mod 7, a generator\n", "mutants": ["from math import gcd\n\n\ndef modexp(a, k, n):\n    \"\"\"Bug: squares the result rather than the base, losing the algorithm.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be positive\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"the exponent must be non-negative\")\n    result = 1 % n\n    a %= n\n    while k > 0:\n        if k & 1:\n            result = result * a % n\n        result = result * result % n\n        k >>= 1\n    return result\n\n\ndef totient(n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    result = n\n    m = n\n    p = 2\n    while p * p <= m:\n        if m % p == 0:\n            while m % p == 0:\n                m //= p\n            result -= result // p\n        p += 1\n    if m > 1:\n        result -= result // m\n    return result\n\n\ndef fermat_holds(a, p):\n    if a % p == 0:\n        raise ValueError(\"Fermat's theorem needs p not to divide a\")\n    return modexp(a, p - 1, p) == 1\n\n\ndef euler_holds(a, n):\n    if gcd(a, n) != 1:\n        raise ValueError(\"Euler's theorem needs a coprime to n\")\n    return modexp(a, totient(n), n) == 1\n\n\ndef multiplicative_order(a, n):\n    if gcd(a, n) != 1:\n        return None\n    k = 1\n    value = a % n\n    while value != 1 % n:\n        value = value * a % n\n        k += 1\n        if k > n:\n            return None\n    return k\n", "from math import gcd\n\n\ndef modexp(a, k, n):\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"the modulus must be positive\")\n    if not isinstance(k, int) or k < 0:\n        raise ValueError(\"the exponent must be non-negative\")\n    result = 1 % n\n    a %= n\n    while k > 0:\n        if k & 1:\n            result = result * a % n\n        a = a * a % n\n        k >>= 1\n    return result\n\n\ndef totient(n):\n    \"\"\"Bug: counts n/p rather than subtracting result//p, so repeated\n    prime factors are mishandled.\"\"\"\n    if not isinstance(n, int) or n <= 0:\n        raise ValueError(\"n must be a positive integer\")\n    result = n\n    m = n\n    p = 2\n    while p * p <= m:\n        if m % p == 0:\n            while m % p == 0:\n                m //= p\n            result -= n // p\n        p += 1\n    if m > 1:\n        result -= n // m\n    return result\n\n\ndef fermat_holds(a, p):\n    if a % p == 0:\n        raise ValueError(\"Fermat's theorem needs p not to divide a\")\n    return modexp(a, p - 1, p) == 1\n\n\ndef euler_holds(a, n):\n    if gcd(a, n) != 1:\n        raise ValueError(\"Euler's theorem needs a coprime to n\")\n    return modexp(a, totient(n), n) == 1\n\n\ndef multiplicative_order(a, n):\n    if gcd(a, n) != 1:\n        return None\n    k = 1\n    value = a % n\n    while value != 1 % n:\n        value = value * a % n\n        k += 1\n        if k > n:\n            return None\n    return k\n"], "hints": ["Square-and-multiply squares the *base* each round and multiplies it into the result only when the current bit is set.", "The totient's product formula multiplies by `(1 - 1/p)` once per *distinct* prime, which in integer arithmetic is `result -= result // p`."], "level": "core", "title": "Fast modular exponentiation, Fermat and Euler"}, "m29-ex4-crt": {"starter": "def pairwise_coprime(mods):\n    \"\"\"True when the moduli are pairwise coprime.\"\"\"\n    return False\n\n\ndef crt(residues, mods):\n    \"\"\"The unique solution modulo the product.\"\"\"\n    return 0\n\n\ndef crt_verify(x, residues, mods):\n    \"\"\"True when x satisfies every congruence.\"\"\"\n    return False\n\n\ndef crt_general(residues, mods):\n    \"\"\"Solve without assuming coprimality, or None if inconsistent.\"\"\"\n    return None\n", "solution": "from math import gcd\n\n\ndef pairwise_coprime(mods):\n    \"\"\"True when the moduli are pairwise coprime.\"\"\"\n    for i in range(len(mods)):\n        for j in range(i + 1, len(mods)):\n            if gcd(mods[i], mods[j]) != 1:\n                return False\n    return True\n\n\ndef _inverse(a, n):\n    def ext(x, y):\n        if y == 0:\n            return (x, 1, 0)\n        g, p, q = ext(y, x % y)\n        return (g, q, p - (x // y) * q)\n    g, p, _ = ext(a % n, n)\n    if g != 1:\n        return None\n    return p % n\n\n\ndef crt(residues, mods):\n    \"\"\"The unique solution modulo the product.\"\"\"\n    if len(residues) != len(mods):\n        raise ValueError(\"residues and moduli must have the same length\")\n    if not mods:\n        raise ValueError(\"there must be at least one congruence\")\n    if any((not isinstance(m, int)) or m < 1 for m in mods):\n        raise ValueError(\"every modulus must be a positive integer\")\n    if not pairwise_coprime(mods):\n        raise ValueError(\"the moduli must be pairwise coprime\")\n    total = 1\n    for m in mods:\n        total *= m\n    x = 0\n    for a, m in zip(residues, mods):\n        if m == 1:\n            continue\n        ni = total // m\n        mi = _inverse(ni % m, m)\n        x += a * ni * mi\n    return x % total\n\n\ndef crt_verify(x, residues, mods):\n    \"\"\"True when x satisfies every congruence.\"\"\"\n    return all((x - a) % m == 0 for a, m in zip(residues, mods))\n\n\ndef crt_general(residues, mods):\n    \"\"\"Solve without assuming coprimality, or None if inconsistent.\"\"\"\n    if len(residues) != len(mods):\n        raise ValueError(\"residues and moduli must have the same length\")\n    x, m = 0, 1\n    for a, n in zip(residues, mods):\n        g = gcd(m, n)\n        if (a - x) % g != 0:\n            return None\n        lcm = m // g * n\n        step = (a - x) // g\n        inv = _inverse((m // g) % (n // g), n // g) if n // g > 1 else 0\n        x = (x + m * (step * inv % (n // g))) % lcm\n        m = lcm\n    return x % m\n", "tests": "def test_classic_sun_zi_problem():\n    # x = 2 (mod 3), 3 (mod 5), 2 (mod 7)  ->  x = 23 mod 105\n    x = crt([2, 3, 2], [3, 5, 7])\n    assert x == 23\n    assert crt_verify(x, [2, 3, 2], [3, 5, 7]) is True\n    # the solution is unique modulo the product\n    assert crt_verify(x + 105, [2, 3, 2], [3, 5, 7]) is True\n    assert crt_verify(x + 1, [2, 3, 2], [3, 5, 7]) is False\n\n\ndef test_random_systems_and_coprimality():\n    import random\n    rng = random.Random(1247)\n    primes = [3, 5, 7, 11, 13, 17, 19, 23]\n    for _ in range(300):\n        k = rng.randint(2, 4)\n        mods = rng.sample(primes, k)\n        residues = [rng.randrange(m) for m in mods]\n        x = crt(residues, mods)\n        assert crt_verify(x, residues, mods) is True\n        total = 1\n        for m in mods:\n            total *= m\n        assert 0 <= x < total\n    assert pairwise_coprime([3, 5, 7]) is True\n    assert pairwise_coprime([4, 6]) is False\n    # A clash between NON-adjacent moduli must also be found: 3 and 6 share\n    # a factor even though each is coprime to the 5 between them.\n    assert pairwise_coprime([3, 5, 6]) is False\n    assert pairwise_coprime([4, 9, 5, 6]) is False\n    try:\n        crt([1, 2, 3], [3, 5, 6])\n        assert False, \"a non-adjacent clash must still raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        crt([1, 2], [4, 6])\n        assert False, \"non-coprime moduli must raise ValueError\"\n    except ValueError:\n        pass\n\n\ndef test_the_general_version_handles_overlap():\n    # x = 1 (mod 4) and x = 3 (mod 6): gcd is 2, and 1 and 3 agree mod 2\n    x = crt_general([1, 3], [4, 6])\n    assert x is not None\n    assert x % 4 == 1 and x % 6 == 3\n    assert x == 9\n    # x = 1 (mod 4) and x = 2 (mod 6): 1 and 2 disagree mod 2, so no solution\n    assert crt_general([1, 2], [4, 6]) is None\n    # it agrees with the coprime version when the moduli are coprime\n    assert crt_general([2, 3, 2], [3, 5, 7]) == crt([2, 3, 2], [3, 5, 7])\n", "mutants": ["from math import gcd\n\n\ndef pairwise_coprime(mods):\n    \"\"\"Bug: checks only consecutive pairs, missing distant clashes.\"\"\"\n    for i in range(len(mods) - 1):\n        if gcd(mods[i], mods[i + 1]) != 1:\n            return False\n    return True\n\n\ndef _inverse(a, n):\n    def ext(x, y):\n        if y == 0:\n            return (x, 1, 0)\n        g, p, q = ext(y, x % y)\n        return (g, q, p - (x // y) * q)\n    g, p, _ = ext(a % n, n)\n    if g != 1:\n        return None\n    return p % n\n\n\ndef crt(residues, mods):\n    if len(residues) != len(mods):\n        raise ValueError(\"residues and moduli must have the same length\")\n    if not mods:\n        raise ValueError(\"there must be at least one congruence\")\n    if any((not isinstance(m, int)) or m < 1 for m in mods):\n        raise ValueError(\"every modulus must be a positive integer\")\n    if not pairwise_coprime(mods):\n        raise ValueError(\"the moduli must be pairwise coprime\")\n    total = 1\n    for m in mods:\n        total *= m\n    x = 0\n    for a, m in zip(residues, mods):\n        if m == 1:\n            continue\n        ni = total // m\n        mi = _inverse(ni % m, m)\n        x += a * ni * mi\n    return x % total\n\n\ndef crt_verify(x, residues, mods):\n    return all((x - a) % m == 0 for a, m in zip(residues, mods))\n\n\ndef crt_general(residues, mods):\n    if len(residues) != len(mods):\n        raise ValueError(\"residues and moduli must have the same length\")\n    x, m = 0, 1\n    for a, n in zip(residues, mods):\n        g = gcd(m, n)\n        if (a - x) % g != 0:\n            return None\n        lcm = m // g * n\n        step = (a - x) // g\n        inv = _inverse((m // g) % (n // g), n // g) if n // g > 1 else 0\n        x = (x + m * (step * inv % (n // g))) % lcm\n        m = lcm\n    return x % m\n", "from math import gcd\n\n\ndef pairwise_coprime(mods):\n    for i in range(len(mods)):\n        for j in range(i + 1, len(mods)):\n            if gcd(mods[i], mods[j]) != 1:\n                return False\n    return True\n\n\ndef _inverse(a, n):\n    def ext(x, y):\n        if y == 0:\n            return (x, 1, 0)\n        g, p, q = ext(y, x % y)\n        return (g, q, p - (x // y) * q)\n    g, p, _ = ext(a % n, n)\n    if g != 1:\n        return None\n    return p % n\n\n\ndef crt(residues, mods):\n    \"\"\"Bug: omits the inverse factor, so the construction does not satisfy\n    the congruences.\"\"\"\n    if len(residues) != len(mods):\n        raise ValueError(\"residues and moduli must have the same length\")\n    if not mods:\n        raise ValueError(\"there must be at least one congruence\")\n    if any((not isinstance(m, int)) or m < 1 for m in mods):\n        raise ValueError(\"every modulus must be a positive integer\")\n    if not pairwise_coprime(mods):\n        raise ValueError(\"the moduli must be pairwise coprime\")\n    total = 1\n    for m in mods:\n        total *= m\n    x = 0\n    for a, m in zip(residues, mods):\n        if m == 1:\n            continue\n        x += a * (total // m)\n    return x % total\n\n\ndef crt_verify(x, residues, mods):\n    return all((x - a) % m == 0 for a, m in zip(residues, mods))\n\n\ndef crt_general(residues, mods):\n    if len(residues) != len(mods):\n        raise ValueError(\"residues and moduli must have the same length\")\n    x, m = 0, 1\n    for a, n in zip(residues, mods):\n        g = gcd(m, n)\n        if (a - x) % g != 0:\n            return None\n        lcm = m // g * n\n        step = (a - x) // g\n        inv = _inverse((m // g) % (n // g), n // g) if n // g > 1 else 0\n        x = (x + m * (step * inv % (n // g))) % lcm\n        m = lcm\n    return x % m\n"], "hints": ["Each term needs `a_i * N_i * M_i` where `M_i` is the inverse of `N_i` modulo `n_i`. Without the inverse the term is not congruent to `a_i`.", "Pairwise coprime means *every* pair, not just neighbouring ones. `[3, 4, 6]` passes a neighbours-only check and should not."], "level": "core", "title": "The Chinese Remainder Theorem"}, "m29-ex5-primality-and-checksums": {"starter": "def is_prime_trial(n):\n    \"\"\"Primality by trial division.\"\"\"\n    return False\n\n\ndef fermat_test(n, a):\n    \"\"\"True when n passes the Fermat test for base a.\"\"\"\n    return False\n\n\ndef is_carmichael(n):\n    \"\"\"True when n is a Carmichael number.\"\"\"\n    return False\n\n\ndef miller_rabin(n, bases=(2, 3, 5, 7)):\n    \"\"\"Strong probable-prime test.\"\"\"\n    return False\n\n\ndef luhn_valid(digits):\n    \"\"\"True when the digit string passes the Luhn check.\"\"\"\n    return False\n\n\ndef luhn_check_digit(digits):\n    \"\"\"The digit that completes a valid Luhn number.\"\"\"\n    return 0\n\n\ndef luhn_catches_transposition(digits, i):\n    \"\"\"True when swapping positions i and i+1 is detected.\"\"\"\n    return False\n", "solution": "from math import gcd\n\n\ndef _modexp(a, k, n):\n    r = 1 % n\n    a %= n\n    while k:\n        if k & 1:\n            r = r * a % n\n        a = a * a % n\n        k >>= 1\n    return r\n\n\ndef is_prime_trial(n):\n    \"\"\"Primality by trial division.\"\"\"\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    if n < 2:\n        return False\n    if n % 2 == 0:\n        return n == 2\n    d = 3\n    while d * d <= n:\n        if n % d == 0:\n            return False\n        d += 2\n    return True\n\n\ndef fermat_test(n, a):\n    \"\"\"True when n passes the Fermat test for base a.\"\"\"\n    if n < 2:\n        raise ValueError(\"n must exceed 1\")\n    return _modexp(a, n - 1, n) == 1\n\n\ndef is_carmichael(n):\n    \"\"\"True when n is a Carmichael number.\"\"\"\n    if n < 2 or n % 2 == 0 or is_prime_trial(n):\n        return False\n    return all(fermat_test(n, a) for a in range(2, n) if gcd(a, n) == 1)\n\n\ndef miller_rabin(n, bases=(2, 3, 5, 7)):\n    \"\"\"Strong probable-prime test.\"\"\"\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    if n < 2:\n        return False\n    for p in (2, 3, 5, 7, 11, 13):\n        if n % p == 0:\n            return n == p\n    d, s = n - 1, 0\n    while d % 2 == 0:\n        d //= 2\n        s += 1\n    for a in bases:\n        a %= n\n        if a == 0:\n            continue\n        x = _modexp(a, d, n)\n        if x == 1 or x == n - 1:\n            continue\n        for _ in range(s - 1):\n            x = x * x % n\n            if x == n - 1:\n                break\n        else:\n            return False\n    return True\n\n\ndef _luhn_sum(digits):\n    total = 0\n    for idx, ch in enumerate(reversed(digits)):\n        d = int(ch)\n        if idx % 2 == 1:\n            d *= 2\n            if d > 9:\n                d -= 9\n        total += d\n    return total\n\n\ndef luhn_valid(digits):\n    \"\"\"True when the digit string passes the Luhn check.\"\"\"\n    if not digits or not all(c.isdigit() for c in digits):\n        raise ValueError(\"digits must be a non-empty string of digits\")\n    return _luhn_sum(digits) % 10 == 0\n\n\ndef luhn_check_digit(digits):\n    \"\"\"The digit that completes a valid Luhn number.\"\"\"\n    if not digits or not all(c.isdigit() for c in digits):\n        raise ValueError(\"digits must be a non-empty string of digits\")\n    for d in range(10):\n        if luhn_valid(digits + str(d)):\n            return d\n    raise ValueError(\"no check digit found\")\n\n\ndef luhn_catches_transposition(digits, i):\n    \"\"\"True when swapping positions i and i+1 breaks a VALID number.\"\"\"\n    if i < 0 or i + 1 >= len(digits):\n        raise ValueError(\"i must index an adjacent pair\")\n    if not luhn_valid(digits):\n        raise ValueError(\"the starting number must itself be valid\")\n    chars = list(digits)\n    if chars[i] == chars[i + 1]:\n        return False\n    chars[i], chars[i + 1] = chars[i + 1], chars[i]\n    return not luhn_valid(\"\".join(chars))\n", "tests": "def test_trial_division_and_miller_rabin_agree():\n    primes = [n for n in range(2, 2000) if is_prime_trial(n)]\n    assert primes[:10] == [2, 3, 5, 7, 11, 13, 17, 19, 23, 29]\n    assert len(primes) == 303          # primes below 2000\n    for n in range(2, 5000):\n        assert miller_rabin(n) == is_prime_trial(n), n\n    assert miller_rabin(1000003) is True\n    assert miller_rabin(1000001) is False\n\n\ndef test_carmichael_numbers_defeat_fermat():\n    from math import gcd\n    assert is_carmichael(561) is True\n    assert is_carmichael(1105) is True\n    assert is_carmichael(1729) is True\n    # a prime is not a Carmichael number\n    assert is_carmichael(563) is False\n    # an ordinary composite fails Fermat for some base\n    assert is_carmichael(15) is False\n    assert any(not fermat_test(15, a) for a in range(2, 15) if gcd(a, 15) == 1)\n    # 561 passes for EVERY coprime base, yet is composite\n    assert not is_prime_trial(561)\n    assert all(fermat_test(561, a) for a in range(2, 561) if gcd(a, 561) == 1)\n    # Miller-Rabin is not fooled\n    for n in (561, 1105, 1729, 2465, 2821):\n        assert miller_rabin(n) is False\n\n\ndef test_luhn_checksum():\n    # a known-valid test number\n    assert luhn_valid(\"4539148803436467\") is True\n    assert luhn_valid(\"4539148803436468\") is False\n    # the check digit completes the number\n    assert luhn_check_digit(\"453914880343646\") == 7\n    assert luhn_check_digit(\"7992739871\") == 3\n    for body in (\"7992739871\", \"123456789\", \"4111111111111\"):\n        d = luhn_check_digit(body)\n        assert luhn_valid(body + str(d)) is True\n    # single-digit errors are always caught\n    good = \"4539148803436467\"\n    for i in range(len(good)):\n        for r in \"0123456789\":\n            if r != good[i]:\n                bad = good[:i] + r + good[i + 1:]\n                assert luhn_valid(bad) is False, bad\n    # Transpositions must be judged starting from a VALID number.\n    # Every adjacent swap in this card number is caught...\n    for i in range(len(good) - 1):\n        if good[i] != good[i + 1]:\n            assert luhn_catches_transposition(good, i) is True, i\n    # ...but the famous blind spot is not: \"0901\" is valid and so is \"9001\".\n    assert luhn_valid(\"0901\") is True\n    assert luhn_valid(\"9001\") is True\n    assert luhn_catches_transposition(\"0901\", 0) is False\n    try:\n        luhn_catches_transposition(\"1234\", 0)\n        assert False, \"an invalid starting number must raise ValueError\"\n    except ValueError:\n        pass\n    try:\n        luhn_valid(\"12a4\")\n        assert False, \"a non-digit must raise ValueError\"\n    except ValueError:\n        pass\n", "mutants": ["from math import gcd\n\n\ndef _modexp(a, k, n):\n    r = 1 % n\n    a %= n\n    while k:\n        if k & 1:\n            r = r * a % n\n        a = a * a % n\n        k >>= 1\n    return r\n\n\ndef is_prime_trial(n):\n    \"\"\"Bug: stops at n // 2 instead of the square root but also skips 2,\n    so even numbers are reported prime.\"\"\"\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    if n < 2:\n        return False\n    d = 3\n    while d * d <= n:\n        if n % d == 0:\n            return False\n        d += 2\n    return True\n\n\ndef fermat_test(n, a):\n    if n < 2:\n        raise ValueError(\"n must exceed 1\")\n    return _modexp(a, n - 1, n) == 1\n\n\ndef is_carmichael(n):\n    if n < 2 or n % 2 == 0 or is_prime_trial(n):\n        return False\n    return all(fermat_test(n, a) for a in range(2, n) if gcd(a, n) == 1)\n\n\ndef miller_rabin(n, bases=(2, 3, 5, 7)):\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    if n < 2:\n        return False\n    for p in (2, 3, 5, 7, 11, 13):\n        if n % p == 0:\n            return n == p\n    d, s = n - 1, 0\n    while d % 2 == 0:\n        d //= 2\n        s += 1\n    for a in bases:\n        a %= n\n        if a == 0:\n            continue\n        x = _modexp(a, d, n)\n        if x == 1 or x == n - 1:\n            continue\n        for _ in range(s - 1):\n            x = x * x % n\n            if x == n - 1:\n                break\n        else:\n            return False\n    return True\n\n\ndef _luhn_sum(digits):\n    total = 0\n    for idx, ch in enumerate(reversed(digits)):\n        d = int(ch)\n        if idx % 2 == 1:\n            d *= 2\n            if d > 9:\n                d -= 9\n        total += d\n    return total\n\n\ndef luhn_valid(digits):\n    if not digits or not all(c.isdigit() for c in digits):\n        raise ValueError(\"digits must be a non-empty string of digits\")\n    return _luhn_sum(digits) % 10 == 0\n\n\ndef luhn_check_digit(digits):\n    if not digits or not all(c.isdigit() for c in digits):\n        raise ValueError(\"digits must be a non-empty string of digits\")\n    for d in range(10):\n        if luhn_valid(digits + str(d)):\n            return d\n    raise ValueError(\"no check digit found\")\n\n\ndef luhn_catches_transposition(digits, i):\n    if i < 0 or i + 1 >= len(digits):\n        raise ValueError(\"i must index an adjacent pair\")\n    chars = list(digits)\n    if chars[i] == chars[i + 1]:\n        return False\n    chars[i], chars[i + 1] = chars[i + 1], chars[i]\n    return luhn_valid(digits) != luhn_valid(\"\".join(chars))\n", "from math import gcd\n\n\ndef _modexp(a, k, n):\n    r = 1 % n\n    a %= n\n    while k:\n        if k & 1:\n            r = r * a % n\n        a = a * a % n\n        k >>= 1\n    return r\n\n\ndef is_prime_trial(n):\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    if n < 2:\n        return False\n    if n % 2 == 0:\n        return n == 2\n    d = 3\n    while d * d <= n:\n        if n % d == 0:\n            return False\n        d += 2\n    return True\n\n\ndef fermat_test(n, a):\n    if n < 2:\n        raise ValueError(\"n must exceed 1\")\n    return _modexp(a, n - 1, n) == 1\n\n\ndef is_carmichael(n):\n    if n < 2 or n % 2 == 0 or is_prime_trial(n):\n        return False\n    return all(fermat_test(n, a) for a in range(2, n) if gcd(a, n) == 1)\n\n\ndef miller_rabin(n, bases=(2, 3, 5, 7)):\n    \"\"\"Bug: a plain Fermat test in disguise, so Carmichael numbers pass.\"\"\"\n    if not isinstance(n, int):\n        raise ValueError(\"n must be an integer\")\n    if n < 2:\n        return False\n    for p in (2, 3, 5, 7, 11, 13):\n        if n % p == 0:\n            return n == p\n    return all(_modexp(a % n, n - 1, n) == 1 for a in bases if a % n)\n\n\ndef _luhn_sum(digits):\n    total = 0\n    for idx, ch in enumerate(reversed(digits)):\n        d = int(ch)\n        if idx % 2 == 1:\n            d *= 2\n            if d > 9:\n                d -= 9\n        total += d\n    return total\n\n\ndef luhn_valid(digits):\n    if not digits or not all(c.isdigit() for c in digits):\n        raise ValueError(\"digits must be a non-empty string of digits\")\n    return _luhn_sum(digits) % 10 == 0\n\n\ndef luhn_check_digit(digits):\n    if not digits or not all(c.isdigit() for c in digits):\n        raise ValueError(\"digits must be a non-empty string of digits\")\n    for d in range(10):\n        if luhn_valid(digits + str(d)):\n            return d\n    raise ValueError(\"no check digit found\")\n\n\ndef luhn_catches_transposition(digits, i):\n    \"\"\"Bug: reports the validity of the swapped number instead of whether\n    the swap broke it, so detection is inverted.\"\"\"\n    if i < 0 or i + 1 >= len(digits):\n        raise ValueError(\"i must index an adjacent pair\")\n    if not luhn_valid(digits):\n        raise ValueError(\"the starting number must itself be valid\")\n    chars = list(digits)\n    if chars[i] == chars[i + 1]:\n        return False\n    chars[i], chars[i + 1] = chars[i + 1], chars[i]\n    return luhn_valid(\"\".join(chars))\n"], "hints": ["Miller-Rabin is not just Fermat with more bases: it tracks the square roots of 1 on the way up, which is what catches Carmichael numbers.", "Luhn doubles every second digit *counting from the right*, so reverse the string first and double the odd indices."], "level": "boss", "title": "Primality testing and check digits"}}, "demos": {"m29-inverses-two-ways": {"code": "from math import gcd\n\n\ndef ext_gcd(a, b):\n    \"\"\"Return (g, x, y) with a*x + b*y = g = gcd(a, b).\"\"\"\n    if b == 0:\n        return (a, 1, 0)\n    g, x1, y1 = ext_gcd(b, a % b)\n    return (g, y1, x1 - (a // b) * y1)\n\n\ndef inverse_by_euclid(a, n):\n    g, x, _ = ext_gcd(a % n, n)\n    if g != 1:\n        return None\n    return x % n\n\n\ndef inverse_by_search(a, n):\n    \"\"\"Try every residue. No algebra at all.\"\"\"\n    for b in range(n):\n        if (a * b) % n == 1:\n            return b\n    return None\n\n\nmismatch = 0\ninvertible = 0\nfor n in range(2, 120):\n    for a in range(0, n):\n        e = inverse_by_euclid(a, n)\n        s = inverse_by_search(a, n)\n        if e != s:\n            mismatch += 1\n        if s is not None:\n            invertible += 1\n            assert (a * s) % n == 1\n            assert gcd(a, n) == 1, \"an invertible residue must be coprime to n\"\n        else:\n            assert gcd(a, n) != 1, \"a non-invertible residue must share a factor\"\n\nprint(\"checked every residue for every modulus from 2 to 119\")\nprint(\"  mismatches between Euclid and exhaustive search:\", mismatch)\nprint(\"  invertible pairs found:\", invertible)\nassert mismatch == 0, \"both routes to the inverse must agree\"\n\n# Nikhil's clock.\nprint()\nprint(\"on a 12-hour clock: inverse of 5 is\", inverse_by_euclid(5, 12),\n      \" inverse of 6 is\", inverse_by_euclid(6, 12))\nassert inverse_by_euclid(5, 12) == 5 and (5 * 5) % 12 == 1\nassert inverse_by_euclid(6, 12) is None\nassert gcd(6, 12) == 6\n\n# Bezout's identity really holds.\nimport random\nrng = random.Random(499)\nfor _ in range(500):\n    a = rng.randint(1, 10 ** 6)\n    b = rng.randint(1, 10 ** 6)\n    g, x, y = ext_gcd(a, b)\n    assert g == gcd(a, b)\n    assert a * x + b * y == g, \"Bezout's identity must hold exactly\"\nprint(\"Bezout's identity verified on 500 random pairs\")\n\n# --- fast modular exponentiation against naive repeated multiplication ---\ndef modexp_fast(a, k, n):\n    result = 1\n    a %= n\n    while k > 0:\n        if k & 1:\n            result = (result * a) % n\n        a = (a * a) % n\n        k >>= 1\n    return result\n\n\ndef modexp_naive(a, k, n):\n    result = 1\n    for _ in range(k):\n        result = (result * a) % n\n    return result\n\n\nfor _ in range(300):\n    n = rng.randint(2, 5000)\n    a = rng.randint(0, n - 1)\n    k = rng.randint(0, 300)\n    assert modexp_fast(a, k, n) == modexp_naive(a, k, n)\nprint(\"fast and naive modular exponentiation agree on 300 random cases\")\nprint(\"  2^1000 mod 1009 =\", modexp_fast(2, 1000, 1009),\n      \" (naive would need 1000 multiplications)\")\nassert modexp_fast(2, 1000, 1009) == modexp_naive(2, 1000, 1009)\n\n# --- the totient, two ways ---\ndef totient_by_count(n):\n    return sum(1 for k in range(1, n + 1) if gcd(k, n) == 1)\n\n\ndef totient_by_formula(n):\n    result = n\n    m = n\n    p = 2\n    while p * p <= m:\n        if m % p == 0:\n            while m % p == 0:\n                m //= p\n            result -= result // p\n        p += 1\n    if m > 1:\n        result -= result // m\n    return result\n\n\nfor n in range(1, 400):\n    assert totient_by_count(n) == totient_by_formula(n), n\nprint()\nprint(\"Euler's totient agrees by counting and by the product formula for n = 1..399\")\nprint(\"  phi(12) =\", totient_by_formula(12), \" phi(13) =\", totient_by_formula(13),\n      \" phi(36) =\", totient_by_formula(36))\nassert totient_by_formula(12) == 4 and totient_by_formula(13) == 12\n\n# Fermat and Euler, checked directly.\nfor p in (7, 11, 13, 101, 1009):\n    for a in (2, 3, 5, 77):\n        if a % p:\n            assert modexp_fast(a, p - 1, p) == 1, f\"Fermat failed for {a}, {p}\"\nfor n in (10, 12, 21, 100):\n    phi = totient_by_formula(n)\n    for a in range(1, n):\n        if gcd(a, n) == 1:\n            assert modexp_fast(a, phi, n) == 1, f\"Euler failed for {a}, {n}\"\nprint(\"Fermat's little theorem and Euler's theorem verified\")\n", "mutants": ["from math import gcd\n\n\ndef ext_gcd(a, b):\n    \"\"\"Bug: the Bezout coefficients are swapped in the recursive step.\"\"\"\n    if b == 0:\n        return (a, 1, 0)\n    g, x1, y1 = ext_gcd(b, a % b)\n    return (g, x1, y1 - (a // b) * x1)\n\n\ndef inverse_by_euclid(a, n):\n    g, x, _ = ext_gcd(a % n, n)\n    if g != 1:\n        return None\n    return x % n\n\n\ndef inverse_by_search(a, n):\n    for b in range(n):\n        if (a * b) % n == 1:\n            return b\n    return None\n\n\nmismatch = 0\nfor n in range(2, 120):\n    for a in range(0, n):\n        if inverse_by_euclid(a, n) != inverse_by_search(a, n):\n            mismatch += 1\n\nprint(\"checked every residue for every modulus from 2 to 119\")\nprint(\"  mismatches between Euclid and exhaustive search:\", mismatch)\nassert mismatch == 0, \"both routes to the inverse must agree\"\n"]}, "m29-carmichael-and-hashing": {"code": "from math import gcd\n\n\ndef modexp(a, k, n):\n    r = 1\n    a %= n\n    while k:\n        if k & 1:\n            r = r * a % n\n        a = a * a % n\n        k >>= 1\n    return r\n\n\ndef is_prime_trial(n):\n    if n < 2:\n        return False\n    if n % 2 == 0:\n        return n == 2\n    d = 3\n    while d * d <= n:\n        if n % d == 0:\n            return False\n        d += 2\n    return True\n\n\ndef fermat_test(n, a):\n    \"\"\"True means 'probably prime to this base'.\"\"\"\n    return modexp(a, n - 1, n) == 1\n\n\ndef miller_rabin(n, bases=(2, 3, 5, 7)):\n    if n < 2:\n        return False\n    for p in (2, 3, 5, 7, 11, 13):\n        if n % p == 0:\n            return n == p\n    d, s = n - 1, 0\n    while d % 2 == 0:\n        d //= 2\n        s += 1\n    for a in bases:\n        a %= n\n        if a == 0:\n            continue\n        x = modexp(a, d, n)\n        if x == 1 or x == n - 1:\n            continue\n        for _ in range(s - 1):\n            x = x * x % n\n            if x == n - 1:\n                break\n        else:\n            return False\n    return True\n\n\nCARMICHAEL = [561, 1105, 1729, 2465, 2821, 6601, 8911]\nprint(\"Carmichael numbers: composite, yet they pass Fermat for EVERY coprime base\")\nprint(f\"{'n':>7} {'factors':>18} {'composite?':>12} {'Fermat bases passed':>22} {'Miller-Rabin':>14}\")\nfor n in CARMICHAEL:\n    assert not is_prime_trial(n), f\"{n} must be composite\"\n    coprime_bases = [a for a in range(2, n) if gcd(a, n) == 1]\n    passed = sum(1 for a in coprime_bases if fermat_test(n, a))\n    factors = []\n    m, p = n, 2\n    while p * p <= m:\n        while m % p == 0:\n            factors.append(p)\n            m //= p\n        p += 1\n    if m > 1:\n        factors.append(m)\n    mr = miller_rabin(n)\n    print(f\"{n:>7} {'x'.join(map(str, factors)):>18} {'yes':>12} \"\n          f\"{f'{passed}/{len(coprime_bases)}':>22} {str(mr):>14}\")\n    assert passed == len(coprime_bases), f\"{n} must fool Fermat for every coprime base\"\n    assert mr is False, f\"Miller-Rabin must catch {n}\"\n\nprint()\nprint(\"561 = 3 x 11 x 17; Korselt's criterion: squarefree, and (p-1) | 560 for each p\")\nfor p in (3, 11, 17):\n    print(f\"  (p-1) = {p - 1:>2} divides 560? {560 % (p - 1) == 0}\")\n    assert 560 % (p - 1) == 0\nassert 3 * 11 * 17 == 561\n\n# Miller-Rabin with bases 2,3,5,7 is deterministic below 3,215,031,751.\nprint()\nwrong = 0\nfor n in range(2, 20000):\n    if miller_rabin(n) != is_prime_trial(n):\n        wrong += 1\nprint(\"Miller-Rabin vs trial division for n = 2..19999; disagreements:\", wrong)\nassert wrong == 0, \"Miller-Rabin must be exact in this range\"\n\n# --- hashing: a prime modulus versus a power of two ---\nprint()\nprint(\"keys that differ only in their HIGH bits\")\nkeys = [i * 65536 + 7 for i in range(1000)]\nfor name, modulus in ((\"power of two (1024)\", 1024), (\"prime (1021)\", 1021)):\n    buckets = {}\n    for k in keys:\n        b = k % modulus\n        buckets[b] = buckets.get(b, 0) + 1\n    occupied = len(buckets)\n    worst = max(buckets.values())\n    print(f\"  {name:>22}: buckets used {occupied:>5}, worst bucket {worst:>5}\")\n    if modulus == 1024:\n        assert occupied == 1, \"a power-of-two modulus keeps only the low bits\"\n        assert worst == 1000, \"so every key lands in one bucket\"\n    else:\n        assert occupied > 500, \"a prime modulus spreads the keys out\"\n        assert worst < 5, \"and no bucket is overloaded\"\n\nprint()\nprint(\"predicted: the power of two collapses to one bucket; the prime spreads out\")\n", "mutants": ["from math import gcd\n\n\ndef modexp(a, k, n):\n    r = 1\n    a %= n\n    while k:\n        if k & 1:\n            r = r * a % n\n        a = a * a % n\n        k >>= 1\n    return r\n\n\ndef fermat_test(n, a):\n    return modexp(a, n - 1, n) == 1\n\n\nCARMICHAEL = [561, 1105, 1729]\nfor n in CARMICHAEL:\n    coprime_bases = [a for a in range(2, n) if gcd(a, n) == 1]\n    passed = sum(1 for a in coprime_bases if fermat_test(n, a))\n    print(f\"  n={n}: Fermat passed by {passed} of {len(coprime_bases)} coprime bases\")\n\nprint(\"predicted under the WRONG theory: trying more bases eventually exposes them\")\n# Wrong theory: claims some coprime base always catches a Carmichael number.\nfor n in CARMICHAEL:\n    coprime_bases = [a for a in range(2, n) if gcd(a, n) == 1]\n    passed = sum(1 for a in coprime_bases if fermat_test(n, a))\n    assert passed < len(coprime_bases), f\"some base must expose {n}\"\n"]}}, "cards": [{"q": "When does a number have a multiplicative inverse modulo n?", "a": "Exactly when it is coprime to n. The extended Euclidean algorithm constructs the inverse from Bezout's identity."}, {"q": "Why can you not always cancel a factor from a congruence?", "a": "Because cancellation is multiplication by an inverse, which exists only when the factor is coprime to the modulus."}, {"q": "State Fermat's little theorem and say where primality is used in its proof.", "a": "For prime p not dividing a, a^(p-1) = 1 mod p. Primality is used to conclude that p dividing a product divides a factor."}, {"q": "What is a Carmichael number and why does it matter?", "a": "A composite that passes the Fermat test for every coprime base. It shows the Fermat test cannot be repaired by trying more bases. The smallest is 561."}, {"q": "How does Miller-Rabin improve on the Fermat test?", "a": "It tracks the square roots of 1 encountered while squaring up to a^(n-1). A prime has only +-1 as square roots of 1; a composite may have others."}, {"q": "Why must you reduce modulo n at every step of exponentiation?", "a": "Because the intermediate powers grow astronomically. Reducing keeps every value below n^2 and makes the computation feasible."}, {"q": "State the Chinese Remainder Theorem.", "a": "For pairwise coprime moduli, a system of congruences has a unique solution modulo their product."}, {"q": "What is Euler's totient and what theorem uses it?", "a": "The count of integers up to n coprime to n. Euler's theorem says a^phi(n) = 1 mod n whenever a is coprime to n."}, {"q": "Why do hash tables often use a prime modulus?", "a": "A power-of-two modulus keeps only the low bits, so keys differing in high bits all collide. A prime mixes every bit into the index."}, {"q": "Which error does the Luhn check fail to catch, and what fixes it?", "a": "The adjacent transposition 09 to 90. Verhoeff's scheme, based on the dihedral group D5, catches all adjacent transpositions."}], "title": "Number theory for computing"}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.18.9/contrib/auto-render.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.19/mode/python/python.min.js"></script>
+<script src="assets/harness.js"></script>
+<script src="assets/academy.js"></script>
+</body></html>
