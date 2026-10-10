@@ -18,52 +18,41 @@
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
 <section id="s-story" class="story"><h2>The story</h2><p>In 1954, during the early years of the Cold War, the United States Air Force commissioned the RAND Corporation to study the Soviet railway system. Military strategists posed an urgent logistic question: given the railway network linking Western Soviet production centers to satellite states in Eastern Europe, what was the maximum tonnage of freight that could be transported per day, and where were the critical bottlenecks where bombing a single track would paralyze the entire network?</p>
-<p>Mathematicians Lester Ford Jr. and Delbert Fulkerson analyzed the problem as a directed flow network with edge capacities. In 1956, they published their landmark result: the Max-Flow Min-Cut Theorem. They proved that the maximum volume of flow from source to sink is strictly equal to the minimal total capacity of edges whose deletion disconnects the source from the sink. In 1972, Jack Edmonds and Richard Karp introduced the shortest augmenting path rule via BFS, eliminating the risk of infinite loops on irrational capacities and guaranteeing polynomial $O(V E^2)$ runtime. Flow networks quickly transcended military logistics, becoming the mathematical backbone of bipartite matching, image segmentation, sports tournament elimination, and airline crew scheduling.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Imagine a network of water pipes of various widths connecting a reservoir to a city. The maximum amount of water that can reach the city is limited by the tightest bottleneck in the system. The Max-Flow Min-Cut theorem states that the most water you can possibly pump from start to finish is exactly equal to the total capacity of the smallest set of pipes that, if cut, would stop all water flow. Algorithms like Edmonds-Karp find this maximum flow by repeatedly pushing water along the shortest available routes in a residual network until no more water can squeeze through.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Flow networks formalize capacity-constrained transport:</p>
+<p>Mathematicians Lester Ford Jr. and Delbert Fulkerson analyzed the problem as a directed flow network with edge capacities. In 1956, they published their landmark result: the Max-Flow Min-Cut Theorem. They proved that the maximum volume of flow from source to sink is strictly equal to the minimal total capacity of edges whose deletion disconnects the source from the sink. In 1972, Jack Edmonds and Richard Karp introduced the shortest augmenting path rule via BFS, eliminating the risk of endless cycling on tricky pipe widths and guaranteeing fast polynomial runtime. Flow networks quickly transcended military logistics, becoming the mathematical backbone of bipartite matching, image segmentation, sports tournament elimination, and airline crew scheduling.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Imagine a network of water pipes of various widths connecting a reservoir to a city. The maximum amount of water that can reach the city is limited by the tightest bottleneck in the system. The Max-Flow Min-Cut theorem states that the most water you can possibly pump from start to finish is exactly equal to the total capacity of the smallest set of pipes that, if cut, would stop all water flow. Algorithms like Edmonds-Karp find this maximum flow by repeatedly pushing water along the shortest available routes in a residual network until no more water can squeeze through.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Flow networks are just like a giant water park with tons of colorful plastic tubes! We want to push as much water as possible from the top pool (start) all the way to the bottom pool (finish):</p>
 <ol>
-<li><strong>Flow Network &amp; Residual Graph</strong>:
-A directed graph $G = (V, E)$ with capacity function $c: V \times V \to \mathbb{R}_{\ge 0}$, source $s$, and sink $t$.
-A valid flow $f$ satisfies:
-- Capacity constraint: $0 \le f(u, v) \le c(u, v)$
-- Flow conservation: $\forall u \in V \setminus \{s, t\}, \quad \sum_{v} f(v, u) = \sum_{v} f(u, v)$</li>
-</ol>
-<p>The <strong>residual capacity</strong> is $c_f(u, v) = c(u, v) - f(u, v)$ with back-edges $c_f(v, u) = f(u, v)$.</p>
-<ol start="2">
 <li>
-<p><strong>Edmonds-Karp Algorithm</strong>:
-Uses Breadth-First Search (BFS) to find the shortest augmenting path in $G_f$ (fewest edges).
-Total augmentations are bounded by $O(V \cdot E)$, and each BFS takes $O(E)$, yielding $O(V E^2)$ total time.</p>
+<p><strong>Flow Network (The Water Park Rules)</strong>:
+You have a starting pool and an ending pool connected by tubes. Two simple rules apply:
+- <strong>No bursting tubes</strong>: You cannot push more water through a tube than it can safely hold.
+- <strong>No magic water</strong>: At every tube junction, the water splashing in must exactly match the water splashing out. No sneaky leaks, and no creating water from thin air!
+A "residual map" is just a magic treasure map that keeps track of how much <em>extra</em> room is left in each tube. It also has magical "undo" paths that let you push water backwards if you made a silly mistake!</p>
 </li>
 <li>
-<p><strong>Max-Flow Min-Cut Theorem</strong>:
-An $(s, t)$-cut is a partition of $V$ into $S$ and $T = V \setminus S$ with $s \in S, t \in T$. Its capacity is $c(S, T) = \sum_{u \in S, v \in T} c(u, v)$.
-$$\max |f| = \min_{(S, T)} c(S, T)$$
-After maximum flow is achieved, the cut $(S, T)$ where $S$ consists of all vertices reachable from $s$ in residual graph $G_f$ is a minimum cut.</p>
+<p><strong>Edmonds-Karp Algorithm (The Shortest Path First)</strong>:
+This is a super smart way to find the max water flow. You just keep looking for the shortest path (the fewest number of tubes) that still has some empty space, and you blast as much water as you can through it! You keep doing this over and over until there are no paths left that can fit even one more drop. </p>
 </li>
 <li>
-<p><strong>Bipartite Matching &amp; Hall's Marriage Theorem</strong>:
-Given bipartite graph $G = (L \cup R, E)$:
-- Connect super-source $s$ to all $u \in L$ with capacity 1.
-- Direct all bipartite edges from $L$ to $R$ with capacity 1.
-- Connect all $v \in R$ to super-sink $t$ with capacity 1.
-Max flow equals maximum cardinality matching. Hall's Marriage Theorem states a perfect matching exists if and only if for all subsets $W \subseteq L$, $|N(W)| \ge |W|$.</p>
+<p><strong>Max-Flow Min-Cut (The Bottleneck Rule)</strong>:
+Imagine drawing a giant line that chops the whole water park in half, separating the top pool from the bottom pool. The "capacity" of this cut is the total size of the tubes you just sliced through with your line.
+The magic rule says: The absolute MOST water you can possibly pump is exactly equal to the tightest, smallest cut you could possibly draw. The water park is only as strong as its weakest, skinniest tubes!</p>
 </li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Let us prove the <strong>Max-Flow Min-Cut Theorem</strong>.
-Let $f$ be a feasible flow and let $(S, T)$ be any valid $(s, t)$-cut.
-First, we establish weak duality: the net flow across any cut equals the total flow value $|f|$:
-$$|f| = \sum_{v \in V} f(s, v) = \sum_{u \in S} \left( \sum_{v \in V} f(u, v) - \sum_{v \in V} f(v, u) \right) = \sum_{u \in S, v \in T} f(u, v) - \sum_{u \in T, v \in S} f(u, v)$$
-Because $f(u, v) \le c(u, v)$ and $f(v, u) \ge 0$, we have:
-$$|f| \le \sum_{u \in S, v \in T} c(u, v) = c(S, T)$$
-Thus, the value of ANY feasible flow is upper-bounded by the capacity of ANY cut.</p>
-<p>Now, we prove strong duality: when the flow is maximized, there exists a cut whose capacity equals $|f|$.
-Suppose flow $f$ has reached a state where no augmenting path exists from $s$ to $t$ in the residual network $G_f$.
-Define vertex set $S \subseteq V$ as the set of all vertices reachable from $s$ via paths of positive residual capacity in $G_f$. Define $T = V \setminus S$.
-Because there is no augmenting path from $s$ to $t$ in $G_f$, the sink $t \notin S$, meaning $t \in T$. Thus, $(S, T)$ is a valid $(s, t)$-cut.</p>
-<p>Now examine edges between $S$ and $T$:
-1. For any edge $(u, v) \in E$ with $u \in S$ and $v \in T$, it must be that $c_f(u, v) = 0$; otherwise $v$ would be reachable from $u$, placing $v \in S$. Since $c_f(u, v) = c(u, v) - f(u, v) = 0$, we have $f(u, v) = c(u, v)$. Every forward edge is saturated to full capacity.
-2. For any edge $(v, u) \in E$ with $v \in T$ and $u \in S$, it must be that $f(v, u) = 0$; otherwise the residual back-edge $(u, v)$ with capacity $f(v, u) &gt; 0$ would exist in $G_f$, making $v$ reachable from $u$.
-Substituting these two equalities into the cut-flow equation yields:
-$$|f| = \sum_{u \in S, v \in T} f(u, v) - \sum_{v \in T, u \in S} f(v, u) = \sum_{u \in S, v \in T} c(u, v) - 0 = c(S, T)$$
-The flow value $|f|$ equals the cut capacity $c(S, T)$. Since $|f| \le c(S&#x27;, T&#x27;)$ for any cut, $c(S, T)$ must be minimal and $|f|$ must be maximal, proving $\max |f| = \min c(S, T)$.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Max-Flow Min-Cut verification oracle proves that the maximum volume of commodity flow routed from source to sink strictly equals the minimal capacity of all saturated forward edges separating the source partition from the sink partition. On a classic 4-node diamond network with source 0 and sink 3, the computed maximum flow of 2000 units is verified alongside residual reachability to confirm exact duality preservation.</p>
+<li>
+<p><strong>Bipartite Matching (The Pairing Game)</strong>:
+Imagine you have a group of kids and a group of toys, and each kid only likes certain toys. How do we give out the most toys? 
+We can turn this into a water park problem! Put a "start" tube feeding exactly 1 splash of water to every kid. Connect the kids to the toys they like with tubes of size 1. Finally, connect all the toys to an "end" tube of size 1. The maximum water you can pump equals the maximum number of happy kids holding toys!</p>
+</li>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Let's prove why the Bottleneck Rule is completely true, without any tricky math!</p>
+<p>First, imagine drawing a straight line through our water park that completely separates the starting pool from the ending pool. Because water cannot magically fly through the air, every single drop of water going to the end MUST flow through the tubes crossing this line.
+Since the water cannot magically stretch the tubes, the total water reaching the end can <em>never</em> be more than the total size of the tubes crossing the line. No matter how you draw the line, this is always true! </p>
+<p>Now, imagine we have pumped as much water as we possibly can. We try our hardest to squeeze even one more drop of water from start to end, but we cannot. The tubes are totally blocked!
+Imagine pouring bright purple glitter water into the start. The purple glitter splashes into all the tubes that still have a tiny bit of extra room. But because the park is totally maxed out, the glitter eventually stops. It completely fails to reach the end pool.
+Now, draw a line right where the purple glitter stops! On one side, you have the "glitter" tubes (ones the purple water can reach). On the other side, you have the "plain" tubes (ones the purple water cannot reach).</p>
+<p>Look at the tubes crossing exactly over this line from glitter to plain:
+1. Any tube going forward from glitter to plain MUST be completely, 100 percent full of water! If it had even a tiny drop of extra room, our purple glitter would have squeezed right through it!
+2. Any tube going backward from plain to glitter MUST be completely empty. If water was flowing backwards there, our magic "undo" rule would have let the glitter cross!</p>
+<p>Because all forward tubes crossing this line are totally stuffed full, and no water is sneaking backwards, the total amount of water crossing this exact line is perfectly equal to the size of those tubes.
+We already know the water flow can never be bigger than a cut line. But look, we just found a line where the water flow is EXACTLY equal to the cut! 
+This proves that the maximum water flow is perfectly trapped by the smallest, tightest squeeze in the whole park!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Max-Flow Min-Cut verification oracle proves that the maximum volume of commodity flow routed from source to sink strictly equals the minimal capacity of all saturated forward edges separating the source partition from the sink partition. On a classic 4-node diamond network with source 0 and sink 3, the computed maximum flow of 2000 units is verified alongside residual reachability to confirm exact duality preservation.</p>
 <div class="lab demo" data-demo="d17-oracle-max-flow">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Max-Flow Min-Cut Verification Oracle</h3></div>
 
@@ -118,7 +107,7 @@ assert mf == 2000, f&quot;Expected 2000, got {mf}&quot;
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the number of augmenting path iterations executed by the Edmonds-Karp algorithm against theoretical worst-case upper bounds. In any directed flow network with $V$ vertices and $E$ edges, Edmonds-Karp guarantees polynomial termination within at most $O(V \cdot E)$ augmenting paths because the distance to any vertex monotonically increases. For a network with $V = 4$ and $E = 5$, the theoretical bound is 20 augmentations, and we measure exactly 2 paths.</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the number of augmenting path iterations executed by the Edmonds-Karp algorithm against theoretical worst-case upper bounds. In any directed flow network with a set of junctions and pipes, Edmonds-Karp guarantees polynomial termination within a modest number of path adjustments because shortest distances strictly grow. For a network with 4 vertices and 5 edges, the theoretical bound allows up to 20 augmentations, and our test finishes in exactly 2 paths.</p>
 <div class="lab demo" data-demo="d17-exp-augmenting-paths">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Augmenting Path Bound Experiment</h3></div>
 

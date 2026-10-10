@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 26: Dynamic Programming — The Elephant's Notepad & The Smart Backpack</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--amber);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.8rem 0;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.85rem 1.1rem;
+      text-align: left;
+    }
+    th { background: #111726; color: var(--cyan); font-family: 'Fira Code', monospace; font-size: 0.82rem; }
+    
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--amber);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #d97706; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 26 (Algorithms & Systems)</div>
+    <h1>Never Solve the Same Riddle Twice: Dynamic Programming & The Smart Backpack</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Elephant vs The Goldfish:</strong> Why recursion without memory is like having amnesia every second.
+      <br>2. <strong>Bellman's Principle of Optimality (1957):</strong> Why making the best move right now relies on having solved the future optimal sub-moves.
+      <br>3. <strong>The Smart Backpack (0/1 Knapsack):</strong> Packing a treasure bag to maximize gold within a weight ceiling.
+      <br>4. <strong>The Reverse Loop Rule:</strong> Why 1D space optimization MUST loop backwards to prevent double-counting theft!
+      <br>5. <strong>Permanent Mnemonics:</strong> F.A.S.T. and The Reverse Loop rhyme.
+      <br>6. <strong>Live WebAssembly Lab:</strong> Execute 2D table backtracking and 1D space-optimized Knapsack in Pyodide.
+    </div>
+
+    <h2>1. What is Dynamic Programming? (The Notepad Story)</h2>
+    <p>
+      Imagine you write this on a piece of paper for a child:
+      $$1 + 1 + 1 + 1 + 1$$
+      You ask: <em>"What does this equal?"</em>
+      <br>The child counts their fingers: <em>"Five!"</em>
+      <br>Now you write another $+ 1$ on the right side:
+      $$1 + 1 + 1 + 1 + 1 + 1$$
+      You ask: <em>"What does it equal now?"</em>
+      <br>Does the child start counting from the beginning: "One, two, three..."?
+      <br><strong>NO!</strong> Instantly, they say: <em>"Six!"</em>
+      <br>You ask: <em>"How did you know so fast?"</em>
+      <br>They say: <em>"You just added one to the five we already had!"</em>
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🐘 The Elephant with a Notepad</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        <strong>Pure Recursion is a Goldfish:</strong> It has a 3-second memory. Every time it needs Fibonacci(5), it recalculates Fibonacci(4), Fibonacci(3), Fibonacci(2) from scratch over and over, taking exponential time $\mathcal{O}(2^N)$!
+        <br><br>
+        <strong>Dynamic Programming is an Elephant with a Notepad:</strong>
+        <br>Whenever it solves a riddle, it writes the answer in its notepad (`dp[state] = answer`).
+        <br>If anyone ever asks for that answer again, it glances at the notepad in $\mathcal{O}(1)$ time!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The F.A.S.T. Framework for DP</div>
+      <div class="mnemonic-rule"><strong>F</strong>ind subproblems, <strong>A</strong>llocate table, <strong>S</strong>tore answers, <strong>T</strong>race back!</div>
+      <div class="mnemonic-desc">
+        1. <strong>F</strong>ind: What variables define my current situation? (e.g. <code>item_index, remaining_capacity</code>).
+        <br>2. <strong>A</strong>llocate: Create an array or matrix <code>dp[i][w]</code> initialized to 0.
+        <br>3. <strong>S</strong>tore: Transition formula: $dp[i][w] = \max(\text{skip}, \text{take})$.
+        <br>4. <strong>T</strong>race: Walk backwards through the table to see which items were chosen!
+      </div>
+    </div>
+
+    <h2>2. The Smart Backpack (0/1 Knapsack)</h2>
+    <p>
+      You are an adventurer exploring an ancient temple. Your backpack can hold at most <strong>$W = 7\text{ kg}$</strong>.
+      <br>You find 4 treasure artifacts on pedestals:
+      <br>• Item 1: $(w_1 = 1\text{ kg}, v_1 = \$1)$
+      <br>• Item 2: $(w_2 = 3\text{ kg}, v_2 = \$4)$
+      <br>• Item 3: $(w_3 = 4\text{ kg}, v_3 = \$5)$
+      <br>• Item 4: $(w_4 = 5\text{ kg}, v_4 = \$7)$
+    </p>
+
+    <h3>The Binary Decision at Every Pedestal:</h3>
+    <p>
+      For every item $i$, you face a choice:
+      <br>• <strong>Choice A (Leave it):</strong> You don't take it. Your value is whatever the best pack was without it: $DP[i-1, w]$.
+      <br>• <strong>Choice B (Take it):</strong> You take it (only if $w \ge w_i$). You gain its value $v_i$, and your remaining capacity shrinks to $w - w_i$. Your value is $DP[i-1, w - w_i] + v_i$.
+    </p>
+    <div style="background: #111726; border: 1px solid var(--border); padding: 1.1rem; border-radius: 6px; text-align: center; font-size: 1.25rem; color: var(--emerald); margin-bottom: 1.2rem;">
+      $$DP[i, w] = \max\left(DP[i-1, w], \; DP[i-1, w - w_i] + v_i\right)$$
+    </div>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The Reverse-Loop Rule for 1D Knapsack</div>
+      <div class="mnemonic-rule">"Loop from Right to Left, or You'll Double-Count the Theft!"</div>
+      <div class="mnemonic-desc">
+        When optimizing 2D memory into a single 1D array <code>dp[w]</code>, you <strong>MUST loop $w$ backwards from $W$ down to $w_i$</strong>:
+        <pre style="background: #090c14; padding: 0.6rem; border-radius: 4px; margin-top: 0.4rem; color: var(--emerald);">
+for w in range(W, w_i - 1, -1):
+    dp[w] = max(dp[w], dp[w - w_i] + v_i)</pre>
+        If you looped forward (left to right), <code>dp[w - w_i]</code> would already contain the new value from the current item, allowing you to steal the same item multiple times!
+      </div>
+    </div>
+
+    <h2>3. Real-World Systems Tie-In: Dhwani Offline Sync Throttling</h2>
+    <p>
+      In Dhwani frontline worker apps (`bse_beam_mobile`, `mForm`), devices spend days in remote rural villages with zero internet connectivity.
+      <br>When a worker steps onto a hilltop, the phone catches a 30-second burst of 2G cell tower reception.
+      <br>The phone has a strict upload payload ceiling of <strong>$W = 5\text{ MB}$</strong> before the tower signal drops.
+      <br>The phone has 50 queued survey responses and photo attachments in its local SQLite database.
+      <br>Solving Knapsack DP on the device prioritizes high-value maternal health alerts and critical demographic updates within the 5 MB payload ceiling!
+    </p>
+
+    <h2>4. Interactive Pyodide Lab: 2D & 1D Knapsack Engines</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>knapsack_dp_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Knapsack Lab in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+def knapsack_2d(weights, values, W):
+    n = len(weights)
+    dp = [[0] * (W + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        wi, vi = weights[i - 1], values[i - 1]
+        for w in range(W + 1):
+            if wi > w:
+                dp[i][w] = dp[i - 1][w]
+            else:
+                dp[i][w] = max(dp[i - 1][w], dp[i - 1][w - wi] + vi)
+    
+    # Backtrack chosen items
+    chosen, curr_w = [], W
+    for i in range(n, 0, -1):
+        if dp[i][curr_w] != dp[i - 1][curr_w]:
+            chosen.append(i - 1)
+            curr_w -= weights[i - 1]
+    chosen.reverse()
+    return dp[n][W], dp, chosen
+
+def knapsack_1d_reverse(weights, values, W):
+    """Notice the reverse traversal: range(W, wi - 1, -1)"""
+    dp = [0] * (W + 1)
+    for wi, vi in zip(weights, values):
+        for w in range(W, wi - 1, -1):
+            if dp[w - wi] + vi > dp[w]:
+                dp[w] = dp[w - wi] + vi
+    return dp[W]
+
+weights = [1, 3, 4, 5]
+values  = [1, 4, 5, 7]
+W = 7
+
+max_val_2d, table, chosen = knapsack_2d(weights, values, W)
+max_val_1d = knapsack_1d_reverse(weights, values, W)
+
+print("=" * 65)
+print("DYNAMIC PROGRAMMING: THE SMART BACKPACK EXPERIMENT")
+print("=" * 65)
+print(f"Max Value (2D Table):        ${max_val_2d}")
+print(f"Max Value (1D Reverse Loop): ${max_val_1d}")
+print(f"Items Selected (0-indexed):  {chosen} (Items 2 and 3)")
+
+tot_w = sum(weights[i] for i in chosen)
+tot_v = sum(values[i] for i in chosen)
+print(f"Total Weight Packed:         {tot_w} kg / {W} kg")
+print(f"Total Loot Value:            ${tot_v}")
+
+assert max_val_2d == 9
+assert max_val_1d == 9
+assert chosen == [1, 2] # Item 2 (w=3, v=4) and Item 3 (w=4, v=5)
+print("\n>>> ALL ASSERTIONS PASSED! Bellman optimality proven.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_25_quicksort_randomized.html">← Chapter 25: Sorting Algorithms: QuickSort with Randomized Pivot & Median-of-3</a>
+      <a href="chapter_27_dijkstra_graph_traversal.html">Next: Chapter 27: Graph Traversal: Dijkstra's Shortest Path & Topological Sort →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing Knapsack DP...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

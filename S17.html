@@ -17,50 +17,15 @@
 <details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>the View system: measure, layout and draw passes</li><li>custom views</li><li>RecyclerView view recycling, DiffUtil and why list diffing needs an edit script</li><li>overdraw and hierarchy depth</li><li>Jetpack Compose: composition and recomposition</li><li>stability and skipping</li><li>state hoisting</li><li>remember and rememberSaveable</li><li>side-effect APIs (LaunchedEffect, DisposableEffect, SideEffect)</li><li>CompositionLocal</li><li>comparing Compose, the View system and Flutter&#x27;s widget/element/render model</li></ul></details>
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
-<section id="s-story" class="story"><h2>The story</h2><p>In 2008, when Android 1.0 launched, mobile user interfaces were constructed using the classic imperatively driven <strong>View</strong> system. Every button, text view, and layout was an object in a heavy mutable class hierarchy (<code>android.view.View</code>), configured through XML layout files and updated by imperative mutations (<code>findViewById()</code> followed by <code>setText()</code> and <code>setVisibility()</code>). For over a decade, this imperative model dominated Android development. However, as mobile apps grew complex, managing mutable view state became a primary source of UI bugs: views frequently fell out of sync with underlying models, views leaked Activity contexts, and deeply nested layout passes caused severe frame drops. In 2021, Google released <strong>Jetpack Compose</strong>, a modern declarative UI toolkit that reimagined Android UI from the ground up. Instead of mutating existing views, developers write idempotent composable functions that describe the UI for a given state; when state changes, the Compose runtime automatically executes intelligent <strong>recomposition</strong>, recalculating and redrawing only the exact widgets that changed.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>In Android development, there are two ways to build user interfaces: the traditional View system and modern Jetpack Compose. In the traditional View system, you design screens in XML files and manually update buttons and text boxes using code. In Jetpack Compose, you write Kotlin functions with the <code>@Composable</code> annotation that describe what the screen should look like for a given state. When data changes (like a score updating), Compose automatically "recomposes" only the parts of the screen that depend on that data, skipping everything else. This makes screens much faster to build, easier to test, and eliminates bugs where the screen displays outdated information.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Android UI architectures contrast the imperative View system with declarative Jetpack Compose:
-1. <strong>The Classic View System Pipeline</strong>:
-   - Three recursive passes across the view hierarchy:
-     - <strong>Measure</strong>: Parent views query children (<code>measure()</code>) with <code>MeasureSpec</code> constraints (<code>EXACTLY</code>, <code>AT_MOST</code>, <code>UNSPECIFIED</code>).
-     - <strong>Layout</strong>: Parent assigns position coordinates (<code>layout(l, t, r, b)</code>).
-     - <strong>Draw</strong>: Canvas draws background, self, and children (<code>onDraw(canvas)</code>).
-   - Deep hierarchies trigger exponential layout measurement passes (especially with nested <code>LinearLayout</code> using <code>layout_weight</code>).</p>
-<ol start="2">
-<li>
-<p><strong>RecyclerView and DiffUtil</strong>:
-   - <code>RecyclerView</code> recycles offscreen <code>ViewHolder</code> instances to bound memory consumption.
-   - <code>DiffUtil</code> uses Eugene Myers' $O(ND)$ difference algorithm to compute minimal edit scripts (<code>notifyItemInserted</code>, <code>notifyItemRemoved</code>, <code>notifyItemMoved</code>), enabling smooth item animations.</p>
-</li>
-<li>
-<p><strong>Jetpack Compose Architecture</strong>:
-   - <strong>Composition</strong>: The runtime executes <code>@Composable</code> functions, emitting an in-memory Slot Table representing the UI tree.
-   - <strong>Recomposition</strong>: When observed state (<code>State&lt;T&gt;</code>) changes, Compose re-executes only the composables that read that state.
-   - <strong>Stability and Skipping</strong>:</p>
-<ul>
-<li>A composable is <strong>skippable</strong> if all its parameters are <strong>stable</strong> (primitives, immutable data classes).</li>
-<li>If parameters are unstable (e.g. standard <code>List&lt;T&gt;</code>), Compose re-executes the composable on every recomposition pass!</li>
-</ul>
-</li>
-<li>
-<p><strong>State Hoisting &amp; Side Effects</strong>:
-   - State hoisting pattern: move state up to make composables stateless and testable (<code>value: T, onValueChange: (T) -&gt; Unit</code>).
-   - Side-Effect APIs:</p>
-<ul>
-<li><code>LaunchedEffect(key)</code>: Launches a coroutine bound to the composable lifecycle; cancels and restarts if <code>key</code> changes.</li>
-<li><code>DisposableEffect(key)</code>: For setup and cleanup (e.g. registering/unregistering broadcast listeners).</li>
-<li><code>rememberSaveable</code>: Survives Activity recreation across configuration changes (e.g. screen rotation).</li>
-</ul>
-</li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why Compose's <strong>Stability and Skipping</strong> mechanism is critical for 120 FPS performance, examine what happens during recomposition:</p>
-<pre><code class="language-kotlin">@Composable
-fun ContactRow(user: User, onCall: () -&gt; Unit) {
-  Text(user.name)
-  Button(onClick = onCall) { Text(&quot;Call&quot;) }
-}
-</code></pre>
-<p>If the parent screen recomposes (e.g. a timer ticks in the top bar), Compose checks whether <code>ContactRow</code> can be skipped:
-1. Does <code>user</code> equal the previous <code>user</code> instance?
-2. Are all types in <code>User</code> proven <strong>stable</strong>?</p>
-<p>If <code>User</code> is a plain data class containing a standard Kotlin <code>val tags: List&lt;String&gt;</code>, the Compose compiler marks <code>User</code> as <strong>unstable</strong>! Why? Because standard Kotlin <code>List</code> is an interface; a caller could pass a mutable <code>ArrayList</code> upcast to <code>List</code>, mutating items under the hood without changing the list reference. Because Compose cannot guarantee immutability, it cannot safely skip <code>ContactRow</code>, forcing the entire row to re-execute on every single frame! Wrapping collections in <code>ImmutableList</code> or annotating classes with <code>@Immutable</code> restores skipping, eliminating redundant recompositions, conserving main-thread execution time, and preventing jank across complex mobile user interfaces.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that View hierarchy measure passes, DiffUtil edit script generations, Compose parameter stability classifications, and LaunchedEffect cancellation lifecycles adhere to Android UI framework contracts, we construct an empirical Android UI verification oracle. The oracle validates that Myers Diff produces minimal update scripts, confirms that stable parameters allow composables to skip recomposition, and proves that LaunchedEffect cancels active jobs when keys change.</p>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2008, when Android 1.0 launched, mobile user interfaces were constructed using the classic imperatively driven <strong>View</strong> system. Every button, text view, and layout was an object in a heavy mutable class hierarchy (<code>android.view.View</code>), configured through XML layout files and updated by imperative mutations (<code>findViewById()</code> followed by <code>setText()</code> and <code>setVisibility()</code>). For over a decade, this imperative model dominated Android development. However, as mobile apps grew complex, managing mutable view state became a primary source of UI bugs: views frequently fell out of sync with underlying models, views leaked Activity contexts, and deeply nested layout passes caused severe frame drops. In 2021, Google released <strong>Jetpack Compose</strong>, a modern declarative UI toolkit that reimagined Android UI from the ground up. Instead of mutating existing views, developers write idempotent composable functions that describe the UI for a given state; when state changes, the Compose runtime automatically executes intelligent <strong>recomposition</strong>, recalculating and redrawing only the exact widgets that changed.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>In Android development, there are two ways to build user interfaces: the traditional View system and modern Jetpack Compose. In the traditional View system, you design screens in XML files and manually update buttons and text boxes using code. In Jetpack Compose, you write Kotlin functions with the <code>@Composable</code> annotation that describe what the screen should look like for a given state. When data changes (like a score updating), Compose automatically "recomposes" only the parts of the screen that depend on that data, skipping everything else. This makes screens much faster to build, easier to test, and eliminates bugs where the screen displays outdated information.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Imagine your phone screen is a giant puzzle made of Lego blocks. There are two different ways to build the puzzle:
+1. <strong>The Old Way (Views):</strong> The builder has to ask every single block, "How big are you?" Then they tell every single block exactly where to sit. Finally, they paint every block. If you have a hundred blocks stacked inside each other, the builder has to ask questions a million times, which makes the phone super slow!
+2. <strong>The New Way (Jetpack Compose):</strong> Instead of bossing the blocks around, you just write down a magical recipe: "Draw a red block if the user is happy, draw a blue block if they are sad." The phone reads the recipe and builds the blocks.</p>
+<p>When the user's mood changes, the phone doesn't rebuild the whole screen. It uses a "Smart Skipping" trick. It looks at the recipe and says, "Wait, the title text didn't change, only the color changed! I'm going to skip rebuilding the title completely." </p>
+<p>If you want the app to do something special when a block appears (like playing a sound), you use "Magic Side Effects." And if you turn your phone sideways, normally the phone forgets everything. But if you use the <code>rememberSaveable</code> trick, the phone writes the block's memory on a sticky note so it remembers everything when it turns!</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why is the "Smart Skipping" trick so incredibly important for making fast apps?</p>
+<p>Imagine you have a giant list of 1,000 phone contacts on the screen. The clock at the top of the screen ticks every second. If the phone was stupid, every time the clock ticked, it would completely redraw all 1,000 contacts! The phone would overheat and crash. </p>
+<p>To save battery, the phone checks the rules. It says, "Did the contact change? No. Can I skip redrawing them? Yes!" 
+But there is a catch! If you give the phone a box of apples (a list), the phone gets paranoid. It thinks, "What if someone secretly swapped an apple while I wasn't looking? I can't trust this box! I have to redraw everything just to be safe!" 
+If developers aren't careful, the phone gets paranoid and redraws all 1,000 contacts every single second, ruining the app. To fix this, developers have to put a giant, unbreakable lock on the box (called <code>@Immutable</code>). This tells the phone, "I promise no one can ever change these apples!" The phone relaxes, starts skipping the redrawing again, and your battery is saved!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that View hierarchy measure passes, DiffUtil edit script generations, Compose parameter stability classifications, and LaunchedEffect cancellation lifecycles adhere to Android UI framework contracts, we construct an empirical Android UI verification oracle. The oracle validates that Myers Diff produces minimal update scripts, confirms that stable parameters allow composables to skip recomposition, and proves that LaunchedEffect cancels active jobs when keys change.</p>
 <div class="lab demo" data-demo="oracle-compose-stability-skipping">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of Jetpack Compose parameter stability and recomposition skipping</h3></div>
 
@@ -93,7 +58,7 @@ print(&quot;SUCCESS: Compose stability skipping rules verified.&quot;)
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring execution steps between full list invalidation (<code>notifyDataSetChanged()</code>) and minimal DiffUtil edit script dispatch across two 100-item lists with 2 insertions and 1 deletion. We verify that DiffUtil reduces UI binding updates from 100 view redraws down to 3 surgical item mutations, saving $&gt;95\%$ of UI thread layout overhead and eliminating frame drops during fast touch scrolling.</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring execution steps between full list invalidation (<code>notifyDataSetChanged()</code>) and minimal DiffUtil edit script dispatch across two 100-item lists with 2 insertions and 1 deletion. We verify that DiffUtil reduces UI binding updates from 100 view redraws down to 3 surgical item mutations, saving &gt;95\ percent of UI thread layout overhead and eliminating frame drops during fast touch scrolling.</p>
 <div class="lab demo" data-demo="exp-diffutil-vs-notifydatasetchanged">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical update efficiency comparison of DiffUtil vs notifyDataSetChanged</h3></div>
 
@@ -189,7 +154,7 @@ Generate a minimal list of update operations transforming <code>old_list</code> 
    - Record <code>{"op": "INSERT", "item": item, "index": new_list.index(item)}</code>.
 3. Order Changes: Remaining items present in both. If relative ordering changed:
    - Record <code>{"op": "MOVE", "item": item, "from_index": old_idx, "to_index": new_idx}</code>.
-4. Total operations count $M$.
+4. Total operations count M.
 5. Return dict:
    <code>{"operations": [op_dict, ...], "operations_count": len(operations)}</code>.</p></div>
 <textarea class="code" spellcheck="false">def generate_diff_script(old_list, new_list):

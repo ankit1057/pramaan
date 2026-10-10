@@ -18,48 +18,47 @@
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
 <section id="s-story" class="story"><h2>The story</h2><p>In late June 1945, Hungarian-American mathematician John von Neumann published a 101-page typewritten document titled "First Draft of a Report on the EDVAC." In this foundational paper, von Neumann crystallized the architectural blueprint of electronic computing: a central arithmetic unit (ALU), a central control unit with instruction registers and program counters, input/output mechanisms, and a unified primary memory holding both data and executable instructions. This unified memory architecture—known forever as the von Neumann model—enabled software to modify itself and treated code as data.</p>
-<p>Four decades later in the early 1980s, Stanford professor John Hennessy and UC Berkeley professor David Patterson challenged prevailing processor dogma. For years, computer manufacturers had built increasingly complex CISC (Complex Instruction Set Computer) processors like the VAX and Intel 8086, featuring hundreds of intricate instructions with complicated addressing modes. Hennessy and Patterson proved that 80% of execution time was spent on a tiny subset of 20% of simple instructions. By radically simplifying the instruction set to fixed-width, load-store architectures—RISC (Reduced Instruction Set Computer)—processors could implement deep instruction pipelining, executing an instruction every single clock cycle. This RISC revolution laid the direct architectural foundation for modern ARM64 silicon, powering billions of mobile smartphones and Apple Silicon M-series chips.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A processor is a high-speed calculator that fetches instructions from memory, decodes what they mean, executes the math, and writes back the answer billions of times every second. But there is a massive physics problem: modern CPUs compute in a fraction of a nanosecond, while fetching data from main system RAM takes hundreds of clock cycles. To keep the CPU from sitting idle, chip architects place a hierarchy of tiny, blazing-fast SRAM memory caches (L1, L2, L3) directly on the silicon die, exploiting the fact that programs tend to reuse recent data (temporal locality) and access nearby memory locations (spatial locality).</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Computer architecture performance and memory hierarchy behavior are formalized by:</p>
+<p>Four decades later in the early 1980s, Stanford professor John Hennessy and UC Berkeley professor David Patterson challenged prevailing processor dogma. For years, computer manufacturers had built increasingly complex CISC (Complex Instruction Set Computer) processors like the VAX and Intel 8086, featuring hundreds of intricate instructions with complicated addressing modes. Hennessy and Patterson proved that 80% of execution time was spent on a tiny subset of 20% of simple instructions. By radically simplifying the instruction set to fixed-width, load-store architectures—RISC (Reduced Instruction Set Computer)—processors could implement deep instruction pipelining, executing an instruction every single clock cycle. This RISC revolution laid the direct architectural foundation for modern ARM64 silicon, powering billions of mobile smartphones and Apple Silicon M-series chips.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A processor is a high-speed calculator that fetches instructions from memory, decodes what they mean, executes the math, and writes back the answer billions of times every second. But there is a massive physics problem: modern CPUs compute in a fraction of a nanosecond, while fetching data from main system RAM takes hundreds of clock cycles. To keep the CPU from sitting idle, chip architects place a hierarchy of tiny, blazing-fast SRAM memory caches (L1, L2, L3) directly on the silicon die, exploiting the fact that programs tend to reuse recent data (temporal locality) and access nearby memory locations (spatial locality).</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Let's imagine the computer's brain (the CPU) as an incredibly fast chef in a kitchen:</p>
 <ol>
 <li>
-<p><strong>The Iron Law of Processor Performance</strong>:
-The total execution time for a program is governed by:
-$$\text{CPU Time} = \text{Instruction Count} \times \text{CPI} \times T_{\text{clock}} = \frac{\text{Instructions} \times \text{CPI}}{\text{Clock Frequency}}$$
-where $\text{CPI}$ (Cycles Per Instruction) measures execution efficiency across pipelined functional units.</p>
+<p><strong>The Speed of Cooking (Processor Performance)</strong>:
+How fast the chef finishes cooking depends on three simple things:
+- How many steps are in the recipe (Instructions).
+- How many seconds the chef takes to do one step (Clock Speed).
+- If the chef is smoothly working or stuck waiting for an oven to heat up (Efficiency).</p>
 </li>
 <li>
-<p><strong>Average Memory Access Time (AMAT)</strong>:
-For a multi-level cache hierarchy:
-$$\text{AMAT} = T_{L1} + M_{L1} \cdot \left( T_{L2} + M_{L2} \cdot \left( T_{L3} + M_{L3} \cdot T_{\text{DRAM}} \right) \right)$$
-where $T_k$ is the hit latency of level $k$ and $M_k$ is the local miss rate ($0 \le M_k \le 1$).</p>
+<p><strong>The Kitchen Pantry (Memory Hierarchy)</strong>:
+- <strong>L1 Cache (Pockets)</strong>: The chef keeps salt in their pockets. It takes 1 second to grab!
+- <strong>L2 Cache (Countertop)</strong>: Ingredients on the counter take 3 seconds to grab.
+- <strong>L3 Cache (Fridge)</strong>: Opening the fridge takes 10 seconds.
+- <strong>Main Memory (Grocery Store)</strong>: If the chef needs an ingredient not in the kitchen, they have to drive to the grocery store. It takes a <em>loooong</em> time (hundreds of seconds)! The computer tries super hard to keep important things on the countertop so it doesn't have to drive to the store.</p>
 </li>
 <li>
-<p><strong>Set-Associative Cache Mapping</strong>:
-A physical memory address of $W$ bits is partitioned into three fields:
-$$\begin{array}{|c|c|c|}
-\hline
-\text{Tag } (W - S - B \text{ bits}) &amp; \text{Set Index } (S \text{ bits}) &amp; \text{Byte Offset } (B \text{ bits}) \\
-\hline
-\end{array}$$
-where $B = \log_2(\text{Line Size})$, $S = \log_2(\text{Number of Sets})$, and $\text{Ways} = E$.
-- Cache Line Size: 64 bytes (x86), 128 bytes (Apple Silicon).
-- The 4 C's of Cache Misses: Compulsory (cold start), Capacity (working set exceeds total cache size), Conflict (non-ideal hash collision within a set), Coherence (cache block invalidated by another core via MESI).</p>
+<p><strong>Organizing the Fridge (Cache Mapping)</strong>:
+To find things instantly, the chef doesn't just throw food into the fridge. Every food item gets a strict home based on a label: "Top Shelf", "Box #4", "Third egg". This makes finding things super fast!</p>
 </li>
 <li>
-<p><strong>Pipelining &amp; Hazards</strong>:
-- <strong>Structural Hazards</strong>: Simultaneous hardware resource conflicts (e.g. unified memory port).
-- <strong>Data Hazards (RAW, WAR, WAW)</strong>: True data dependency (Read-After-Write). Resolved via forwarding bypass networks or compiler scheduling stalls.
-- <strong>Control Hazards</strong>: Branch resolution delays. Mitigated via 2-bit branch predictors, branch target buffers (BTB), and speculative execution.</p>
+<p><strong>The Assembly Line (Pipelining)</strong>:
+Instead of cooking one entire pizza before starting the next one, the chef uses an assembly line. While Pizza 1 is baking, the chef is putting cheese on Pizza 2, and rolling dough for Pizza 3!
+Sometimes there are problems (Hazards):
+- <strong>Tool Crash</strong>: Two cooks grab for the same pizza cutter at once!
+- <strong>Waiting</strong>: You can't put cheese on a pizza if the dough isn't rolled out yet.
+- <strong>Guessing</strong>: The chef has to guess what order the next customer will make, so they start making it early!</p>
 </li>
 <li>
-<p><strong>Multicore Coherence (MESI Protocol)</strong>:
-Every cache line occupies one of four states:
-$$\text{MESI} = \{\text{Modified (dirty, exclusive)}, \text{Exclusive (clean, private)}, \text{Shared (clean, replicated)}, \text{Invalid (stale)}\}$$</p>
+<p><strong>Sharing the Kitchen (Multicore)</strong>:
+If there are four chefs, they have strict rules to not ruin the soup:
+- "I'm changing this recipe, don't look at it yet!" (Modified)
+- "I'm the only one looking at this." (Exclusive)
+- "We are all reading this recipe together." (Shared)
+- "Someone changed this, my copy is old and gross!" (Invalid)</p>
 </li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why CPU architects introduced out-of-order execution, deep pipelining, and aggressive branch prediction requires analyzing the "Memory Wall"—the exponentially widening performance chasm between processor clock speeds and DRAM memory access latency. Between 1980 and 2005, CPU frequencies grew at approximately 55% per year, while DRAM access latency improved by a sluggish 7% per year. Consequently, a memory load instruction that once cost 5 CPU cycles came to cost over 300 CPU cycles.</p>
-<p>If a modern processor stalled synchronously on every cache miss, the ALU would spend over 95% of its time idling, destroying computing throughput. Chip architects resolved this through aggressive speculation:
-1. <strong>Branch Predictors &amp; Speculative Execution</strong>: The CPU predicts which direction an <code>if</code> branch will take with over 98% accuracy and executes instructions miles ahead of actual data readiness.
-2. <strong>Out-of-Order Instruction Windows</strong>: While waiting for a slow DRAM load, the processor searches ahead in an instruction window of hundreds of instructions, executing independent instructions out of order and reordering the results before retirement.
-3. <strong>The Microarchitectural Vulnerability (Spectre &amp; Meltdown)</strong>: In 2018, researchers discovered that speculative execution leaves physical footprints in the CPU cache. Even when a mispredicted branch is rolled back, the data loaded into the cache during speculative execution alters memory access timing, allowing attackers to measure microsecond latency differences (Flush+Reload) and read arbitrary kernel memory.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The cache address decoder and memory mapping verification oracle proves how physical memory addresses decompose into Tag, Set Index, and Byte Offset fields across arbitrary cache geometries. The interactive oracle simulates a 4-way set-associative cache with 64-byte lines, verifying that identical set index mappings cause conflict evictions while spatial locality hits within the same 64-byte line without secondary memory stalls.</p>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>A long time ago, the chef's brain got faster and faster, but driving to the grocery store stayed exactly as slow as before. This became a giant problem: the world's fastest chef was spending 95% of their day sitting in traffic! </p>
+<p>To fix this, computer designers invented a couple of brilliant magic tricks:
+1. <strong>Fortune Telling (Branch Prediction)</strong>: The chef got so good at their job they can now guess what a customer will order 98% of the time. They literally cook your burger before you even walk through the door! If they guess wrong, they just throw the burger in the trash, but they are almost never wrong.
+2. <strong>Juggling (Out-of-Order Execution)</strong>: If the chef is waiting for carrots from the grocery store, they don't just stand there doing nothing. They look down their list of orders and say, "Aha! I can make this milk-shake right now!" They cook things entirely out of order, and then magically serve them to the customers in the perfect order.</p>
+<p>However, a few years ago, security guards noticed a problem with the Fortune Telling trick. Even when the chef guessed wrong and threw the early burger in the trash, sneaky spies could tell <em>what</em> the chef was cooking by looking at the dirty pans left behind. This let bad guys steal secret information from computers, and it forced engineers to make the kitchens a little bit safer.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The cache address decoder and memory mapping verification oracle proves how physical memory addresses decompose into Tag, Set Index, and Byte Offset fields across arbitrary cache geometries. The interactive oracle simulates a 4-way set-associative cache with 64-byte lines, verifying that identical set index mappings cause conflict evictions while spatial locality hits within the same 64-byte line without secondary memory stalls.</p>
 <div class="lab demo" data-demo="p05-oracle-cache-decoder">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Set-Associative Cache Address Decomposition Oracle</h3></div>
 

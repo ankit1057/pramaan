@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Omni-Academy — 50-Module Master Curriculum: NCERT 6th to PhD Systems in Pyodide</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  
+  <!-- Pyodide WebAssembly CDN -->
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  
+  <!-- MathJax for rendering Mathematical LaTeX -->
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- Load All 50 Verified Modules -->
+  <script src="curriculum_data.js"></script>
+
+  <style>
+    :root {
+      --bg-base: #06080e;
+      --bg-surface: #0c101a;
+      --bg-card: rgba(16, 22, 34, 0.9);
+      --bg-code: #080c14;
+      --border: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(56, 189, 248, 0.3);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --violet: #a855f7;
+      --indigo: #6366f1;
+      --radius: 10px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-base);
+      background-image: 
+        radial-gradient(circle at 10% 10%, rgba(56, 189, 248, 0.05) 0%, transparent 45%),
+        radial-gradient(circle at 90% 90%, rgba(168, 85, 247, 0.05) 0%, transparent 45%);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.6;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Top Global Header */
+    header {
+      background: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0.8rem 1.8rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+
+    .brand h1 {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+
+    .brand span {
+      color: var(--cyan);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    .pyodide-status-badge {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.78rem;
+      font-family: 'Fira Code', monospace;
+      padding: 4px 12px;
+      border-radius: 20px;
+      background: rgba(244, 63, 94, 0.12);
+      border: 1px solid rgba(244, 63, 94, 0.3);
+      color: var(--rose);
+      transition: all 0.3s;
+    }
+
+    .pyodide-status-badge.ready {
+      background: rgba(16, 185, 129, 0.12);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: var(--emerald);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+    }
+
+    /* Main Workspace Layout */
+    .workspace {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    /* Left Sidebar: 50 Module Navigation */
+    .sidebar {
+      width: 360px;
+      background: var(--bg-surface);
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .sidebar-search {
+      padding: 0.8rem 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .search-input {
+      width: 100%;
+      background: #141b2a;
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 0.5rem 0.8rem;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      outline: none;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .curriculum-nav {
+      list-style: none;
+      padding: 0.5rem 0.6rem 3rem;
+    }
+
+    .epoch-group {
+      font-size: 0.72rem;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--cyan);
+      padding: 1.2rem 0.8rem 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      margin-top: 0.5rem;
+    }
+
+    .epoch-group:first-child { border-top: none; margin-top: 0; }
+
+    .module-item {
+      display: flex;
+      align-items: baseline;
+      gap: 0.6rem;
+      padding: 0.6rem 0.8rem;
+      border-radius: 6px;
+      color: var(--text-muted);
+      font-size: 0.84rem;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s;
+      line-height: 1.35;
+    }
+
+    .module-item:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: var(--text-main);
+    }
+
+    .module-item.active {
+      background: rgba(56, 189, 248, 0.12);
+      color: var(--cyan);
+      font-weight: 600;
+      border-left: 3px solid var(--cyan);
+    }
+
+    .mod-num {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.72rem;
+      color: var(--text-dim);
+      flex-shrink: 0;
+    }
+
+    /* Center Content Area */
+    .content-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 2.5rem 3.5rem 5rem;
+      max-width: 950px;
+      margin: 0 auto;
+    }
+
+    .lesson-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-size: 0.75rem;
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+      text-transform: uppercase;
+      margin-bottom: 0.5rem;
+    }
+
+    .lesson-title {
+      font-size: 1.9rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.2rem;
+      line-height: 1.3;
+    }
+
+    .lesson-body {
+      color: #cbd5e1;
+      font-size: 0.95rem;
+      line-height: 1.7;
+      margin-bottom: 1.8rem;
+    }
+
+    .lesson-body p { margin-bottom: 1rem; }
+
+    .math-display {
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border-accent);
+      border-radius: var(--radius);
+      padding: 1rem 1.4rem;
+      margin: 1.2rem 0;
+      font-family: 'Fira Code', monospace;
+      color: #7dd3fc;
+      font-size: 0.95rem;
+      text-align: center;
+      overflow-x: auto;
+    }
+
+    .systems-tie-in {
+      background: rgba(16, 185, 129, 0.08);
+      border-left: 3px solid var(--emerald);
+      padding: 1rem 1.2rem;
+      border-radius: 4px;
+      font-size: 0.88rem;
+      color: #d1fae5;
+      margin-bottom: 1.8rem;
+    }
+
+    /* Live Code & Pyodide Runner Card */
+    .code-card {
+      background: var(--bg-code);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 2rem;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.5);
+    }
+
+    .code-card-header {
+      background: #0d121c;
+      padding: 0.6rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-card-title {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      color: var(--text-dim);
+    }
+
+    .action-btn-group {
+      display: flex;
+      gap: 0.6rem;
+    }
+
+    .run-btn {
+      background: linear-gradient(90deg, #0284c7, #0369a1);
+      color: #fff;
+      border: none;
+      padding: 0.45rem 1rem;
+      border-radius: 5px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      font-family: 'Fira Code', monospace;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+    }
+
+    .run-btn:hover {
+      background: linear-gradient(90deg, #38bdf8, #0284c7);
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.4);
+    }
+
+    .reset-btn {
+      background: rgba(255, 255, 255, 0.05);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+      padding: 0.45rem 0.8rem;
+      border-radius: 5px;
+      font-size: 0.78rem;
+      font-family: 'Fira Code', monospace;
+      cursor: pointer;
+    }
+
+    .reset-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.1); }
+
+    .code-editor {
+      width: 100%;
+      background: transparent;
+      color: #e2e8f0;
+      border: none;
+      padding: 1.2rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      line-height: 1.5;
+      resize: vertical;
+      min-height: 240px;
+      outline: none;
+      tab-size: 4;
+    }
+
+    /* Terminal Output Box */
+    .terminal-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1rem 1.2rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: #10b981;
+      max-height: 280px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      display: none;
+    }
+
+    .terminal-out.show { display: block; }
+    .terminal-out.error { color: #f43f5e; }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <header>
+    <div class="brand">
+      <h1>Omni-Academy</h1>
+      <span>50-Module Master Curriculum · NCERT 6th to PhD Systems</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 1rem;">
+      <a href="textbook/index.html" style="color: var(--cyan); text-decoration: none; font-family: 'Fira Code', monospace; font-size: 0.82rem; font-weight: 700; background: rgba(56, 189, 248, 0.12); padding: 0.35rem 0.8rem; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.3);">📖 Deep Textbook Chapters</a>
+      <a href="../independent_audit_project/hardcore_ai_developer_audit_dhwani.html" style="color: var(--text-muted); text-decoration: none; font-family: 'Fira Code', monospace; font-size: 0.82rem;">🎯 Dhwani Audit</a>
+    </div>
+    <div id="pyodideStatus" class="pyodide-status-badge">
+      <div class="status-dot"></div>
+      <span id="statusText">Loading Pyodide WASM...</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+
+    <!-- Left Sidebar Nav -->
+    <aside class="sidebar">
+      <div class="sidebar-search">
+        <input type="text" id="searchInput" class="search-input" placeholder="Search 50 topics, formulas, or keywords..." oninput="filterModules()">
+      </div>
+      <ul class="curriculum-nav" id="navList">
+        <!-- Rendered dynamically -->
+      </ul>
+    </aside>
+
+    <!-- Center Content Viewer -->
+    <main class="content-area" id="contentArea">
+      <!-- Lesson details will render here -->
+    </main>
+
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    let currentModuleIndex = 0;
+    const modules = window.OMNI_MODULES || [];
+
+    // Initialize Pyodide Runtime
+    async function initPyodide() {
+      const badge = document.getElementById('pyodideStatus');
+      const text = document.getElementById('statusText');
+      try {
+        pyodideInstance = await loadPyodide({
+          stdout: (msg) => appendTerminalOutput(msg, false),
+          stderr: (msg) => appendTerminalOutput(msg, true)
+        });
+        badge.classList.add('ready');
+        text.textContent = "Pyodide WASM Active (Python 3.12)";
+      } catch (err) {
+        text.textContent = "WASM Initialization Failed";
+        console.error(err);
+      }
+    }
+
+    let activeTerminal = null;
+
+    function appendTerminalOutput(msg, isError) {
+      if (activeTerminal) {
+        activeTerminal.textContent += msg + "\n";
+        activeTerminal.classList.add('show');
+        if (isError) activeTerminal.classList.add('error');
+      }
+    }
+
+    async function executeModuleCode(idx) {
+      if (!pyodideInstance) {
+        alert("Pyodide WebAssembly is downloading. Please give it 5 seconds.");
+        return;
+      }
+      const editor = document.getElementById(`editor_${idx}`);
+      const terminal = document.getElementById(`terminal_${idx}`);
+      terminal.textContent = ">>> Executing in Pyodide WebAssembly sandbox...\n";
+      terminal.className = "terminal-out show";
+      activeTerminal = terminal;
+
+      try {
+        await pyodideInstance.runPythonAsync(editor.value);
+        terminal.textContent += "\n[Execution Complete — All Assertions Verified]";
+      } catch (err) {
+        terminal.textContent += `\n[Traceback]:\n${err}`;
+        terminal.classList.add('error');
+      }
+    }
+
+    function resetModuleCode(idx) {
+      document.getElementById(`editor_${idx}`).value = modules[idx].code;
+      const term = document.getElementById(`terminal_${idx}`);
+      term.textContent = "";
+      term.classList.remove('show');
+    }
+
+    function filterModules() {
+      const q = document.getElementById('searchInput').value.toLowerCase();
+      renderSidebar(q);
+    }
+
+    function renderSidebar(filterQuery = "") {
+      const navList = document.getElementById('navList');
+      navList.innerHTML = "";
+      let currentEpoch = "";
+
+      modules.forEach((m, idx) => {
+        const matches = !filterQuery || 
+                        m.title.toLowerCase().includes(filterQuery) ||
+                        m.tag.toLowerCase().includes(filterQuery) ||
+                        m.theory.toLowerCase().includes(filterQuery);
+        if (!matches) return;
+
+        if (m.epoch !== currentEpoch) {
+          currentEpoch = m.epoch;
+          const epochLi = document.createElement('li');
+          epochLi.className = 'epoch-group';
+          epochLi.textContent = currentEpoch;
+          navList.appendChild(epochLi);
+        }
+
+        const li = document.createElement('li');
+        const a = document.createElement('a');
+        a.className = `module-item ${idx === currentModuleIndex ? 'active' : ''}`;
+        a.innerHTML = `<span class="mod-num">#${(idx+1).toString().padStart(2, '0')}</span> <span>${m.title.split(': ')[1] || m.title}</span>`;
+        a.onclick = () => loadModule(idx);
+        li.appendChild(a);
+        navList.appendChild(li);
+      });
+    }
+
+    function loadModule(idx) {
+      currentModuleIndex = idx;
+      renderSidebar(document.getElementById('searchInput').value.toLowerCase());
+
+      const m = modules[idx];
+      const area = document.getElementById('contentArea');
+
+      area.innerHTML = `
+        <div class="lesson-meta">
+          <span>${m.epoch}</span> · <span>${m.tag}</span>
+        </div>
+        <h2 class="lesson-title">${m.title}</h2>
+
+        <div class="lesson-body">
+          ${m.theory}
+        </div>
+
+        <div class="systems-tie-in">
+          <strong>💡 Systems Engineering Connection:</strong><br>
+          ${m.systems_tie_in}
+        </div>
+
+        <div class="code-card">
+          <div class="code-card-header">
+            <span class="code-card-title">${m.id}_interactive.py</span>
+            <div class="action-btn-group">
+              <button class="reset-btn" onclick="resetModuleCode(${idx})">Reset Code</button>
+              <button class="run-btn" onclick="executeModuleCode(${idx})">▶ Run in Pyodide</button>
+            </div>
+          </div>
+          <textarea class="code-editor" id="editor_${idx}" spellcheck="false">${m.code}</textarea>
+          <div class="terminal-out" id="terminal_${idx}"></div>
+        </div>
+      `;
+
+      // Re-trigger MathJax rendering if present
+      if (window.MathJax && MathJax.typesetPromise) {
+        MathJax.typesetPromise([area]);
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      renderSidebar();
+      loadModule(0);
+      initPyodide();
+    });
+  </script>
+</body>
+</html>

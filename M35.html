@@ -20,160 +20,47 @@ If you pass the boss without hints, <button data-act="known">mark this module as
 <section id="s-story" class="story"><h2>The story</h2><p>Ravi is reconciling a day's billing. The system charged 2,431 customers, and the ledger total is off by four paise.</p>
 <p>Four paise is nothing. Four paise is also impossible — every individual charge is correct, he checks a hundred of them by hand. Correct numbers that add up to a wrong total.</p>
 <p>He tries the obvious thing: add them again. Same answer. He adds them in a different order, sorted by customer id instead of by time. <strong>Different answer.</strong> Off by three paise this time.</p>
-<p>This is the moment worth stopping on. Addition is associative. $(a+b)+c = a+(b+c)$ is not a convention or a convenience; it is one of the first facts anyone learns about numbers, and it is true for integers, for rationals, for reals. Ravi's computer is adding the same 2,431 numbers and getting different totals depending on the order.</p>
+<p>This is the moment worth stopping on. Addition is associative. (a+b)+c = a+(b+c) is not a convention or a convenience; it is one of the first facts anyone learns about numbers, and it is true for integers, for rationals, for reals. Ravi's computer is adding the same 2,431 numbers and getting different totals depending on the order.</p>
 <p>Nothing is broken. The machine is not storing his numbers. It is storing the nearest number it <em>can</em> represent, and 0.01 is not one of them — in binary, one hundredth is a recurring fraction exactly as one third is in decimal. Every charge is slightly wrong before any addition happens, and the order decides how those tiny errors stack.</p>
 <p>The fix is not more precision. Doubling the precision would move the error to the fifteenth decimal place instead of the eleventh, and he would find it again next quarter with more customers. The fix is to know which operations amplify error and which do not — and, for money, not to use binary floats at all.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>A computer stores a real number as <strong>sign, exponent and mantissa</strong> — scientific notation in binary, with a fixed budget of digits. Most numbers do not fit, so what gets stored is the nearest one that does.</p>
-<p>That rounding is tiny: about one part in $10^{16}$ for a 64-bit double, a quantity called <strong>machine epsilon</strong>. The danger is never the single rounding. It is <strong>amplification</strong>: operations that take a small relative error and make it large.</p>
+<p>That rounding is tiny: about one part in 10^{16} for a 64-bit double, a quantity called <strong>machine epsilon</strong>. The danger is never the single rounding. It is <strong>amplification</strong>: operations that take a small relative error and make it large.</p>
 <p>The worst offender is <strong>cancellation</strong> — subtracting two nearly equal numbers. The leading digits agree and annihilate, leaving the error promoted to the front.</p>
-<p>Two different words describe what can go wrong. A <strong>problem</strong> is ill-<strong>conditioned</strong> when its true answer is hypersensitive to its input. An <strong>algorithm</strong> is un<strong>stable</strong> when it adds error the problem did not require. The first is the question's fault; the second is yours.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>IEEE 754</h2>
-<p>A binary64 <strong>double</strong> occupies 64 bits: 1 sign $s$, 11 exponent $e$, 52 mantissa $m$. For a <strong>normal</strong> number ($1\le e\le2046$) the value is</p>
-<p>$$(-1)^s \times 1.m_2 \times 2^{e-1023}$$</p>
-<p>The leading 1 is implicit, buying a free 53rd bit of precision. Special cases use the reserved exponents:</p>
-<table>
-<thead>
-<tr>
-<th>$e$</th>
-<th>$m$</th>
-<th>meaning</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>0</td>
-<td>0</td>
-<td>$\pm0$ (two of them)</td>
-</tr>
-<tr>
-<td>0</td>
-<td>$\ne0$</td>
-<td><strong>subnormal</strong>: $0.m_2\times2^{-1022}$, gradual underflow</td>
-</tr>
-<tr>
-<td>2047</td>
-<td>0</td>
-<td>$\pm\infty$</td>
-</tr>
-<tr>
-<td>2047</td>
-<td>$\ne0$</td>
-<td><strong>NaN</strong></td>
-</tr>
-</tbody>
-</table>
-<p>NaN is not equal to itself, which is the standard's way of saying "no answer", and is why <code>x != x</code> is a NaN test.</p>
-<p><strong>Machine epsilon</strong> $\varepsilon = 2^{-52}\approx2.22\times10^{-16}$ is the gap between 1.0 and the next double. An <strong>ulp</strong> (unit in the last place) is the local gap, which scales with magnitude: near $2^k$ it is $2^{k-52}$. The relative error of a correctly rounded operation is at most $\frac{\varepsilon}{2}$, so</p>
-<p>$$\mathrm{fl}(a\circ b) = (a\circ b)(1+\delta), \qquad |\delta|\le\frac{\varepsilon}{2}$$</p>
-<p><strong>Rounding modes.</strong> The default is <strong>round half to even</strong>, which breaks ties towards an even last digit so that rounding errors do not accumulate in one direction. This is why <code>round(0.5)</code> is 0 and <code>round(2.5)</code> is 2 in Python — not a bug, but statistical hygiene. The standard also defines round towards zero, towards $+\infty$ and towards $-\infty$.</p>
-<h2>Cancellation and conditioning</h2>
-<p>Subtracting nearby quantities is exact at the bit level (Sterbenz: if $\frac{y}{2}\le x\le2y$ then $x-y$ is exact) — the damage is that the <em>inputs</em> already carried error, and the subtraction strips away the agreeing digits that were hiding it. If $x$ and $y$ each have relative error $\delta$, then $x-y$ has relative error about</p>
-<p>$$\delta\cdot\frac{|x|+|y|}{|x-y|}$$</p>
-<p>and the fraction blows up as $x\to y$.</p>
-<p>The standard repairs replace the subtraction with an algebraically equal expression that has none:</p>
-<table>
-<thead>
-<tr>
-<th>Unstable</th>
-<th>Stable</th>
-<th>Why</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>$1-\cos x$</td>
-<td>$2\sin^2\frac{x}{2}$</td>
-<td>no subtraction of nearby values</td>
-</tr>
-<tr>
-<td>$e^x-1$</td>
-<td><code>expm1(x)</code></td>
-<td>the series is computed directly</td>
-</tr>
-<tr>
-<td>$\ln(1+x)$</td>
-<td><code>log1p(x)</code></td>
-<td>likewise</td>
-</tr>
-<tr>
-<td>$\sqrt{x+1}-\sqrt{x}$</td>
-<td>$\frac{1}{\sqrt{x+1}+\sqrt{x}}$</td>
-<td>multiply by the conjugate</td>
-</tr>
-<tr>
-<td>$\frac{-b\pm\sqrt{b^2-4ac}}{2a}$</td>
-<td>$q=-\frac{b+\operatorname{sign}(b)\sqrt{D}}{2}$, roots $\frac{q}{a},\frac{c}{q}$</td>
-<td>one root always cancels</td>
-</tr>
-</tbody>
-</table>
-<p>The <strong>condition number</strong> measures how much a problem amplifies input error. For evaluating $f$ at $x$,</p>
-<p>$$\kappa(x) = \left|\frac{x f&#x27;(x)}{f(x)}\right|$$</p>
-<p>For subtraction $f(x)=x-y$ with $y$ fixed, $\kappa=\left|\frac{x}{x-y}\right|$, which is enormous near $x=y$ — the same statement again, now as a number.</p>
-<p><strong>Conditioning belongs to the problem; stability belongs to the algorithm.</strong> A stable algorithm on an ill-conditioned problem still gives a bad answer, and there is no algorithm that fixes it. That is the honest limit, and M31's condition number for matrices is the same idea.</p>
-<h2>Summation</h2>
-<p>Adding $n$ numbers naively has a worst-case error bound of $O(n\varepsilon)\sum|x_i|$: the error grows with the count. <strong>Kahan summation</strong> carries the lost low-order bits in a compensation term:</p>
-<pre><code>s = 0; c = 0
-for x in values:
-    y = x - c
-    t = s + y
-    c = (t - s) - y     # what was lost when y was added
-    s = t
-</code></pre>
-<p>and achieves $O(\varepsilon)\sum|x_i|$ — a bound independent of $n$. The line <code>c = (t - s) - y</code> looks like it must be zero, and in exact arithmetic it is. It is exactly the rounding error, recovered.</p>
-<p>Sorting by increasing magnitude before summing also helps, because it stops a large running total from swallowing small addends.</p>
-<h2>Root finding</h2>
-<table>
-<thead>
-<tr>
-<th>Method</th>
-<th>Needs</th>
-<th>Order</th>
-<th>Guaranteed?</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Bisection</td>
-<td>a sign change</td>
-<td>1 (halves each step)</td>
-<td>yes</td>
-</tr>
-<tr>
-<td>Newton</td>
-<td>$f&#x27;$, a good start</td>
-<td>2</td>
-<td>no</td>
-</tr>
-<tr>
-<td>Secant</td>
-<td>two starts</td>
-<td>$\varphi\approx1.618$</td>
-<td>no</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Bisection</strong>: the interval halves, so the error after $k$ steps is $\frac{b-a}{2^k}$ — about 50 steps for full double precision, every time, with no surprises.</p>
-<p><strong>Newton</strong>: $x_{n+1}=x_n-\frac{f(x_n)}{f&#x27;(x_n)}$. Near a simple root the error squares, so the correct digits double each step. At a <strong>multiple</strong> root the order drops to 1, and a bad start can cycle or diverge.</p>
-<p><strong>Secant</strong>: replaces $f&#x27;$ with a finite difference. The order $\varphi=\frac{1+\sqrt5}{2}$ is the golden ratio, which falls out of the error recurrence $e_{n+1}\approx Ce_ne_{n-1}$.</p>
-<h2>Interpolation and Runge's phenomenon</h2>
-<p>Through $n+1$ points there is exactly one polynomial of degree $\le n$. It is tempting to conclude that more points give a better fit. For <strong>equispaced</strong> nodes this is false. <strong>Runge's function</strong> $f(x)=\frac{1}{1+25x^2}$ on $[-1,1]$ interpolated at equispaced points <strong>diverges</strong> near the ends as $n$ grows, with the error growing without bound.</p>
-<p>The cure is the node placement. <strong>Chebyshev nodes</strong> $x_k=\cos\left(\frac{k\pi}{n}\right)$ cluster near the endpoints and make the error converge. The problem was never the degree; it was the uniform spacing.</p>
+<p>Two different words describe what can go wrong. A <strong>problem</strong> is ill-<strong>conditioned</strong> when its true answer is hypersensitive to its input. An <strong>algorithm</strong> is un<strong>stable</strong> when it adds error the problem did not require. The first is the question's fault; the second is yours.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><h2>The License Plate Limit (IEEE 754)</h2>
+<p>A computer doesn't have infinite space. It stores a number on a "license plate" with a strict budget: 1 slot for the sign (positive/negative), 11 slots for the "zoom level" (exponent), and 52 slots for the actual digits (mantissa). </p>
+<p>Because the budget is fixed, the computer can only store a finite list of numbers. Everything else gets rounded to the nearest allowed number. The gap between 1.0 and the very next allowed number is called <strong>machine epsilon</strong> (about 0.0000000000000002).</p>
+<p>To stop errors from always drifting in one direction, the computer's rule for rounding ties (like 0.5) is to <strong>round to the nearest even digit</strong>.</p>
+<h2>Weighing the Captain (Cancellation)</h2>
+<p>Imagine trying to find the weight of a ship's captain. You weigh the whole ship with the captain (10,000,000 lbs). Then you weigh the ship without the captain (10,000,000 lbs). The computer's license plate only holds 8 digits, so it rounds away the captain! You subtract them and get 0.</p>
+<p>This is <strong>cancellation</strong>. Subtracting two huge, nearly identical numbers destroys the tiny differences that actually matter. The trick is to do the algebra first so you only ever measure the captain directly.
+- <strong>Unstable:</strong> 1 minus the cosine of x (Weighing the ship twice)
+- <strong>Stable:</strong> 2 times the sine squared of x over 2 (Weighing just the captain)</p>
+<p>Some problems are just born wobbly, like balancing a broom on your finger. A tiny breeze ruins everything. We call that an <strong>ill-conditioned</strong> problem. If a problem is ill-conditioned, no math trick can save it.</p>
+<h2>The Penny Piggy Bank (Kahan Summation)</h2>
+<p>If you add a penny to a million dollars, the computer might round the penny away because the million-dollar number needs all the slots. If you add a million pennies one by one, the computer throws <em>every single one</em> away. You get zero.</p>
+<p><strong>Kahan summation</strong> fixes this with a piggy bank. When the computer throws away a tiny fraction of a penny, Kahan's code catches it and puts it in the <code>c</code> variable (the piggy bank). When the piggy bank gets full enough to matter, it empties into the main total. This keeps your total perfectly accurate, no matter how many numbers you add.</p>
+<h2>Treasure Hunting (Root Finding)</h2>
+<p>How do you find where a curve hits exactly zero (the treasure)?
+- <strong>Bisection (The Safe Search):</strong> Is the treasure in the left half or the right half? Cut the map in half. Repeat. It takes exactly 50 cuts to find the exact spot. Slow, but it <strong>never fails</strong>.
+- <strong>Newton's Method (The Sprint):</strong> Look at how steep the ground is, and sprint down the slope! It is insanely fast (the number of correct digits <em>doubles</em> every step), but if you hit a bump, you can get launched in the wrong direction forever.
+- <strong>Secant Method:</strong> A mix of both. You use two recent guesses to draw a line. </p>
+<h2>Nailing the Wood (Runge's Phenomenon)</h2>
+<p>Suppose you want to fit a smooth curve through some data points. You might think "I'll just use a super bendy curve and force it to hit every point perfectly!" </p>
+<p>If you place your points evenly spaced (like exactly every 1 inch), and use a super bendy curve, the curve will go completely crazy at the edges. It will shoot off into space just to bend back in time for the next point. This is <strong>Runge's phenomenon</strong>.</p>
+<p>The fix is <strong>Chebyshev nodes</strong>: cluster your points tightly near the edges, and leave them spread out in the middle. The clustered edge-points pin the crazy curve down and force it to behave.</p>
 <h2>A pinch of history</h2>
-<p>Before 1985 every manufacturer had its own floating-point format, and a program's answers changed when it moved machines. William Kahan drove the IEEE 754 standard through, earning the 1989 Turing Award; gradual underflow via subnormals was among its most contested features. Kahan's compensated summation dates from 1965.</p>
-<p>Carl Runge published his phenomenon in 1901. Newton described his method around 1669 and Raphson simplified it in 1690; the modern iterative form is due to Simpson in 1740. The costs of getting it wrong are documented: in 1991 a Patriot missile battery at Dhahran failed to intercept because its clock accumulated a 0.34 s drift from representing 0.1 in 24 bits, and in 1992 the Vancouver Stock Exchange index had drifted from 1000 to 520 over 22 months by truncating rather than rounding on every recalculation.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: 0.1 is not representable.</strong> A binary fraction terminates only when its denominator is a power of two. $\frac{1}{10}=\frac{1}{2\cdot5}$ has a factor of 5, so in binary it recurs: $0.0\overline{0011}_2$. The nearest double is</p>
-<p>$$0.1000000000000000055511151231257827021181583404541015625$$</p>
-<p>exactly — which you can print, because the stored value is a dyadic rational and therefore has a finite decimal expansion. The same argument shows $\frac13$ recurs in decimal, which nobody finds surprising; the only novelty is which denominators are privileged.</p>
-<p><strong>Result 2: why cancellation promotes error.</strong> Let $\hat x = x(1+\delta_1)$ and $\hat y=y(1+\delta_2)$ with $|\delta_i|\le u$. Then</p>
-<p>$$\hat x-\hat y = (x-y)\left(1 + \frac{x\delta_1-y\delta_2}{x-y}\right)$$</p>
-<p>so the relative error of the difference is bounded by $u\cdot\frac{|x|+|y|}{|x-y|}$. Nothing about the subtraction is inaccurate — the factor is simply the ratio of what you started with to what survived. When $x-y$ is a thousand times smaller than $x$, the relative error is a thousand times larger, and three more digits of the answer are noise.</p>
-<p><strong>Result 3: Kahan's compensation recovers the exact error.</strong> Suppose $|s|\ge|y|$ and let $t = \mathrm{fl}(s+y)$. Write $t = s+y-e$ where $e$ is the rounding error. Then $t-s$ is computed <strong>exactly</strong> — this is Sterbenz's lemma, since $t$ and $s$ are within a factor of 2 — giving $y-e$. Subtracting $y$ yields $-e$... and the code stores $c=(t-s)-y=-e$, then subtracts $c$ from the next addend, feeding the lost bits back in. The algorithm works because of an exactness result, not in spite of rounding.</p>
-<p><strong>Result 4: Newton's order is 2.</strong> Let $r$ be a simple root and $e_n=x_n-r$. Taylor-expanding $f$ about $x_n$ and evaluating at $r$:</p>
-<p>$$0 = f(r) = f(x_n) - e_nf&#x27;(x_n) + \frac{e_n^2}{2}f&#x27;&#x27;(\xi)$$</p>
-<p>Dividing by $f&#x27;(x_n)$ and rearranging with $x_{n+1}=x_n-\frac{f(x_n)}{f&#x27;(x_n)}$ gives</p>
-<p>$$e_{n+1} = \frac{f&#x27;&#x27;(\xi)}{2f&#x27;(x_n)}e_n^2$$</p>
-<p>So $|e_{n+1}|\le C|e_n|^2$: the number of correct digits doubles. The hypothesis $f&#x27;(r)\ne0$ is load-bearing — at a double root $f&#x27;(r)=0$, the constant blows up, and convergence degrades to linear.</p>
-<p><strong>Result 5: Runge's divergence.</strong> The interpolation error is</p>
-<p>$$f(x)-p_n(x) = \frac{f^{(n+1)}(\xi)}{(n+1)!}\prod_{k=0}^{n}(x-x_k)$$</p>
-<p>Two factors fight. For equispaced nodes the product $\prod|x-x_k|$ is far larger near the endpoints than in the middle — by a factor that grows like $2^n$ — while $\frac{f^{(n+1)}}{(n+1)!}$ for Runge's function does not shrink fast enough to compensate, because the function has poles at $x=\pm\frac{i}{5}$ in the complex plane, close to the interval. The product wins and the error diverges. Chebyshev nodes are precisely the placement that <strong>minimises</strong> $\max\prod|x-x_k|$, flattening the term that was growing.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle checks float arithmetic against two independent exact references: <code>fractions.Fraction</code>, which is exact rational arithmetic, and <code>decimal.Decimal</code>, which is exact for the decimal fractions money is made of.</p>
+<p>Before 1985 every manufacturer had its own floating-point format, and a program's answers changed when it moved machines. William Kahan drove the IEEE 754 standard through, earning the 1989 Turing Award. Kahan's compensated summation (the piggy bank) dates from 1965.</p>
+<p>Carl Runge published his crazy oscillating curves in 1901. Newton described his sprinting method around 1669. The costs of getting these tiny rounding errors wrong are real: in 1991 a Patriot missile battery failed to intercept because its clock drifted from rounding 0.1 over and over.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p><strong>Result 1: 0.1 is impossible in binary.</strong>
+In decimal, fractions like one third recur forever (0.333) because 10 doesn't divide nicely by 3. Binary only has powers of 2. So if you try to make one tenth, binary goes crazy trying to build it out of halves, quarters, eighths, and sixteenths. It can't. It recurs forever: 0.0001100110011 Because the computer's license plate must stop eventually, it chops the end off. 0.1 is secretly slightly wrong the moment you type it.</p>
+<p><strong>Result 2: The Piggy Bank recovers the EXACT error.</strong>
+When you add <code>total + tiny_number</code>, the computer rounds it and gives you a <code>new_total</code>.
+Wait! If you subtract the old <code>total</code> from the <code>new_total</code>, you'd expect to get <code>tiny_number</code> back, right? 
+You don't! Because the computer rounded it, you get <code>slightly_broken_tiny_number</code>.
+So if you do <code>slightly_broken_tiny_number - true_tiny_number</code>, you get <em>exactly</em> the tiny invisible rounding error that the computer threw away. Kahan's code just saves that invisible error in a variable and adds it back later.</p>
+<p><strong>Result 3: Newton's Method doubles its accuracy.</strong>
+Newton's method uses a tangent line to guess the root. Because a smooth curve looks perfectly flat and straight when you zoom in enough, your straight-line guess gets dramatically better the closer you get. If your guess is off by 0.01, the curve's bendiness (which ruins the straight line) is proportional to the <em>square</em> of that distance. So the new error is the square of 0.01, which is 0.0001. You went from 2 correct digits to 4! Next step goes to 8!</p>
+<p><strong>Result 4: Why even spacing ruins interpolation.</strong>
+When you force a single polynomial to weave through 20 points, the math equation multiplies distances from all points: multiplying the differences from each point. 
+Near the center, distances balance out. But near the edges, the distance to the points on the <em>far opposite side</em> becomes massive. Those massive distances multiply together and act like a giant lever, catapulting the curve into space. Placing more points near the edges (Chebyshev) breaks the lever.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The oracle checks float arithmetic against two independent exact references: <code>fractions.Fraction</code>, which is exact rational arithmetic, and <code>decimal.Decimal</code>, which is exact for the decimal fractions money is made of.</p>
 <p>Neither consults the float result. Whenever they disagree with the float, the exact answers are right and the float is the approximation — which is the only way to measure an error honestly.</p>
 <p>The mutant replaces Kahan summation with naive summation while still claiming the compensated bound, which is a real and common slip: the compensation variable is computed and then never used.</p>
 <div class="lab demo" data-demo="m35-exact-reference">
@@ -294,10 +181,10 @@ print(&quot;  rounded, the float total still agrees today:&quot;,
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
 </div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>Four predictions, each measured.</p>
-<p><strong>First, the machine's own constants.</strong> Theory says $\varepsilon=2^{-52}$ and that the gap between neighbouring doubles scales with magnitude. We find epsilon by search rather than by lookup.</p>
-<p><strong>Second, cancellation.</strong> Theory says the relative error of $1-\cos x$ grows like $\frac{1}{x^2}$ as $x\to0$ while $2\sin^2\frac{x}{2}$ stays at the rounding floor. We measure both against exact arithmetic.</p>
+<p><strong>First, the machine's own constants.</strong> Theory says \varepsilon=2^{-52} and that the gap between neighbouring doubles scales with magnitude. We find epsilon by search rather than by lookup.</p>
+<p><strong>Second, cancellation.</strong> Theory says the relative error of 1-\cos x grows like \frac{1}{x^2} as x\to0 while 2\sin^2\frac{x}{2} stays at the rounding floor. We measure both against exact arithmetic.</p>
 <p><strong>Third, convergence orders.</strong> Bisection should need about 50 iterations for full precision whatever the problem, Newton about 5, secant in between.</p>
-<p><strong>Fourth, Runge.</strong> Equispaced interpolation of $\frac{1}{1+25x^2}$ should get <em>worse</em> with more points, and Chebyshev nodes should get better.</p>
+<p><strong>Fourth, Runge.</strong> Equispaced interpolation of \frac{1}{1+25x^2} should get <em>worse</em> with more points, and Chebyshev nodes should get better.</p>
 <div class="lab demo" data-demo="m35-measure-the-machine">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Epsilon, cancellation, convergence and Runge</h3></div>
 
@@ -514,8 +401,8 @@ print(f&quot;measured : equispaced went {equi_errs[0]:.3f} -&gt; {equi_errs[-1]:
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
 </div>
-<p>Where reality disagrees: the Runge table is the one that overturns an intuition. Going from degree 4 to degree 16 made the equispaced fit roughly a hundred times <strong>worse</strong>, and at degree 16 the error exceeds the full range of the function being fitted — the interpolant oscillates wildly near $\pm1$ while passing exactly through every data point. Every one of those points is fitted perfectly. The curve between them is garbage.</p>
-<p>The cancellation table is the other one to sit with. At $x=10^{-8}$ the naive $1-\cos x$ retains essentially no correct digits, while $2\sin^2\frac{x}{2}$ — the same quantity by a trigonometric identity you learned in school — is accurate to the last bit. The difference is not precision, effort or language. It is the choice of algebraically equivalent expression.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m35-ex1-anatomy" data-level="warmup">
+<p>Where reality disagrees: the Runge table is the one that overturns an intuition. Going from degree 4 to degree 16 made the equispaced fit roughly a hundred times <strong>worse</strong>, and at degree 16 the error exceeds the full range of the function being fitted — the interpolant oscillates wildly near \pm1 while passing exactly through every data point. Every one of those points is fitted perfectly. The curve between them is garbage.</p>
+<p>The cancellation table is the other one to sit with. At x=10^{-8} the naive 1-\cos x retains essentially no correct digits, while 2\sin^2\frac{x}{2} — the same quantity by a trigonometric identity you learned in school — is accurate to the last bit. The difference is not precision, effort or language. It is the choice of algebraically equivalent expression.</p></section><section id="s-exercises" class=""><h2>Exercises</h2><div class="lab ex" data-ex="m35-ex1-anatomy" data-level="warmup">
 <div class="lab-head"><span class="badge warmup">Warm-up</span><h3>The anatomy of a double</h3>
 <span class="ex-status" data-status>not tried</span></div>
 <div class="prose"><p>Write <code>float_parts(x)</code> returning <code>(sign, exponent_bits, mantissa_bits)</code> as integers, using <code>struct</code>. Write <code>classify(x)</code> returning one of <code>"zero"</code>, <code>"subnormal"</code>, <code>"normal"</code>, <code>"infinity"</code>, <code>"nan"</code>. Write <code>ulp_of(x)</code> returning the gap to the next representable double above <code>abs(x)</code>. Write <code>next_float(x)</code> returning the next double above <code>x</code>. Write <code>is_power_of_two(x)</code> returning <code>True</code> when a positive finite float is exactly a power of two.</p></div>
@@ -1054,7 +941,7 @@ def test_conditioning_and_money():
 <li><strong>"Use more precision and the problem goes away."</strong> More precision moves the error later, it does not remove it. An ill-conditioned problem is ill-conditioned at any precision; Ravi's ledger would fail again next quarter.</li>
 <li><strong>"<code>==</code> on floats is always wrong."</strong> Not always. Comparing to zero after an exact operation, checking <code>x != x</code> for NaN, and testing for a power of two are all legitimate. What is wrong is expecting two different computations of the same quantity to agree bit for bit.</li>
 <li><strong>"Cancellation makes the subtraction inaccurate."</strong> The subtraction is usually <em>exact</em>. It merely exposes error that the inputs were already carrying.</li>
-<li><strong>"Kahan summation is slower, so it is not worth it."</strong> It is about four arithmetic operations instead of one, which is nothing against a memory-bound loop, and it converts an $O(n\varepsilon)$ error into an $O(\varepsilon)$ one.</li>
+<li><strong>"Kahan summation is slower, so it is not worth it."</strong> It is about four arithmetic operations instead of one, which is nothing against a memory-bound loop, and it converts an order n times epsilon error into an order epsilon one.</li>
 <li><strong>"A higher-degree polynomial fits better."</strong> Runge's function at degree 16 on equispaced nodes has an error larger than the function itself. The node placement matters more than the degree.</li>
 <li><strong>"Newton's method always converges."</strong> It converges <em>quadratically near a simple root given a good start</em>. Drop any of those three and it can cycle, diverge, or crawl linearly.</li>
 <li><strong>"NaN means the computation failed."</strong> NaN propagates silently through arithmetic. A NaN at the end of a pipeline may have been born a thousand operations earlier, which is why checking early matters.</li>
@@ -1063,7 +950,7 @@ def test_conditioning_and_money():
 <p>Kahan summation is defeated by an optimising compiler that "simplifies" <code>(t - s) - y</code> to zero, which is valid for real numbers and wrong for floats. This is exactly what <code>-ffast-math</code> does, and it silently removes the compensation. The same flag lets the compiler reassociate additions, so a parallel reduction gives a different answer from a serial one — reproducibility and performance are genuinely in tension here.</p>
 <p><code>Decimal</code> is exact for decimal fractions and no more. One third is as unrepresentable in decimal as one tenth is in binary, so <code>Decimal(1)/3</code> still rounds. Decimal is right for money because money <em>is</em> decimal, not because decimal is more accurate.</p>
 <p>Subnormals preserve the property that <code>x - y == 0</code> implies <code>x == y</code>, but on many processors they are handled in microcode and run one to two orders of magnitude slower, which is why numerical code sometimes sets flush-to-zero and accepts the loss.</p>
-<p>Newton's method on a multiple root loses its quadratic order, and the usual fix — applying Newton to $\frac{f}{f&#x27;}$ — reintroduces cancellation. And interpolation is not the same as approximation: Chebyshev nodes fix Runge, but if your data has noise, fitting a high-degree polynomial through every point is the wrong goal entirely. Use a lower-degree least-squares fit or a spline.</p>
+<p>Newton's method on a multiple root loses its quadratic order, and the usual fix — applying Newton to \frac{f}{f'} — reintroduces cancellation. And interpolation is not the same as approximation: Chebyshev nodes fix Runge, but if your data has noise, fitting a high-degree polynomial through every point is the wrong goal entirely. Use a lower-degree least-squares fit or a spline.</p>
 <p>Finally, almost none of this appears in testing. A float bug produces an answer that is <em>slightly</em> wrong, passes every smoke test, and surfaces as four paise six months later.</p></section><section id="s-real-work" class="realwork"><h2>In your real work</h2><p>The money rule is absolute and comes first: currency is stored in integer minor units — paise, cents — or in a decimal type, never in a binary float. Every payments system, ledger and tax calculation does this, and the Vancouver index is what happens when it does not.</p>
 <p>Accumulating error shows up anywhere a loop runs long. Physics integrators, running averages over a metrics stream, and any <code>total += x</code> over millions of rows are the usual places; a running mean computed with Welford's algorithm rather than by summing then dividing is the same instinct as Kahan's.</p>
 <p>Tolerance comparisons need both an absolute and a relative term — <code>abs(a-b) &lt;= atol + rtol*abs(b)</code> — because a pure relative test fails near zero and a pure absolute test fails at large magnitudes. Every numerical test suite you write will need this.</p>

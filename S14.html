@@ -17,47 +17,15 @@
 <details><summary>Everything this module teaches (10 items)</summary><ul class="must"><li>schema-driven rendering (field types to widgets)</li><li>metadata such as depends_on, mandatory_depends_on and read_only</li><li>evaluating expressions in a safe subset</li><li>client-script events (refresh, validate, field change)</li><li>form state and validation</li><li>parity with a reference implementation</li><li>a differential oracle that executes the real script against a shim</li><li>the &#x27;superset, never contradicting&#x27; criterion</li><li>why missing stubs make a result INCONCLUSIVE</li><li>versioning schemas</li></ul></details>
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
-<section id="s-story" class="story"><h2>The story</h2><p>In 2017, enterprise software engineering confronted a painful mobile deployment reality: business rules, compliance workflows, and regulatory field forms changed on a weekly basis, while mobile app store review cycles and user update adoption took weeks or months. If a government tax regulation altered a mandatory field or added an agricultural inspection rule, mobile teams could not afford to ship a full binary update to Google Play and Apple App Store for every minor form modification. The industry converged on a transformative architectural pattern: <strong>Server-Driven UI (SDUI)</strong>. Instead of hardcoding UI layouts and business validation in client binaries, the server delivers declarative JSON schemas defining field types, dynamic visibility rules (<code>depends_on</code>), validation scripts, and workflow transitions. The mobile client acts as a high-performance native rendering engine and script evaluator, dynamically instantiating widgets, evaluating expressions, and executing client-script hooks with zero client-side binary recompilation.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Server-Driven UI (SDUI) lets you change how a mobile app looks and behaves without releasing a new app store update. Instead of programming buttons, text fields, and dropdowns directly into the app code, the server sends a JSON blueprint that says: "show a text field for the sender name, and if the category is electronics, show a humidity percentage slider." The mobile app reads this blueprint, displays the right native widgets, and checks validation rules dynamically. If a rule changes tomorrow, the server updates the blueprint, and every user's app immediately reflects the new form fields and rules on their next screen refresh.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Server-driven UI and dynamic form architectures require strict declarative schema semantics and isolated expression execution:
-1. <strong>Schema-Driven Field Rendering</strong>:
-   - Schemas map field types (<code>Data</code>, <code>Int</code>, <code>Float</code>, <code>Select</code>, <code>Check</code>, <code>AttachImage</code>, <code>Table</code>) to platform-native widgets.
-   - Dynamic Metadata:
-     - <code>depends_on</code>: Condition string determining whether the field is visible in the UI.
-     - <code>mandatory_depends_on</code>: Condition string determining whether the field is required before form submission.
-     - <code>read_only_depends_on</code>: Condition string determining whether the field is locked against user input.</p>
-<ol start="2">
-<li>
-<p><strong>Safe Subset Expression Evaluation</strong>:
-   - Evaluating arbitrary JavaScript or Python strings on mobile introduces remote code execution (RCE) vulnerabilities.
-   - Dynamic expressions are evaluated using a sandboxed Abstract Syntax Tree (AST) evaluator supporting only safe operators:
-     $$\text{Expr} \in \{ ==, !=, &lt;, &lt;=, &gt;, &gt;=, \text{in}, \&amp;\&amp;, ||, ! \}$$
-     accessing only authorized form state dictionaries (<code>doc.field_name</code>).</p>
-</li>
-<li>
-<p><strong>Client-Script Hook Lifecycle</strong>:
-   - Forms execute event lifecycle hooks:</p>
-<ul>
-<li><code>onload</code>: Triggered when form schema is first loaded into memory.</li>
-<li><code>refresh</code>: Triggered whenever form state is repainted.</li>
-<li><code>validate</code>: Triggered prior to form submission; can cancel commit by throwing a <code>ValidationError</code>.</li>
-<li><code>field_change</code>: Triggered when a specific input field value changes, triggering cascading visibility recalculations.</li>
-</ul>
-</li>
-<li>
-<p><strong>Differential Parity Oracle &amp; Reference Shim</strong>:
-   - When migrating web-based ERP systems (like Frappe) to Flutter or native Android, the mobile implementation must achieve exact parity with the reference platform.
-   - <strong>The 'Superset, Never Contradicting' Criterion</strong>: The mobile client may provide richer features (e.g. offline caching), but must NEVER contradict the server's validation outcomes.
-   - If an expression invokes missing client stubs, the differential oracle returns <code>"INCONCLUSIVE"</code> rather than an incorrect pass or fail.</p>
-</li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why expression evaluation must be restricted to a safe AST subset, consider what happens if a mobile client uses <code>eval()</code> or an embedded JavaScript engine to execute server-delivered visibility strings:</p>
-<pre><code class="language-javascript">// Malicious or corrupted expression payload delivered over network:
-doc.category == 'electronics' &amp;&amp; (function(){ stealLocalKeys(); return true; })()
-</code></pre>
-<p>If dynamic forms use raw string evaluation, compromised backend APIs or Man-in-the-Middle network attackers can execute arbitrary code inside the mobile application sandbox! Restricting expression parsing to a tokenizer and AST validator guarantees that only authorized document fields and logical comparisons are computed.</p>
-<p><strong>The Inconclusive Stub Problem in Parity Testing</strong>:
-When building mobile clients that replicate Frappe or web form behavior, engineers write differential test harnesses that execute test payloads simultaneously through the backend Python engine and the mobile Dart client. If the mobile client encounters a custom server API call that has no client-side stub:
-- Treating the missing stub as <code>false</code> causes incorrect validation failure.
-- Treating the missing stub as <code>true</code> bypasses mandatory security checks.
-The differential oracle must explicitly mark the test result as <code>INCONCLUSIVE</code>, alerting developers that an essential stub must be implemented before parity can be certified.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that server-driven form field dependencies, safe expression evaluation, and differential parity oracles operate without security vulnerabilities or logical contradictions, we construct an empirical dynamic form oracle. The oracle validates that field visibility changes dynamically based on depends_on expressions, confirms that missing client stubs yield INCONCLUSIVE differential test verdicts, and proves that invalid form submissions are blocked by validation hooks.</p>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2017, enterprise software engineering confronted a painful mobile deployment reality: business rules, compliance workflows, and regulatory field forms changed on a weekly basis, while mobile app store review cycles and user update adoption took weeks or months. If a government tax regulation altered a mandatory field or added an agricultural inspection rule, mobile teams could not afford to ship a full binary update to Google Play and Apple App Store for every minor form modification. The industry converged on a transformative architectural pattern: <strong>Server-Driven UI (SDUI)</strong>. Instead of hardcoding UI layouts and business validation in client binaries, the server delivers declarative JSON schemas defining field types, dynamic visibility rules (<code>depends_on</code>), validation scripts, and workflow transitions. The mobile client acts as a high-performance native rendering engine and script evaluator, dynamically instantiating widgets, evaluating expressions, and executing client-script hooks with zero client-side binary recompilation.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Server-Driven UI (SDUI) lets you change how a mobile app looks and behaves without releasing a new app store update. Instead of programming buttons, text fields, and dropdowns directly into the app code, the server sends a JSON blueprint that says: "show a text field for the sender name, and if the category is electronics, show a humidity percentage slider." The mobile app reads this blueprint, displays the right native widgets, and checks validation rules dynamically. If a rule changes tomorrow, the server updates the blueprint, and every user's app immediately reflects the new form fields and rules on their next screen refresh.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Imagine your app is a smart paper form. Instead of the app's creator drawing the boxes forever, a giant computer in the sky (the server) can instantly send down a new blueprint: "Draw a name box, draw a checkbox, and draw a giant submit button!" 
+1. <strong>The Blueprint Rules:</strong> The server can add special magic rules to the boxes.
+   - "Only show the 'Pet Name' box IF the user checked 'I own a dog'."
+   - "Lock the 'Age' box so no one can change it IF the user is a teacher."
+2. <strong>The Safe Calculator:</strong> Sometimes the blueprint includes math or logic to check these rules. But the app never lets the server run wild, crazy computer code. The app uses a safe, locked calculator that only knows how to do basic stuff like <code>is equal to</code> or <code>is greater than</code>.
+3. <strong>The Event Triggers:</strong> The form is alive! It wakes up and does a quick check when it opens (<code>onload</code>), checks itself again every time you type a letter (<code>field_change</code>), and does one massive final check right before you click submit (<code>validate</code>).</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why does the app use a "safe locked calculator" instead of just letting the server run any code it wants? </p>
+<p>If the app just blindly ran any instruction sent over the internet, an evil hacker could send a fake blueprint that says, "If the user checks the box, secretly steal all their passwords!" By using a locked calculator that only understands basic math (like "Is 5 bigger than 3?"), the app completely blocks hackers from running evil code. It's like giving someone a calculator instead of the keys to a bulldozer.</p>
+<p>Also, when developers try to make a phone app act exactly like a big website, they run a massive test. They feed the same form to both the website and the phone app at the same time to see if they give the exact same answer! But what if the website knows a secret rule that the phone app hasn't been taught yet? 
+If the phone app just guesses "False," it breaks the form. If it guesses "True," it might let bad data through! Instead, the phone app throws its hands up and yells, "I DON'T KNOW!" This is called an "Inconclusive" error, and it forces the developers to sit down and teach the phone app the missing rule before the app is allowed to launch.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that server-driven form field dependencies, safe expression evaluation, and differential parity oracles operate without security vulnerabilities or logical contradictions, we construct an empirical dynamic form oracle. The oracle validates that field visibility changes dynamically based on depends_on expressions, confirms that missing client stubs yield INCONCLUSIVE differential test verdicts, and proves that invalid form submissions are blocked by validation hooks.</p>
 <div class="lab demo" data-demo="oracle-safe-expression-evaluator">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of sandboxed AST expression evaluation without code injection</h3></div>
 
@@ -98,7 +66,7 @@ print(&quot;SUCCESS: Safe expression AST evaluator verified.&quot;)
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment testing the differential parity oracle across 50 dynamic form validation test cases evaluated between a reference backend engine and a mobile client shim. We verify that complete stubs achieve $100\%$ parity agreement, while simulated missing API stubs correctly yield INCONCLUSIVE classifications, preventing false positive verification verdicts, avoiding silent rule discrepancies, and preserving full behavioral compliance across heterogeneous mobile runtime environments.</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment testing the differential parity oracle across 50 dynamic form validation test cases evaluated between a reference backend engine and a mobile client shim. We verify that complete stubs achieve 100\ percent parity agreement, while simulated missing API stubs correctly yield INCONCLUSIVE classifications, preventing false positive verification verdicts, avoiding silent rule discrepancies, and preserving full behavioral compliance across heterogeneous mobile runtime environments.</p>
 <div class="lab demo" data-demo="exp-differential-parity-stubs">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical verification of differential parity oracle and inconclusive stub detection</h3></div>
 
@@ -332,7 +300,7 @@ For each test case:
      - If matches: record <code>{"id": case["id"], "verdict": "PASS"}</code>.
      - If contradicts: record <code>{"id": case["id"], "verdict": "FAIL", "reason": "Contradiction detected"}</code>.
 3. Suite Summary:
-   - Total cases $N$.
+   - Total cases N.
    - <code>pass_count</code>, <code>fail_count</code>, <code>inconclusive_count</code>.
    - <code>is_certified = (fail_count == 0 and inconclusive_count == 0 and N &gt; 0)</code>.
 4. Return dict:

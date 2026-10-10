@@ -18,52 +18,42 @@
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
 <section id="s-story" class="story"><h2>The story</h2><p>In the autumn of 2007, Amazon experienced an unprecedented crisis in its global retail infrastructure. On high-volume shopping days, internal services across fulfillment, shopping carts, and payment processing began experiencing cascading latency spikes. Individual disk read times on database servers were normal, yet checkout requests took tens of seconds. Werner Vogels, Giuseppe DeCandia, and a team of Amazon systems architects discovered that strict ACID relational databases like Oracle were buckling under the combinatorial weight of synchronous joins, multi-table transactions, and distributed two-phase commits across hundreds of thousands of concurrent requests.</p>
-<p>In response, DeCandia and Vogels published their historic paper unveiling the Dynamo storage system. They abandoned strict ACID serializability in favor of eventual consistency, adopting Eric Brewer's CAP Theorem, consistent hashing with virtual nodes for decentralized data partitioning, sloppy quorums with hinted handoff for high write availability, and vector clocks for decentralized conflict detection. Dynamo demonstrated that building internet-scale distributed systems requires an entirely different engineering paradigm: decomposing monolithic applications into stateless microservices, sharding databases horizontally, caching hot reads aggressively, rate-limiting incoming traffic to shed excess load, and establishing rigorous Service Level Objectives (SLOs) backed by error budgets.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>System design is the art of building software that does not crumble when millions of people use it at once. A single computer running a web server and a database will eventually run out of CPU, memory, and disk speed. Scaling a system means splitting the load across hundreds of machines. We use load balancers to distribute traffic, caches to serve frequent reads instantly from RAM, message queues to handle heavy background tasks without stalling the user, and consistent hashing to spread data across storage nodes without chaotic rebalancing when servers are added or removed.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Distributed system architecture is governed by mathematical laws of scale, availability, and capacity:</p>
+<p>In response, DeCandia and Vogels published their historic paper unveiling the Dynamo storage system. They abandoned strict ACID serializability in favor of eventual consistency, adopting Eric Brewer's CAP Theorem, consistent hashing with virtual nodes for decentralized data partitioning, sloppy quorums with hinted handoff for high write availability, and vector clocks for decentralized conflict detection. Dynamo demonstrated that building internet-scale distributed systems requires an entirely different engineering paradigm: decomposing monolithic applications into stateless microservices, sharding databases horizontally, caching hot reads aggressively, rate-limiting incoming traffic to shed excess load, and establishing rigorous Service Level Objectives (SLOs) backed by error budgets.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>System design is the art of building software that does not crumble when millions of people use it at once. A single computer running a web server and a database will eventually run out of CPU, memory, and disk speed. Scaling a system means splitting the load across hundreds of machines. We use load balancers to distribute traffic, caches to serve frequent reads instantly from RAM, message queues to handle heavy background tasks without stalling the user, and consistent hashing to spread data across storage nodes without chaotic rebalancing when servers are added or removed.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Building a giant playground for millions of kids means we need some super smart rules to keep the slide from breaking!</p>
 <ol>
 <li>
-<p><strong>Capacity &amp; Back-of-the-Envelope Estimation</strong>:
-Given Daily Active Users (DAU), read/write ratios, and average payload size:
-$$\text{QPS} = \frac{\text{DAU} \times \text{requests/user}}{86,400}, \quad \text{Peak QPS} = 2 \times \text{QPS}$$
-$$\text{Bandwidth} = \text{QPS} \times \text{payload bytes} \times 8 \quad \text{(bps)}$$
-$$\text{Storage/year} = \text{DAU} \times \text{writes/user} \times \text{payload bytes} \times 365$$</p>
+<p><strong>Quick Playground Math (Back-of-the-Envelope)</strong>:
+Before building a giant playground, builders do some quick math on a napkin! If a million kids want to go down the slide 10 times a day, that is 10 million slides! We divide that by how many seconds are in a day to know exactly how fast our super slide needs to be. We usually make the slide twice as wide just in case all the kids want to play at the exact same time!</p>
 </li>
 <li>
-<p><strong>Availability Arithmetic &amp; The Nines</strong>:
-For independent serial components, availability multiplies: $A_{\text{total}} = A_1 \times A_2$.
-For redundant parallel components, unavailability multiplies: $U_{\text{total}} = (1 - A_1) \times (1 - A_2)$.
-- $99.9\%$ (three nines) allows $8.76$ hours downtime per year.
-- $99.99\%$ (four nines) allows $52.6$ minutes downtime per year.</p>
+<p><strong>The "Nines" (The Never-Break Promise)</strong>:
+When builders promise the playground will never close, they use the word "nines". 
+- "Two nines" means the playground might be closed for 3 whole days a year for fixing. 
+- "Four nines" means the playground can only close for 52 <em>minutes</em> a whole year! To be that perfect, you cannot just have one playground; you need a secret backup playground right next door in case the first one needs a time-out.</p>
 </li>
 <li>
-<p><strong>Rate Limiting &amp; Load Shedding</strong>:
-- Token Bucket: Refills tokens at constant rate $r$ up to capacity $C$. Allows bursts of size $C$, bounds long-term rate to $r$.
-- Leaky Bucket: Smooths bursts into a constant-rate FIFO egress queue.
-- Sliding Window Counter: Weighted sum of previous and current window counts prevents border-boundary spikes.</p>
+<p><strong>Rate Limiting (The Magic Cookie Jar)</strong>:
+To stop one super hyper kid from eating all the snacks and crashing the party, we use a magic Cookie Jar! The magic jar gives you 1 cookie every single second, up to 10 cookies max. Every time you want to play a game, you eat a cookie. If you eat all 10 cookies really fast, you have to wait patiently for 1 whole second before the magic jar gives you a new cookie!</p>
 </li>
 <li>
-<p><strong>Consistent Hashing</strong>:
-Maps both nodes and data keys onto a circular hash ring $[0, 2^{32}-1]$. Each physical node is assigned $V$ virtual replicas. When a node is added or removed, only $K / N$ keys are remapped on average, avoiding $O(K)$ catastrophic cluster cache invalidations.</p>
+<p><strong>Consistent Hashing (The Giant Pizza Slicer)</strong>:
+Imagine you have 10 giant toy boxes holding everyone's favorite toys. If your mom buys you an 11th toy box, how do you move the toys without making a giant mess? We put all the toy boxes in a big circle! When the new 11th toy box arrives, it just squeezes into a small spot in the circle and takes only the toys right next to it. All the other 9 toy boxes do not even have to move a single toy!</p>
 </li>
 <li>
-<p><strong>Tail Latency Amplification</strong>:
-In a fan-out architecture querying $M$ backends where each backend has 99th-percentile latency $p_{99} = 0.01$, the probability that the overall user request experiences tail latency is:
-$$\Pr(\text{tail latency}) = 1 - (1 - 0.01)^M \approx 1 - e^{-0.01 M}$$
-For $M = 100$, over $63.4\%$ of user requests experience 99th-percentile delays, requiring hedged and tied requests.</p>
+<p><strong>Tail Latency (The Slowest Helper)</strong>:
+If you ask one helper to find your shoes, they might be super slow 1 time out of 100. But if getting dressed requires asking 100 different helpers to find 100 different things at the exact same time, there is a giant chance that at least <em>one</em> helper is taking a nap! To fix this, if a helper is too slow, we just ask a backup helper the exact same question and give a high-five to whoever runs back first!</p>
 </li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Let us prove why <strong>Consistent Hashing</strong> minimizes key movement when scaling a distributed storage cluster.
-Under traditional modulo hashing, a key $k$ is mapped to server $S = \text{hash}(k) \pmod N$, where $N$ is the number of active servers.
-Suppose the cluster scales from $N$ to $N + 1$ servers. The new server index is $\text{hash}(k) \pmod{N+1}$.
-Because $N$ and $N+1$ are relatively prime for all $N \ge 1$, $\text{hash}(k) \pmod N \equiv \text{hash}(k) \pmod{N+1}$ holds only for approximately $1 / (N+1)$ fraction of keys.
-Consequently, an astonishing $\frac{N}{N+1}$ fraction of all keys (over $90\%$ for $N=10$) are immediately mapped to different servers! This causes a catastrophic cache stampede, flooding the network and overwhelming backend relational databases.</p>
-<p>Consistent hashing solves this by mapping both servers and keys onto a continuous unit circle $[0, 1)$ or 32-bit integer ring $[0, 2^{32}-1]$.
-A key is stored on the first server encountered moving clockwise along the ring.
-Suppose we insert an $(N+1)$-th server at a random position $x$ on the ring.
-By symmetry, the new server lands in a segment of expected arc length $\frac{1}{N+1}$.
-The ONLY keys that change assignment are the keys lying within this specific arc that were previously assigned to the new server's clockwise successor.
-All keys residing on the other $N$ segments of the ring remain mapped to their identical servers.
-Therefore, the expected fraction of keys relocated is strictly:
-$$\mathbb{E}[\text{keys relocated}] = \frac{1}{N+1}$$
-This proves that consistent hashing achieves the theoretical lower bound for key migration, enabling elastic auto-scaling without cluster-wide cache invalidation.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Token Bucket rate limiter verification oracle proves that token consumption obeys strict capacity bounds and constant refill dynamics under bursts. Configured with a capacity of 5 tokens and a refill rate of 1 token per second, the oracle verifies that 5 immediate requests succeed, a 6th immediate request is rejected, and after exactly 2 seconds of simulated time, exactly 2 tokens are replenished and granted.</p>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why is the "Giant Pizza Slicer" (Consistent Hashing) such a magical trick for giant playgrounds? Let's look at the giant mess that happens when you <em>do not</em> use it.</p>
+<p>Imagine you have 10 toy boxes numbered 0 to 9. When a kid brings a toy, you pick their box by taking their favorite number, dividing it by 10, and looking at the remainder. So, Toy 102 goes to Box 2. Toy 105 goes to Box 5. Simple!</p>
+<p>But wait, your playroom gets super popular, so you add an 11th toy box. Now, you have to divide by 11 and take the new remainder. 
+Toy 102 divided by 11 has a remainder of 3. It just moved from Box 2 to Box 3!
+Toy 105 divided by 11 has a remainder of 6. It just moved from Box 5 to Box 6!
+In fact, the math shows that over 90 percent of all your toys will instantly have to move to a brand new box! Moving 90 percent of all the toys in the whole world at the exact same time will instantly crash your entire house!</p>
+<p>The Giant Pizza Slicer fixes this beautifully! Instead of dividing by the number of boxes, we place the boxes on the edge of a giant clock face. 
+Box A is at 12 o'clock, Box B is at 4 o'clock, and Box C is at 8 o'clock. 
+When Toy 102 comes in, we put its number through a magic blender that spits out a time, say 3 o'clock. The toy just walks clockwise around the clock until it bumps into a box (Box B at 4 o'clock).
+When you add a brand new box, say Box D at 2 o'clock, who is affected? 
+Only the toys whose time landed between 12 o'clock and 2 o'clock! They used to walk all the way to Box B, but now they bump into Box D first. 
+Every other toy on the entire clock face stays exactly where they were! Adding a new box now only moves a tiny, tiny fraction of the toys, keeping the whole playroom perfectly happy and clean!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The Token Bucket rate limiter verification oracle proves that token consumption obeys strict capacity bounds and constant refill dynamics under bursts. Configured with a capacity of 5 tokens and a refill rate of 1 token per second, the oracle verifies that 5 immediate requests succeed, a 6th immediate request is rejected, and after exactly 2 seconds of simulated time, exactly 2 tokens are replenished and granted.</p>
 <div class="lab demo" data-demo="d19-oracle-token-bucket">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Token Bucket Rate Limiter Compliance Oracle</h3></div>
 
@@ -96,7 +86,7 @@ print(&quot;Token bucket rate limiter compliance verified.&quot;)
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the key migration percentage in Consistent Hashing compared to modulo hashing when adding a new node to a cluster of $N=10$ nodes. Theory predicts consistent hashing relocates only $\approx 1 / (N+1) = 1/11 \approx 9.1\%$ of keys, whereas traditional modulo hashing disrupts $\approx N / (N+1) \approx 90.9\%$ of keys. We verify this dramatic difference.</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We empirically measure the key migration percentage in Consistent Hashing compared to modulo hashing when adding a new node to a cluster of 10 nodes. Theory predicts consistent hashing relocates only about 9.1 percent of keys, whereas traditional modulo hashing disrupts over 90 percent of all keys across the cluster. We verify this dramatic difference in practice to ensure cache servers remain stable under dynamic scaling.</p>
 <div class="lab demo" data-demo="d19-exp-consistent-hash">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Consistent Hashing Key Remapping Experiment</h3></div>
 

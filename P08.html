@@ -18,47 +18,40 @@
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
 <section id="s-story" class="story"><h2>The story</h2><p>In 1965, Dutch computer scientist Edsger W. Dijkstra published a landmark paper titled "Cooperating Sequential Processes," introducing the world to semaphores, critical sections, and the famous Dining Philosophers problem. Dijkstra proved that concurrent execution without explicit synchronization leads to non-deterministic race conditions where the correctness of a calculation depends arbitrarily on the relative speed of independent processors.</p>
-<p>Twenty years later, between 1985 and 1987, the tragic real-world consequences of concurrent programming bugs were laid bare by the Therac-25 radiation therapy machine. The computer-controlled medical linear accelerator had eliminated hardware interlocks in favor of software control. A race condition existed between the keyboard polling routine and the magnet positioner. If a technician quickly corrected an accidental typing mistake within an eight-second timing window, the software switched the electron beam to full high-power mode (25 MeV) without rotating the tungsten conversion target into place. Six cancer patients received massive, lethal radiation overdoses thousands of times higher than therapeutic limits. In 1978, Leslie Lamport formalized the "happens-before" relation and sequential consistency, establishing that memory models, mutual exclusion, and atomic synchronization are not optional performance optimizations—they are life-critical mathematical imperatives.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Concurrency is what happens when multiple parts of a program run at the same time, sharing the same computer memory. If two threads try to update your bank account balance at the exact same millisecond, they can overwrite each other's math in a race condition. To prevent chaos, we use locks (mutexes) that allow only one thread into a critical section at a time, semaphores to manage pools of resources, and condition variables to put threads to sleep until work is ready. But if locks are acquired in the wrong order, threads can freeze forever waiting on each other in a deadly embrace called a deadlock.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and hardware primitives of concurrent programming are defined by:</p>
+<p>Twenty years later, between 1985 and 1987, the tragic real-world consequences of concurrent programming bugs were laid bare by the Therac-25 radiation therapy machine. The computer-controlled medical linear accelerator had eliminated hardware interlocks in favor of software control. A race condition existed between the keyboard polling routine and the magnet positioner. If a technician quickly corrected an accidental typing mistake within an eight-second timing window, the software switched the electron beam to full high-power mode (25 MeV) without rotating the tungsten conversion target into place. Six cancer patients received massive, lethal radiation overdoses thousands of times higher than therapeutic limits. In 1978, Leslie Lamport formalized the "happens-before" relation and sequential consistency, establishing that memory models, mutual exclusion, and atomic synchronization are not optional performance optimizations—they are life-critical mathematical imperatives.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Concurrency is what happens when multiple parts of a program run at the same time, sharing the same computer memory. If two threads try to update your bank account balance at the exact same millisecond, they can overwrite each other's math in a race condition. To prevent chaos, we use locks (mutexes) that allow only one thread into a critical section at a time, semaphores to manage pools of resources, and condition variables to put threads to sleep until work is ready. But if locks are acquired in the wrong order, threads can freeze forever waiting on each other in a deadly embrace called a deadlock.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Imagine your computer has a team of very fast, very eager helpers:</p>
 <ol>
 <li>
-<p><strong>Race Conditions &amp; The Critical Section Problem</strong>:
-A data race occurs when two concurrent threads access the same memory location, at least one access is a write, and no synchronization establishes a <strong>happens-before</strong> relation ($\to_{hb}$) between them.
-A valid mutual exclusion mechanism must satisfy:
-- <strong>Mutual Exclusion</strong>: At most one thread executes within the critical section at any time.
-- <strong>Progress</strong>: If no thread is in the critical section, selection of the next entering thread cannot be postponed indefinitely.
-- <strong>Bounded Waiting</strong>: There exists a bound on the number of times other threads can enter after a thread has requested entry.</p>
+<p><strong>The Toy Box Rule (Mutual Exclusion)</strong>:
+If two helpers try to grab the exact same toy at the same time, they bump heads and break the toy (a Race Condition). To fix this, we put a padlock on the toy box!
+- <strong>One at a time</strong>: Only the helper with the key can open the box.
+- <strong>Don't block the door</strong>: When they are done, they <em>must</em> give the key to the next person.
+- <strong>Fairness</strong>: Nobody gets to skip the line forever.</p>
 </li>
 <li>
-<p><strong>The Coffman Deadlock Conditions</strong>:
-A deadlock exists if and only if all four conditions hold simultaneously:
-- <strong>Mutual Exclusion</strong>: Resources cannot be shared simultaneously.
-- <strong>Hold and Wait</strong>: A process holds resources while requesting additional allocated resources.
-- <strong>No Preemption</strong>: Resources cannot be forcibly revoked before release.
-- <strong>Circular Wait</strong>: There exists a closed cycle in the Resource Allocation Graph: $P_0 \to R_0 \to P_1 \dots \to P_0$.</p>
+<p><strong>The Four Rules of Getting Stuck (Deadlock)</strong>:
+Sometimes the helpers freeze up and stare at each other forever. This happens if:
+- They can't share a toy.
+- Helper A has a red block and won't let go until they get a blue block.
+- Helper B has a blue block and won't let go until they get a red block.
+- Nobody is allowed to snatch a toy from someone else's hands!
+Now they are stuck in a circle forever!</p>
 </li>
 <li>
-<p><strong>Banker's Algorithm for Deadlock Avoidance</strong>:
-Given Available vector $A$, Max matrix $M$, Allocation matrix $C$, and Need matrix $N = M - C$:
-A state is safe if there exists a sequence $\langle P_1, P_2, \dots, P_n \rangle$ such that:
-$$N_i \le A + \sum_{j &lt; i} C_j$$</p>
+<p><strong>The Banker's Game (Deadlock Avoidance)</strong>:
+To stop helpers from getting stuck, the Boss (the Banker) looks at everyone's toy requests. The Boss only hands out a toy if they are absolutely sure no one will get stuck in a circle. If handing out a toy causes a freeze, the Boss says, "Nope, you have to wait!"</p>
 </li>
 <li>
-<p><strong>Lock-Free Synchronization &amp; Atomics</strong>:
-- Compare-And-Swap (CAS): Atomically evaluates if memory equals expected value, updating to new value if true.
-- Single-Producer Single-Consumer (SPSC) Ring Buffer: Lock-free FIFO queue using circular array with power-of-two masking $(idx \ \&amp; \ (\text{capacity} - 1))$, using separate cache-line padded atomic head and tail pointers to prevent <strong>false sharing</strong>.</p>
+<p><strong>Magic Swaps (Atomics)</strong>:
+What if we don't want to use padlocks? We can use a magic trick! A helper says, "I will only put my toy on the table IF the table is completely empty." They check and place the toy in one super-fast, magical motion that nobody can interrupt.</p>
 </li>
 <li>
-<p><strong>Memory Models &amp; Happens-Before</strong>:
-- Acquire semantics: Prevents reads/writes following the acquire from being reordered before it.
-- Release semantics: Prevents reads/writes preceding the release from being reordered after it.</p>
+<p><strong>Stop Signs (Memory Barriers)</strong>:
+Sometimes helpers get so excited they do their chores out of order! They might say they cleaned their room before they actually picked up their socks. We have to put up "Stop Signs" that force the helpers to finish one chore completely before starting the next one.</p>
 </li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why hardware memory models allow instruction reordering and why lock-free programming requires explicit memory fences requires examining CPU out-of-order execution and store buffers. On modern multi-core processors, each CPU core has its own private L1/L2 caches and a private Store Buffer. When a processor core executes a memory write instruction, writing directly to L1 cache or DRAM would stall the core for several clock cycles.</p>
-<p>To maximize throughput, the CPU places the write into a FIFO Store Buffer and immediately continues executing subsequent instructions before the write is visible to other CPU cores. Consequently, from the perspective of another processor core, <strong>memory writes appear out of order</strong>.</p>
-<p>Consider Peterson's mutual exclusion algorithm or the classic Dekker algorithm:
-- Core 1 writes <code>flag1 = true</code>, then reads <code>flag2</code>.
-- Core 2 writes <code>flag2 = true</code>, then reads <code>flag1</code>.
-Due to store buffers, both cores can buffer their writes locally and read the un-updated values from other cores simultaneously, causing <strong>both cores to enter the critical section at the same time</strong>.</p>
-<p>Acquire and release memory fences (or atomic instructions with <code>std::memory_order_seq_cst</code>) force the processor to drain its store buffer and stall instruction reordering across the fence. Lock-free data structures are therefore fundamentally bound to hardware memory models: without explicit memory barriers, compiler optimizations and CPU store buffers destroy concurrent correctness.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The bounded-buffer producer-consumer synchronization oracle simulates concurrent queue dynamics using counting semaphores and mutual exclusion locks. The interactive oracle verifies that producers block when the buffer is full, consumers block when the buffer is empty, and items are transferred strictly in FIFO order without data loss or race corruption across interleaved execution cycles. This verifies that semaphore accounting accurately prevents buffer overflows and underflows in concurrent pipeline architectures.</p>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>You might ask, why do the helpers ever do their chores out of order? </p>
+<p>It's because the helpers are trying to be as fast as humanly possible! If a helper has to put a book on a shelf, and the shelf is far away, they don't want to walk all the way there and back before doing their next chore. So, they put the book in a temporary "To-Do Box" right next to them, and immediately start cleaning the window. </p>
+<p>To the helper, it <em>looks</em> like they put the book away. But to a second helper looking at the shelf, the book isn't there yet! Because of this trick, the second helper might get confused and think a chore isn't done.</p>
+<p>To fix this, programmers use something called a <strong>Memory Fence</strong>. It's like a drill sergeant blowing a whistle and shouting: "Stop everything! Empty your To-Do Boxes right now before you take one more step!" This slows the helpers down just a little bit, but it guarantees that everyone sees the exact same things in the exact same order.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The bounded-buffer producer-consumer synchronization oracle simulates concurrent queue dynamics using counting semaphores and mutual exclusion locks. The interactive oracle verifies that producers block when the buffer is full, consumers block when the buffer is empty, and items are transferred strictly in FIFO order without data loss or race corruption across interleaved execution cycles. This verifies that semaphore accounting accurately prevents buffer overflows and underflows in concurrent pipeline architectures.</p>
 <div class="lab demo" data-demo="p08-oracle-bounded-buffer">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Bounded Buffer Semaphore Producer-Consumer Oracle</h3></div>
 

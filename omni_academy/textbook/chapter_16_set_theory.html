@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 16: Set Theory & Equivalence Partitions: The Split-Brain Network</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--amber);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 16 (BCA · Set Theory)</div>
+    <h1>Set Theory & Equivalence Partitions: The Split-Brain Network</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. How equivalence relations (Reflexive, Symmetric, Transitive) carve universes into non-overlapping islands.
+      <br>2. Partitions: Dividing database records and memory caches without overlaps.
+      <br>3. Disjoint-Set Union-Find: Merging groups in near O(1) time via path compression.
+      <br>4. Permanent Mnemonic: P.A.R.T.
+      <br>5. Live Pyodide Lab: Implement Disjoint-Set Union-Find with path compression.
+
+    </div>
+
+    <h2>1. The Crime Scene: The Split-Brain Cluster Disaster</h2>
+    <p>
+      A network fiber cable snaps between data center East and data center West.</p><p>Both data centers assume the other is dead. Both promote their local database to master.</p><p>Users in New York buy product X; users in London buy the exact same product X.</p><p>When the network reconnects, the database state is corrupt beyond repair.</p><p>Set partitions define the mathematical boundary of identity: every entity must belong to exactly ONE partition. The moment two partitions share an element or a partition splits unchecked, consistency collapses!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The Country Club Badges</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine a private club where every guest receives a colored badge (Red, Blue, or Green):<br>• Every guest has exactly one badge color.<br>• Guests with the same badge color can access the same private room (Equivalence).<br>• No guest can hold two badge colors at once (Disjoint partitions).<br>The Union-Find data structure is just an algorithm that merges two badges into one whenever two guests shake hands!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      A partition of a set S divides it into non-empty disjoint subsets. Equivalence relations (reflexive, symmetric, transitive) induce partitions.
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The P.A.R.T. Partition Law</div>
+      <div class="mnemonic-rule">"Pairwise disjoint subsets · All elements accounted for · Reflexive-Symmetric-Transitive equivalence · Tree-based Disjoint-Set Union-Find with path compression."</div>
+      <div class="mnemonic-desc">An equivalence relation partitions a set into mutually exclusive equivalence classes. Union-Find tracks these partitions with inverse Ackermann alpha(n) complexity (effectively constant time).</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      Used in Kruskal's minimum spanning tree algorithm, database shard partition keys, and network connected-component discovery.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> Powers disjoint-set union-find data structures in network routing and database relational partition keys.
+    </div>
+
+    <h2>4. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">def power_set(s):
+    res = [[]]
+    for elem in s:
+        res += [subset + [elem] for subset in res]
+    return res
+s = [1, 2, 3]
+ps = power_set(s)
+print(f"Power set of {s} (size {len(ps)}):", ps)
+assert len(ps) == 2**len(s)
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_15_quaternions_3d_vectors.html">← Chapter 15: 3D Vector Geometry, Dot/Cross Products & Quaternions</a>
+      <a href="chapter_17_propositional_sat.html">Next: Chapter 17: Propositional Calculus, Truth Tables & SAT Solvers →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

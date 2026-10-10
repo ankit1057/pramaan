@@ -18,44 +18,45 @@
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
 <section id="s-story" class="story"><h2>The story</h2><p>In 1883, Dutch military linguist Auguste Kerckhoffs published a groundbreaking monograph in the Journal of Military Science titled "La Cryptographie Militaire." In this treatise, Kerckhoffs formulated a revolutionary principle that became the bedrock of modern information security: a cryptographic system should be designed under the assumption that the adversary knows everything about its internal mathematical algorithms and implementation details; security must depend entirely on keeping the secret key confidential. For over a century, military and civilian organizations resisted this wisdom, attempting "security through obscurity" by hiding flawed cipher designs.</p>
-<p>In 1976, Stanford researchers Whitfield Diffie and Martin Hellman shattered classical cryptography with their paper "New Directions in Cryptography." For thousands of years, encryption required a shared secret pre-arranged in person. Diffie and Hellman proved that two strangers could negotiate a shared symmetric key across a public, actively tapped channel using one-way mathematical functions and discrete logarithms. Decades later in April 2014, the lethal consequences of neglecting basic security fundamentals shocked the world with the Heartbleed bug in OpenSSL. A single missing buffer length validation check in memory-unsafe C code allowed anonymous remote attackers to read server memory across the TLS heartbeat protocol, silently exfiltrating private encryption keys, passwords, and session tokens from millions of HTTPS servers across the globe.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Security is the science of keeping data safe, authentic, and available even when hostile adversaries attempt to break into your systems. We protect the CIA triad: Confidentiality (secrets remain private), Integrity (data cannot be altered without detection), and Availability (services stay online). Cryptography gives us mathematical tools: hashing (SHA-256) to fingerprint files, salted slow hashes (Argon2) to protect passwords, symmetric ciphers (AES-GCM) to encrypt data quickly, and public-key math (Diffie-Hellman, RSA) to negotiate secure keys without meeting in person.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>The formal mathematics and threat modeling principles of cryptography and security systems are defined by:</p>
+<p>In 1976, Stanford researchers Whitfield Diffie and Martin Hellman shattered classical cryptography with their paper "New Directions in Cryptography." For thousands of years, encryption required a shared secret pre-arranged in person. Diffie and Hellman proved that two strangers could negotiate a shared symmetric key across a public, actively tapped channel using one-way mathematical functions and discrete logarithms. Decades later in April 2014, the lethal consequences of neglecting basic security fundamentals shocked the world with the Heartbleed bug in OpenSSL. A single missing buffer length validation check in memory-unsafe C code allowed anonymous remote attackers to read server memory across the TLS heartbeat protocol, silently exfiltrating private encryption keys, passwords, and session tokens from millions of HTTPS servers across the globe.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Security is the science of keeping data safe, authentic, and available even when hostile adversaries attempt to break into your systems. We protect the CIA triad: Confidentiality (secrets remain private), Integrity (data cannot be altered without detection), and Availability (services stay online). Cryptography gives us mathematical tools: hashing (SHA-256) to fingerprint files, salted slow hashes (Argon2) to protect passwords, symmetric ciphers (AES-GCM) to encrypt data quickly, and public-key math (Diffie-Hellman, RSA) to negotiate secure keys without meeting in person.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Security rules are like rules for a super-secret treehouse. We have to make sure only friends get in, no one breaks our toys, and the treehouse is always open when we want to play.</p>
 <ol>
 <li>
-<p><strong>The CIA Triad &amp; STRIDE Threat Modeling</strong>:
-- <strong>CIA Triad</strong>: Confidentiality, Integrity, Availability.
-- <strong>STRIDE</strong>: Spoofing (broken authentication), Tampering (integrity violation), Repudiation (lack of auditability), Information Disclosure (confidentiality breach), Denial of Service (availability loss), Elevation of Privilege (broken authorization).</p>
+<p><strong>The CIA Triad (The Golden Rules of the Treehouse)</strong>:
+- <strong>Confidentiality (Keeping Secrets)</strong>: Like a lockbox. Only people with the key can open it and see what's inside.
+- <strong>Integrity (No Tampering)</strong>: Like sealing a letter with a wax stamp. If someone opens the letter, the stamp breaks, and you'll know!
+- <strong>Availability (Always Open)</strong>: Like making sure nobody blocks the ladder, so we can always climb up to the treehouse when we want to.</p>
 </li>
 <li>
-<p><strong>Cryptographic Hashes &amp; HMAC</strong>:
-A cryptographic hash function $H: \{0, 1\}^* \to \{0, 1\}^n$ must satisfy:
-- Preimage Resistance: Given $y$, computationally infeasible to find $x$ s.t. $H(x) = y$.
-- Second Preimage Resistance: Given $x$, infeasible to find $x&#x27; \ne x$ s.t. $H(x&#x27;) = H(x)$.
-- Collision Resistance: Infeasible to find any pair $x_1 \ne x_2$ s.t. $H(x_1) = H(x_2)$.
-  By the <strong>Birthday Paradox</strong>, collision search in $n$-bit space requires only $\approx 1.177 \cdot 2^{n/2}$ evaluations.
-- HMAC (Keyed-Hash Message Authentication Code):
-$$\text{HMAC}(K, m) = H\Big( (K \oplus \text{opad}) \parallel H\big((K \oplus \text{ipad}) \parallel m\big) \Big)$$
-where $\text{ipad} = 0\text{x}36$ and $\text{opad} = 0\text{x}5\text{C}$ repeated to block length.</p>
+<p><strong>Cryptographic Hashes (The Magic Blender)</strong>:
+Imagine a magic blender. You drop an apple in, press a button, and out comes a cup of pink juice.
+- <strong>One-Way (Preimage Resistance)</strong>: You can never turn the pink juice back into an apple!
+- <strong>Unique (Collision Resistance)</strong>: If you drop a banana instead, it will <em>always</em> make yellow juice. It's almost impossible for two different fruits to make the exact same color juice.
+We use this magic blender to check passwords. If the juice matches, we know you put the right password in!</p>
 </li>
 <li>
-<p><strong>Public-Key Cryptography &amp; Diffie-Hellman</strong>:
-Given large prime $p$ and generator $g$ in multiplicative group $\mathbb{Z}_p^*$:
-- Alice picks private $a \in [2, p-2]$, sends public $A = g^a \pmod p$.
-- Bob picks private $b \in [2, p-2]$, sends public $B = g^b \pmod p$.
-- Both compute shared secret:
-$$S = B^a \equiv (g^b)^a \equiv g^{ab} \equiv (g^a)^b \equiv A^b \pmod p$$
-Eavesdropper knowing $A$ and $B$ cannot compute $S$ without solving the <strong>Discrete Logarithm Problem</strong>.</p>
+<p><strong>Diffie-Hellman (Mixing Paint)</strong>:
+Imagine Alice and Bob want to agree on a secret color across the playground, but a nosy kid is watching.
+- They agree on a public color out loud (like Yellow).
+- Alice picks a secret color (like Red) and mixes it with Yellow to make Orange. She hands the Orange paint to Bob.
+- Bob picks a secret color (like Blue) and mixes it with Yellow to make Green. He hands the Green paint to Alice.
+- Finally, Alice mixes her secret Red into Bob's Green. Bob mixes his secret Blue into Alice's Orange.
+They both end up with the same muddy brown color! The nosy kid only saw Orange and Green and Yellow being passed around, but can't figure out the final muddy color because un-mixing paint is impossible!</p>
 </li>
 <li>
-<p><strong>Web Security &amp; Memory Protection</strong>:
-- SQL Injection: Defeated by parameterized prepared statements.
-- Cross-Site Scripting (XSS): Defeated by context-aware escaping and Content Security Policy (CSP).
-- Cross-Site Request Forgery (CSRF): Defeated by SameSite cookie flags and anti-CSRF tokens.
-- Memory Defenses: Stack Canaries, ASLR, and Non-Executable Stacks (NX/DEP).</p>
+<p><strong>Web Security (Guarding the Castle)</strong>:
+- <strong>SQL Injection</strong>: Bad guys tricking the guard by wearing a disguise. We stop them by giving the guard a strict list of allowed faces.
+- <strong>Memory Defenses</strong>: Putting tripwires (Stack Canaries) around the castle. If a bad guy tries to sneak in through a hidden tunnel, they trip the wire and the alarm rings!</p>
 </li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why developers must never design their own cryptographic algorithms or write custom cryptographic primitives requires analyzing the mathematical subtlety of side channels and algebraic attacks. In software development, intuition suggests that an ambitious engineer can devise a clever secret encoding or character scrambling routine that will baffle attackers. In reality, ad-hoc cryptography—violating Kerckhoffs's principle—is trivially broken through frequency analysis, linear cryptanalysis, or algebraic manipulation within hours.</p>
-<p>Even when standardized mathematical algorithms like RSA or AES are used, naive implementations fail through non-obvious vulnerabilities:
-1. <strong>Textbook RSA Insecurity</strong>: In textbook RSA, encrypting message $m$ via $c = m^e \pmod N$ is completely deterministic. An attacker can precompute encryptions of common values (like numbers or names) and compare ciphertexts. Worse, textbook RSA is multiplicatively homomorphic: $E(m_1) \cdot E(m_2) = (m_1 \cdot m_2)^e = E(m_1 \cdot m_2)$, enabling attackers to forge valid signatures on chosen messages. Production RSA requires randomized OAEP (Optimal Asymmetric Encryption Padding).
-2. <strong>Timing Side Channels</strong>: If a server compares an authentication token or HMAC signature using standard string equality (<code>if token == expected_token:</code>), the comparison routine terminates at the very first mismatched byte. An attacker measuring request latency down to the microsecond can determine how many leading bytes matched, recovering an entire 256-bit cryptographic signature byte-by-byte without breaking the underlying hash function.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The HMAC signature and constant-time verification oracle demonstrates how keyed-hash message authentication protects data against undetected tampering and forging attacks. In modern distributed systems and security protocols, keyed cryptographic hashes verify both authenticity and data integrity across untrusted network channels. The interactive oracle generates an HMAC-SHA256 signature, validates authentic payloads, verifies that a single flipped bit in the ciphertext causes immediate signature rejection, and enforces constant-time byte comparison to eliminate timing side-channel leakage.</p>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>You might think you can invent your own secret code, like swapping 'A' for 'Z'. But hackers are really good at guessing! They use computers to crack homemade secret codes in minutes. That's why we always use the giant, heavy safes that thousands of clever mathematicians have tested for years.</p>
+<p>Even if you use a giant safe, you have to lock it correctly. If you're not careful, sneaky tricks can still break it:</p>
+<ol>
+<li>
+<p><strong>The Padding Problem</strong>: If you lock a coin in the safe, and it always makes a specific "clink" sound, a bad guy listening can guess there's a coin inside! To fix this, we always wrap the coin in a big fluffy pillow (called "padding") before locking it, so the safe always makes the exact same soft sound no matter what's inside.</p>
+</li>
+<li>
+<p><strong>Timing Attacks (Listening to the Lock)</strong>: Imagine a lock with four dials. If a burglar turns the first dial to '5' and hears a "click", they know '5' is right and can move to the next dial. By listening carefully to how long it takes for a click, they can crack the password one number at a time! To stop this, computers are trained to take the <em>exact same amount of time</em> to check a password, whether it's right or wrong. No hints!</p>
+</li>
+</ol></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The HMAC signature and constant-time verification oracle demonstrates how keyed-hash message authentication protects data against undetected tampering and forging attacks. In modern distributed systems and security protocols, keyed cryptographic hashes verify both authenticity and data integrity across untrusted network channels. The interactive oracle generates an HMAC-SHA256 signature, validates authentic payloads, verifies that a single flipped bit in the ciphertext causes immediate signature rejection, and enforces constant-time byte comparison to eliminate timing side-channel leakage.</p>
 <div class="lab demo" data-demo="p10-oracle-hmac-auth">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>HMAC-SHA256 Cryptographic Authentication Oracle</h3></div>
 
@@ -91,7 +92,7 @@ print(&quot;HMAC authentication, message integrity, and constant-time verificati
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the Birthday Paradox collision bound on truncated hash spaces. In an $n$-bit hash output space with $M = 2^n$ possible digests, theory dictates that a collection of $k \approx \sqrt{2 \ln(2) \cdot M} \approx 1.177 \sqrt{M}$ random hashes has a $50\%$ probability of containing a hash collision. We verify this probability threshold on a 16-bit hash space ($M=65,536$).</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the Birthday Paradox collision bound on truncated hash spaces. In a truncated hash output space with 65,536 possible digests, probability theory dictates that a collection of roughly 1.177 times the square root of the space size has a 50 percent chance of containing an accidental duplicate collision. We verify this probability threshold on a 16-bit hash space.</p>
 <div class="lab demo" data-demo="p10-exp-birthday-bound">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Birthday Paradox Hash Collision Bound Experiment</h3></div>
 

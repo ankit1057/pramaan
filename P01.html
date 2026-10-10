@@ -18,50 +18,39 @@
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
 <section id="s-story" class="story"><h2>The story</h2><p>In the late summer of 1992, Ken Thompson and Rob Pike sat in a New Jersey diner discussing the future of the Plan 9 operating system. The computing world was wrestling with a massive transition from 7-bit ASCII to 16-bit Unicode (UCS-2). Early drafts of Unicode proposed fixed-width 16-bit characters, but this would instantly break millions of lines of existing C code, file systems, and Unix command-line utilities that relied on the null character <code>\0</code> as a string terminator and <code>/</code> as a directory separator. Furthermore, English text would double in storage size overnight.</p>
-<p>On the back of a paper placemat in that diner, Ken Thompson sketched out a variable-length byte encoding scheme that avoided embedded null bytes, maintained backward compatibility with ASCII, self-synchronized after data corruption, and preserved byte-order independence. That design became UTF-8. Within days, Thompson had rewritten Plan 9's C compiler, graphics library, and terminal drivers to adopt it. Decades earlier, in 1937, Claude Shannon had unified George Boole's algebra of logic with electromechanical relay circuits in his master's thesis, establishing binary digits—bits—as the atomic foundation of all electronic calculation. From Shannon's relays to Thompson's UTF-8, computer science discovered that how we represent numbers and symbols in physical bits determines the efficiency, safety, and interoperability of all modern software.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Computers do not understand numbers, letters, colors, or sounds; they only measure electrical voltage levels, which we represent as binary digits, or bits (0 and 1). By clustering 8 bits together into a byte, a computer can represent 256 different values. Using two's complement notation, we can represent both positive and negative numbers so that the processor uses the exact same physical circuit for addition and subtraction. Text is represented by assigning numbers to characters, with UTF-8 dynamically packing symbols into one to four bytes.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Digital information and integer arithmetic are governed by the following mathematical and hardware specifications:</p>
+<p>On the back of a paper placemat in that diner, Ken Thompson sketched out a variable-length byte encoding scheme that avoided embedded null bytes, maintained backward compatibility with ASCII, self-synchronized after data corruption, and preserved byte-order independence. That design became UTF-8. Within days, Thompson had rewritten Plan 9's C compiler, graphics library, and terminal drivers to adopt it. Decades earlier, in 1937, Claude Shannon had unified George Boole's algebra of logic with electromechanical relay circuits in his master's thesis, establishing binary digits—bits—as the atomic foundation of all electronic calculation. From Shannon's relays to Thompson's UTF-8, computer science discovered that how we represent numbers and symbols in physical bits determines the efficiency, safety, and interoperability of all modern software.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Computers do not understand numbers, letters, colors, or sounds; they only measure electrical voltage levels, which we represent as binary digits, or bits (0 and 1). By clustering 8 bits together into a byte, a computer can represent 256 different values. Using two's complement notation, we can represent both positive and negative numbers so that the processor uses the exact same physical circuit for addition and subtraction. Text is represented by assigning numbers to characters, with UTF-8 dynamically packing symbols into one to four bytes.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Computers do not have fingers to count on, they only have tiny light switches that can be ON or OFF. Here is how they use those switches to count to infinity!</p>
 <ol>
 <li>
-<p><strong>Positional Number Systems</strong>:
-A non-negative integer $X$ in radix $r \in \{2, 8, 10, 16\}$ is defined by:
-$$X = \sum_{i=0}^{n-1} d_i \cdot r^i, \quad 0 \le d_i &lt; r$$
-Hexadecimal notation ($r=16$) groups exactly 4 binary bits into a single hex digit (nibble: $0\text{--}9, \text{A}\text{--}\text{F}$).</p>
+<p><strong>The Light Switch Game (Binary)</strong>:
+Instead of counting 1, 2, 3, 4, 5 like we do, computers only have two numbers: 0 (OFF) and 1 (ON). This is called "binary." Every new switch you add gives you double the counting power! One switch counts to 2. Two switches count to 4. Eight switches (which we call a "Byte") can count all the way to 256! </p>
 </li>
 <li>
-<p><strong>Two's Complement Signed Representation</strong>:
-For an $N$-bit binary word $(b_{N-1} b_{N-2} \dots b_1 b_0)_2$, the most significant bit (MSB) carries negative weight:
-$$X = -b_{N-1} 2^{N-1} + \sum_{i=0}^{N-2} b_i 2^i$$
-The representable range is $[-2^{N-1}, 2^{N-1}-1]$. Negation is computed via bitwise complement and increment: $-X = \sim X + 1$.
-Arithmetic overflow occurs when the carry into the sign bit differs from the carry out ($C_{\text{in}} \ne C_{\text{out}}$).</p>
+<p><strong>The Magic Mirror Trick (Two's Complement)</strong>:
+How does a computer count backwards to negative numbers if it only has ON and OFF switches? It uses a magic mirror trick! The very first switch in the line is the "minus" switch. If it is flipped ON, the whole number becomes a giant negative number. To make a positive number negative, the computer just flips every single switch to the opposite, and then adds 1. This trick is so smart that the computer can use the exact same brain-circuits to add and subtract!</p>
 </li>
 <li>
-<p><strong>Bitwise Algebraic Identities</strong>:
-- Lowest set bit isolation: $x \ \&amp; \ (-x)$
-- Lowest set bit clearing: $x \ \&amp; \ (x - 1)$
-- Power of two test: $(x &gt; 0) \ \&amp; \ ((x \ \&amp; \ (x - 1)) == 0)$
-- XOR cancellation: $x \oplus x = 0, \quad x \oplus 0 = x, \quad x \oplus y \oplus x = y$
-- Population count (Hamming weight): count of 1 bits.</p>
+<p><strong>Bit Tricks (Magic Wands)</strong>:
+Programmers have special magic wands to flip switches instantly without counting:
+- Want to turn off the very last light that is ON? You just wave the <code>x &amp; (x - 1)</code> wand!
+- Want to find the very first light that is ON and turn everything else OFF? You wave the <code>x &amp; (-x)</code> wand!
+- Want to see if a number is a perfect double (like 2, 4, 8, 16)? If turning off the last light makes the whole house go dark, it's a perfect double!</p>
 </li>
 <li>
-<p><strong>UTF-8 Encoding Grammar</strong>:
-Unicode code points $U \in [0x0000, 0x10FFFF]$ (excluding surrogate pairs $0xD800\text{--}0xDFFF$) are mapped to byte sequences:
-$$\begin{array}{ccl}
-\text{Scalar Range} &amp; \text{Bytes} &amp; \text{Binary UTF-8 Format} \\
-\hline
-0x0000\text{--}0x007F &amp; 1 &amp; 0xxxxxxx \\
-0x0080\text{--}0x07FF &amp; 2 &amp; 110xxxxx \ 10xxxxxx \\
-0x0800\text{--}0xFFFF &amp; 3 &amp; 1110xxxx \ 10xxxxxx \ 10xxxxxx \\
-0x10000\text{--}0x10FFFF &amp; 4 &amp; 11110xxx \ 10xxxxxx \ 10xxxxxx \ 10xxxxxx
-\end{array}$$</p>
+<p><strong>The Emoji Translator (UTF-8)</strong>:
+How does a computer know if a number means the letter "A" or a smiley face emoji? It uses a translator book called UTF-8! Simple letters like "A" fit in just 1 byte (8 switches). But complicated emojis or Chinese letters take 3 or 4 bytes! The computer puts special warning tags on the front of the bytes so it always knows if a letter is 1, 2, 3, or 4 bytes long.</p>
 </li>
 <li>
-<p><strong>Fixed-Point Representation</strong>:
-A $Q_{m.n}$ fixed-point number encodes a real value using $m$ integer bits and $n$ fractional bits, representing $X_{\text{real}} = X_{\text{int}} \cdot 2^{-n}$.</p>
+<p><strong>Fixed-Point (The Candy Bar Slicer)</strong>:
+Sometimes we want half a number (like 2.5). A Fixed-Point number is like drawing a line right down the middle of our switches. All the switches on the left count whole candy bars. All the switches on the right count tiny crumbs!</p>
 </li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why two's complement completely replaced sign-magnitude and one's complement requires analyzing computer hardware design and silicon efficiency. In early computers like the IBM 7090, numbers were stored in sign-magnitude (one sign bit followed by absolute value) or one's complement (inverting all bits to negate). Both systems suffered from a fatal mathematical defect: they produced two distinct representations for zero: positive zero ($+0$) and negative zero ($-0$).</p>
-<p>A dual-zero representation creates severe complications:
-1. Every comparison instruction (<code>x == 0</code>) requires special branching logic to treat both <code>0x00</code> and <code>0xFF</code> as zero, introducing latency into critical CPU instruction cycles.
-2. Arithmetic addition and subtraction require separate hardware paths and end-around carry correction. If an operation wraps around, the processor must add the carry back into the lowest bit.</p>
-<p>Two's complement eliminates negative zero entirely: the value <code>000...0</code> is the unique representation of zero. Furthermore, two's complement allows addition, subtraction, and multiplication of signed and unsigned integers to share the exact same physical adder circuitry. A hardware subtractor does not exist; the CPU simply computes $A - B = A + (\sim B + 1)$, feeding the inverted bits and setting the initial carry-in bit to 1. This hardware elegance saves millions of transistors, minimizes chip area, and eliminates clock cycle penalties.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The two's complement and bitwise operations oracle verifies that signed integer conversions, bitwise arithmetic properties, and two's complement negations strictly satisfy mathematical definitions across word widths. The demonstration executes two's complement round-trips for positive and negative integers, verifies bit clearing and isolation properties, and tests population count correctness under deterministic assertions, proving silicon arithmetic equivalence. These mathematical checks guarantee that bitwise transformations remain consistent across modern 32-bit and 64-bit microprocessors without silent sign corruption or unintended algebraic truncation.</p>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why did everyone decide to use the "Magic Mirror Trick" (Two's Complement) for negative numbers? Let's look at the old, silly way computers used to do it!</p>
+<p>In the old days, computers used a "Sign Flag." The first switch meant "Negative" and the rest of the switches meant the number. 
+If 001 meant "+1", then 101 meant "-1". This seems super easy, right?</p>
+<p>But wait! What happens with the number zero? 
+In the old way, 000 meant "+0", and 100 meant "-0". 
+The computer had TWO different zeros! Positive zero and negative zero! This created a giant, confusing mess. Every time the computer wanted to check if you had zero points in a game, it had to check for BOTH zeros. It also meant the computer had to have two totally different brains: one brain for adding points, and a completely different brain for subtracting points. It was too slow and too expensive!</p>
+<p>The Magic Mirror Trick fixes everything. By making the first switch a giant negative weight, zero is always exactly just <code>00000000</code>. There is no such thing as negative zero! 
+Even better, the computer doesn't need a subtracting brain anymore! If you want to do 5 - 3, the computer just turns the 3 into a -3 using the mirror trick, and then uses its normal adding brain to do 5 + (-3). The math works out perfectly every single time, saving millions of tiny wires inside the computer!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The two's complement and bitwise operations oracle verifies that signed integer conversions, bitwise arithmetic properties, and two's complement negations strictly satisfy mathematical definitions across word widths. The demonstration executes two's complement round-trips for positive and negative integers, verifies bit clearing and isolation properties, and tests population count correctness under deterministic assertions, proving silicon arithmetic equivalence. These mathematical checks guarantee that bitwise transformations remain consistent across modern 32-bit and 64-bit microprocessors without silent sign corruption or unintended algebraic truncation.</p>
 <div class="lab demo" data-demo="p01-oracle-twos-complement">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Two&#x27;s Complement &amp; Bit Manipulation Oracle</h3></div>
 
@@ -98,7 +87,7 @@ print(&quot;Two&#x27;s complement arithmetic and bit manipulation identities ver
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the algorithmic efficiency of Brian Kernighan's bit-clearing algorithm against naive 64-bit shifting for population count (popcount). For sparse binary numbers, Kernighan's method terminates in $O(k)$ iterations where $k$ is the number of set bits, while naive bit inspection always takes exactly 64 loop iterations, saving significant CPU instruction cycles in production system software. This empirical divergence demonstrates why optimizing bitwise algorithms is vital in performance-critical graphics, cryptography, and network engines.</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We experimentally verify the algorithmic efficiency of Brian Kernighan's bit-clearing algorithm against naive 64-bit shifting for population count (popcount). For sparse binary numbers, Kernighan's method terminates in loop steps proportional only to the number of set bits, while naive bit inspection always takes exactly 64 full loop iterations, saving significant CPU instruction cycles in production system software. This empirical divergence demonstrates why optimizing bitwise algorithms is vital in performance-critical graphics, cryptography, and network engines.</p>
 <div class="lab demo" data-demo="p01-exp-kernighan-popcount">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Kernighan Popcount Complexity Experiment</h3></div>
 

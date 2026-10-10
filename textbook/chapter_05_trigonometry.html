@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 05: The Dance of Circles & Waves — Trigonometry & The Unit Circle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(2, 132, 199, 0.05));
+      border: 2px solid var(--cyan);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #bae6fd;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 05 (NCERT 10 - 11 Foundation)</div>
+    <h1>The Dance of Circles & Waves: Trigonometry & The Wheel of Sines</h1>
+
+    <div class="callout">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Ferris Wheel Intuition:</strong> Why Sine and Cosine are not boring triangle ratios, but the vertical and horizontal shadows of a spinning circle.
+      <br>2. <strong>The Unstoppable Identity:</strong> Why $\sin^2(\theta) + \cos^2(\theta) \equiv 1$ is just the distance formula in disguise.
+      <br>3. <strong>SOH CAH TOA & Quadrant Mnemonics:</strong> Never confuse Opposite, Adjacent, or algebraic signs again.
+      <br>4. <strong>Waves in the Real World:</strong> How audio sound waves, video game 3D rotations, and LLM RoPE embeddings are born from the unit circle.
+      <br>5. <strong>Live WebAssembly Lab:</strong> Trace and plot unit circle coordinates live in Pyodide.
+    </div>
+
+    <h2>1. The Ferris Wheel: Sines and Cosines are Just Shadows</h2>
+    <p>
+      In school, trigonometry is usually taught as cold rules about right triangles: <em>"Opposite over Hypotenuse"</em>.
+      <br>That confuses everyone when angles become greater than $90^\circ$ (how can a right triangle have an angle of $150^\circ$ or $270^\circ$?).
+      <br>Throw that triangle mental model away for a moment. Instead, imagine a <strong>Ferris Wheel</strong>:
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🎡 The Ferris Wheel at Sunset</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine a Ferris wheel of radius $R = 1\text{ meter}$, centered at $(0, 0)$.
+        <br>You board a cart at the 3 o'clock position (angle $\theta = 0^\circ$).
+        <br>As the wheel rotates counterclockwise by angle $\theta$:
+        <br>• The sun is setting behind the wheel, casting your <strong>vertical shadow on a side wall</strong>.
+        <br>&nbsp;&nbsp;$\implies$ Your vertical height on the wall is <strong>$\sin(\theta)$</strong>!
+        <br>• A bright overhead spotlight casts your <strong>horizontal shadow on the floor</strong>.
+        <br>&nbsp;&nbsp;$\implies$ Your horizontal position on the floor is <strong>$\cos(\theta)$</strong>!
+      </p>
+    </div>
+
+    <p>
+      Look at what happens as the wheel spins full circle:
+      <br>• At $\theta = 0^\circ$ (3 o'clock): You are all the way to the right ($x = 1$), on the ground ($y = 0$). So $\cos(0) = 1, \sin(0) = 0$.
+      <br>• At $\theta = 90^\circ$ (12 o'clock): You are at the top ($y = 1$), center ($x = 0$). So $\cos(90^\circ) = 0, \sin(90^\circ) = 1$.
+      <br>• At $\theta = 180^\circ$ (9 o'clock): You are all the way left ($x = -1$), on the ground ($y = 0$). So $\cos(180^\circ) = -1, \sin(180^\circ) = 0$.
+      <br>• At $\theta = 270^\circ$ (6 o'clock): You are at the very bottom ($y = -1$), center ($x = 0$). So $\cos(270^\circ) = 0, \sin(270^\circ) = -1$.
+    </p>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">SOH CAH TOA</div>
+      <div class="mnemonic-rule">
+        <strong>S</strong>ine = <strong>O</strong>pposite / <strong>H</strong>ypotenuse<br>
+        <strong>C</strong>osine = <strong>A</strong>djacent / <strong>H</strong>ypotenuse<br>
+        <strong>T</strong>angent = <strong>O</strong>pposite / <strong>A</strong>djacent
+      </div>
+      <div class="mnemonic-desc">
+        Classic rhyme: <em>"<strong>S</strong>ome <strong>O</strong>ld <strong>H</strong>ippie, <strong>C</strong>aught <strong>A</strong>nother <strong>H</strong>ippie, <strong>T</strong>ripping <strong>O</strong>n <strong>A</strong>cid!"</em>
+      </div>
+    </div>
+
+    <h2>2. The Fundamental Identity: $\sin^2(\theta) + \cos^2(\theta) \equiv 1$</h2>
+    <p>
+      No matter where the Ferris wheel cart is, its physical distance from the center axle is ALWAYS the radius $R = 1$.
+      <br>By Pythagoras' theorem ($x^2 + y^2 = R^2$):
+    </p>
+    <div style="background: #111726; border: 1px solid var(--border); padding: 1.1rem; border-radius: 6px; text-align: center; font-size: 1.25rem; color: var(--cyan); margin-bottom: 1.2rem;">
+      $$\cos^2(\theta) + \sin^2(\theta) \equiv 1$$
+    </div>
+    <p>
+      This is not a formula to memorize—it is literally stating that the Ferris wheel cart cannot detach and fly off into outer space!
+    </p>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The "A.S.T.C." Quadrant Signs</div>
+      <div class="mnemonic-rule"><strong>A</strong>ll <strong>S</strong>ilver <strong>T</strong>ea <strong>C</strong>ups!</div>
+      <div class="mnemonic-desc">
+        • Quadrant 1 ($0^\circ \text{--} 90^\circ$): <strong>A</strong>ll ratios are POSITIVE ($+, +$).
+        <br>• Quadrant 2 ($90^\circ \text{--} 180^\circ$): <strong>S</strong>ine only is POSITIVE (height is positive, $x$ is negative).
+        <br>• Quadrant 3 ($180^\circ \text{--} 270^\circ$): <strong>T</strong>angent only is POSITIVE (both $x$ and $y$ are negative, so $-/- = +$).
+        <br>• Quadrant 4 ($270^\circ \text{--} 360^\circ$): <strong>C</strong>osine only is POSITIVE (horizontal $x$ is positive, height is negative).
+      </div>
+    </div>
+
+    <h2>3. Real-World Connection: Sound, Games & AI</h2>
+    <p>
+      If you unroll the vertical shadow of the Ferris wheel over time, you get a smooth undulating wave: <strong>The Sine Wave</strong>.
+      <br>• <strong>Music & Audio:</strong> When a guitar string vibrates at 440 Hz (Concert A), air molecules oscillate back and forth in a pure sine wave 440 times per second!
+      <br>• <strong>Video Games:</strong> Rotating a 3D character in Unity or Flutter uses 2D rotation matrices built from $(\cos \theta, \sin \theta)$.
+      <br>• <strong>Modern LLMs (RoPE):</strong> In Chapter 44, we will see that Rotary Position Embeddings rotate query and key vectors in complex 2D planes using these exact $(\cos \theta, \sin \theta)$ values!
+    </p>
+
+    <h2>4. Interactive Pyodide Lab: The Unit Circle Engine</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>trigonometry_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Trace Unit Circle in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import math
+
+def inspect_angle(deg):
+    rad = math.radians(deg)
+    cos_val = math.cos(rad)
+    sin_val = math.sin(rad)
+    pythagoras_check = cos_val**2 + sin_val**2
+    return cos_val, sin_val, pythagoras_check
+
+print("=" * 65)
+print("THE UNIT CIRCLE: SHADOWS OF ROTATION")
+print("=" * 65)
+print("Angle (deg) |  Angle (rad) | Cos (Floor) | Sin (Wall)  | Cos^2 + Sin^2")
+print("-" * 65)
+
+test_angles = [0, 30, 45, 60, 90, 135, 180, 225, 270, 315, 360]
+for deg in test_angles:
+    c, s, check = inspect_angle(deg)
+    rad = math.radians(deg)
+    print(f"   {deg:3d}°     |   {rad:6.3f} rad |   {c:8.4f}  |   {s:8.4f}  |     {check:.6f}")
+    assert abs(check - 1.0) < 1e-12, "Pythagorean identity violated!"
+
+print("\n>>> ALL ASSERTIONS PASSED! cos^2(theta) + sin^2(theta) == 1.0 everywhere on Earth.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_04_polynomial_rings.html">← Chapter 04: Polynomial Rings, Vieta's Formulas & Complex Roots</a>
+      <a href="chapter_06_pascals_triangle.html">Next: Chapter 06: Combinatorics, Binomial Theorem & Pascal's Simplex →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & computing unit circle coordinates...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -18,48 +18,34 @@
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
 <section id="s-story" class="story"><h2>The story</h2><p>In May 1974, Vinton Cerf and Robert Kahn published their historic paper "A Protocol for Packet Network Intercommunication" in the IEEE Transactions on Communications. Prior to their breakthrough, computer networks were closed, proprietary islands that relied on dedicated circuit switching—monopolized telephone lines reserved end-to-end for a single conversation. Cerf and Kahn introduced the Transmission Control Protocol (TCP) and Internet Protocol (IP), proposing an open, decentralized architecture where autonomous networks could interconnect seamlessly. Data was carved into self-contained packets that hopped independently across intermediate gateways, dynamically routing around damaged links without centralized supervision.</p>
-<p>Twelve years later in October 1986, the young Internet suffered its first catastrophic crisis: the Internet Congestion Collapse. The data throughput across the transcontinental NSFNET backbone dropped by a factor of one thousand, plummeting from 32,000 bits per second to a pathetic 40 bits per second. Packets flooded network routers faster than outgoing links could transmit them, filling router buffers, triggering massive drops, and causing hosts to resend duplicates in an exponential feedback loop. UC Berkeley researcher Van Jacobson rescued the global Internet by inventing TCP congestion control. By formalizing Slow Start, Additive Increase Multiplicative Decrease (AIMD), and dynamic round-trip time estimation, Jacobson transformed TCP into a cooperative, self-stabilizing distributed algorithm that allowed the global Internet to scale to billions of connected devices.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>The Internet is a vast, decentralized web of connected machines that talk by passing digital envelopes called packets. Instead of reserving a continuous physical line between you and a website, your computer chops data into small numbered packets, stamps them with destination IP addresses, and hands them to routers. TCP ensures that packets arrive intact and in order, using a 3-way handshake to connect and a sliding window to regulate speed. If the network becomes congested, TCP automatically slows down via AIMD and ramps back up gently, ensuring fair sharing across millions of users.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Computer network protocols and transport flow control are governed by the following mathematical and architectural specifications:</p>
+<p>Twelve years later in October 1986, the young Internet suffered its first catastrophic crisis: the Internet Congestion Collapse. The data throughput across the transcontinental NSFNET backbone dropped by a factor of one thousand, plummeting from 32,000 bits per second to a pathetic 40 bits per second. Packets flooded network routers faster than outgoing links could transmit them, filling router buffers, triggering massive drops, and causing hosts to resend duplicates in an exponential feedback loop. UC Berkeley researcher Van Jacobson rescued the global Internet by inventing TCP congestion control. By formalizing Slow Start, Additive Increase Multiplicative Decrease (AIMD), and dynamic round-trip time estimation, Jacobson transformed TCP into a cooperative, self-stabilizing distributed algorithm that allowed the global Internet to scale to billions of connected devices.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>The Internet is a vast, decentralized web of connected machines that talk by passing digital envelopes called packets. Instead of reserving a continuous physical line between you and a website, your computer chops data into small numbered packets, stamps them with destination IP addresses, and hands them to routers. TCP ensures that packets arrive intact and in order, using a 3-way handshake to connect and a sliding window to regulate speed. If the network becomes congested, TCP automatically slows down via AIMD and ramps back up gently, ensuring fair sharing across millions of users.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Imagine the Internet is the world's biggest postal service!</p>
 <ol>
 <li>
-<p><strong>The TCP/IP Layered Architecture</strong>:
-$$\begin{array}{|l|l|l|}
-\hline
-\text{Layer} &amp; \text{Protocols} &amp; \text{Addressing Unit} \\
-\hline
-\text{Application} &amp; \text{HTTP/3, DNS, TLS 1.3} &amp; \text{URI, Hostname} \\
-\text{Transport} &amp; \text{TCP, UDP, QUIC} &amp; \text{Port (16-bit)} \\
-\text{Internet} &amp; \text{IPv4, IPv6, BGP, ICMP} &amp; \text{IP Address (32/128-bit)} \\
-\text{Link / Physical} &amp; \text{Ethernet, 802.11 Wi-Fi} &amp; \text{MAC Address (48-bit)} \\
-\hline
-\end{array}$$</p>
+<p><strong>The Four Layers of the Post Office</strong>:
+- <strong>Application</strong>: Writing the letter (like typing a website name).
+- <strong>Transport</strong>: Packing the letter into numbered boxes so none get lost.
+- <strong>Internet</strong>: Putting the GPS address (IP Address) on the boxes so the mail trucks know where to go.
+- <strong>Physical</strong>: The actual trucks, airplanes, and WiFi invisible lasers that carry the boxes!</p>
 </li>
 <li>
-<p><strong>Bandwidth-Delay Product (BDP) &amp; Little's Law</strong>:
-The volume of in-flight data required to saturate a network link is:
-$$\text{BDP} = \text{Bandwidth (bytes/sec)} \times \text{RTT (sec)}$$
-If the TCP receive window ($\text{rwnd}$) is less than $\text{BDP}$, maximum achievable throughput is constrained by:
-$$\text{Max Throughput} = \frac{\text{rwnd}}{\text{RTT}} &lt; \text{Bandwidth}$$</p>
+<p><strong>The Traffic Jam Rule (Congestion Control)</strong>:
+If you send 1,000 boxes at once, the mail truck will explode! So, your computer plays a safe game:
+- <strong>Start Slow</strong>: It sends 1 box. If it gets a "Thank you!" note back, it sends 2 boxes. Then 4, then 8!
+- <strong>Cruising</strong>: When it's going fast enough, it only adds 1 extra box at a time.
+- <strong>Uh oh! (Loss)</strong>: If a box gets dropped, the computer immediately cuts the number of boxes it sends <em>in half</em>. This instantly clears up the traffic jam for everyone!</p>
 </li>
 <li>
-<p><strong>TCP Congestion Control (AIMD)</strong>:
-Maintains congestion window $cwnd$ and slow-start threshold $ssthresh$:
-- <strong>Slow Start ($cwnd &lt; ssthresh$)</strong>: For each ACK received, $cwnd \mathrel{+}= 1$ MSS (doubles every RTT).
-- <strong>Congestion Avoidance ($cwnd \ge ssthresh$)</strong>: Additive Increase: $cwnd \mathrel{+}= \frac{1}{cwnd}$ per ACK ($+1$ MSS per RTT).
-- <strong>Packet Loss (3 Duplicate ACKs)</strong>: Multiplicative Decrease:
-$$ssthresh = \max\left(2, \left\lfloor \frac{cwnd}{2} \right\rfloor\right), \quad cwnd = ssthresh$$
-- <strong>Timeout</strong>: $ssthresh = \max(2, \lfloor cwnd / 2 \rfloor), \quad cwnd = 1$ MSS.</p>
+<p><strong>How Fast Can You Throw? (BDP)</strong>:
+Imagine throwing baseballs to a friend far away. If it takes 10 seconds for a ball to reach them, and you can throw 5 balls a second, there will be 50 balls flying through the air at the same time! If your friend only brought a tiny basket that holds 10 balls, you have to throw slower, even though your arm is super strong.</p>
 </li>
 <li>
-<p><strong>Evolution of Web Protocols</strong>:
-- HTTP/1.1: Persistent connections; Head-of-Line (HoL) blocking on pipelined requests.
-- HTTP/2: Binary framing; multiplexed concurrent streams over a single TCP connection.
-- HTTP/3 (QUIC): Replaces TCP with UDP; independent stream flow control eliminates transport HoL blocking; 0-RTT TLS 1.3 connection resumption.</p>
+<p><strong>Upgrading the Delivery Trucks (HTTP)</strong>:
+- <strong>Old Trucks (HTTP/1)</strong>: One box at a time. If the first box gets stuck, the whole truck stops (Head-of-Line blocking).
+- <strong>New Trucks (HTTP/3)</strong>: It sends hundreds of boxes on different tiny motorcycles. If one motorcycle crashes, all the other boxes still arrive safely!</p>
 </li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Understanding why TCP/IP uses packet switching with end-to-end congestion control rather than circuit switching requires analyzing the economics and survivability of global communication networks. In traditional circuit-switched telecommunication networks (such as landline telephones), establishing a call reserves dedicated copper lines and switch capacity along the entire geographic path. If participants pause or stop talking, the reserved bandwidth sits completely idle and wasted. Furthermore, if any intermediate telephone exchange fails, the active circuit is severed instantly.</p>
-<p>Packet switching decouples data transmission from physical infrastructure:
-1. <strong>Statistical Multiplexing</strong>: Bandwidth is shared dynamically among thousands of active users. When one host is idle, other hosts burst their traffic, achieving near 100% link utilization.
-2. <strong>Dynamic Fault Tolerance</strong>: Because packets contain full destination IP headers, routers dynamically redirect packets around severed undersea cables or failed fiber links without dropping user connections.
-3. <strong>End-to-End Congestion Avoidance</strong>: By delegating congestion control to the edge endpoints (TCP on the sending host) rather than intermediate core routers, the core Internet remains simple, stateless, and exceptionally high-speed. Routers merely forward packets; endpoints infer congestion from packet drops and round-trip latency, scaling gracefully from kilobit dial-up to terabit fiber optics.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The TCP AIMD congestion control verification oracle simulates how a sending endpoint dynamically adjusts its congestion window (cwnd) across slow start, congestion avoidance, packet loss, and fast recovery. The interactive oracle verifies exponential growth during slow start, linear increments during congestion avoidance, and multiplicative halving upon packet loss detection. This simulation accurately captures Van Jacobson's self-stabilizing transport algorithm that prevents Internet congestion collapse across diverse network links.</p>
+</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>A long time ago, phones used "Circuit Switching." When you called your grandma, the telephone company literally locked a continuous, unbroken copper wire stretching all the way from your house to her house. If you stopped talking to chew a cookie, that wire sat totally empty, and nobody else was allowed to use it! Also, if a tree fell on the wire, the call immediately dropped.</p>
+<p>The Internet is much smarter. It uses "Packet Switching." Instead of locking down a whole road, your computer chops your movie into millions of tiny puzzle pieces (packets). Each piece gets an address sticker and is tossed onto the highway. </p>
+<p>Because they are independent, if a tree falls on the highway, the puzzle pieces just take a detour down a side street! And because the road isn't locked, thousands of people can share the same highway at the exact same time without waiting in line. The computer at the very end just collects all the puzzle pieces and glues them back together into a movie!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>The TCP AIMD congestion control verification oracle simulates how a sending endpoint dynamically adjusts its congestion window (cwnd) across slow start, congestion avoidance, packet loss, and fast recovery. The interactive oracle verifies exponential growth during slow start, linear increments during congestion avoidance, and multiplicative halving upon packet loss detection. This simulation accurately captures Van Jacobson's self-stabilizing transport algorithm that prevents Internet congestion collapse across diverse network links.</p>
 <div class="lab demo" data-demo="p09-oracle-tcp-aimd">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>TCP Congestion Control AIMD State Machine Oracle</h3></div>
 

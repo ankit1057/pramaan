@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Omni-Academy · Complete 50-Chapter Master Interactive Textbook</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-hover: #131b2e;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: rgba(13, 18, 28, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--cyan), var(--indigo));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 1.1rem;
+      color: #000;
+    }
+    .brand-title {
+      font-size: 1.15rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+    }
+    .brand-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      font-family: 'Fira Code', monospace;
+    }
+    .header-nav {
+      display: flex;
+      align-items: center;
+      gap: 1.2rem;
+      font-size: 0.85rem;
+      font-family: 'Fira Code', monospace;
+    }
+    .header-nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      transition: color 0.2s;
+    }
+    .header-nav a:hover, .header-nav a.active {
+      color: var(--cyan);
+    }
+    .main-container {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 65px);
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 420px;
+      background: #090c14;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 1.5rem 1.2rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+    .sidebar-section-title {
+      font-size: 0.75rem;
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+      border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+      padding-bottom: 0.3rem;
+    }
+    .chap-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-bottom: 0.65rem;
+      text-decoration: none;
+      display: block;
+      color: inherit;
+    }
+    .chap-card:hover {
+      background: var(--card-hover);
+      border-color: rgba(56, 189, 248, 0.3);
+      transform: translateY(-1px);
+    }
+    .chap-card.active {
+      border-color: var(--cyan);
+      background: rgba(56, 189, 248, 0.08);
+    }
+    .chap-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.72rem;
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+      margin-bottom: 0.35rem;
+    }
+    .chap-title {
+      font-size: 0.88rem;
+      font-weight: 700;
+      line-height: 1.35;
+      margin-bottom: 0.35rem;
+      color: #fff;
+    }
+    .chap-desc {
+      font-size: 0.76rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    .content-viewer {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      position: relative;
+    }
+    .viewer-bar {
+      background: #0b0f19;
+      border-bottom: 1px solid var(--border);
+      padding: 0.6rem 1.5rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 0.8rem;
+      font-family: 'Fira Code', monospace;
+    }
+    .viewer-title {
+      color: var(--text);
+      font-weight: 600;
+    }
+    .viewer-actions a {
+      color: var(--cyan);
+      text-decoration: none;
+      margin-left: 1rem;
+    }
+    .viewer-actions a:hover {
+      text-decoration: underline;
+    }
+    iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: var(--bg);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="brand">
+      <div class="brand-icon">Ω</div>
+      <div>
+        <div class="brand-title">Omni-Academy Master Textbook</div>
+        <div class="brand-sub">NCERT 6th to PhD Systems · Complete 50-Chapter Interactive Curriculum</div>
+      </div>
+    </div>
+    <div class="header-nav">
+      <a href="index.html" class="active">📖 Textbook Reader (All 50 Chapters)</a>
+      <a href="../index.html">🏛️ Pramaan (135 Modules)</a>
+      <a href="../omni_academy/index.html">⚡ 50-Module Lab Portal</a>
+    </div>
+  </header>
+
+  <div class="main-container">
+    <div class="sidebar">
+
+      <!-- Epoch 1: Foundations (NCERT 6 - 10) -->
+      <div>
+        <div class="sidebar-section-title">Epoch 1: Foundations (NCERT 6 - 10)</div>
+        <a class="chap-card active" onclick="loadChapter('chapter_01_number_theory.html', this)">
+          <div class="chap-meta"><span>CHAPTER 01</span><span>NUMBER SYSTEMS</span></div>
+          <div class="chap-title">Peano Axioms, Primes & Extended Euclidean Algorithm</div>
+          <div class="chap-desc">Prime factorization and the Extended Euclidean algorithm solve ax + by = gcd(a, b). When gcd(a, m) = 1, x gives the modular inverse a^-1 mod...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_02_combinatorics.html', this)">
+          <div class="chap-meta"><span>CHAPTER 02</span><span>NUMBER THEORY</span></div>
+          <div class="chap-title">Modular Congruences & Chinese Remainder Theorem</div>
+          <div class="chap-desc">Solves systems of congruences x = a_i (mod n_i) for pairwise coprime moduli, forming the basis of multi-precision big-integer arithmetic.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_03_gaussian_elimination.html', this)">
+          <div class="chap-meta"><span>CHAPTER 03</span><span>ALGEBRA</span></div>
+          <div class="chap-title">Systems of Linear Equations & Gaussian Elimination</div>
+          <div class="chap-desc">Transforms augmented matrix [A | b] to upper triangular form via partial pivoting elementary row operations, followed by back-substitution.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_04_polynomial_rings.html', this)">
+          <div class="chap-meta"><span>CHAPTER 04</span><span>POLYNOMIALS</span></div>
+          <div class="chap-title">Polynomial Rings, Vieta's Formulas & Complex Roots</div>
+          <div class="chap-desc">Vieta's formulas establish symmetric relationships between polynomial coefficients and roots. Complex roots of real polynomials occur in con...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_05_trigonometry.html', this)">
+          <div class="chap-meta"><span>CHAPTER 05</span><span>TRIGONOMETRY</span></div>
+          <div class="chap-title">Trigonometric Functions, Euler's Identity & Wave Harmonics</div>
+          <div class="chap-desc">Euler's formula e^(i*theta) = cos(theta) + i*sin(theta) unifies exponential and periodic spaces. Signals decompose into orthogonal Fourier h...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_06_pascals_triangle.html', this)">
+          <div class="chap-meta"><span>CHAPTER 06</span><span>COMBINATORICS</span></div>
+          <div class="chap-title">Combinatorics, Binomial Theorem & Pascal's Simplex</div>
+          <div class="chap-desc">Permutations P(n, r) and combinations C(n, r) count ordered and unordered selections. Binomial theorem expands (x + y)^n via Pascal's triang...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_07_coordinate_geometry.html', this)">
+          <div class="chap-meta"><span>CHAPTER 07</span><span>GEOMETRY</span></div>
+          <div class="chap-title">Coordinate Geometry, Conic Sections & Affine Transforms</div>
+          <div class="chap-desc">Affine transformations represent translation, rotation, scaling, and shear via 3x3 homogeneous matrices.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_08_classical_probability.html', this)">
+          <div class="chap-meta"><span>CHAPTER 08</span><span>PROBABILITY</span></div>
+          <div class="chap-title">Classical Probability, Conditional Independence & Bayes Theorem</div>
+          <div class="chap-desc">Bayes' Theorem updates the prior probability of hypothesis H given evidence E: P(H|E) = P(E|H)P(H) / P(E).</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_09_sequences_and_series.html', this)">
+          <div class="chap-meta"><span>CHAPTER 09</span><span>SERIES</span></div>
+          <div class="chap-title">Sequences, Series & Convergence Criteria</div>
+          <div class="chap-desc">Analyzes Arithmetic, Geometric, and Harmonic series. The ratio and comparison tests determine infinite series convergence.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_10_descriptive_statistics.html', this)">
+          <div class="chap-meta"><span>CHAPTER 10</span><span>STATISTICS</span></div>
+          <div class="chap-title">Descriptive Statistics, Variance, Covariance & Chebyshev's Bound</div>
+          <div class="chap-desc">Measures central tendency (mean) and dispersion (variance sigma^2, standard deviation). Chebyshev's inequality bounds tail probabilities.</div>
+        </a>
+      </div>
+
+      <!-- Epoch 2: Calculus & Analysis (11 - 12) -->
+      <div>
+        <div class="sidebar-section-title">Epoch 2: Calculus & Analysis (11 - 12)</div>
+        <a class="chap-card" onclick="loadChapter('chapter_11_complex_numbers.html', this)">
+          <div class="chap-meta"><span>CHAPTER 11</span><span>REAL ANALYSIS</span></div>
+          <div class="chap-title">Real Analysis, Limits & The Epsilon-Delta Definition</div>
+          <div class="chap-desc">Rigorous epsilon-delta limit definitions. Numerical Taylor expansions avoid floating-point cancellation in functions like sin(x)/x.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_12_autograd.html', this)">
+          <div class="chap-meta"><span>CHAPTER 12</span><span>CALCULUS</span></div>
+          <div class="chap-title">Differential Calculus from First Principles & Dual Numbers Autograd</div>
+          <div class="chap-desc">Derivatives via dual numbers a + b*epsilon where epsilon^2 = 0 compute exact symbolic derivatives numerically in a single forward pass witho...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_13_integral_calculus.html', this)">
+          <div class="chap-meta"><span>CHAPTER 13</span><span>INTEGRAL CALCULUS</span></div>
+          <div class="chap-title">Integral Calculus, Riemann Sums & Simpson's Rule</div>
+          <div class="chap-desc">Numerical integration computes areas under curves using Simpson's 1/3 Rule with quadratic polynomial interpolations achieving O(h^4) converg...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_14_differential_equations.html', this)">
+          <div class="chap-meta"><span>CHAPTER 14</span><span>ODES</span></div>
+          <div class="chap-title">Ordinary Differential Equations & Runge-Kutta (RK4) Solvers</div>
+          <div class="chap-desc">RK4 achieves 4th-order accuracy O(h^4) by computing four trial slopes per step size h to solve initial value problems dy/dt = f(t, y).</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_15_quaternions_3d_vectors.html', this)">
+          <div class="chap-meta"><span>CHAPTER 15</span><span>VECTOR GEOMETRY</span></div>
+          <div class="chap-title">3D Vector Geometry, Dot/Cross Products & Quaternions</div>
+          <div class="chap-desc">Quaternions q = w + xi + yj + zk represent 3D rotations avoiding gimbal lock, interpolating smoothly via Spherical Linear Interpolation (SLE...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_16_set_theory.html', this)">
+          <div class="chap-meta"><span>CHAPTER 16</span><span>SET THEORY</span></div>
+          <div class="chap-title">Set Theory, Equivalence Partitions & Power Sets</div>
+          <div class="chap-desc">A partition of a set S divides it into non-empty disjoint subsets. Equivalence relations (reflexive, symmetric, transitive) induce partition...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_17_propositional_sat.html', this)">
+          <div class="chap-meta"><span>CHAPTER 17</span><span>MATHEMATICAL LOGIC</span></div>
+          <div class="chap-title">Propositional Calculus, Truth Tables & SAT Solvers</div>
+          <div class="chap-desc">Evaluates Boolean formulas in Conjunctive Normal Form (CNF). The DPLL (Davis-Putnam-Logemann-Loveland) algorithm solves SAT decision problem...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_18_graph_theory_matching.html', this)">
+          <div class="chap-meta"><span>CHAPTER 18</span><span>DISCRETE MATH</span></div>
+          <div class="chap-title">Graph Theory Foundations & Bipartite Matching</div>
+          <div class="chap-desc">Bipartite graphs have vertices partitioned into two independent sets. Konig's theorem equates maximum matching with minimum vertex cover.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_19_boolean_alu_design.html', this)">
+          <div class="chap-meta"><span>CHAPTER 19</span><span>DIGITAL LOGIC</span></div>
+          <div class="chap-title">Boolean Algebra, Karnaugh Maps & ALU Design</div>
+          <div class="chap-desc">Digital circuits construct arithmetic logic units (ALUs) from NAND gates. A Full Adder computes Sum = A XOR B XOR Cin and Cout = (A AND B) O...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_20_continuous_probability.html', this)">
+          <div class="chap-meta"><span>CHAPTER 20</span><span>PROBABILITY</span></div>
+          <div class="chap-title">Continuous Probability & The Box-Muller Normal Transform</div>
+          <div class="chap-desc">The Box-Muller transform turns two independent uniform random variables U1, U2 ~ Uniform(0,1) into standard normal Gaussian variables Z0, Z1...</div>
+        </a>
+      </div>
+
+      <!-- Epoch 3: Undergrad CS & Math (BCA / B.Tech) -->
+      <div>
+        <div class="sidebar-section-title">Epoch 3: Undergrad CS & Math (BCA / B.Tech)</div>
+        <a class="chap-card" onclick="loadChapter('chapter_21_linear_algebra.html', this)">
+          <div class="chap-meta"><span>CHAPTER 21</span><span>LINEAR ALGEBRA</span></div>
+          <div class="chap-title">Vector Spaces, Nullspace & The Rank-Nullity Theorem</div>
+          <div class="chap-desc">The Rank-Nullity theorem states that for linear map T: V -> W, dim(V) = rank(T) + nullity(T). Nullspaces define solutions to homogeneous equ...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_22_eigenvalues_svd.html', this)">
+          <div class="chap-meta"><span>CHAPTER 22</span><span>LINEAR ALGEBRA & ML</span></div>
+          <div class="chap-title">Eigenvalues, Diagonalization & SVD/PCA</div>
+          <div class="chap-desc">Eigendecomposition factors A = Q Lambda Q^-1. SVD generalizes this to any rectangular matrix A = U Sigma V^T, finding principal directions o...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_23_linear_data_structures.html', this)">
+          <div class="chap-meta"><span>CHAPTER 23</span><span>DATA STRUCTURES</span></div>
+          <div class="chap-title">Linear Data Structures: Vector Doubling & Circular Buffers</div>
+          <div class="chap-desc">Dynamic array capacity doubling guarantees O(1) amortized insertion. Circular ring buffers provide lock-free FIFO streaming over fixed memor...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_24_avl_trees_rotations.html', this)">
+          <div class="chap-meta"><span>CHAPTER 24</span><span>DATA STRUCTURES</span></div>
+          <div class="chap-title">Trees & Hierarchies: BST & AVL Self-Balancing Rotations</div>
+          <div class="chap-desc">AVL trees maintain strict balance factor |h_L - h_R| <= 1 via Left and Right rotations, ensuring guaranteed O(log n) worst-case lookups.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_25_quicksort_randomized.html', this)">
+          <div class="chap-meta"><span>CHAPTER 25</span><span>ALGORITHMS</span></div>
+          <div class="chap-title">Sorting Algorithms: QuickSort with Randomized Pivot & Median-of-3</div>
+          <div class="chap-desc">QuickSort partitions around a pivot in O(n) time. Randomized or median-of-three pivot selection prevents O(n^2) worst-case degradation on so...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_26_dynamic_programming.html', this)">
+          <div class="chap-meta"><span>CHAPTER 26</span><span>ALGORITHMS</span></div>
+          <div class="chap-title">Dynamic Programming: Bellman Optimality, Knapsack & LCS</div>
+          <div class="chap-desc">Dynamic programming computes optimal solutions by combining solutions to subproblems with memoization, avoiding exponential recomputation.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_27_dijkstra_graph_traversal.html', this)">
+          <div class="chap-meta"><span>CHAPTER 27</span><span>GRAPH ALGORITHMS</span></div>
+          <div class="chap-title">Graph Traversal: Dijkstra's Shortest Path & Topological Sort</div>
+          <div class="chap-desc">Dijkstra solves single-source shortest paths on non-negative weighted graphs using priority queues. Topological sort orders DAG dependencies...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_28_cache_memory_hierarchy.html', this)">
+          <div class="chap-meta"><span>CHAPTER 28</span><span>COMPUTER ARCHITECTURE</span></div>
+          <div class="chap-title">Computer Architecture: Memory Hierarchy & Cache Simulation</div>
+          <div class="chap-desc">Simulates direct-mapped and set-associative cache hit/miss behavior under spatial and temporal locality access patterns.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_29_automata_dfa_regex.html', this)">
+          <div class="chap-meta"><span>CHAPTER 29</span><span>THEORY OF COMPUTATION</span></div>
+          <div class="chap-title">Automata Theory: DFAs, Regular Expressions & State Machines</div>
+          <div class="chap-desc">A Deterministic Finite Automaton (DFA) M = (Q, Sigma, delta, q0, F) recognizes regular languages in linear O(n) time with zero backtracking.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_30_tcp_sliding_window.html', this)">
+          <div class="chap-meta"><span>CHAPTER 30</span><span>NETWORKING</span></div>
+          <div class="chap-title">Computer Networks: TCP Sliding Window & Flow Control Simulation</div>
+          <div class="chap-desc">TCP sliding window matches transmission rate to receiver buffer capacity via Advertised Window (rwnd) and Congestion Window (cwnd).</div>
+        </a>
+      </div>
+
+      <!-- Epoch 4: Systems & Compilers (MCA) -->
+      <div>
+        <div class="sidebar-section-title">Epoch 4: Systems & Compilers (MCA)</div>
+        <a class="chap-card" onclick="loadChapter('chapter_31_os_preemptive_scheduling.html', this)">
+          <div class="chap-meta"><span>CHAPTER 31</span><span>OPERATING SYSTEMS</span></div>
+          <div class="chap-title">Advanced Operating Systems: Preemptive Scheduling & Deadlock Banker</div>
+          <div class="chap-desc">Dijkstra's Banker's algorithm tests for safe states before granting resource allocations to prevent distributed deadlocks.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_32_pratt_parser.html', this)">
+          <div class="chap-meta"><span>CHAPTER 32</span><span>COMPILER ENGINEERING</span></div>
+          <div class="chap-title">Compiler Engineering: Lexing, Pratt Parsing & AST Interpretation</div>
+          <div class="chap-desc">Pratt parsing binds operators via numeric binding power in O(n) time, producing clean Abstract Syntax Trees without backtracking.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_33_concurrency.html', this)">
+          <div class="chap-meta"><span>CHAPTER 33</span><span>DATABASE INTERNALS</span></div>
+          <div class="chap-title">Database Engine Internals: B+ Tree Indexing & WAL Append Logging</div>
+          <div class="chap-desc">B+ Trees store all records in linked leaf nodes while internal nodes store keys for O(log n) branching search. WAL guarantees durability.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_34_distributed_vector_clocks.html', this)">
+          <div class="chap-meta"><span>CHAPTER 34</span><span>DISTRIBUTED SYSTEMS</span></div>
+          <div class="chap-title">Distributed Systems: Vector Clocks & Causal Consistency</div>
+          <div class="chap-desc">Vector clocks establish causal partial ordering and detect concurrent merge conflicts in distributed local-first databases.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_35_rsa_cryptography.html', this)">
+          <div class="chap-meta"><span>CHAPTER 35</span><span>CRYPTOGRAPHY</span></div>
+          <div class="chap-title">Cryptography Engineering: RSA Asymmetric Keygen & Digital Signatures</div>
+          <div class="chap-desc">RSA uses trapdoor one-way permutation via integer factorization. Signature s = m^d mod n is verified by checking s^e mod n == m.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_36_reactive_streams_observer.html', this)">
+          <div class="chap-meta"><span>CHAPTER 36</span><span>SOFTWARE ARCHITECTURE</span></div>
+          <div class="chap-title">Software Architecture: Observer Pattern & Reactive Event Streams</div>
+          <div class="chap-desc">Decouples event publishers from subscribers via reactive event buses, supporting asynchronous state distribution without tight coupling.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_37_android_looper_jni.html', this)">
+          <div class="chap-meta"><span>CHAPTER 37</span><span>MOBILE SYSTEMS</span></div>
+          <div class="chap-title">Mobile Systems: Android Looper, Handler & JNI Bridge Architecture</div>
+          <div class="chap-desc">Android UI thread operates a continuous Looper pulling Message objects from a synchronized MessageQueue. Native JNI calls bridge to C++ runt...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_38_ieee754_floating_point.html', this)">
+          <div class="chap-meta"><span>CHAPTER 38</span><span>NUMERICAL ANALYSIS</span></div>
+          <div class="chap-title">Numerical Analysis: Floating-Point IEEE-754 Bit Unpacking & Condition Numbers</div>
+          <div class="chap-desc">Unpacks 32-bit float into Sign (1 bit), Exponent (8 bits), and Mantissa (23 bits). Condition numbers measure sensitivity to numerical pertur...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_39_adam_optimization.html', this)">
+          <div class="chap-meta"><span>CHAPTER 39</span><span>OPTIMIZATION</span></div>
+          <div class="chap-title">Mathematical Optimization: Adam Optimizer with Exponential Moving Averages</div>
+          <div class="chap-desc">Adam adapts learning rates using first m_t (momentum) and second v_t (uncentered variance) moments of gradients with bias correction.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_40_logistic_regression.html', this)">
+          <div class="chap-meta"><span>CHAPTER 40</span><span>CLASSICAL ML</span></div>
+          <div class="chap-title">Classical Machine Learning: Logistic Regression & Cross-Entropy</div>
+          <div class="chap-desc">Maps linear combination z = w^T x + b through sigmoid sigma(z) = 1/(1 + e^-z) to model class probabilities, minimizing binary cross-entropy.</div>
+        </a>
+      </div>
+
+      <!-- Epoch 5: PhD / Research-Grade Deep Systems -->
+      <div>
+        <div class="sidebar-section-title">Epoch 5: PhD / Research-Grade Deep Systems</div>
+        <a class="chap-card" onclick="loadChapter('chapter_41_reverse_autograd_tape.html', this)">
+          <div class="chap-meta"><span>CHAPTER 41</span><span>DEEP LEARNING</span></div>
+          <div class="chap-title">Deep Learning Foundations: Reverse-Mode Autograd from Scratch</div>
+          <div class="chap-desc">Builds a dynamic Directed Acyclic Graph (DAG) of tensor operations and propagates adjoints backward via the chain rule in reverse topologica...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_42_residual_layernorm.html', this)">
+          <div class="chap-meta"><span>CHAPTER 42</span><span>NEURAL ARCHITECTURES</span></div>
+          <div class="chap-title">Modern Neural Architectures: Residual Connections & LayerNorm</div>
+          <div class="chap-desc">ResNet identity skip connections x_{l+1} = x_l + F(x_l) eliminate vanishing gradients in deep networks by providing clean gradient highways.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_43_attention.html', this)">
+          <div class="chap-meta"><span>CHAPTER 43</span><span>LLM ARCHITECTURE</span></div>
+          <div class="chap-title">The Transformer Architecture: Multi-Head Self-Attention</div>
+          <div class="chap-desc">Splits queries, keys, and values into h distinct attention heads, allowing the model to jointly attend to information from different represe...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_44_rope.html', this)">
+          <div class="chap-meta"><span>CHAPTER 44</span><span>LLM ARCHITECTURE</span></div>
+          <div class="chap-title">Rotary Position Embeddings (RoPE) Mathematical Derivation</div>
+          <div class="chap-desc">RoPE rotates query and key vectors in complex 2D planes, ensuring inner products depend strictly on relative token distance (m - n).</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_45_flash_attention.html', this)">
+          <div class="chap-meta"><span>CHAPTER 45</span><span>FAST ATTENTION</span></div>
+          <div class="chap-title">Fast Attention Algorithms: Online Softmax & Memory Tiling</div>
+          <div class="chap-desc">Online softmax computes softmax incrementally across streaming blocks without storing the full N x N attention matrix, cutting memory from O...</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_46_quantization.html', this)">
+          <div class="chap-meta"><span>CHAPTER 46</span><span>EDGE INFERENCE</span></div>
+          <div class="chap-title">Model Quantization: GGUF Q8_0, Q4_K_M & SIMD Dot-Product Physics</div>
+          <div class="chap-desc">Quantizes 32-bit floating point weights into 8-bit or 4-bit integers with block scales, allowing 1B models to run in 364 MB of RAM.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_47_kv_cache_paging.html', this)">
+          <div class="chap-meta"><span>CHAPTER 47</span><span>EDGE SYSTEMS</span></div>
+          <div class="chap-title">Edge Memory Residency Planning: Weight Streaming & RAM Ceilings</div>
+          <div class="chap-desc">Plans static weight residency vs on-demand streaming to guarantee total system RSS never breaches hardware RAM ceilings.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_48_speculative_decoding.html', this)">
+          <div class="chap-meta"><span>CHAPTER 48</span><span>HIGH-PERFORMANCE INFERENCE</span></div>
+          <div class="chap-title">Speculative Decoding: Multi-Token Draft Verification</div>
+          <div class="chap-desc">Generates draft tokens with a fast auxiliary mechanism and validates them in a single parallel target forward pass via rejection sampling.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_49_shannon_entropy_bpe.html', this)">
+          <div class="chap-meta"><span>CHAPTER 49</span><span>INFORMATION THEORY</span></div>
+          <div class="chap-title">Information Theory: Shannon Entropy, Perplexity & BPE Tokenization</div>
+          <div class="chap-desc">Shannon Entropy H(X) = -sum p(x) log2 p(x) measures average information content. Perplexity PPL = 2^H measures language model uncertainty.</div>
+        </a>
+        <a class="chap-card" onclick="loadChapter('chapter_50_monads_category_theory.html', this)">
+          <div class="chap-meta"><span>CHAPTER 50</span><span>CATEGORY THEORY & TYPE SYSTEMS</span></div>
+          <div class="chap-title">Category Theory: Monads, Functors & Affine Ownership Semantics</div>
+          <div class="chap-desc">A Monad in Category Theory is a monoid in the category of endofunctors. It encapsulates computation with unit (return) and bind (>>=).</div>
+        </a>
+      </div>
+
+    </div>
+
+    <div class="content-viewer">
+      <div class="viewer-bar">
+        <span class="viewer-title" id="active-title">Chapter 01: The Secret Life of Numbers: Counting, Clocks, Primes & Euclid</span>
+        <div class="viewer-actions">
+          <a id="open-new-tab" href="chapter_01_number_theory.html" target="_blank">↗ Open in Dedicated Window</a>
+        </div>
+      </div>
+      <iframe id="chapter-frame" src="chapter_01_number_theory.html"></iframe>
+    </div>
+  </div>
+
+  <script>
+    function loadChapter(fileName, cardElem) {
+      document.getElementById('chapter-frame').src = fileName;
+      document.getElementById('open-new-tab').href = fileName;
+      
+      const title = cardElem.querySelector('.chap-title').textContent;
+      const meta = cardElem.querySelector('.chap-meta span:first-child').textContent;
+      document.getElementById('active-title').textContent = `${meta}: ${title}`;
+
+      document.querySelectorAll('.chap-card').forEach(c => c.classList.remove('active'));
+      cardElem.classList.add('active');
+    }
+  </script>
+</body>
+</html>

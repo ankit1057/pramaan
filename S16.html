@@ -17,44 +17,24 @@
 <details><summary>Everything this module teaches (11 items)</summary><ul class="must"><li>null safety and platform types from Java</li><li>data, sealed and enum classes</li><li>extension functions</li><li>scope functions (let, run, apply, also, with) and when each fits</li><li>higher-order functions and lambdas</li><li>inline functions and reified generics</li><li>declaration-site variance (in/out)</li><li>delegation (by lazy, observable, class delegation)</li><li>collections vs sequences (eager vs lazy)</li><li>Java interop and @JvmStatic/@JvmOverloads</li><li>a first look at suspend functions</li></ul></details>
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
-<section id="s-story" class="story"><h2>The story</h2><p>In 2010, JetBrains engineers in Saint Petersburg faced a systemic development dilemma: building IntelliJ IDEA and its ecosystem in Java 6 had become an exercise in verbosity, boilerplate ceremony, and pervasive null-pointer risk. Over $70\%$ of production exceptions in enterprise Java applications were <code>NullPointerException</code> (NPE)—what Sir Tony Hoare famously lamented as his "billion-dollar mistake." JetBrains embarked on creating a pragmatic modern language for the JVM that would eliminate null unsafety at compile time, seamlessly interoperate with legacy Java codebases, and introduce expressive functional constructs without runtime performance penalties. They named it <strong>Kotlin</strong>. In 2017, Google announced Kotlin as an official first-class language for Android development, and in 2019 made it the preferred primary language. Today, understanding Kotlin's type system, scope functions, inline reified generics, declaration-site variance, and coroutines is essential for elite mobile systems engineering.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Kotlin is a modern, elegant programming language used to build Android apps. In older languages like Java, if an object is missing or null, the entire app crashes with a "NullPointerException". Kotlin fixes this by making null safety part of the language: types cannot be null unless you explicitly add a question mark (like <code>String?</code>). Kotlin also provides powerful shortcuts like data classes (which automatically generate code for copying and comparing objects), scope functions (like <code>let</code> and <code>apply</code> to write clean, readable code), and extension functions that let you add new abilities to existing classes without editing their source code.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Kotlin's architecture rests on advanced type-system constructs and compiler metaprogramming:
-1. <strong>Compile-Time Null Safety &amp; Platform Types</strong>:
-   - <code>String</code> is non-nullable; <code>String?</code> is nullable.
-   - Safe call <code>?.</code>, Elvis operator <code>?:</code>, and non-null assertion <code>!!</code>.
-   - <strong>Platform Types (<code>T!</code>)</strong>: When calling un-annotated Java code, Kotlin compiler cannot infer nullability; accessing platform types without null guards re-introduces runtime NPE risk.</p>
-<ol start="2">
-<li>
-<p><strong>Scope Functions Matrix</strong>:
-   - Five standard scope functions execute a block of code on an object:
-     | Function | Context Object | Return Value | Common Use Case |
-     | :--- | :--- | :--- | :--- |
-     | <code>let</code> | <code>it</code> | Lambda result ($R$) | Null-safe execution on nullable objects (<code>x?.let { ... }</code>) |
-     | <code>run</code> | <code>this</code> | Lambda result ($R$) | Object configuration and computing result |
-     | <code>apply</code> | <code>this</code> | Context object | Initializing and mutating object properties |
-     | <code>also</code> | <code>it</code> | Context object | Side effects (logging, debugging) without mutating |
-     | <code>with</code> | <code>this</code> | Lambda result ($R$) | Grouping multiple method calls on a non-null object |</p>
-</li>
-<li>
-<p><strong>Inline Functions and Reified Generics</strong>:
-   - JVM generics suffer from <strong>type erasure</strong>: generic type parameters (<code>List&lt;T&gt;</code>) are erased at runtime to <code>Object</code>.
-   - Kotlin <code>inline fun &lt;reified T&gt; checkType(item: Any)</code> copies the function bytecode directly into the call site, preserving the concrete class type <code>T::class.java</code> for runtime reflection!</p>
-</li>
-<li>
-<p><strong>Declaration-Site Variance (<code>in</code> / <code>out</code>)</strong>:
-   - <code>out T</code> (Covariance): Producer only (read-only); $Sub \subseteq Super \implies Producer\langle Sub\rangle \subseteq Producer\langle Super\rangle$.
-   - <code>in T</code> (Contravariance): Consumer only (write-only); $Sub \subseteq Super \implies Consumer\langle Super\rangle \subseteq Consumer\langle Sub\rangle$.</p>
-</li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why Kotlin Sequences outperform Collections for multi-step data pipelines, examine how eager collections execute:</p>
-<pre><code class="language-kotlin">val result = list
-  .filter { it % 2 == 0 } // Allocates intermediate ArrayList 1!
-  .map { it * 10 }        // Allocates intermediate ArrayList 2!
-  .take(5)                // Allocates intermediate ArrayList 3!
-</code></pre>
-<p>When using standard <code>List</code> collection operations, every single operation step eagerly executes across the entire collection and allocates a brand-new intermediate <code>ArrayList</code> in memory. If the initial list contains 100,000 items, <code>filter</code> allocates 50,000 items, only for <code>take(5)</code> to discard 49,995 of them! This eager behavior causes severe memory churn and triggers frequent garbage collection pauses on mobile devices.</p>
-<p>By contrast, <code>asSequence()</code> uses <strong>lazy evaluation</strong>:</p>
-<pre><code class="language-kotlin">val result = list.asSequence().filter { it % 2 == 0 }.map { it * 10 }.take(5).toList()
-</code></pre>
-<p>Sequences process elements one-by-one vertically through the entire pipeline: element 1 is filtered, mapped, and counted towards <code>take(5)</code>. As soon as 5 matching elements pass through, the sequence halts completely! Zero intermediate lists are allocated, and only 10 elements are evaluated instead of 100,000. Furthermore, because sequence steps are stateless transformations chained via iterators, complex multi-stage pipelines run with minimal CPU cache misses and optimal memory throughput.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that Kotlin null-safety rules, scope function return semantics, sealed class exhaustiveness, and sequence laziness operate with language specification fidelity, we construct an empirical Kotlin semantics oracle. The oracle validates that scope functions return expected context objects vs lambda results, proves that reified type checks identify runtime types despite JVM type erasure, and confirms that sequences halt immediately upon reaching limit constraints.</p>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2010, JetBrains engineers in Saint Petersburg faced a systemic development dilemma: building IntelliJ IDEA and its ecosystem in Java 6 had become an exercise in verbosity, boilerplate ceremony, and pervasive null-pointer risk. Over 70\ percent of production exceptions in enterprise Java applications were <code>NullPointerException</code> (NPE)—what Sir Tony Hoare famously lamented as his "billion-dollar mistake." JetBrains embarked on creating a pragmatic modern language for the JVM that would eliminate null unsafety at compile time, seamlessly interoperate with legacy Java codebases, and introduce expressive functional constructs without runtime performance penalties. They named it <strong>Kotlin</strong>. In 2017, Google announced Kotlin as an official first-class language for Android development, and in 2019 made it the preferred primary language. Today, understanding Kotlin's type system, scope functions, inline reified generics, declaration-site variance, and coroutines is essential for elite mobile systems engineering.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Kotlin is a modern, elegant programming language used to build Android apps. In older languages like Java, if an object is missing or null, the entire app crashes with a "NullPointerException". Kotlin fixes this by making null safety part of the language: types cannot be null unless you explicitly add a question mark (like <code>String?</code>). Kotlin also provides powerful shortcuts like data classes (which automatically generate code for copying and comparing objects), scope functions (like <code>let</code> and <code>apply</code> to write clean, readable code), and extension functions that let you add new abilities to existing classes without editing their source code.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Imagine your code is a toy factory where every box must have a toy inside. 
+1. <strong>The Empty Box Rule:</strong> In Kotlin, normal boxes are absolutely forbidden from being empty. If you want a box that might be empty, you have to paint a giant question mark on it (<code>Box?</code>). If you try to blindly reach into a Question Mark box, the factory alarm rings and stops you! You have to check if it's empty first.
+2. <strong>Helper Tools:</strong> Kotlin gives you five special robot helpers to make building toys easier:
+   - <code>let</code>: Safely opens a box only if there is a toy inside.
+   - <code>apply</code>: Takes a plain toy, paints it, puts stickers on it, and hands the exact same toy back to you.
+   - <code>also</code>: While moving the toy down the belt, quickly snaps a photo of it for the records.
+3. <strong>Ghost Types:</strong> Normally, when the computer runs your app, it forgets what specific type of toy was in a generic list (was it a list of cars or dolls?). Kotlin has a magic trick called <code>reified</code> that forces the computer to permanently remember exactly what type of toy it was!</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why is Kotlin so incredibly fast at sorting huge lists of data compared to older languages? </p>
+<p>Imagine you have a giant bucket of 100,000 apples, and your boss says: "Find me 5 red apples, wash them, and put them in a box."
+If you use the old, bad method (eager collections):
+1. You dump all 100,000 apples out and search for all the red ones, putting 50,000 red apples into a brand new giant bucket.
+2. You wash all 50,000 red apples and put them in another brand new bucket.
+3. You take 5 apples from that bucket and throw the other 49,995 clean apples perfectly into the trash!
+This wastes a massive amount of buckets, water, and time! The app will completely run out of memory and freeze.</p>
+<p>If you use Kotlin's smart method (called <code>asSequence</code>):
+1. You pick up exactly one apple. Is it red? Yes.
+2. You wash that ONE apple.
+3. You put it in the box. 
+Once you find 5 red apples, you completely stop! You only looked at 10 apples total, and you didn't build any extra giant buckets. By doing chores one-by-one instead of in massive wasteful batches, Kotlin saves your phone's battery and memory!</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that Kotlin null-safety rules, scope function return semantics, sealed class exhaustiveness, and sequence laziness operate with language specification fidelity, we construct an empirical Kotlin semantics oracle. The oracle validates that scope functions return expected context objects vs lambda results, proves that reified type checks identify runtime types despite JVM type erasure, and confirms that sequences halt immediately upon reaching limit constraints.</p>
 <div class="lab demo" data-demo="oracle-kotlin-scope-functions">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of Kotlin scope function context and return contracts</h3></div>
 
@@ -100,7 +80,7 @@ print(&quot;SUCCESS: Kotlin scope function contract matrix verified.&quot;)
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring memory allocations and evaluation counts between eager collection transformation and lazy sequence processing across a 10,000-element list with a <code>take(5)</code> terminal limit. We demonstrate that sequences reduce evaluation steps from 20,000 operations down to 10 operations, achieving a $2,000\times$ efficiency boost, eliminating all intermediate heap allocations, and preventing unnecessary garbage collector sweeps on mobile devices.</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment measuring memory allocations and evaluation counts between eager collection transformation and lazy sequence processing across a 10,000-element list with a <code>take(5)</code> terminal limit. We demonstrate that sequences reduce evaluation steps from 20,000 operations down to 10 operations, achieving a 2,000\times efficiency boost, eliminating all intermediate heap allocations, and preventing unnecessary garbage collector sweeps on mobile devices.</p>
 <div class="lab demo" data-demo="exp-sequence-vs-collection-evals">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical comparison of eager collection vs lazy sequence evaluation steps</h3></div>
 
@@ -244,7 +224,7 @@ def test_sealed_else_satisfies_exhaustiveness():
 <div class="lab-head"><span class="badge core">Core</span><h3>Lazy Sequence vs Eager Collection data pipeline evaluation and allocation tracker</h3>
 <span class="ex-status" data-status>not tried</span></div>
 <div class="prose"><p>Write <code>run_data_pipeline(data_items, is_lazy=True, take_count=5)</code>:
-Simulate pipeline: filter evens (<code>x % 2 == 0</code>), multiply by 10 (<code>x * 10</code>), take first <code>take_count</code> results:
+Simulate pipeline: filter evens (<code>x  percent 2 == 0</code>), multiply by 10 (<code>x * 10</code>), take first <code>take_count</code> results:
 Inputs:
 - <code>data_items</code>: List of integers.
 - <code>is_lazy</code>: Boolean. If <code>True</code>, process as a lazy Sequence. If <code>False</code>, process as an eager Collection.

@@ -17,42 +17,14 @@
 <details><summary>Everything this module teaches (12 items)</summary><ul class="must"><li>the test pyramid and its critics</li><li>unit tests</li><li>widget tests (pump, finders)</li><li>golden tests</li><li>integration tests</li><li>end-to-end flows with Maestro</li><li>mocks vs fakes</li><li>flaky tests: causes and quarantine</li><li>lcov coverage and its limits</li><li>fixtures and test data</li><li>contract tests against the backend</li><li>DAMP vs DRY: why test code tolerates duplication</li></ul></details>
 <div class="placement"><b>Already know this?</b> Jump to the boss exercise and the flash cards.
 If you pass the boss without hints, <button data-act="known">mark this module as known</button>.</div></div>
-<section id="s-story" class="story"><h2>The story</h2><p>In 2014, Google's testing engineering group published an exhaustive retrospective examining hundreds of millions of test executions across their global continuous integration infrastructure. The data revealed a sobering reality: nearly one out of every seven test cases exhibited non-deterministic behavior, passing and failing unpredictably without any underlying code modifications. These <strong>flaky tests</strong> eroded developer trust, stalled deployment pipelines, and cost millions of engineering hours. On mobile platforms, flakiness is amplified tenfold: asynchronous animations, network latency fluctuations, GPU driver timing variances, and device orientation animations routinely turn crisp test suites into chaotic noise. To combat this, modern mobile engineering abandoned naive end-to-end UI testing in favor of a disciplined test pyramid: fast hermetic unit tests at the base, headless widget tests with deterministic virtual clock pumps in the middle, and isolated Golden screenshot snapshot tests to guard visual regressions without physical device timing fragility.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Testing mobile apps ensures that new features don't break existing screens or crash on users' phones. Instead of manually clicking through the app for every change, engineers write automated tests. Unit tests check single algorithms or calculations in milliseconds. Widget tests render single screens in memory using a virtual clock, checking that buttons, text fields, and list items appear and react correctly. Golden tests take pixel-perfect screenshots of screens and compare them against approved reference images. When tests fail randomly due to network delays or animations, they are quarantined so developers don't waste time chasing false alarms.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Mobile test engineering relies on a multi-tiered verification hierarchy:
-1. <strong>The Mobile Test Pyramid</strong>:
-   - <strong>Unit Tests</strong>: Test pure business logic, state machines, and repositories in headless Dart/JVM VMs ($&lt; 1$ ms execution time).
-   - <strong>Widget / Component Tests</strong>: Flutter's <code>testWidgets</code> or Compose's <code>createComposeRule</code> render widgets in headless virtual viewports using a simulated event loop (<code>tester.pump()</code> and <code>tester.pumpAndSettle()</code>).
-   - <strong>Golden Snapshot Tests</strong>: Compare rendered pixel buffers against committed reference PNG images using per-pixel delta thresholds.
-   - <strong>End-to-End (E2E) Integration Tests</strong>: Drive compiled APK/IPA binaries on real devices using frameworks like Maestro or Appium.</p>
-<ol start="2">
-<li>
-<p><strong>Mocks vs Fakes</strong>:
-   - <strong>Mock</strong>: Records method calls and verifies expectations (<code>verify(mockApi.getUser()).called(1)</code>). Mocks couple tests to implementation details and break easily during refactoring.
-   - <strong>Fake</strong>: A working in-memory implementation of an interface (e.g. <code>FakeUserRepository</code> using an in-memory map). Fakes are stateful, robust, and reusable across hundreds of tests.</p>
-</li>
-<li>
-<p><strong>Flaky Test Management and Quarantine</strong>:
-   - A test is flaky if its outcome is non-deterministic given identical code and inputs:
-     $$\text{Flakiness} = \frac{\text{Flips (Pass}\to\text{Fail or Fail}\to\text{Pass)}}{\text{Total Runs}}$$
-   - Tests exceeding flakiness thresholds ($\ge 15\%$) must be automatically quarantined to prevent blocking PR merges while developers resolve timing races.</p>
-</li>
-<li>
-<p><strong>Code Coverage and DAMP vs DRY</strong>:
-   - Line coverage (<code>lcov.info</code>) measures lines executed, <em>not</em> semantic branch correctness or edge cases.
-   - Test code values <strong>DAMP</strong> (Descriptive And Meaningful Phrases) over <strong>DRY</strong> (Don't Repeat Yourself): test duplication is preferred over complex shared test abstractions that obscure failure diagnosis.</p>
-</li>
-</ol></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>To understand why headless widget testing is superior to device UI testing for routine CI, examine how Flutter's virtual test clock operates. In a physical device test, waiting for a 2-second fade-in animation requires calling <code>sleep(2000)</code>, wasting physical clock time. In a headless Flutter widget test:</p>
-<pre><code class="language-dart">testWidgets('Counter increments', (WidgetTester tester) async {
-  await tester.pumpWidget(const MyApp());
-  await tester.tap(find.byIcon(Icons.add));
-  await tester.pump(const Duration(milliseconds: 500)); // Advances virtual clock by 500ms instantaneously!
-  expect(find.text('1'), findsOneWidget);
-});
-</code></pre>
-<p><code>tester.pump(duration)</code> shifts the test environment's internal <code>FakeAsync</code> clock forward without waiting real wall-clock seconds. Animations, periodic timers, and delayed futures resolve deterministically in microseconds, enabling suites of hundreds of UI tests to execute in seconds.</p>
-<p><strong>Golden File Visual Testing and Tolerance</strong>:
-Operating systems render anti-aliased text slightly differently across GPU drivers and font rasterization engines (Skia vs Impeller, macOS vs Linux CI). A naive byte-level image comparison fails on a 1-pixel font smoothing variance. Golden test runners compute the Euclidean color distance between corresponding pixels:
-$$\Delta E = \sqrt{(R_1 - R_2)^2 + (G_1 - G_2)^2 + (B_1 - B_2)^2}$$
-and allow a configurable tolerance (e.g. $&lt; 0.1\%$ differing pixels) to prevent CI pipeline breakage across diverse rendering environments.</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that test flakiness scores, widget finder predicates, and golden image pixel comparisons adhere to robust quality engineering contracts, we construct an empirical test verification oracle. The oracle validates that flaky test classifiers accurately detect alternating pass-fail sequences, proves that widget hierarchy finders locate nested elements by type and text, and confirms that pixel tolerance comparisons catch visual regressions while tolerating minor rasterization noise.</p>
+<section id="s-story" class="story"><h2>The story</h2><p>In 2014, Google's testing engineering group published an exhaustive retrospective examining hundreds of millions of test executions across their global continuous integration infrastructure. The data revealed a sobering reality: nearly one out of every seven test cases exhibited non-deterministic behavior, passing and failing unpredictably without any underlying code modifications. These <strong>flaky tests</strong> eroded developer trust, stalled deployment pipelines, and cost millions of engineering hours. On mobile platforms, flakiness is amplified tenfold: asynchronous animations, network latency fluctuations, GPU driver timing variances, and device orientation animations routinely turn crisp test suites into chaotic noise. To combat this, modern mobile engineering abandoned naive end-to-end UI testing in favor of a disciplined test pyramid: fast hermetic unit tests at the base, headless widget tests with deterministic virtual clock pumps in the middle, and isolated Golden screenshot snapshot tests to guard visual regressions without physical device timing fragility.</p></section><section id="s-simply" class=""><h2>Say it simply</h2><p>Testing mobile apps ensures that new features don't break existing screens or crash on users' phones. Instead of manually clicking through the app for every change, engineers write automated tests. Unit tests check single algorithms or calculations in milliseconds. Widget tests render single screens in memory using a virtual clock, checking that buttons, text fields, and list items appear and react correctly. Golden tests take pixel-perfect screenshots of screens and compare them against approved reference images. When tests fail randomly due to network delays or animations, they are quarantined so developers don't waste time chasing false alarms.</p></section><section id="s-precisely" class=""><h2>Say it precisely</h2><p>Imagine you build a giant Lego castle. Before you show it to anyone, you have to test if it's strong. 
+1. <strong>Tiny Tests:</strong> First, you squeeze a single Lego brick to see if it breaks. This takes one second!
+2. <strong>Room Tests:</strong> Then, you build just the tower and shake it. You don't build the whole castle, just the tower.
+3. <strong>Picture Tests:</strong> You take a perfect photograph of your tower. Every time you rebuild the tower, you take a new photo and put it over the old one to see if anything looks different.
+4. <strong>Giant Real-World Tests:</strong> Finally, you put the entire castle in the backyard and spray it with a hose to see if the real world destroys it. This takes a long time, so you only do it at the very end.</p>
+<p>When testing, sometimes we need to pretend. Instead of actually calling a real bank to test your app, you can use a "Fake Bank" (a pretend toy register that actually holds fake money) or a "Mock Bank" (a robot that just repeats whatever you tell it to say). Fake Banks are usually much better because they act like the real thing without breaking.</p></section><section id="s-why-it-s-true" class=""><h2>Why it&#x27;s true</h2><p>Why do developers hate testing on real phones so much? Because real phones are incredibly slow! If a test says "Wait for the 5-second fade-in animation," a real phone actually sits there and waits 5 real seconds. If you have 1,000 tests, that takes hours!</p>
+<p>Instead, Flutter uses a "Magic Clock" in its tiny tests. When the test says "Wait 5 seconds," the magic clock instantly spins its hands forward 5 seconds in zero real-world time. The app instantly skips to the end of the animation. This lets developers run thousands of tests in just a few seconds!</p>
+<p>Also, when taking "Picture Tests" (Golden tests), developers have to be very forgiving. Why? Because a picture taken on a Mac laptop might draw a tiny letter "A" slightly differently than a picture taken on a Linux computer. If the test demands a 100 percent perfect match, it will fail all the time! Smart tests say, "As long as the pictures are 99 percent the same, and the colors are basically correct, you pass!"</p></section><section id="s-oracle" class=""><h2>Oracle lab</h2><p>To verify that test flakiness scores, widget finder predicates, and golden image pixel comparisons adhere to robust quality engineering contracts, we construct an empirical test verification oracle. The oracle validates that flaky test classifiers accurately detect alternating pass-fail sequences, proves that widget hierarchy finders locate nested elements by type and text, and confirms that pixel tolerance comparisons catch visual regressions while tolerating minor rasterization noise.</p>
 <div class="lab demo" data-demo="oracle-test-flakiness-quarantine">
 <div class="lab-head"><span class="badge oracle">Oracle lab</span><h3>Empirical verification of test flakiness flip detection and quarantine gating</h3></div>
 
@@ -84,7 +56,7 @@ print(&quot;SUCCESS: Test flakiness score calculation verified.&quot;)
 <button data-act="mutant" title="Run a deliberately wrong version: its checks must fail">Run the broken version</button>
 <button data-act="reset">Reset</button><span class="spin" hidden>running…</span></div>
 <pre class="out" hidden></pre>
-</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment evaluating image comparison fidelity between naive binary file hashing and per-pixel color delta analysis across 20 synthetic UI screenshots. We demonstrate that binary hashing produces $100\%$ false failure rates due to single-pixel font rasterization shifts, whereas tolerance-based pixel delta analysis correctly distinguishes true visual regressions from benign anti-aliasing noise across diverse mobile GPU platforms and display densities.</p>
+</div></section><section id="s-experiment" class=""><h2>Experiment lab</h2><p>We conduct an empirical computational experiment evaluating image comparison fidelity between naive binary file hashing and per-pixel color delta analysis across 20 synthetic UI screenshots. We demonstrate that binary hashing produces 100\ percent false failure rates due to single-pixel font rasterization shifts, whereas tolerance-based pixel delta analysis correctly distinguishes true visual regressions from benign anti-aliasing noise across diverse mobile GPU platforms and display densities.</p>
 <div class="lab demo" data-demo="exp-golden-tolerance-vs-hash">
 <div class="lab-head"><span class="badge experiment">Experiment lab</span><h3>Empirical comparison of binary file hashing vs pixel delta tolerance</h3></div>
 
@@ -121,13 +93,13 @@ print(&quot;SUCCESS: Golden tolerance model verified.&quot;)
 Inputs:
 - <code>test_results_history</code>: Dict mapping <code>test_name</code> to list of boolean execution outcomes (<code>True</code> for pass, <code>False</code> for fail) across sequential CI runs:
   <code>{"test_login": [True, True, True], "test_sync": [True, False, True, False]}</code>.
-- <code>quarantine_flip_threshold</code>: Float flakiness flip score threshold (default 0.20 = 20%).</p>
+- <code>quarantine_flip_threshold</code>: Float flakiness flip score threshold (default 0.20 = 20 percent).</p>
 <p>Rules:
 1. For each test in history:
-   - Total runs $N = \text{len(runs)}$.
-   - If $N &lt; 2$: <code>flakiness_score = 0.0</code>, <code>pass_rate = 1.0</code> if <code>runs == [True]</code> else 0.0.
+   - Total runs N = \text{len(runs)}.
+   - If N &lt; 2: <code>flakiness_score = 0.0</code>, <code>pass_rate = 1.0</code> if <code>runs == [True]</code> else 0.0.
    - Otherwise:
-     - <code>flips</code>: Count of transitions where <code>runs[i] != runs[i-1]</code> for $i \in [1, N-1]$.
+     - <code>flips</code>: Count of transitions where <code>runs[i] != runs[i-1]</code> for i \in [1, N-1].
      - <code>flakiness_score = round(flips / (N - 1), 3)</code>.
      - <code>pass_rate = round(sum(runs) / N, 3)</code>.
    - <code>is_quarantined = flakiness_score &gt;= quarantine_flip_threshold</code>.
@@ -250,15 +222,15 @@ Inputs:
   - <code>SF:&lt;filepath&gt;</code>: Source file path.
   - <code>DA:&lt;line_num&gt;,&lt;hit_count&gt;</code>: Line number and execution count.
   - <code>end_of_record</code>: Marks completion of file block.
-- <code>target_threshold_pct</code>: Required test coverage threshold (default 80.0%).</p>
+- <code>target_threshold_pct</code>: Required test coverage threshold (default 80.0 percent).</p>
 <p>Calculations:
 1. For each source file:
-   - Total instrumented lines $L = \text{number of DA lines}$.
-   - Covered lines $C = \text{number of DA lines with hit\_count} &gt; 0$.
+   - Total instrumented lines L = \text{number of DA lines}.
+   - Covered lines C = \text{number of DA lines with hit_count} &gt; 0.
    - Uncovered line numbers: sorted list of line numbers where <code>hit_count == 0</code>.
-   - File coverage: <code>round((C / L) * 100.0, 2)</code> if $L &gt; 0$ else 100.0.
+   - File coverage: <code>round((C / L) * 100.0, 2)</code> if L &gt; 0 else 100.0.
 2. Global coverage:
-   - Total lines across all files $L_{\text{total}}$, covered lines $C_{\text{total}}$.
+   - Total lines across all files L_{\text{total}}, covered lines C_{\text{total}}.
    - Global coverage percentage: <code>round((C_total / L_total) * 100.0, 2)</code>.
    - <code>meets_target = global_coverage &gt;= target_threshold_pct</code>.
 3. Return dict:
@@ -317,18 +289,18 @@ def test_parse_lcov_empty():
 <span class="ex-status" data-status>not tried</span></div>
 <div class="prose"><p>Write <code>compare_golden_render(baseline_pixels, candidate_pixels, width, height, color_tolerance=5, max_mismatch_pct=0.05)</code>:
 Inputs:
-- <code>baseline_pixels</code>: List of $(R, G, B)$ integer tuples (values $0–255$) of length <code>width * height</code>.
-- <code>candidate_pixels</code>: List of $(R, G, B)$ integer tuples of candidate render.
+- <code>baseline_pixels</code>: List of (R, G, B) integer tuples (values 0–255) of length <code>width * height</code>.
+- <code>candidate_pixels</code>: List of (R, G, B) integer tuples of candidate render.
 - <code>width</code>, <code>height</code>: Integer image dimensions.
-- <code>color_tolerance</code>: Max allowed Euclidean color distance $\Delta E$ per pixel before counting as mismatch (default 5.0).
-- <code>max_mismatch_pct</code>: Max allowed percentage of mismatched pixels across the image (default 0.05 = 0.05%).</p>
+- <code>color_tolerance</code>: Max allowed Euclidean color distance \Delta E per pixel before counting as mismatch (default 5.0).
+- <code>max_mismatch_pct</code>: Max allowed percentage of mismatched pixels across the image (default 0.05 = 0.05 percent).</p>
 <p>Pixel Comparison Rules:
 1. Verify <code>len(baseline_pixels) == len(candidate_pixels) == width * height</code>. If dimensions mismatch:
    raise <code>ValueError("Image dimensions do not match")</code>.
-2. For each pixel index $i$:
-   $$\Delta E_i = \sqrt{(R_1 - R_2)^2 + (G_1 - G_2)^2 + (B_1 - B_2)^2}$$
-   - If $\Delta E_i &gt; \text{color\_tolerance}$: pixel is a <strong>mismatch</strong>.
-3. Total pixels $N = \text{width} \times \text{height}$.
+2. For each pixel index i:
+   \Delta E_i = \sqrt{(R_1 - R_2)^2 + (G_1 - G_2)^2 + (B_1 - B_2)^2}
+   - If \Delta E_i &gt; \text{color_tolerance}: pixel is a <strong>mismatch</strong>.
+3. Total pixels N = \text{width} \times \text{height}.
 4. <code>mismatch_count</code>: Number of mismatched pixels.
 5. <code>mismatch_percentage = round((mismatch_count / N) * 100.0, 4)</code>.
 6. <code>is_pass = mismatch_percentage &lt;= max_mismatch_pct</code>.
@@ -370,7 +342,7 @@ def test_golden_visual_regression_fail():
     assert res[&quot;is_pass&quot;] is False
 </pre></details>
 </div></section><section id="s-misconceptions" class=""><h2>Misconceptions</h2><ul>
-<li><strong>"100% line coverage means your mobile app is bug-free."</strong> Line coverage measures executed statements, not whether edge cases, concurrent race conditions, or null pointers are properly validated.</li>
+<li><strong>"100 percent line coverage means your mobile app is bug-free."</strong> Line coverage measures executed statements, not whether edge cases, concurrent race conditions, or null pointers are properly validated.</li>
 <li><strong>"End-to-end device testing is always better than widget testing."</strong> Real device E2E tests are slow, brittle, and prone to flaky animation/network failures; headless widget tests with virtual clocks are 100x faster and deterministic.</li>
 <li><strong>"Mocking every dependency is the cleanest way to test."</strong> Over-mocking creates brittle tests that pass even when real contracts break; stateful in-memory fakes provide superior test fidelity and maintainability.</li>
 <li><strong>"Flaky tests should just be rerun until they pass in CI."</strong> Retrying flaky tests hides real synchronization bugs and race conditions, eventually causing catastrophic production regressions.</li>

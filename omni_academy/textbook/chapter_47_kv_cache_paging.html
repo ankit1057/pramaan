@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 47: Edge Memory Residency Planning: Weight Streaming & KV Cache Paging</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--emerald);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 47 (PhD Research · Edge Systems)</div>
+    <h1>Edge Memory Residency Planning: Weight Streaming & KV Cache Paging</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. The 4GB Mobile RAM Ceiling: How to run an 8-billion parameter model without triggering Linux OOM-killer.
+      <br>2. Static Residency vs On-Demand Streaming: Pinning embedding tables and streaming transformer blocks.
+      <br>3. PagedAttention: Managing key-value caches like OS virtual memory pages to eliminate fragmentation.
+      <br>4. Permanent Mnemonic: P.A.G.E.D.
+      <br>5. Live Pyodide Lab: Simulate a memory residency planner enforcing a strict RAM ceiling.
+
+    </div>
+
+    <h2>1. The Crime Scene: The Android SIGKILL at Layer 14</h2>
+    <p>
+      You run a quantized 7B language model on an Android smartphone with 6GB total RAM.</p><p>Layers 1 through 13 load cleanly.</p><p>At Layer 14, Android's Low Memory Killer daemon (lmkd) detects system RAM dropping below 500MB and sends `SIGKILL` to the app process.</p><p>The app disappears instantly without an error trace.</p><p>How do you run large language models on edge devices with strict memory budgets?</p><p>You enforce strict memory residency planning: you pin the active working buffers, and stream weight blocks from flash storage or DMA rings just-in-time, keeping peak RSS strictly below the hardware ceiling!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The Revolving Stage in a Theater</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine a small theater that can only fit 10 actors on stage at once, but the play has 100 characters:<br>• You don't try to cram all 100 actors onto the stage at once (the stage will collapse!).<br>• Actors for Scene 1 perform. As Scene 1 ends, they walk off into the wings while actors for Scene 2 walk on!<br>The stage always holds exactly 10 actors, but the entire 100-character epic play executes flawlessly!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      Plans static weight residency vs on-demand streaming to guarantee total system RSS never breaches hardware RAM ceilings.
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The P.A.G.E.D. Memory Plan</div>
+      <div class="mnemonic-rule">"Partition KV cache into discrete block tables · Avoid contiguous memory fragmentation · Garbage collect finished request blocks immediately · Enforce strict RAM residency budgets like SipLLM's --ram-budget 4G · The secret to high-throughput LLM serving."</div>
+      <div class="mnemonic-desc">The exact algorithm implemented in SipLLM (src/mem_plan.cpp): calculating total working set (weights + KV cache + activations) to guarantee peak RSS never exceeds the configured hardware ceiling.</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      The core memory architecture of SipLLM (--ram-budget 4G), vLLM PagedAttention, and llama.cpp mmap weight streaming.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> The exact memory residency planner you built in SipLLM (src/mem_plan.cpp) to satisfy the --ram-budget 4G constraint.
+    </div>
+
+    <h2>4. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">def plan_layer_residency(budget_bytes, base_overhead_bytes, layer_size_bytes, total_layers):
+    avail = budget_bytes - base_overhead_bytes
+    assert avail > 0, "Budget impossible!"
+    max_pinned = min(total_layers, avail // layer_size_bytes)
+    streamed = total_layers - max_pinned
+    return max_pinned, streamed
+pinned, streamed = plan_layer_residency(budget_bytes=4*1024*1024*1024, base_overhead_bytes=512*1024*1024,
+                                        layer_size_bytes=200*1024*1024, total_layers=16)
+print(f"Under 4GB Budget: Pin {pinned} layers in RAM, Stream {streamed} layers off disk.")
+assert pinned == 16 and streamed == 0
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_46_quantization.html">← Chapter 46: Model Quantization: GGUF Q8_0, Q4_K_M & SIMD Dot-Product Physics</a>
+      <a href="chapter_48_speculative_decoding.html">Next: Chapter 48: Speculative Decoding: Multi-Token Draft Verification →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

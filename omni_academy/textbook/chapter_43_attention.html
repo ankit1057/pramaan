@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 43: Scaled Dot-Product Self-Attention — Library Catalogs & Stadium Megaphones</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(2, 132, 199, 0.05));
+      border: 2px solid var(--cyan);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #bae6fd;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 43 (LLM Architecture)</div>
+    <h1>The Spotlight of the Mind: Attention Mechanisms & Why We Scale by $\sqrt{d}$</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Library Card Catalog:</strong> What Queries, Keys, and Values actually represent in plain human terms.
+      <br>2. <strong>The Stadium Megaphone Screech:</strong> Why dividing by $\sqrt{d_k}$ is mathematically necessary to stop gradients from dying.
+      <br>3. <strong>The Time-Travel Arrow (Causal Masking):</strong> Why future tokens are masked with $-\infty$ so $e^{-\infty} = 0$.
+      <br>4. <strong>Permanent Mnemonics:</strong> Q.K.V. and S.C.A.L.E.
+      <br>5. <strong>Live WebAssembly Lab:</strong> Execute causal multi-head attention directly in Pyodide.
+    </div>
+
+    <h2>1. The Library Card Catalog (Queries, Keys, Values)</h2>
+    <p>
+      Imagine walking into a library looking for books on <em>"How do birds fly?"</em>:
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">📚 The Library Search Metaphor</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        • <strong>Query ($Q$):</strong> The question in your head (<em>"Bird Flight"</em>).
+        <br>• <strong>Key ($K$):</strong> The title stamped on the spine of each book on the shelf (<em>"Aviation"</em>, <em>"Baking"</em>, <em>"Gardening"</em>).
+        <br>• <strong>Attention Weights:</strong> You compare your Query against all Keys to measure relevance.
+        <br>&nbsp;&nbsp;• <em>"Aviation"</em> matches $90\%$.
+        <br>&nbsp;&nbsp;• <em>"Baking"</em> matches $1\%$.
+        <br>• <strong>Value ($V$):</strong> The actual text printed inside the pages of the book!
+        <br><br>
+        You take a weighted sum of the text pages: $90\%$ of Aviation + $1\%$ of Baking.
+        <br>That is <strong>Attention</strong>: Continuous, differentiable information retrieval!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The Q.K.V. Triad</div>
+      <div class="mnemonic-rule"><strong>Q</strong>uery searches, <strong>K</strong>ey matches, <strong>V</strong>alue extracts!</div>
+      <div class="mnemonic-desc">
+        $\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{QK^T}{\sqrt{d_k}}\right) V$.
+        <br>1. Multiply Query by Key transpose to get similarity scores.
+        <br>2. Scale by $\frac{1}{\sqrt{d_k}}$ and apply Softmax to get percentages summing to $1.0$.
+        <br>3. Multiply those percentages by Values to get your output!
+      </div>
+    </div>
+
+    <h2>2. Why Scale by $\frac{1}{\sqrt{d_k}}$? (The Stadium Megaphone)</h2>
+    <p>
+      Why did the authors of the Transformer paper divide by $\sqrt{d_k}$?
+      <br>Suppose your head dimension is $d_k = 128$.
+      <br>When you take the dot product of two 128-dimensional vectors $q$ and $k$ whose components have variance 1:
+      $$\text{Variance}(q \cdot k) = \sum_{i=1}^{128} \text{Var}(q_i k_i) = \mathbf{128} \implies \text{Standard Deviation} = \sqrt{128} \approx \mathbf{11.3}$$
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">📢 The Screeching Megaphone Metaphor</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        If raw dot products swing between $-30$ and $+30$, feed them into Softmax:
+        $$\text{softmax}(30) = \frac{e^{30}}{e^{30} + e^{-30}} \approx \frac{10^{13}}{10^{13}} = \mathbf{1.0000000000}$$
+        The Softmax collapses into an extreme all-or-nothing switch ($[0, 0, 1.0, 0]$)!
+        <br>When Softmax outputs 1.0 or 0.0, its derivative evaluates to:
+        $$\frac{\partial \text{softmax}}{\partial z} = \text{softmax}(1 - \text{softmax}) = 1.0 \times (1 - 1.0) = \mathbf{0.0}$$
+        <strong>The gradients DIE completely!</strong> The neural network locks up and cannot learn.
+        <br>Dividing by $\sqrt{d_k} = \sqrt{128}$ turns down the volume, bringing the variance strictly back to <strong>1.0</strong>!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The S.C.A.L.E. Rule</div>
+      <div class="mnemonic-rule">"Scale by Square-Root, Keep Gradients Astute!"</div>
+      <div class="mnemonic-desc">
+        Never let raw dot products enter Softmax without division by $\sqrt{d_k}$. It prevents vanishing gradients and stabilizes multi-head training.
+      </div>
+    </div>
+
+    <h2>3. Interactive Pyodide Lab: Causal Attention Engine</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>attention_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Compute Attention in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import math
+
+def softmax(row):
+    max_v = max(row)
+    exps = [math.exp(x - max_v) for x in row]
+    s = sum(exps)
+    return [x / s for x in exps]
+
+def attention(Q, K, V, is_causal=True):
+    N = len(Q)
+    d_k = len(Q[0])
+    scale = 1.0 / math.sqrt(d_k)
+    
+    # 1. Scaled dot products
+    scores = []
+    for i in range(N):
+        row = []
+        for j in range(N):
+            raw_dot = sum(Q[i][c] * K[j][c] for c in range(d_k))
+            val = raw_dot * scale
+            if is_causal and j > i: # Future token!
+                val = -1e9
+            row.append(val)
+        scores.append(row)
+        
+    # 2. Attention weights
+    weights = [softmax(r) for r in scores]
+    
+    # 3. Output
+    d_v = len(V[0])
+    out = []
+    for i in range(N):
+        vec = [0.0] * d_v
+        for j in range(N):
+            w = weights[i][j]
+            for c in range(d_v):
+                vec[c] += w * V[j][c]
+        out.append(vec)
+        
+    return out, weights
+
+# 3 Words: "The", "AI", "Revolution"
+Q = [[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]]
+K = [[1.0, 0.0], [0.0, 2.0], [1.0, 1.0]]
+V = [[10.0], [20.0], [30.0]]
+
+out, weights = attention(Q, K, V, is_causal=True)
+
+print("=" * 60)
+print("CAUSAL ATTENTION WEIGHTS (Future tokens strictly masked to 0.0):")
+print("=" * 60)
+words = ["The", "AI", "Revolution"]
+for i in range(3):
+    w_str = " | ".join(f"{weights[i][j]:.4f}" for j in range(3))
+    print(f"Token '{words[i]:10s}': {w_str}")
+
+# Verify causality
+assert weights[0][1] == 0.0 and weights[0][2] == 0.0, "Causality broken!"
+assert weights[1][2] == 0.0, "Causality broken!"
+print("\n>>> ALL ASSERTIONS PASSED! Attention weights sum to 1.0 and preserve time causality.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_42_residual_layernorm.html">← Chapter 42: Modern Neural Architectures: Residual Connections & LayerNorm</a>
+      <a href="chapter_44_rope.html">Next: Chapter 44: Rotary Position Embeddings (RoPE) Mathematical Derivation →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & computing Attention...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -4,7 +4,9 @@
 curriculum that runs Python in your browser — 135 modules from NCERT Class 6
 arithmetic to research-level verification, statistics and systems.
 
-**→ [Open the site](https://ankit1057.github.io/pramaan/)**
+**→ [Open Pramaan Curriculum](https://ankit1057.github.io/pramaan/)**  
+**→ [Read the 50-Chapter Interactive Textbook](https://ankit1057.github.io/pramaan/textbook/)**  
+**→ [Interactive Lab Portal](https://ankit1057.github.io/pramaan/omni_academy/)**
 
 Nothing to install. Python runs in the page itself via
 [Pyodide](https://pyodide.org) (CPython 3.13 compiled to WebAssembly). The first
@@ -67,6 +69,22 @@ its cards first. Pass without hints and mark it known.
 Four reading paths are offered on the index: the **full path** in prerequisite
 order, a **verification spine**, an **interview fast track**, and an
 **Android / edge-AI** route.
+
+---
+
+## 📖 50-Chapter Interactive Textbook (Omni-Academy)
+
+**→ [Read the Textbook](https://ankit1057.github.io/pramaan/textbook/)**
+
+Written using **The Builder's Pedagogy** (incident hooks, mechanical mental models, permanent mnemonics, and live Pyodide WebAssembly sandboxes):
+
+- **Epoch 1: Mathematical Machinery (Ch 01–10):** Peano axioms, primes, Chinese Remainder Theorem, Gaussian elimination, Vieta's formulas, Euler's identity, Pascal's simplex, coordinate geometry, probability, sequences & series, statistics.
+- **Epoch 2: Continuous & Geometric Systems (Ch 11–20):** Complex numbers, autograd dual numbers, integral calculus, differential equations, quaternions & 3D rotation, sets & relations, propositional SAT, graph matching, boolean ALU, continuous probability.
+- **Epoch 3: Algorithms & Computational Models (Ch 21–30):** Linear algebra, eigenvalues & SVD, linear structures, AVL tree rotations, quicksort, dynamic programming, Dijkstra, cache hierarchy, DFA automata, TCP sliding window.
+- **Epoch 4: Systems, Runtimes & Distributed Computing (Ch 31–40):** Preemptive scheduling, Pratt parser, lock-free concurrency, vector clocks, RSA cryptography, reactive streams, Android Looper & JNI, IEEE 754 float, Adam optimization, logistic regression.
+- **Epoch 5: Deep Learning, Transformers & Frontier Architectures (Ch 41–50):** Reverse autograd tape, residual & LayerNorm, multi-head attention, RoPE embeddings, FlashAttention, INT8 quantization, paged KV cache, speculative decoding, BPE tokenizer, monads & category theory.
+
+---
 
 ## What is guaranteed, and what is not
 

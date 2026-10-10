@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 21: Linear Algebra & SVD — The Rubber Pizza & The LoRA Compression Miracle</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --blue: #3b82f6;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--blue);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(37, 99, 235, 0.05));
+      border: 2px solid var(--blue);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(59, 130, 246, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--blue);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #bfdbfe;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--blue);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #2563eb; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 21 (Undergrad CS & Math)</div>
+    <h1>Linear Algebra & SVD: The Stretchy Rubber Pizza & The LoRA Miracle</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Stretchy Rubber Pizza:</strong> Why a matrix is NOT a grid of numbers, but a physical machine that twists and pulls space.
+      <br>2. <strong>The Rank-Nullity Conservation Law:</strong> Why dimensions can never be created or destroyed, only flattened into zero.
+      <br>3. <strong>The SVD Anatomy:</strong> How any rectangular matrix factors into Rotate ($V^T$), Stretch ($\Sigma$), Rotate ($U$).
+      <br>4. <strong>LoRA (Low-Rank Adaptation) in LLMs:</strong> The two skinny paper strips that replace 16 million parameters.
+      <br>5. <strong>Permanent Mnemonics:</strong> S.V.D. and L.O.R.A. memory anchors.
+      <br>6. <strong>Live WebAssembly Lab:</strong> Execute Power Iteration from scratch in Pyodide to reconstruct a low-rank matrix with near-zero error.
+    </div>
+
+    <h2>1. The Matrix: Stop Thinking About Rows and Columns</h2>
+    <p>
+      In school, students are made to multiply rows by columns by hand until their brains go numb.
+      <br>That teaches you the arithmetic mechanics, but it blinds you to what a matrix <em>is</em>.
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🍕 The Stretchy Rubber Pizza Metaphor</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine a round, flat sheet of stretchy rubber dough on your kitchen counter.
+        <br>You draw a circle with radius 1 on it.
+        <br>Now you grab the edges of the rubber sheet and pull it: you stretch it along an angle, shear it, and turn it.
+        <br><strong>What does the circle turn into?</strong>
+        <br>$\implies$ <strong>AN ELLIPSE!</strong>
+        <br>Every single linear matrix in the universe does only one thing to space: <strong>It stretches a unit sphere into an ellipsoid!</strong>
+      </p>
+    </div>
+
+    <h2>2. The SVD Miracle: $A = U \Sigma V^T$</h2>
+    <p>
+      Look closely at that stretched rubber ellipse:
+      <br>• The ellipse has a long axis and a short axis. The lengths of these axes are the <strong>Singular Values ($\sigma_1, \sigma_2$)</strong>.
+      <br>• The directions where those axes point in the output space are the columns of <strong>$U$ (Left Singular Vectors)</strong>.
+      <br>• The original perpendicular arrows on the unstretched rubber circle that ended up becoming those axes are the columns of <strong>$V$ (Right Singular Vectors)</strong>.
+    </p>
+
+    <div style="background: #111726; border: 1px solid var(--border); padding: 1.1rem; border-radius: 6px; text-align: center; font-size: 1.3rem; color: var(--cyan); margin-bottom: 1.2rem;">
+      $$A = U \Sigma V^T$$
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The S.V.D. 3-Step Dance</div>
+      <div class="mnemonic-rule"><strong>S</strong>pin with $V^T$, <strong>V</strong>ector-stretch with $\Sigma$, <strong>D</strong>irect with $U$!</div>
+      <div class="mnemonic-desc">
+        1. <strong>$V^T$:</strong> Align your input space by rotating it so the special stretch directions line up with the standard axes.
+        <br>2. <strong>$\Sigma$:</strong> Pull and stretch each axis independently by singular value $\sigma_i$.
+        <br>3. <strong>$U$:</strong> Rotate the stretched ellipsoid to its final destination in the output world!
+      </div>
+    </div>
+
+    <h2>3. The LoRA Miracle in LLMs: Two Skinny Paper Strips</h2>
+    <p>
+      In modern Large Language Models (like Llama-3 8B), fine-tuning a weight matrix $W$ of size $4096 \times 4096$ requires updating <strong>$16,777,216$ parameters</strong>.
+      <br>Storing the optimizer momentum and variance states for 16.7 million numbers requires gigabytes of precious VRAM.
+      <br>How does <strong>LoRA (Low-Rank Adaptation)</strong> solve this?
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">📄 The Two Skinny Paper Strips</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Instead of modifying all 16.7 million numbers in the massive $4096 \times 4096$ square, LoRA notes that meaningful linguistic changes have a very <strong>low intrinsic rank</strong> (by the Eckart-Young-Mirsky Theorem).
+        <br>We decompose the weight update into two tiny skinny matrices:
+        $$\Delta W = B \times A$$
+        • Matrix $B$ is a tall, skinny strip: $4096 \times 8$ ($32,768$ weights).
+        <br>• Matrix $A$ is a wide, flat strip: $8 \times 4096$ ($32,768$ weights).
+        <br>Total weights to train: $32,768 + 32,768 = \mathbf{65,536 \text{ parameters}}$!
+        <br>$\implies$ <strong>$256\times$ FEWER PARAMETERS!</strong> You can fine-tune a massive AI model on a laptop!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The L.O.R.A. Rule</div>
+      <div class="mnemonic-rule">"Low-rank Outer product Replaces All!"</div>
+      <div class="mnemonic-desc">
+        $W_{\text{new}} = W_{\text{frozen}} + B \times A$.
+        <br>Never update the huge square. Update the two skinny strips, and add them back during inference!
+      </div>
+    </div>
+
+    <h2>4. Interactive Pyodide Lab: SVD from Scratch</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>svd_power_iteration.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Compute SVD in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import math
+
+def dot(u, v): return sum(x * y for x, y in zip(u, v))
+def norm(u): return math.sqrt(dot(u, u))
+def normalize(u):
+    n = norm(u)
+    return [0.0]*len(u) if n < 1e-12 else [x / n for x in u]
+def mat_vec_mul(A, v): return [dot(row, v) for row in A]
+def transpose(A):
+    m, n = len(A), len(A[0])
+    return [[A[i][j] for i in range(m)] for j in range(n)]
+def mat_mul(A, B):
+    m, n = len(A), len(B[0])
+    BT = transpose(B)
+    return [[dot(A[i], BT[j]) for j in range(n)] for i in range(m)]
+def outer_product(u, v): return [[x * y for y in v] for x in u]
+
+def power_iteration(M, num_iterations=80):
+    n = len(M)
+    b = [1.0 / math.sqrt(n)] * n
+    for _ in range(num_iterations):
+        b = normalize(mat_vec_mul(M, b))
+    return dot(b, mat_vec_mul(M, b)), b
+
+def compute_svd(A, k=2):
+    m, n = len(A), len(A[0])
+    A_rem = [[A[i][j] for j in range(n)] for i in range(m)]
+    sigmas, U_cols, V_cols = [], [], []
+    for _ in range(k):
+        M = mat_mul(transpose(A_rem), A_rem)
+        eigenval, v = power_iteration(M)
+        sigma = math.sqrt(max(0.0, eigenval))
+        if sigma < 1e-9: break
+        u = [x / sigma for x in mat_vec_mul(A_rem, v)]
+        sigmas.append(sigma)
+        U_cols.append(u)
+        V_cols.append(v)
+        uvT = outer_product(u, v)
+        for i in range(m):
+            for j in range(n):
+                A_rem[i][j] -= sigma * uvT[i][j]
+    return sigmas, U_cols, V_cols
+
+# Test Matrix: 2x3
+A = [[3.0, 2.0, 2.0], [2.0, 3.0, -2.0]]
+sigmas, U_cols, V_cols = compute_svd(A, k=2)
+
+print("=" * 65)
+print("SVD DECOMPOSITION OF A 2x3 MATRIX (The Rubber Pizza Stretch)")
+print("=" * 65)
+print(f"Singular Value 1 (Major Axis Length): {sigmas[0]:.6f}")
+print(f"Singular Value 2 (Minor Axis Length): {sigmas[1]:.6f}")
+
+# Reconstruct Matrix
+m, n = len(A), len(A[0])
+A_recon = [[0.0 for _ in range(n)] for _ in range(m)]
+for s, u, v in zip(sigmas, U_cols, V_cols):
+    uvT = outer_product(u, v)
+    for i in range(m):
+        for j in range(n):
+            A_recon[i][j] += s * uvT[i][j]
+
+frob_err = math.sqrt(sum((A[i][j] - A_recon[i][j])**2 for i in range(m) for j in range(n)))
+print(f"\nFrobenius Reconstruction Error: {frob_err:.2e}")
+assert frob_err < 1e-10, "Reconstruction error too high!"
+print(">>> ALL ASSERTIONS PASSED! Exact SVD low-rank factorization achieved.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_20_continuous_probability.html">← Chapter 20: Continuous Probability & The Box-Muller Normal Transform</a>
+      <a href="chapter_22_eigenvalues_svd.html">Next: Chapter 22: Eigenvalues, Diagonalization & SVD/PCA →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & computing SVD...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

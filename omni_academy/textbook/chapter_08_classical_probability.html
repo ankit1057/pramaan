@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 08: Classical Probability & Bayes' Theorem: The False Positive Medical Panic</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--rose);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 08 (NCERT Class 10–12 · Probability)</div>
+    <h1>Classical Probability & Bayes' Theorem: The False Positive Medical Panic</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. The Base Rate Fallacy: Why a 99% accurate test on a rare disease only means a 9% chance you are sick.
+      <br>2. Bayes' Formula: Updating prior beliefs in the light of fresh evidence.
+      <br>3. Speculative Decoding Connection: How language models accept or reject draft tokens probabilistically.
+      <br>4. Permanent Mnemonic: B.A.Y.E.S.
+      <br>5. Live Pyodide Lab: Compute Bayesian posterior probabilities given likelihood and priors.
+
+    </div>
+
+    <h2>1. The Crime Scene: The False Positive Health Panic</h2>
+    <p>
+      A patient takes a diagnostic test for a rare disease affecting 1 in 1,000 people.</p><p>The lab reports: 'The test is 99% accurate. Your result is POSITIVE.'</p><p>The patient panics, assuming there is a 99% chance they have the disease.</p><p>The true probability? Less than 9%!</p><p>Why? Out of 100,000 people, only 100 actually have the disease (99 test positive). But out of the 99,900 healthy people, a 1% false positive rate creates 999 false alarms!</p><p>So out of 1,098 total positive tests, only 99 are real (99 / 1,098 ≈ 9%).</p><p>Ignoring the prior base rate is the most common cognitive failure in humans and machine learning models alike.
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The Detective's Scale of Evidence</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Think of Bayes' Theorem like an antique scale with two pans:<br>• The Prior is a heavy iron weight placed on one pan before the trial begins (how common is this event normally?).<br>• The Evidence is a pebble placed on the other pan.<br>A single pebble of evidence cannot lift a 100-pound iron prior weight. It takes massive, overwhelming evidence to overturn a rare prior!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      Bayes' Theorem updates the prior probability of hypothesis H given evidence E: P(H|E) = P(E|H)P(H) / P(E).
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The B.A.Y.E.S. Scale</div>
+      <div class="mnemonic-rule">"Base rate prior matters most · Adjust when evidence arrives · Yield normalized posterior · Evidence denominator sums all paths · Speculative decoding acceptance probability."</div>
+      <div class="mnemonic-desc">P(Hypothesis | Evidence) = P(Evidence | Hypothesis) * P(Hypothesis) / P(Evidence). Always multiply the likelihood by the prior before believing an alarm.</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      Powers speculative decoding verification in high-throughput LLM engines, spam classification, and Kalman filter sensor fusion in Android location services.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> Underpins spam classifiers, speculative decoding token verification acceptance probabilities, and Kalman tracking filters.
+    </div>
+
+    <h2>4. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">def bayes(prior_h, p_e_given_h, p_e_given_not_h):
+    p_e = p_e_given_h * prior_h + p_e_given_not_h * (1.0 - prior_h)
+    return (p_e_given_h * prior_h) / p_e
+posterior = bayes(0.01, 0.95, 0.05)
+print(f"Posterior probability given positive test: {posterior:.4f}")
+assert abs(posterior - 0.1610) < 1e-3
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_07_coordinate_geometry.html">← Chapter 07: Coordinate Geometry, Conic Sections & Affine Transforms</a>
+      <a href="chapter_09_sequences_and_series.html">Next: Chapter 09: Sequences, Series & Convergence Criteria →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

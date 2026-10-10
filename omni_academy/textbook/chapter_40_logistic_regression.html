@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 40: Classical Machine Learning: Logistic Regression & Decision Boundaries</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--indigo);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 40 (MCA Core · Classical ML)</div>
+    <h1>Classical Machine Learning: Logistic Regression & Decision Boundaries</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. Why linear regression fails completely on binary classification tasks.
+      <br>2. The Sigmoid Activation: Squishing real numbers into strict (0, 1) probabilities.
+      <br>3. Cross-Entropy Loss: Penalizing confident wrong answers with steep logarithmic penalties.
+      <br>4. Permanent Mnemonic: S.I.G.M.O.I.D.
+      <br>5. Live Pyodide Lab: Train a 2D logistic regression classifier with gradient descent.
+
+    </div>
+
+    <h2>1. The Crime Scene: The Medical Predictor That Output 180% Probability</h2>
+    <p>
+      A developer tries to predict whether a patient has a tumor (0 = Benign, 1 = Malignant) using standard linear regression: y = w*x + b.</p><p>For a patient with a large tumor, the model outputs: 'Probability of malignancy: 1.8 (180%)!'</p><p>For a patient with no symptoms, it outputs: '-0.3 (-30%)!'</p><p>Probabilities cannot be negative, and cannot exceed 100%.</p><p>The Sigmoid function sigma(z) = 1 / (1 + e^-z) smoothly squishes any real number from negative infinity to positive infinity into an exact probability between 0.0 and 1.0!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The S-Shaped Light Dimmer Switch</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Think of a light dimmer switch with built-in rubber stops:<br>No matter how hard you shove the switch to the left, the light never goes below 0% brightness (completely dark).<br>No matter how hard you shove it to the right, it never exceeds 100% brightness.<br>The middle transition is smooth, allowing gradual control between off and on!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      Maps linear combination z = w^T x + b through sigmoid sigma(z) = 1/(1 + e^-z) to model class probabilities, minimizing binary cross-entropy.
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The S.I.G.M.O.I.D. Curve</div>
+      <div class="mnemonic-rule">"Squashes linear dot-product into (0, 1) probability range · Inverts odds via cross-entropy loss · Gradient update shares exact formula with linear regression · Monotonic derivative enables smooth gradient descent · Powers mobile on-device classification."</div>
+      <div class="mnemonic-desc">Loss = -[y*log(p) + (1-y)*log(1-p)]. Gradient with respect to weights is simply (p - y) * x.</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      Used in on-device gesture recognition in mobile apps, spam filters, fraud detection scoring, and binary decision trees.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> Used in on-device gesture recognition, tabular health predictions, and binary decision classifiers in mobile apps.
+    </div>
+
+    <h2>4. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">import math
+def sigmoid(z): return 1.0 / (1.0 + math.exp(-max(min(z, 50), -50)))
+def log_loss(y_true, y_pred):
+    eps = 1e-15
+    p = max(min(y_pred, 1.0 - eps), eps)
+    return - (y_true * math.log(p) + (1.0 - y_true) * math.log(1.0 - p))
+p = sigmoid(2.5)
+loss = log_loss(1, p)
+print(f"Sigmoid(2.5) = {p:.4f}, Cross-Entropy Loss = {loss:.4f}")
+assert p > 0.9 and loss < 0.1
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_39_adam_optimization.html">← Chapter 39: Mathematical Optimization: Adam Optimizer with Exponential Moving Averages</a>
+      <a href="chapter_41_reverse_autograd_tape.html">Next: Chapter 41: Deep Learning Foundations: Reverse-Mode Autograd from Scratch →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

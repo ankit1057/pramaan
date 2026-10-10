@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 33: Concurrency & Lock-Free Rings — The Revolving Sushi Bar & Bumping Elbows</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--rose);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(225, 29, 72, 0.05));
+      border: 2px solid var(--rose);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(244, 63, 94, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--rose);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fecdd3;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--rose);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #e11d48; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 33 (OS & High-Performance Systems)</div>
+    <h1>Two Cooks in One Kitchen: Concurrency, The Revolving Sushi Bar & Bumping Elbows</h1>
+
+    <div class="callout">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Two Cooks Analogy:</strong> Why shared memory without rules leads to burnt soup (Race Conditions).
+      <br>2. <strong>The Revolving Sushi Bar (SPSC Ring Buffer):</strong> How to pass high-speed data without a single mutex or lock.
+      <br>3. <strong>The 64-Byte Bumping Elbows Trap (False Sharing):</strong> How CPU cache lines secretly destroy multi-core performance.
+      <br>4. <strong>Power-of-Two Bitwise Magic:</strong> Replacing 40-cycle division with 1-nanosecond bitwise AND.
+      <br>5. <strong>Permanent Mnemonics:</strong> S.U.S.H.I. and M.A.S.K.
+      <br>6. <strong>Production Connection:</strong> How <code>sipllm</code> streams tokens into Flutter UI at 60 FPS without frame jank.
+      <br>7. <strong>Live WebAssembly Lab:</strong> Execute and verify a lock-free circular ring buffer in Pyodide.
+    </div>
+
+    <h2>1. The Two Cooks Analogy: Why Mutexes Slow You Down</h2>
+    <p>
+      Imagine two cooks working in a tiny kitchen sharing a single salt shaker.
+      <br>• If both cooks grab the salt shaker at the exact same moment, it spills all over the floor (<strong>Data Race</strong>).
+      <br>• The standard solution is a <strong>Mutex (Lock)</strong>: Put a padlock on the salt shaker. Whenever Cook 1 uses salt, Cook 2 must stop working, cross their arms, and wait!
+      <br>If Cook 1 takes 5 seconds to taste the soup, Cook 2 is completely paralyzed. This causes <strong>thread convoying, priority inversion, and sluggish UI frame drops</strong>.
+    </p>
+
+    <h2>2. The Revolving Sushi Bar: Zero Locks, Pure Flow</h2>
+    <p>
+      Can we design a system where the producer and consumer NEVER touch each other's hands or wait for a lock?
+      <br><strong>YES: The Single-Producer Single-Consumer (SPSC) Circular Ring Buffer!</strong>
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🍣 The Revolving Sushi Conveyor Belt</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        • The Sushi Chef (Producer) stands at one side of a rotating circular conveyor belt.
+        <br>• The Customer (Consumer) sits on the other side.
+        <br>• The chef only checks: <em>"Is the slot in front of me empty?"</em> If yes, he places a fresh plate of sushi, advances his <code>head</code> counter, and keeps chopping!
+        <br>• The customer only checks: <em>"Is there a plate in front of me?"</em> If yes, he picks it up, advances his <code>tail</code> counter, and eats!
+        <br><strong>Neither person ever waits for the other. Neither person holds a lock!</strong>
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The M.A.S.K. Power-of-Two Shortcut</div>
+      <div class="mnemonic-rule">"Power of Two turns Modulo into Bitwise Glue!"</div>
+      <div class="mnemonic-desc">
+        Standard circular buffers calculate the slot using division: <code>slot = index % capacity</code>.
+        <br>On modern CPUs, integer division takes <strong>$20\text{--}40$ clock cycles</strong>!
+        <br>If capacity $C = 2^k$ (e.g. 1024), you replace division with a single bitwise AND:
+        <br><code>slot = index & (1024 - 1) = index & 1023</code>.
+        <br>$\implies$ Takes <strong>1 clock cycle ($\le 1\text{ nanosecond}$)</strong>!
+      </div>
+    </div>
+
+    <h2>3. The 64-Byte Bumping Elbows Trap (False Sharing)</h2>
+    <p>
+      Suppose you write this beautiful C++ struct for your SPSC buffer:
+    </p>
+    <pre style="background: #090c14; padding: 0.8rem; border-radius: 4px; color: var(--rose); font-family: 'Fira Code', monospace;">
+struct SPSCQueue {
+    std::atomic&lt;uint64_t&gt; head; // Written by Core 1 (Producer)
+    std::atomic&lt;uint64_t&gt; tail; // Written by Core 2 (Consumer)
+};</pre>
+    <p>
+      You benchmark it, and to your horror, it runs $10\times$ slower than expected! Why?
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">📝 The Shared Desk Analogy</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        CPU cores do not read individual 8-byte numbers from RAM. They load entire <strong>64-byte chunks called Cache Lines</strong>.
+        <br>Because <code>head</code> and <code>tail</code> sit right next to each other, they fit inside the <strong>same 64-byte line</strong>!
+        <br>Whenever Core 1 writes to <code>head</code>, the hardware coherence protocol (MESI) screams across the bus and <strong>invalidates Core 2's entire cache line</strong>!
+        <br>Core 2 must freeze, wait for RAM to refresh, and reload the line just to read <code>tail</code>!
+        <br><strong>The Fix:</strong> Separate them with 64 bytes of empty padding:
+        <br><code>alignas(64) std::atomic&lt;uint64_t&gt; head;</code>
+        <br><code>alignas(64) std::atomic&lt;uint64_t&gt; tail;</code>
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The S.U.S.H.I. Principle</div>
+      <div class="mnemonic-rule"><strong>S</strong>eparate <strong>U</strong>sers, <strong>S</strong>equence <strong>H</strong>eads, <strong>I</strong>solate cache-lines!</div>
+      <div class="mnemonic-desc">
+        1. Producer touches <code>head</code> only.
+        <br>2. Consumer touches <code>tail</code> only.
+        <br>3. Pad both variables by 64 bytes to prevent cache-line elbow bumping!
+      </div>
+    </div>
+
+    <h2>4. Systems Tie-In: `sipllm` Token Streaming into Flutter</h2>
+    <p>
+      In Ankit's high-performance C++ LLM inference engine (<code>sipllm</code>), the AI model runs on background worker threads generating tokens at $30\text{--}60\text{ tokens/sec}$.
+      <br>The Flutter UI renders at 60 FPS on the main Dart event loop.
+      <br>By piping tokens through an SPSC Lock-Free Ring Buffer:
+      <br>• C++ pushes token strings into the ring buffer via <code>head.store(release)</code>.
+      <br>• Flutter drains available tokens on its frame tick with zero lock acquisition and zero UI jank!
+    </p>
+
+    <h2>5. Interactive Pyodide Lab: SPSC Lock-Free Simulator</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>spsc_ring_buffer.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run SPSC Ring Lab in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+class SPSCLockFreeRing:
+    def __init__(self, capacity_pow2=8):
+        assert (capacity_pow2 & (capacity_pow2 - 1)) == 0, "Must be power of 2!"
+        self.capacity = capacity_pow2
+        self.mask = capacity_pow2 - 1
+        self.buffer = [None] * self.capacity
+        self.head = 0 # Written by Producer
+        self.tail = 0 # Written by Consumer
+
+    def push(self, item):
+        if (self.head - self.tail) >= self.capacity:
+            return False # Full (Backpressure)
+        self.buffer[self.head & self.mask] = item
+        self.head += 1
+        return True
+
+    def pop(self):
+        if self.head == self.tail:
+            return None # Empty
+        item = self.buffer[self.tail & self.mask]
+        self.tail += 1
+        return item
+
+print("=" * 60)
+print("SPSC RING BUFFER: THE REVOLVING SUSHI CONVEYOR")
+print("=" * 60)
+
+ring = SPSCLockFreeRing(capacity_pow2=4) # 4 slots
+sushi_plates = ["Salmon", "Tuna", "Avocado", "Eel", "Dragon Roll"]
+
+print(f"Chef begins placing {len(sushi_plates)} plates on 4-slot conveyor:")
+for plate in sushi_plates:
+    ok = ring.push(plate)
+    print(f"  Chef placed '{plate}': {ok} | Head={ring.head}, Tail={ring.tail}")
+
+# 5th plate failed because capacity is 4
+assert ring.head - ring.tail == 4, "Buffer should be full!"
+print("\nConveyor is full! Customer starts eating 2 plates:")
+print("  Customer ate:", ring.pop())
+print("  Customer ate:", ring.pop())
+
+print(f"\nChef tries placing the leftover '{sushi_plates[4]}' again:")
+ok = ring.push(sushi_plates[4])
+print(f"  Chef placed '{sushi_plates[4]}': {ok}")
+assert ok == True, "Should succeed now!"
+
+print("\n>>> ALL ASSERTIONS PASSED! Lock-free FIFO streaming perfectly maintained.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_32_pratt_parser.html">← Chapter 32: Compiler Engineering: Lexing, Pratt Parsing & AST Interpretation</a>
+      <a href="chapter_34_distributed_vector_clocks.html">Next: Chapter 34: Distributed Systems: Vector Clocks & Causal Consistency →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing SPSC Ring Buffer...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

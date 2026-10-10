@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 04: Polynomial Rings & Vieta's Formulas: The Audio Filter Screech</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--amber);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 04 (NCERT Class 10 · Polynomials)</div>
+    <h1>Polynomial Rings & Vieta's Formulas: The Audio Filter Screech</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. How polynomial roots determine whether a digital audio filter sounds crisp or explodes into deafening feedback.
+      <br>2. Vieta's Formulas: The symmetric secret connecting coefficients directly to sums and products of roots.
+      <br>3. The Mirror Lake of Complex Conjugates: Why real polynomial complex roots always occur in pairs.
+      <br>4. Permanent Mnemonic: V.I.E.T.A.
+      <br>5. Live Pyodide Lab: Solve quadratic roots and verify Vieta's symmetric formulas.
+
+    </div>
+
+    <h2>1. The Crime Scene: The Deafening Microphone Feedback</h2>
+    <p>
+      You plug a microphone into a digital equalizer app. You adjust the bass slider.</p><p>Suddenly, a deafening 4,000 Hz screech blasts through the speakers and crashes the audio thread.</p><p>In digital signal processing, every digital filter is represented by a polynomial ratio H(z) = B(z) / A(z).</p><p>The roots of the denominator polynomial are the filter's 'poles'. If a single root lands outside the unit circle (|r| > 1), the system has positive feedback and explodes into infinite energy! Vieta's formulas let audio engineers inspect the stability of filter poles instantly from the polynomial coefficients without having to find the roots.
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The Mirror Lake of Complex Numbers</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine standing on the bank of a perfectly still lake. Your reflection in the water is your complex conjugate.<br>Whenever a real-world physical system (like a guitar string or Flutter spring animation) creates complex roots, they MUST mirror each other: if 3 + 4i is a root, 3 - 4i is guaranteed to be a root. The imaginary numbers cancel out in the sums and products, leaving purely real physical coefficients!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      Vieta's formulas establish symmetric relationships between polynomial coefficients and roots. Complex roots of real polynomials occur in conjugate pairs.
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The V.I.E.T.A. Law</div>
+      <div class="mnemonic-rule">"Variable sums match negative second coefficient · Interleaved products match constant · Even/odd alternating signs · Tested against the discriminant · Audio and UI springs stabilized."</div>
+      <div class="mnemonic-desc">For a quadratic ax^2 + bx + c = 0, root sum is always -b/a, and root product is always c/a. This symmetry scales to polynomials of arbitrary degree n.</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      Powers Flutter's SpringSimulation physics curve, audio DSP biquad pole/zero filter design, and control system transfer function stability.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> Root solving powers stability analysis, digital audio filter pole/zero placement, and spring-damper UI animations.
+    </div>
+
+    <h2>4. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">import cmath
+def solve_quad(a, b, c):
+    disc = b**2 - 4*a*c
+    r1 = (-b + cmath.sqrt(disc)) / (2*a)
+    r2 = (-b - cmath.sqrt(disc)) / (2*a)
+    return r1, r2
+r1, r2 = solve_quad(1, 2, 5) # x^2 + 2x + 5 = 0
+print(f"Roots: {r1}, {r2}")
+print(f"Vieta Sum Check: {r1 + r2} (Expected -2)")
+assert abs(r1 + r2 - (-2)) < 1e-9
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_03_gaussian_elimination.html">← Chapter 03: Systems of Linear Equations & Gaussian Elimination</a>
+      <a href="chapter_05_trigonometry.html">Next: Chapter 05: Trigonometric Functions, Euler's Identity & Wave Harmonics →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>
