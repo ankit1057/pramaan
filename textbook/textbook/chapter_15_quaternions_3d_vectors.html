@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 15: 3D Vector Geometry & Quaternions: The Apollo 11 Gimbal Lock</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--rose);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 15 (Class 12 · Vector Geometry)</div>
+    <h1>3D Vector Geometry & Quaternions: The Apollo 11 Gimbal Lock</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. Why Euler angles (pitch, yaw, roll) freeze and lose a degree of freedom (Gimbal Lock).
+      <br>2. Quaternions: 4-dimensional hyper-complex numbers that rotate 3D space smoothly.
+      <br>3. SLERP (Spherical Linear Interpolation): Rotating objects at constant angular velocity.
+      <br>4. Permanent Mnemonic: Q.U.A.T.
+      <br>5. Live Pyodide Lab: Multiply quaternions and rotate a 3D vector without matrices.
+
+    </div>
+
+    <h2>1. The Crime Scene: Apollo 11's Gimbal Lock Warning</h2>
+    <p>
+      During Apollo 11's lunar descent, astronaut Mike Collins received a critical alarm: 'GIMBAL LOCK'.</p><p>The spacecraft's inertial platform used 3 mechanical rotating rings (Euler gimbals).</p><p>When two of the three rotation axes aligned into the same plane, the system lost an entire dimension of freedom!</p><p>If the spacecraft rotated even slightly in that locked axis, the navigation platform would tumble uncontrollably into space.</p><p>Quaternions eliminate Gimbal Lock permanently by representing 3D rotations as points on a 4-dimensional sphere, ensuring smooth, singularity-free rotations in all directions!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: Tumbling Across a 4D Basketball</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Instead of turning 3 separate steering wheels for Yaw, Pitch, and Roll, imagine rolling a basketball on a flat table:<br>You can roll the ball in ANY direction smoothly without ever getting stuck. A quaternion q = w + xi + yj + zk is just the 4D coordinate of the basketball's rotation!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      Quaternions q = w + xi + yj + zk represent 3D rotations avoiding gimbal lock, interpolating smoothly via Spherical Linear Interpolation (SLERP).
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The Q.U.A.T. Hyper-Sphere</div>
+      <div class="mnemonic-rule">"Quarter turn hyper-complex units i^2 = j^2 = k^2 = ijk = -1 · Unit length ||q|| = 1 · Avoids all gimbal lock singularity · Tomographic SLERP spherical interpolation for smooth animations."</div>
+      <div class="mnemonic-desc">Unit quaternions represent a rotation by angle theta around axis u as q = [cos(theta/2), u * sin(theta/2)]. Multiplying quaternions composes rotations in 16 multiplications instead of 27.</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      The standard rotation representation in mobile AR (ARKit/ARCore), 3D Flutter and Unity game engines, and drone flight navigation controllers.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> The standard mathematical rotation system for mobile AR/VR, robotics orientation, and 3D GPU transforms.
+    </div>
+
+    <h2>4. The Algorithm in Action: Continuing the Story</h2>
+    <div class="callout callout-emerald">
+      <strong>Connecting the Code to the Story:</strong>
+      <p>As you read the algorithm below, remember the <em>Tumbling Across a 4D Basketball</em> metaphor:</p>
+      <ul>
+        <li><strong>Variables:</strong> The mathematical variables represent the physical objects from our story (e.g., the actors in our crime scene).</li>
+        <li><strong>Loops:</strong> The <code>for</code> and <code>while</code> loops represent the mechanical steps of resolving the problem, advancing the state one step at a time.</li>
+        <li><strong>Return Value:</strong> The final result is the resolution of our hook—restoring order to the system.</li>
+      </ul>
+      <p>Try modifying the inputs in the Pyodide editor below to see how the story changes!</p>
+    </div>
+
+    <h2>5. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">import math
+class Quaternion:
+    def __init__(self, w, x, y, z):
+        self.w, self.x, self.y, self.z = w, x, y, z
+    def __mul__(self, o):
+        w = self.w*o.w - self.x*o.x - self.y*o.y - self.z*o.z
+        x = self.w*o.x + self.x*o.w + self.y*o.z - self.z*o.y
+        y = self.w*o.y - self.x*o.z + self.y*o.w + self.z*o.x
+        z = self.w*o.z + self.x*o.y - self.y*o.x + self.z*o.w
+        return Quaternion(w, x, y, z)
+# 90 degree rotation about Z axis: w=cos(45)=0.7071, z=sin(45)=0.7071
+q90 = Quaternion(math.cos(math.pi/4), 0, 0, math.sin(math.pi/4))
+# Rotate 180 degrees (q90 * q90)
+q180 = q90 * q90
+print(f"Quaternion 180deg Z: w={q180.w:.4f}, z={q180.z:.4f} (Expected w=0, z=1)")
+assert abs(q180.w) < 1e-4 and abs(q180.z - 1.0) < 1e-4
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_14_differential_equations.html">← Chapter 14: Ordinary Differential Equations & Runge-Kutta (RK4) Solvers</a>
+      <a href="chapter_16_set_theory.html">Next: Chapter 16: Set Theory, Equivalence Partitions & Power Sets →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

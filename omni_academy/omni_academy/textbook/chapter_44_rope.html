@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 44: Rotary Position Embeddings (RoPE) — Spinning Clocks & Complex Rotations</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--indigo);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(79, 70, 229, 0.05));
+      border: 2px solid var(--indigo);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #c7d2fe;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--indigo);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #4f46e5; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 44 (LLM Position Embeddings)</div>
+    <h1>The Carousel of Tokens: RoPE & Why Positions are Just Spinning Clocks</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Word Salad Problem:</strong> Why self-attention cannot tell the difference between "Dog bites man" and "Man bites dog".
+      <br>2. <strong>The Spinning Clock Hands Analogy:</strong> Why multiplying by $e^{i m \theta}$ preserves relative distance under any global shift.
+      <br>3. <strong>The Algebraic Proof:</strong> Why $R_m^T R_n = R_{n - m}$ collapses absolute coordinates into relative offsets.
+      <br>4. <strong>Permanent Mnemonics:</strong> C.L.O.C.K. and R.O.P.E.
+      <br>5. <strong>Live WebAssembly Lab:</strong> Verify translation invariance in the 2D complex plane with Pyodide.
+    </div>
+
+    <h2>1. The Word Salad Problem</h2>
+    <p>
+      In vanilla self-attention, if you shuffle the tokens of a sentence randomly, the mathematical dot products between words stay identical!
+      <br><em>"The doctor examined the patient"</em> produces the exact same attention outputs as <em>"The patient examined the doctor"</em>.
+      <br>We must inject <strong>token positions ($0, 1, 2, \dots$)</strong> so the model knows who came first.
+    </p>
+
+    <h2>2. The Spinning Clock Hands (The RoPE Revelation)</h2>
+    <p>
+      In 2021, Jianlin Su created <strong>RoPE (Rotary Position Embeddings)</strong>, which is now used in almost every state-of-the-art LLM (Llama-3, Gemma, Mistral, Qwen).
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">⏰ The Two Clock Hands Analogy</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine two hands on a round clock:
+        <br>• Hand 1 is at <strong>2 o'clock</strong> ($m = 2$).
+        <br>• Hand 2 is at <strong>5 o'clock</strong> ($n = 5$).
+        <br>The relative distance between them is $5 - 2 = \mathbf{3\text{ hours}}$.
+        <br><br>
+        Now imagine you spin the entire clock forward by 100 hours (global document shift):
+        <br>• Hand 1 is at $2 + 100 = 102$.
+        <br>• Hand 2 is at $5 + 100 = 105$.
+        <br>What is the angle between them now?
+        <br>$$105 - 102 = \mathbf{3\text{ HOURS}}!$$
+        <strong>The angle between two hands NEVER changes no matter where you spin the clock!</strong>
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The C.L.O.C.K. Rule</div>
+      <div class="mnemonic-rule"><strong>C</strong>omplex <strong>L</strong>ocation <strong>O</strong>rbiting as <strong>C</strong>lockwise <strong>K</strong>inetics!</div>
+      <div class="mnemonic-desc">
+        Treat every pair of dimensions $(x_0, x_1)$ as a point in the 2D complex plane.
+        <br>To encode position $m$, rotate the point by angle $m \times \theta$:
+        $$\begin{pmatrix} x_0' \\ x_1' \end{pmatrix} = \begin{pmatrix} \cos(m\theta) & -\sin(m\theta) \\ \sin(m\theta) & \cos(m\theta) \end{pmatrix} \begin{pmatrix} x_0 \\ x_1 \end{pmatrix}$$
+      </div>
+    </div>
+
+    <h2>3. The Invariance Proof in 3 Lines</h2>
+    <p>
+      When Query at position $m$ meets Key at position $n$:
+      $$\langle R_m q, \; R_n k \rangle = q^T R_m^T R_n k$$
+      Since the transpose of a rotation matrix is its reverse rotation ($R_m^T = R_{-m}$):
+      $$R_{-m} R_n = R_{n - m} = R_{-(m - n)}$$
+      $$\mathbf{\langle R_m q, \; R_n k \rangle = q^T R_{-(m - n)} k}$$
+    </p>
+    <p>
+      <strong>The absolute positions $m$ and $n$ vanish completely!</strong> Only the relative distance $(m - n)$ remains.
+    </p>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The R.O.P.E. Mnemonic</div>
+      <div class="mnemonic-rule">"Rotate Operands, Preserve Entanglement!"</div>
+      <div class="mnemonic-desc">
+        Never add static position numbers to embeddings. Spin them in circles, and relative distance is preserved for infinite context length!
+      </div>
+    </div>
+
+    <h2>4. Interactive Pyodide Lab: Proving RoPE Invariance</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>rope_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run RoPE Lab in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import math
+
+def rotate_2d(vec2, pos, theta):
+    angle = pos * theta
+    c, s = math.cos(angle), math.sin(angle)
+    x0, x1 = vec2
+    return [x0 * c - x1 * s, x0 * s + x1 * c]
+
+def dot(u, v):
+    return u[0] * v[0] + u[1] * v[1]
+
+# Two vectors in 2D space
+q = [1.0, 0.5]
+k = [0.8, -0.3]
+theta = 0.1
+
+# Case A: Tokens at positions m=2 and n=5 (Distance = 3)
+q_A = rotate_2d(q, pos=2, theta=theta)
+k_A = rotate_2d(k, pos=5, theta=theta)
+dot_A = dot(q_A, k_A)
+
+# Case B: Globally shifted by +1000: m=1002 and n=1005 (Distance = 3)
+q_B = rotate_2d(q, pos=1002, theta=theta)
+k_B = rotate_2d(k, pos=1005, theta=theta)
+dot_B = dot(q_B, k_B)
+
+print("=" * 60)
+print("RoPE 2D COMPLEX ROTATION INVARIANCE TEST")
+print("=" * 60)
+print(f"Positions (m=2,    n=5)    [Diff = 3]: Dot Product = {dot_A:10.6f}")
+print(f"Positions (m=1002, n=1005) [Diff = 3]: Dot Product = {dot_B:10.6f}")
+
+discrepancy = abs(dot_A - dot_B)
+print(f"\nDiscrepancy: {discrepancy:.2e}")
+assert discrepancy < 1e-12, "Invariance violated!"
+print(">>> ALL ASSERTIONS PASSED! Absolute coordinates vanished; relative angle preserved.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="chapter_43_attention.html">← Chapter 43: The Transformer Architecture: Multi-Head Self-Attention</a>
+      <a href="chapter_45_flash_attention.html">Next: Chapter 45: Fast Attention Algorithms: Online Softmax & Memory Tiling →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & computing RoPE...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

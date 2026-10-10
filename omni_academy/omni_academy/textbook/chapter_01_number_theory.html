@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 01: The Secret Life of Numbers — Counting, Clocks, Primes & Euclid</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    /* Mnemonic Box Styling */
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    /* Analogy Box */
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.8rem 0;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.85rem 1.1rem;
+      text-align: left;
+    }
+    th { background: #111726; color: var(--cyan); font-family: 'Fira Code', monospace; font-size: 0.82rem; }
+    
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 01 (NCERT 6 - 8 Foundation)</div>
+    <h1>The Secret Life of Numbers: Counting, Clocks, Primes & The Euclidean Heist</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Domino Effect of Numbers:</strong> Why counting isn't obvious, and how Peano built all of mathematics from a single blank tile.
+      <br>2. <strong>The Seesaw of Primes:</strong> Why you only need to check factors up to $\sqrt{N}$ (never check beyond!).
+      <br>3. <strong>The Bathroom Tiling Trick:</strong> How Euclid solved the Greatest Common Divisor ($\gcd$) 2,300 years ago without doing long division.
+      <br>4. <strong>The Water Jug Puzzle (Bézout's Secret):</strong> How to measure exact quantities with two mismatched buckets, and why RSA encryption relies on it.
+      <br>5. <strong>Permanent Mnemonics:</strong> Mental anchors to lock these ideas in your brain forever.
+      <br>6. <strong>Live WebAssembly Lab:</strong> Execute and experiment with the algorithms directly in your browser.
+    </div>
+
+    <h2>1. The Genesis: What is a Number? (The Domino Story)</h2>
+    <p>
+      Imagine you wake up on a deserted island with amnesia. You have no concept of words, no ruler, and no symbols like <code>1</code>, <code>2</code>, or <code>3</code>.
+      How would you keep track of the days you've survived?
+    </p>
+    <p>
+      You would probably carve a notch on a tree for the first day: <code>|</code>. On the next day, another notch: <code>||</code>. On the next: <code>|||</code>.
+    </p>
+    <p>
+      In 1889, an Italian mathematician named <strong>Giuseppe Peano</strong> asked: <em>"Can we build every number and every mathematical law using just two things: a starting point, and the idea of 'the next one'?"</em>
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The Infinite Domino Chain</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Think of the natural numbers as an infinite row of standing dominoes:
+        <br>• <strong>Domino 0</strong> is pushed first.
+        <br>• Every domino has an immediate neighbour in front of it called its <strong>Successor</strong>: $\text{succ}(n) = n + 1$.
+        <br>• No domino circles back to knock over Domino 0 (Axiom 3: Time and counting only flow forward).
+        <br>• If you want to prove a rule is true for every number in the universe, you only have to prove:
+        <br>&nbsp;&nbsp;1. It works for Domino 0.
+        <br>&nbsp;&nbsp;2. Whenever Domino $k$ falls, it is guaranteed to knock over Domino $k+1$.
+        <br>That is the entire essence of <strong>Mathematical Induction</strong>!
+      </p>
+    </div>
+
+    <h2>2. Primes: The Indestructible Lego Bricks of Reality</h2>
+    <p>
+      Take the number <strong>12</strong>. You can break 12 down into smaller pieces: $12 = 3 \times 4$. You can break 4 down further: $4 = 2 \times 2$.
+      So $12 = 2 \times 2 \times 3$.
+      <br>Can you break 2 or 3 down any further into whole numbers? <strong>No.</strong>
+      Numbers like 2, 3, 5, 7, 11, and 13 are the <strong>Primes</strong>. They are the indestructible atoms of arithmetic.
+    </p>
+
+    <h3>Why Do We Stop Checking at $\sqrt{N}$? (The Playground Seesaw)</h3>
+    <p>
+      Suppose a friend asks you: <em>"Is 101 prime?"</em>
+      <br>A beginner starts dividing 101 by 2, then 3, then 4, 5, 6, 7, 8, 9... all the way to 100! That takes forever and wastes huge amounts of energy.
+      <br>Here is the secret: <strong>You only need to test up to 10! ($\sqrt{101} \approx 10.04$)</strong>. Why?
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">⚖️ The Playground Seesaw Analogy</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Every time you factor a number $N = a \times b$, imagine $a$ and $b$ sitting on opposite ends of a seesaw.
+        <br>• For $N = 36$: factors are $(1, 36), (2, 18), (3, 12), (4, 9), (6, 6)$.
+        <br>• At $(6, 6)$, the seesaw is perfectly balanced: $\sqrt{36} = 6$.
+        <br>• Notice what happens on either side: Whenever one person is heavy (larger than 6, like 18), the other person <strong>MUST be light (smaller than 6, like 2)</strong>!
+        <br>• It is physically impossible for both people to be heavier than 6, because $7 \times 7 = 49$, which is already bigger than 36!
+        <br><strong>The Punchline:</strong> If a number had a factor, you would have already tripped over its smaller partner before reaching the balance point ($\sqrt{N}$)!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The S.Q.U.A.R.E. Rule for Primes</div>
+      <div class="mnemonic-rule">"Stop when you SQUARE, no need to STARE!"</div>
+      <div class="mnemonic-desc">
+        To test if $N$ is prime, find the integer where $k^2 > N$. You only test primes up to $k$. If none divided it, $N$ is guaranteed 100% prime.
+        <br><em>Example:</em> Is 97 prime? $10^2 = 100 > 97$. Just check 2, 3, 5, 7. None divide 97 $\implies$ 97 is PRIME!
+      </div>
+    </div>
+
+    <h2>3. The Euclidean Algorithm: Slicing Bathroom Tiles</h2>
+    <p>
+      The <strong>Greatest Common Divisor ($\gcd(a, b)$)</strong> is the biggest number that divides both $a$ and $b$ with zero remainder.
+      <br>How do you find $\gcd(1071, 462)$?
+      <br>Euclid discovered a beautiful geometric shortcut in 300 BC:
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">📐 The Bathroom Tiling Puzzle</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine a rectangular bathroom floor of size $1071\text{ cm} \times 462\text{ cm}$.
+        <br>You want to tile the entire floor using identical square tiles without cutting a single tile. What is the largest tile size you can buy?
+        <br>1. You start laying the biggest square tile you can: $462 \times 462$. You fit two of them: $2 \times 462 = 924\text{ cm}$.
+        <br>2. You have an uncovered strip left: $1071 - 924 = 147\text{ cm} \times 462\text{ cm}$.
+        <br>3. <strong>The Genius Realization:</strong> Any square tile that perfectly fits the whole room MUST also perfectly fit that leftover strip!
+        <br>4. Now the problem becomes smaller: Tile a $462 \times 147$ strip!
+        <br>&nbsp;&nbsp;• $462 = 3 \times 147 + 21$ (Leftover is now $21\text{ cm}$).
+        <br>5. Tile a $147 \times 21$ strip:
+        <br>&nbsp;&nbsp;• $147 = 7 \times 21 + 0$ (Zero remainder! It fits perfectly!).
+        <br><strong>The largest tile is exactly $21\text{ cm}$!</strong> So $\gcd(1071, 462) = 21$.
+      </p>
+    </div>
+
+    <!-- Mnemonic Card -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The E.U.C.L.I.D. Mnemonic</div>
+      <div class="mnemonic-rule"><strong>E</strong>xchange <strong>U</strong>ntil <strong>C</strong>hange <strong>L</strong>eaves <strong>I</strong>ts <strong>D</strong>ivisor!</div>
+      <div class="mnemonic-desc">
+        At each step, replace the pair $(a, b)$ with $(b, a \pmod b)$. Swap and remainder! Repeat until remainder is 0. The last non-zero number is your answer.
+      </div>
+    </div>
+
+    <h2>4. Bézout's Identity: The Water Jug Heist</h2>
+    <p>
+      In the movie <em>Die Hard with a Vengeance</em>, Bruce Willis and Samuel L. Jackson are standing in front of a bomb in a park. The villain leaves a fountain and two jugs:
+      <br>• Jug $A$ holds <strong>3 gallons</strong>.
+      <br>• Jug $B$ holds <strong>5 gallons</strong>.
+      <br>To disarm the bomb, they must place a jug with <strong>exactly 4 gallons</strong> on a scale.
+      <br>Can you make 4 gallons using only 3 and 5 gallon jugs?
+    </p>
+
+    <div class="callout callout-emerald">
+      <strong>Theorem: Bézout's Lemma</strong><br>
+      You can measure any quantity $d$ using jugs of capacity $a$ and $b$ <strong>if and only if $d$ is a multiple of $\gcd(a, b)$</strong>!
+      $$a \cdot x + b \cdot y = \gcd(a, b)$$
+      Here $\gcd(3, 5) = 1$. Since 4 is a multiple of 1 ($4 = 4 \times 1$), measuring 4 gallons is mathematically guaranteed!
+    </div>
+
+    <h3>How to Disarm the Bomb:</h3>
+    <ol style="margin-left: 1.8rem; margin-bottom: 1.2rem; color: #cbd5e1;">
+      <li>Fill the 5-gallon jug to the top ($B = 5, A = 0$).</li>
+      <li>Pour from $B$ into $A$ until $A$ is full ($B = 2, A = 3$).</li>
+      <li>Dump jug $A$ out into the fountain ($B = 2, A = 0$).</li>
+      <li>Pour the 2 gallons from $B$ into $A$ ($B = 0, A = 2$).</li>
+      <li>Fill jug $B$ to the top again ($B = 5, A = 2$).</li>
+      <li>Pour from $B$ into $A$ until $A$ is full (which only needs 1 gallon!).</li>
+      <li><strong>Jug $B$ now has exactly $5 - 1 = \mathbf{4}$ GALLONS!</strong> Bomb disarmed.</li>
+    </ol>
+    <p>
+      In equations: $5 \times 2 - 3 \times 2 = 10 - 6 = 4$ gallons. That is Bézout's Identity in physical action!
+    </p>
+
+    <h2>5. Systems Tie-In: Why Every Bank & Phone Runs on This</h2>
+    <p>
+      Every time your phone opens a secure HTTPS connection or sends an encrypted message via WhatsApp, it computes a <strong>Modular Multiplicative Inverse</strong> using the Extended Euclidean Algorithm:
+      $$e \cdot d \equiv 1 \pmod{\phi(N)}$$
+      Without Bézout's identity, public-key cryptography (RSA) could not generate encryption keys, and secure e-commerce would not exist.
+    </p>
+
+    <h2>6. Interactive Pyodide Lab: Try It Yourself</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>euclid_interactive_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Lab in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+def gcd_with_trace(a, b):
+    print(f"Finding GCD of {a} and {b} (Bathroom Tiling):")
+    step = 1
+    orig_a, orig_b = a, b
+    while b != 0:
+        q = a // b
+        r = a % b
+        print(f"  Step {step}: {a:5d} = {q:2d} x {b:5d} + {r:5d}  (Remaining strip: {r})")
+        a, b = b, r
+        step += 1
+    print(f"\n>>> RESULT: GCD({orig_a}, {orig_b}) = {a} (Largest perfect square tile)")
+    return a
+
+def extended_gcd(a, b):
+    """Bézout's identity: returns (g, x, y) such that a*x + b*y = g."""
+    if b == 0:
+        return a, 1, 0
+    g, x1, y1 = extended_gcd(b, a % b)
+    x = y1
+    y = x1 - (a // b) * y1
+    return g, x, y
+
+# Test 1: Bathroom tiling of 1071 x 462
+g = gcd_with_trace(1071, 462)
+assert g == 21, "GCD mismatch!"
+
+# Test 2: Water Jug Solution for a=3, b=5 to make gcd=1
+print("\n" + "=" * 55)
+print("DIE HARD WATER JUG BÉZOUT COEFFICIENTS:")
+g, x, y = extended_gcd(3, 5)
+print(f"Equation: 3 x ({x}) + 5 x ({y}) = {g}")
+print(f"Verification: 3*({x}) + 5*({y}) = {3*x + 5*y}")
+assert 3*x + 5*y == g, "Bézout identity failed!"
+
+# Multiply equation by 4 to get 4 gallons:
+scale = 4
+print(f"\nTo get {scale} gallons: 3 x ({x * scale}) + 5 x ({y * scale}) = {scale}")
+assert 3 * (x * scale) + 5 * (y * scale) == scale
+print(">>> ALL ASSERTIONS PASSED! Euclid and Bézout verified.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="index.html">← Master Textbook Hub</a>
+      <a href="chapter_02_combinatorics.html">Next: Chapter 02: Modular Congruences & Chinese Remainder Theorem →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing Euclidean algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

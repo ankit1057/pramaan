@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 30: Computer Networks: TCP Sliding Window & Flow Control</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--emerald);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 30 (BCA Core · Networking)</div>
+    <h1>Computer Networks: TCP Sliding Window & Flow Control</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. Why Stop-and-Wait communication makes transoceanic fiber cables slower than dial-up.
+      <br>2. Bandwidth-Delay Product (BDP): Calculating how much data must stay in-flight to saturate a pipe.
+      <br>3. Flow Control (rwnd) vs Congestion Control (cwnd): Protecting the receiver vs protecting the network.
+      <br>4. Permanent Mnemonic: S.L.I.D.E.
+      <br>5. Live Pyodide Lab: Simulate a sliding window byte stream with packet drops and ACKs.
+
+    </div>
+
+    <h2>1. The Crime Scene: The 10 Gbps Cable That Only Transferred 2 MB/s</h2>
+    <p>
+      A company buys a dedicated 10 Gbps transoceanic fiber line connecting London and Singapore.</p><p>Ping latency is 200 milliseconds.</p><p>When they copy a database backup, the transfer speed caps out at an abysmal 2 MB/s—using less than 0.2% of the cable's capacity!</p><p>Why? The operating system's TCP receive window buffer (rwnd) was capped at 64 KB!</p><p>If the sender transmits 64 KB and must wait 200 ms for an acknowledgment before sending more, the maximum throughput is strictly limited to 64 KB / 0.200s = 320 KB/s!</p><p>To saturate the line, the window must be expanded to match the Bandwidth-Delay Product (10 Gbps * 0.2s = 250 Megabytes of in-flight data)!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The Conveyor Belt Across the Ocean</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine a giant conveyor belt connecting two warehouses:<br>If you place one box on the belt, wait 10 minutes for it to arrive, and only put the second box on when you get a phone call, the conveyor belt is 99.9% empty!<br>The Sliding Window keeps the conveyor belt completely packed with boxes in flight, sliding forward continuously as confirmations return on a return wire!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      TCP sliding window matches transmission rate to receiver buffer capacity via Advertised Window (rwnd) and Congestion Window (cwnd).
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The S.L.I.D.E. Window</div>
+      <div class="mnemonic-rule">"Sequence numbers order byte streams · Linear window slides forward as ACKs return · Inflight bytes limited by min(rwnd, cwnd) · Drops trigger exponential backoff · Essential for rural mobile sync reliability."</div>
+      <div class="mnemonic-desc">Flow control ensures the sender never overwhelms the receiver's socket buffer. Congestion control ensures the sender never overwhelms intermediate router queues.</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      Mobile network sync reliability in mForm and BSE mobile sync, WebSocket streaming in Flutter, and TCP socket buffer kernel tuning.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> Prevents mobile buffer bloat and packet drops over unstable 2G/3G rural networks in mForm and BSE mobile sync.
+    </div>
+
+    <h2>4. The Algorithm in Action: Continuing the Story</h2>
+    <div class="callout callout-emerald">
+      <strong>Connecting the Code to the Story:</strong>
+      <p>As you read the algorithm below, remember the <em>The Conveyor Belt Across the Ocean</em> metaphor:</p>
+      <ul>
+        <li><strong>Variables:</strong> The mathematical variables represent the physical objects from our story (e.g., the actors in our crime scene).</li>
+        <li><strong>Loops:</strong> The <code>for</code> and <code>while</code> loops represent the mechanical steps of resolving the problem, advancing the state one step at a time.</li>
+        <li><strong>Return Value:</strong> The final result is the resolution of our hook—restoring order to the system.</li>
+      </ul>
+      <p>Try modifying the inputs in the Pyodide editor below to see how the story changes!</p>
+    </div>
+
+    <h2>5. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">class TCPSender:
+    def __init__(self, window_size):
+        self.win = window_size
+        self.base = 0
+        self.next_seq = 0
+    def send(self, data_len):
+        sent = []
+        while self.next_seq < self.base + self.win and self.next_seq < data_len:
+            sent.append(self.next_seq)
+            self.next_seq += 1
+        return sent
+    def ack(self, ack_num):
+        if ack_num >= self.base:
+            self.base = ack_num + 1
+s = TCPSender(window_size=3)
+print("Initial Window packets sent:", s.send(10))
+s.ack(1) # ACK packets 0 and 1
+print("Window slides, new packets sent:", s.send(10))
+assert s.base == 2
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_29_automata_dfa_regex.html">← Chapter 29: Automata Theory: DFAs, Regular Expressions & State Machines</a>
+      <a href="chapter_31_os_preemptive_scheduling.html">Next: Chapter 31: Advanced Operating Systems: Preemptive Scheduling & Deadlock Banker →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

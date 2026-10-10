@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 32: The Grammar of Machines — Vaughan Pratt's Parser & The Tug-of-War</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--cyan);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(2, 132, 199, 0.05));
+      border: 2px solid var(--cyan);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(56, 189, 248, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--cyan);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #bae6fd;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 32 (Compilers & Systems)</div>
+    <h1>The Grammar of Machines: Vaughan Pratt's Parser & The Operator Tug-of-War</h1>
+
+    <div class="callout">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Arithmetic Tug-of-War:</strong> Why $3 + 4 \times 2$ equals 11, and how operator muscles resolve ambiguity.
+      <br>2. <strong>The Grammar Bloat Nightmare:</strong> Why classical BNF parser generators create dozens of nested functions.
+      <br>3. <strong>Vaughan Pratt's 1973 Genius:</strong> Binding power numbers and the 15-line universal expression loop.
+      <br>4. <strong>Null Denotation vs Left Denotation (`nud` vs `led`):</strong> The two faces of syntax tokens.
+      <br>5. <strong>Permanent Mnemonics:</strong> P.R.A.T.T. and N.U.D./L.E.D.
+      <br>6. <strong>Dhwani Production Tie-In:</strong> Frappe Mobile SDK PR #105 (Building the `DependsOnEvaluator`).
+      <br>7. <strong>Live WebAssembly Lab:</strong> Execute a full Pratt Parser and build Abstract Syntax Trees directly in Pyodide.
+    </div>
+
+    <h2>1. The Tug-of-War: Who Wins the Middle Number?</h2>
+    <p>
+      Look at this simple expression:
+      $$3 + 4 \times 2$$
+      The number <strong>4</strong> is stuck in the middle.
+      <br>To its left, the plus sign ($+$) wants to pull it into an addition: $(3 + 4) = 7$.
+      <br>To its right, the multiplication sign ($\times$) wants to pull it into a multiplication: $(4 \times 2) = 8$.
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🤼 The Operator Wrestling Match</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Think of operators as wrestlers with different muscle mass (<strong>Binding Power</strong>):
+        <br>• Addition ($+$) has a light muscle strength: <strong>Power = 10</strong>.
+        <br>• Multiplication ($\times$) has heavy muscle strength: <strong>Power = 20</strong>.
+        <br><br>
+        When 4 is caught between $+$ and $\times$, Multiplication flexes its 20 power against Addition's 10 power.
+        <br>$\implies$ <strong>Multiplication easily wins the tug-of-war!</strong>
+        <br>4 is yanked to the right first: $4 \times 2 = 8$.
+        <br>Then, the weakened $+$ operator gets to add the result: $3 + 8 = \mathbf{11}$.
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The P.R.A.T.T. Principle</div>
+      <div class="mnemonic-rule"><strong>P</strong>ower <strong>R</strong>anks <strong>A</strong>ttach <strong>T</strong>okens <strong>T</strong>ightly!</div>
+      <div class="mnemonic-desc">
+        Instead of writing separate grammar rules for every precedence level, give each operator an integer <strong>Binding Power</strong>.
+        <br>A loop continues consuming tokens as long as the next operator's Binding Power is <strong>strictly greater than</strong> the current context's threshold!
+      </div>
+    </div>
+
+    <h2>2. The Two Faces of a Token: `nud` vs `led`</h2>
+    <p>
+      In Pratt's 1973 paper, he recognized that any symbol in a language can only be used in one of two contexts:
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🎭 The Two Roles</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        <strong>1. `nud` (Null Denotation):</strong>
+        <br>The token appears at the <strong>start of an expression</strong> with nothing to its left!
+        <br>• Numbers: <code>42</code>
+        <br>• Identifiers: <code>user_income</code>
+        <br>• Prefix operators: <code>-x</code> or <code>!is_valid</code>
+        <br>• Grouping parentheses: <code>(3 + 4)</code>
+        <br><br>
+        <strong>2. `led` (Left Denotation):</strong>
+        <br>The token appears <strong>between expressions</strong>, connecting to an existing value on its left!
+        <br>• Infix operators: <code>left + right</code>, <code>left * right</code>, <code>income >= 5000</code>
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">N.U.D. vs L.E.D.</div>
+      <div class="mnemonic-rule"><strong>N</strong>ud = <strong>N</strong>ew tree root! <br><strong>L</strong>ed = <strong>L</strong>inks to left!</div>
+      <div class="mnemonic-desc">
+        • <code>nud()</code>: Takes NO arguments. Starts a fresh node.
+        <br>• <code>led(left)</code>: Takes the existing <code>left</code> subtree as its argument and wraps it into a binary node!
+      </div>
+    </div>
+
+    <h2>3. Dhwani Real-World Case: Frappe Mobile SDK PR #105</h2>
+    <p>
+      In Dhwani rural field apps, dynamic forms rely on <code>depends_on</code> expressions to hide or show questions:
+      <pre style="background: #090c14; padding: 0.8rem; border-radius: 4px; color: var(--emerald); font-family: 'Fira Code', monospace;">
+eval:doc.income > 5000 && doc.age >= 18 || doc.has_special_permit == 1</pre>
+      Originally, developers attempted to parse this using regular expression string replacement hacks.
+      <br>When nested conditions or negative numbers were introduced, regex broke catastrophically!
+      <br>In PR #105, Ankit designed a clean <strong>Pratt Parser Engine in Dart</strong> with binding powers:
+      <br>• <code>||</code>: Binding Power 10
+      <br>• <code>&&</code>: Binding Power 20
+      <br>• <code>></code>, <code>>=</code>, <code>==</code>: Binding Power 30
+      <br>• <code>+</code>, <code>-</code>: Binding Power 40
+      <br>• <code>*</code>, <code>/</code>: Binding Power 50
+      <br>This guarantees mathematical evaluation without regex vulnerabilities!
+    </p>
+
+    <h2>4. Interactive Pyodide Lab: The Universal Pratt Parser</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>pratt_parser.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Parse Expression in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+class PrattParser:
+    def __init__(self, tokens):
+        self.tokens = tokens
+        self.pos = 0
+        
+    def current(self):
+        return self.tokens[self.pos] if self.pos < len(self.tokens) else ('EOF', None)
+        
+    def consume(self):
+        tok = self.current()
+        self.pos += 1
+        return tok
+
+    def get_binding_power(self, op):
+        powers = {
+            '||': 10,
+            '&&': 20,
+            '==': 30, '>': 30, '<': 30,
+            '+': 40,  '-': 40,
+            '*': 50,  '/': 50
+        }
+        return powers.get(op, 0)
+
+    def parse_expression(self, rbp=0):
+        """The 15-line Pratt Core Loop"""
+        token_type, val = self.consume()
+        
+        # NUD (Null Denotation)
+        if token_type == 'NUM':
+            left = ('NUM', val)
+        elif token_type == 'MINUS':
+            # Prefix unary minus
+            operand = self.parse_expression(rbp=60)
+            left = ('NEG', operand)
+        else:
+            raise ValueError(f"Unexpected token in nud: {val}")
+
+        # LED (Left Denotation) loop: continue while next op has higher binding power!
+        while True:
+            next_type, next_val = self.current()
+            bp = self.get_binding_power(next_val)
+            if bp <= rbp:
+                break
+            self.consume()
+            right = self.parse_expression(rbp=bp)
+            left = (next_val, left, right)
+            
+        return left
+
+# Evaluate AST recursively
+def evaluate_ast(node):
+    if node[0] == 'NUM':
+        return node[1]
+    if node[0] == 'NEG':
+        return -evaluate_ast(node[1])
+    op, left, right = node
+    l_val = evaluate_ast(left)
+    r_val = evaluate_ast(right)
+    if op == '+': return l_val + r_val
+    if op == '-': return l_val - r_val
+    if op == '*': return l_val * r_val
+    if op == '/': return l_val / r_val
+    if op == '>': return 1 if l_val > r_val else 0
+
+# Test: 3 + 4 * 2 (Tug-of-war where * beats +)
+tokens = [('NUM', 3), ('OP', '+'), ('NUM', 4), ('OP', '*'), ('NUM', 2)]
+parser = PrattParser(tokens)
+ast = parser.parse_expression()
+res = evaluate_ast(ast)
+
+print("=" * 60)
+print("PRATT PARSER: ARITHMETIC TUG-OF-WAR EXPERIMENT")
+print("=" * 60)
+print(f"Expression: 3 + 4 * 2")
+print(f"Parsed AST: {ast}")
+print(f"Result:     {res} (Expected: 11, NOT 14!)")
+
+assert ast == ('+', ('NUM', 3), ('*', ('NUM', 4), ('NUM', 2)))
+assert res == 11
+print("\n>>> ALL ASSERTIONS PASSED! Operator * won the tug-of-war.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="chapter_31_os_preemptive_scheduling.html">← Chapter 31: Advanced Operating Systems: Preemptive Scheduling & Deadlock Banker</a>
+      <a href="chapter_33_concurrency.html">Next: Chapter 33: Database Engine Internals: B+ Tree Indexing & WAL Append Logging →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & parsing expression...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

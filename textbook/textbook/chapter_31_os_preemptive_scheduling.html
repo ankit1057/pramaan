@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 31: Advanced OS: Preemptive Scheduling & The Banker's Deadlock Algorithm</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--amber);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--cyan);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #0284c7; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 31 (MCA Core · Operating Systems)</div>
+    <h1>Advanced OS: Preemptive Scheduling & The Banker's Deadlock Algorithm</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. Preemptive Scheduling: How timer hardware interrupts prevent rogue infinite loops from freezing the OS.
+      <br>2. The 4 Coffman Conditions for Deadlock: Mutual Exclusion, Hold & Wait, No Preemption, Circular Wait.
+      <br>3. Dijkstra's Banker's Algorithm: Verifying safe resource allocation states before granting locks.
+      <br>4. Permanent Mnemonic: B.A.N.K.E.R.
+      <br>5. Live Pyodide Lab: Simulate Banker's safe state detection with resource allocation vectors.
+
+    </div>
+
+    <h2>1. The Crime Scene: The Android App Freeze in Production</h2>
+    <p>
+      A user taps 'Pay Now'.</p><p>Thread A grabs Lock 1 (Database Connection) and waits for Lock 2 (User Auth Token).</p><p>Simultaneously, Thread B grabs Lock 2 (User Auth Token) and waits for Lock 1 (Database Connection).</p><p>Neither thread will ever release what it holds. Both threads wait forever.</p><p>The phone's screen freezes, touch input stops responding, and Android's Watchdog kills the process with an ANR crash.</p><p>Deadlock is the ultimate multi-threading nightmare: when two or more processes form a circular wait for exclusive resources!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">💡 Real-World Metaphor: The Conservative Bank Teller</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine a small town bank with 10 total gold coins in its vault:<br>Three businesses want loans: Business A needs up to 6 coins, Business B needs up to 5, Business C needs up to 4.<br>The banker NEVER lends coins if doing so leaves the vault with too few coins to allow AT LEAST ONE business to complete its project and return all its borrowed gold!<br>If a safe path exists where everyone can eventually finish, the loan is granted; otherwise, the borrower is made to wait!
+      </p>
+    </div>
+
+    <h2>2. The Core Principle: Understanding the Mechanics</h2>
+    <p>
+      Dijkstra's Banker's algorithm tests for safe states before granting resource allocations to prevent distributed deadlocks.
+    </p>
+
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">⚡ Permanent Mnemonic Anchor</div>
+      <div class="mnemonic-title">The B.A.N.K.E.R. Safe State</div>
+      <div class="mnemonic-rule">"Borrowing only allowed if a safe execution path exists · Avoids circular wait deadlock traps · Needs matrix of max claim minus current allocation · Kernel preempts greedy threads via hardware timer interrupts · Critical for SQLite multithreaded connection safety."</div>
+      <div class="mnemonic-desc">If allocating resources leaves the system in an unsafe state (where no sequence of processes can finish under worst-case claims), the allocation must be denied.</div>
+    </div>
+
+    <h2>3. In Your Real Systems Work</h2>
+    <p>
+      Preventing deadlocks across multi-threaded SQLite connection pools, Android priority inheritance mutexes, and Linux CFS process scheduling.
+    </p>
+    <div class="callout">
+      <strong>Systems Connection:</strong> Critical for preventing deadlocks across multithreaded Android SQLite connection pools and JNI lock acquisitions.
+    </div>
+
+    <h2>4. The Algorithm in Action: Continuing the Story</h2>
+    <div class="callout callout-emerald">
+      <strong>Connecting the Code to the Story:</strong>
+      <p>As you read the algorithm below, remember the <em>The Conservative Bank Teller</em> metaphor:</p>
+      <ul>
+        <li><strong>Variables:</strong> The mathematical variables represent the physical objects from our story (e.g., the actors in our crime scene).</li>
+        <li><strong>Loops:</strong> The <code>for</code> and <code>while</code> loops represent the mechanical steps of resolving the problem, advancing the state one step at a time.</li>
+        <li><strong>Return Value:</strong> The final result is the resolution of our hook—restoring order to the system.</li>
+      </ul>
+      <p>Try modifying the inputs in the Pyodide editor below to see how the story changes!</p>
+    </div>
+
+    <h2>5. Live WebAssembly Lab: Execute the Python Algorithm</h2>
+    <p>
+      Experiment with the algorithm live in your browser. Modify parameters, run edge cases, and verify the assertions.
+    </p>
+
+    <div class="code-box">
+      <div class="code-header">
+        <span>PYTHON 3.12 (IN-BROWSER WEBASSEMBLY RUNNER)</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Code in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area" spellcheck="false">def bankers_is_safe(avail, max_req, alloc):
+    n = len(alloc); m = len(avail)
+    need = [[max_req[i][j] - alloc[i][j] for j in range(m)] for i in range(n)]
+    work = avail[:]
+    finish = [False] * n
+    safe_seq = []
+    while len(safe_seq) < n:
+        found = False
+        for i in range(n):
+            if not finish[i] and all(need[i][j] <= work[j] for j in range(m)):
+                for j in range(m): work[j] += alloc[i][j]
+                finish[i] = True
+                safe_seq.append(i)
+                found = True
+                break
+        if not found: return False, []
+    return True, safe_seq
+avail = [3, 3, 2]
+alloc = [[0, 1, 0], [2, 0, 0], [3, 0, 2]]
+max_req = [[7, 5, 3], [3, 2, 2], [9, 0, 2]]
+safe, seq = bankers_is_safe(avail, max_req, alloc)
+print(f"Banker's Algorithm State Safe: {safe}, Safe Execution Sequence: {seq}")
+assert safe is True
+print("✓ Verified!")</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+        <div class="nav-links">
+      <a href="chapter_30_tcp_sliding_window.html">← Chapter 30: Computer Networks: TCP Sliding Window & Flow Control Simulation</a>
+      <a href="chapter_32_pratt_parser.html">Next: Chapter 32: Compiler Engineering: Lexing, Pratt Parsing & AST Interpretation →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing algorithm...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

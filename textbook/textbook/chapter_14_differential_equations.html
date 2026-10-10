@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 14: Predicting the Future — Differential Equations & The 4-Scout RK4 Compass</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--amber);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(217, 119, 6, 0.05));
+      border: 2px solid var(--amber);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(245, 158, 11, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--amber);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fef3c7;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--amber);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #d97706; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 14 (College Math & Physics Engine)</div>
+    <h1>Predicting the Future: Differential Equations & The 4-Scout RK4 Compass</h1>
+
+    <div class="callout">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Cannonball Dilemma:</strong> Why nature writes laws in rates of change ($\frac{dy}{dt}$), not static formulas.
+      <br>2. <strong>The Euler Method Disaster:</strong> How walking straight along a curved path makes planets explode out of orbit.
+      <br>3. <strong>The 4 Scouts of Runge-Kutta:</strong> Why sending two scouts to the midpoint and weighting votes $1 : 2 : 2 : 1$ creates breathtaking accuracy.
+      <br>4. <strong>Permanent Mnemonic:</strong> The 1-2-2-1 Rule over 6 to lock RK4 in your brain permanently.
+      <br>5. <strong>Live WebAssembly Lab:</strong> Watch Euler fail while RK4 perfectly simulates a spring oscillator in Pyodide.
+    </div>
+
+    <h2>1. What is a Differential Equation? (The Cannonball Story)</h2>
+    <p>
+      In high school physics, you are given tidy formulas like $s = ut + \frac{1}{2}at^2$.
+      <br>Those formulas only work in a magical fairytale world where acceleration is completely constant and there is zero air resistance.
+      <br>In the real world, as a cannonball flies through the atmosphere:
+      <br>• Air drag pushes back against the cannonball proportional to the square of its speed: $F_{\text{drag}} \propto v^2$.
+      <br>• As it slows down, drag decreases. As it speeds up falling, drag increases!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🎯 Nature's Steering Wheel</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        A differential equation does not tell you where the object is.
+        <br>It tells you <strong>how the steering wheel is turning right now</strong>:
+        $$\frac{dy}{dt} = f(t, y)$$
+        Your job is to steer the car forward one millisecond at a time to trace out the trajectory!
+      </p>
+    </div>
+
+    <h2>2. The Euler Method Trap (Walking off the Cliff)</h2>
+    <p>
+      Leonhard Euler proposed the simplest numerical method:
+      <br>Look at the slope at the start of your step: $k = f(t, y)$.
+      <br>Step forward by time $\Delta t$:
+      $$y_{\text{next}} = y_{\text{current}} + \Delta t \times k$$
+      <strong>Why does Euler fail?</strong> If the path curves like a circle, taking a straight tangent step causes you to overshoot the curve on every single step! If you simulate the Earth orbiting the Sun using Euler's method, the Earth spirals outwards and freezes in deep space!
+    </p>
+
+    <h2>3. The Runge-Kutta (RK4) Miracle: The 4 Scouts</h2>
+    <p>
+      In 1901, Carl Runge and Wilhelm Kutta asked: <em>"Instead of blindly taking a step based on where we start, what if we send forward 4 scouts to inspect the terrain ahead?"</em>
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🧭 The 4 Mountain Scouts</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        You want to take a step of size $h = \Delta t$:
+        <br>• <strong>Scout $k_1$:</strong> Measures the slope right at the starting line: $k_1 = f(t, y)$.
+        <br>• <strong>Scout $k_2$:</strong> Uses $k_1$ to run <strong>halfway across the bridge</strong> ($t + \frac{h}{2}$) and checks the slope there.
+        <br>• <strong>Scout $k_3$:</strong> Runs halfway across the bridge using the refined slope from $k_2$.
+        <br>• <strong>Scout $k_4$:</strong> Uses $k_3$ to run <strong>all the way to the other side</strong> ($t + h$) and checks the slope.
+        <br><br>
+        Now you take a weighted average of all 4 scout reports:
+        $$\text{True Average Slope} = \frac{k_1 + 2 k_2 + 2 k_3 + k_4}{6}$$
+        The two midpoint scouts ($k_2, k_3$) are inside the heart of the curve, so they get <strong>double votes</strong>!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor</div>
+      <div class="mnemonic-title">The R.K.4. "1 - 2 - 2 - 1 over 6" Rule</div>
+      <div class="mnemonic-rule">"Ends get One, Mids get Two, Divide by Six, and Walk on Through!"</div>
+      <div class="mnemonic-desc">
+        $y_{n+1} = y_n + \frac{h}{6} (k_1 + 2k_2 + 2k_3 + k_4)$.
+        <br>This 4th-order method has an error scaling as $\mathcal{O}(h^4)$.
+        <br>If you halve your step size ($h \to h/2$), the error drops by $2^4 = \mathbf{16\times}$!
+      </div>
+    </div>
+
+    <h2>4. Interactive Pyodide Lab: Euler vs RK4 on a Spring</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>rk4_vs_euler.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Simulate Spring in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import math
+
+# Harmonic oscillator (ideal spring): y'' = -y
+# State vector: [position y, velocity v]
+# dy/dt = v, dv/dt = -y
+def derivatives(state):
+    y, v = state
+    return [v, -y]
+
+def euler_step(state, dt):
+    d = derivatives(state)
+    return [state[0] + dt * d[0], state[1] + dt * d[1]]
+
+def rk4_step(state, dt):
+    k1 = derivatives(state)
+    
+    mid1_state = [state[i] + 0.5 * dt * k1[i] for i in range(2)]
+    k2 = derivatives(mid1_state)
+    
+    mid2_state = [state[i] + 0.5 * dt * k2[i] for i in range(2)]
+    k3 = derivatives(mid2_state)
+    
+    end_state = [state[i] + dt * k3[i] for i in range(2)]
+    k4 = derivatives(end_state)
+    
+    next_state = [state[i] + (dt / 6.0) * (k1[i] + 2*k2[i] + 2*k3[i] + k4[i]) for i in range(2)]
+    return next_state
+
+# Simulate 1 full cycle (2*pi seconds) with initial state: y=1.0, v=0.0
+# Exact solution at t=2*pi is: y=1.0, v=0.0 (Energy conserved: y^2 + v^2 == 1.0)
+dt = 0.2  # Deliberately large step size
+steps = int((2.0 * math.pi) / dt)
+
+state_euler = [1.0, 0.0]
+state_rk4   = [1.0, 0.0]
+
+for _ in range(steps):
+    state_euler = euler_step(state_euler, dt)
+    state_rk4   = rk4_step(state_rk4, dt)
+
+energy_exact = 1.0
+energy_euler = state_euler[0]**2 + state_euler[1]**2
+energy_rk4   = state_rk4[0]**2 + state_rk4[1]**2
+
+print("=" * 65)
+print("HARMONIC OSCILLATOR SIMULATION AFTER 1 ORBIT (dt = 0.2)")
+print("=" * 65)
+print(f"Initial Energy:             {energy_exact:10.6f}")
+print(f"Euler Energy after 1 orbit: {energy_euler:10.6f} (Exploded by {(energy_euler-1)*100:.1f}%)")
+print(f"RK4 Energy after 1 orbit:   {energy_rk4:10.6f} (Error: {abs(energy_rk4-1):.2e})")
+
+assert energy_euler > 1.20, "Euler was expected to explode energy!"
+assert abs(energy_rk4 - 1.0) < 1e-4, "RK4 failed to conserve energy!"
+print("\n>>> ALL ASSERTIONS PASSED! RK4 preserves physical orbits without drift.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="chapter_13_integral_calculus.html">← Chapter 13: Integral Calculus, Riemann Sums & Simpson's Rule</a>
+      <a href="chapter_15_quaternions_3d_vectors.html">Next: Chapter 15: 3D Vector Geometry, Dot/Cross Products & Quaternions →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & simulating harmonic oscillator...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 02: The Art of Counting — Combinatorics, Factorials & The Pigeonhole Trap</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --card-sub: #131b2c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--emerald);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.05));
+      border: 2px solid var(--emerald);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--emerald);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #a7f3d0;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.8rem 0;
+      font-size: 0.95rem;
+    }
+    th, td {
+      border: 1px solid var(--border);
+      padding: 0.85rem 1.1rem;
+      text-align: left;
+    }
+    th { background: #111726; color: var(--cyan); font-family: 'Fira Code', monospace; font-size: 0.82rem; }
+    
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--emerald);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #059669; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 02 (NCERT 9 - 10 Foundation)</div>
+    <h1>The Art of Counting: Combinatorics, Factorials & The Pigeonhole Trap</h1>
+
+    <div class="callout">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Multiplication Rule:</strong> How to count massive possibilities without ever listing them one by one.
+      <br>2. <strong>Permutation vs Combination:</strong> The memorable "Fruit Salad vs Bike Lock" rule.
+      <br>3. <strong>The Pigeonhole Principle:</strong> The sock drawer in the dark, and why hash tables MUST collide.
+      <br>4. <strong>The Birthday Paradox:</strong> Why a small room of 23 people is almost guaranteed to share a birthday.
+      <br>5. <strong>Live WebAssembly Lab:</strong> Simulate the Birthday Paradox with 10,000 Monte Carlo trials in Pyodide.
+    </div>
+
+    <h2>1. Counting Without Counting: The Branching Tree</h2>
+    <p>
+      Imagine you walk into a subway sandwich shop. You must choose:
+      <br>• 1 Bread out of <strong>3 types</strong> (Wheat, White, Italian).
+      <br>• 1 Protein out of <strong>4 types</strong> (Chicken, Paneer, Tofu, Egg).
+      <br>• 1 Sauce out of <strong>2 types</strong> (Mayo, Mustard).
+      <br>How many distinct sandwiches can you possibly build?
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🥪 The Tree Branch Metaphor</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        From the entrance trunk, you have 3 big branches (Breads).
+        <br>From the tip of each bread branch, 4 smaller twigs sprout (Proteins).
+        <br>From the tip of each protein twig, 2 leaves sprout (Sauces).
+        <br>How many total leaves exist at the very end of the tree?
+        $$\text{Total} = 3 \times 4 \times 2 = \mathbf{24 \text{ Sandwiches}}$$
+        <strong>The Fundamental Rule:</strong> Whenever decisions happen in independent stages, you <strong>MULTIPLY</strong> the choices at each stage!
+      </p>
+    </div>
+
+    <h2>2. Permutations vs Combinations: Order Matters or Not?</h2>
+    <p>
+      People constantly confuse these two words. Here is the permanent distinction:
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🥗 The Fruit Salad vs The Bike Lock</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        <strong>Scenario A (Fruit Salad):</strong> You toss an Apple, a Banana, and a Cherry into a bowl.
+        <br>Does it matter if you toss the Apple first, or the Cherry first? <strong>No!</strong> It is the exact same salad.
+        <br>$\implies$ <strong>COMBINATION (Order DOES NOT matter).</strong>
+        <br><br>
+        <strong>Scenario B (Bike Combination Lock):</strong> The code to unlock your bicycle is <code>3 - 8 - 1</code>.
+        <br>If you enter <code>1 - 8 - 3</code>, will the lock open? <strong>No!</strong> The lock will stay firmly jammed!
+        <br>$\implies$ <strong>PERMUTATION (Order STRICTLY matters).</strong>
+        <br>(Ironically, the "combination lock" on your backpack should technically be named a <em>Permutation Lock</em>!).
+      </p>
+    </div>
+
+    <!-- Mnemonic Card -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The P.O.C.O. Distinction</div>
+      <div class="mnemonic-rule"><strong>P</strong>ermutation = <strong>P</strong>osition matters! <br><strong>C</strong>ombination = <strong>C</strong>ollection only!</div>
+      <div class="mnemonic-desc">
+        • Permutation: Arrangements, Podium ranks (1st, 2nd, 3rd), Passwords: $P(n, r) = \frac{n!}{(n - r)!}$
+        <br>• Combination: Groups, Teams, Handshakes, Pizza toppings: $C(n, r) = \binom{n}{r} = \frac{n!}{r!(n - r)!}$
+        <br><em>Notice the extra $r!$ in the denominator of Combination?</em> That divides out all the duplicate orders of the same fruit salad!
+      </div>
+    </div>
+
+    <h2>3. The Pigeonhole Principle: The Dark Bedroom Sock Drawer</h2>
+    <p>
+      Imagine you wake up at 5:00 AM. Your bedroom is pitch black and the electricity is cut.
+      <br>Your drawer has <strong>10 Red socks</strong> and <strong>10 Blue socks</strong>, all mixed up loose.
+      <br>You need to grab enough socks to guarantee you have <strong>at least ONE matching pair</strong> of the same color.
+      <br>How many socks must you pull out in the dark?
+    </p>
+    <p>
+      Many people guess: <em>"11 socks!"</em> (thinking of the worst case where you pull all 10 red socks first).
+      <br><strong>The actual answer is only 3 socks!</strong>
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🐦 The Pigeonhole Proof</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        There are only <strong>2 colors</strong> (the "Pigeonholes": Hole 1 is Red, Hole 2 is Blue).
+        <br>• Sock 1 could be Red.
+        <br>• Sock 2 could be Blue.
+        <br>• What about Sock 3? <strong>There is no third color!</strong> Sock 3 must enter either Hole 1 or Hole 2.
+        <br>Whichever hole it falls into, that hole now has <strong>2 socks</strong> $\implies$ A GUARANTEED MATCH!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The P.I.G.E.O.N. Law</div>
+      <div class="mnemonic-rule">"If Pigeons > Holes, Someone Must Share!"</div>
+      <div class="mnemonic-desc">
+        If you put $N + 1$ items into $N$ boxes, at least one box MUST contain 2 or more items.
+        <br><strong>Computer Science Reality:</strong> If a hash function maps strings into 1,000 buckets, the moment you insert 1,001 items, a <strong>Hash Collision is mathematically 100% inevitable</strong>!
+      </div>
+    </div>
+
+    <h2>4. The Birthday Paradox: Mind-Bending Probability</h2>
+    <p>
+      There are 365 days in a year.
+      <br>How many people do you need in a room before the probability that <strong>at least two people share the exact same birthday</strong> exceeds $50\%$?
+      <br>Most people intuit: <em>"Half of 365 $\approx 180$ people!"</em>
+      <br><strong>The shocking mathematical reality: You only need 23 people!</strong>
+    </p>
+
+    <h3>Why Your Brain Tricks You:</h3>
+    <p>
+      Your brain asks: <em>"What are the odds someone shares MY birthday?"</em> (That requires 253 people).
+      <br>But the question asks: <em>"Does ANY pair in the room share a birthday?"</em>
+      <br>In a room of 23 people, how many distinct pairs can shake hands?
+      $$\binom{23}{2} = \frac{23 \times 22}{2} = \mathbf{253 \text{ pairs!}}$$
+      With 253 chances for a match, the probability of everyone having a unique birthday drops below $50\%$:
+      $$\mathbb{P}(\text{all 23 unique}) = \frac{365}{365} \times \frac{364}{365} \times \frac{363}{365} \times \dots \times \frac{343}{365} \approx 0.4927$$
+      $$\mathbb{P}(\ge 1 \text{ shared birthday}) = 1 - 0.4927 = \mathbf{50.73\%}!$$
+    </p>
+
+    <h2>5. Interactive Pyodide Lab: The Birthday Paradox Simulator</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>birthday_paradox_sim.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Monte Carlo Simulation</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import random
+
+def has_duplicate_birthday(num_people):
+    """Generates random birthdays (1 to 365) and checks for collisions."""
+    birthdays = set()
+    for _ in range(num_people):
+        bday = random.randint(1, 365)
+        if bday in birthdays:
+            return True  # Collision found!
+        birthdays.add(bday)
+    return False
+
+def simulate_birthday_paradox(num_people, num_trials=10000):
+    random.seed(42)
+    collisions = sum(1 for _ in range(num_trials) if has_duplicate_birthday(num_people))
+    return collisions / num_trials
+
+def exact_theoretical_prob(num_people):
+    prob_unique = 1.0
+    for i in range(num_people):
+        prob_unique *= (365 - i) / 365.0
+    return 1.0 - prob_unique
+
+print("=" * 65)
+print("THE BIRTHDAY PARADOX: MONTE CARLO EXPERIMENT (10,000 Trials)")
+print("=" * 65)
+print("People in Room | Theoretical Prob | Monte Carlo Simulated | Match?")
+print("-" * 65)
+
+test_group_sizes = [5, 10, 15, 20, 23, 30, 40, 50]
+for n in test_group_sizes:
+    theo = exact_theoretical_prob(n)
+    sim = simulate_birthday_paradox(n, num_trials=5000)
+    print(f"      {n:2d}       |     {theo*100:6.2f}%      |        {sim*100:6.2f}%        | {'✓' if abs(theo - sim) < 0.02 else 'X'}")
+
+# Verify 23 people threshold
+p23 = exact_theoretical_prob(23)
+print(f"\nExact Theoretical probability for 23 people: {p23 * 100:.2f}%")
+assert p23 > 0.50, "At 23 people, probability should cross 50%!"
+print(">>> ALL ASSERTIONS PASSED! The Birthday Paradox confirmed.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="chapter_01_number_theory.html">← Chapter 01: Peano Axioms, Primes & Extended Euclidean Algorithm</a>
+      <a href="chapter_03_gaussian_elimination.html">Next: Chapter 03: Systems of Linear Equations & Gaussian Elimination →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & running 10,000 Birthday Paradox trials...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

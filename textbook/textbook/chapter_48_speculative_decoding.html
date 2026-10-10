@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 48: Speculative Decoding — The Master Chef, The Speedy Apprentice & Parity</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--emerald);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(5, 150, 105, 0.05));
+      border: 2px solid var(--emerald);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(16, 185, 129, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--emerald);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #a7f3d0;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--emerald);
+      color: #000;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #059669; color: #fff; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 48 (High-Performance AI Inference)</div>
+    <h1>The Fast Apprentice & The Wise Master: Speculative Decoding & The Zero-Waste Parity Proof</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Master Chef & The Speedy Apprentice:</strong> How a 1B model and a 70B model team up to triple generation speed.
+      <br>2. <strong>The Parallel Glance Secret:</strong> Why checking 5 words at once on GPU takes the exact same time as checking 1 word.
+      <br>3. <strong>The Zero-Degradation Proof:</strong> Why Rejection Sampling is NOT an approximation, but mathematically 100% identical to the giant model.
+      <br>4. <strong>Permanent Mnemonics:</strong> D.R.A.F.T. and P.A.R.I.T.Y.
+      <br>5. <strong>Live WebAssembly Lab:</strong> Run 25,000 Monte Carlo trials in Pyodide to empirically confirm target distribution convergence.
+    </div>
+
+    <h2>1. The Slow Master Chef vs The Speedy Apprentice</h2>
+    <p>
+      In a 3-star Michelin kitchen:
+      <br>• The <strong>Master Chef (70B Target Model)</strong> has sublime culinary wisdom, but he moves deliberately slowly. He takes 15 seconds to prepare each dish.
+      <br>• The <strong>Apprentice (1B Draft Model)</strong> is young and lightning fast: he can chop 5 onions in 1 second, but he occasionally makes an imperfect cut.
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🍳 The Speculative Decoding Teamwork</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Instead of the master chef doing all the slow chopping alone:
+        <br>1. The apprentice rapidly chops <strong>5 candidate onions</strong> in 1 second.
+        <br>2. The master chef glances at all 5 chopped onions <strong>SIMULTANEOUSLY in a single 1-second parallel look</strong>!
+        <br>3. The master evaluates:
+        <br>&nbsp;&nbsp;• Onion 1: Perfect! (Accepted).
+        <br>&nbsp;&nbsp;• Onion 2: Perfect! (Accepted).
+        <br>&nbsp;&nbsp;• Onion 3: Perfect! (Accepted).
+        <br>&nbsp;&nbsp;• Onion 4: Bad cut! (<strong>REJECTED</strong>).
+        <br>4. The chef accepts the first 3 onions immediately. For Onion 4, he throws away the bad cut, makes one clean cut himself from his own recipe book, and they start the next batch!
+        <br>$\implies$ The kitchen produces dishes <strong>$3\times$ faster</strong>, and every single dish served to customers is <strong>100% MASTER CHEF QUALITY</strong>!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The D.R.A.F.T. Protocol</div>
+      <div class="mnemonic-rule"><strong>D</strong>raft fast, <strong>R</strong>eview parallel, <strong>A</strong>ccept ratio, <strong>F</strong>allback <strong>T</strong>o residual!</div>
+      <div class="mnemonic-desc">
+        1. Small model drafts $K$ tokens.
+        <br>2. Large model reviews all $K$ tokens in ONE parallel forward pass.
+        <br>3. Accept token $x$ with probability $\alpha = \min\left(1, \frac{P_{\text{large}}(x)}{Q_{\text{small}}(x)}\right)$.
+        <br>4. If rejected, sample replacement from residual distribution: $P'(x) = \frac{\max(0, P - Q)}{\sum \max(0, P - Q)}$.
+      </div>
+    </div>
+
+    <h2>2. The Mathematical Proof of Zero Degradation</h2>
+    <p>
+      Many engineers assume speculative decoding is a lossy heuristic or an approximation.
+      <br><strong>It is NOT! The output probability distribution is mathematically 100% IDENTICAL to the large model alone!</strong>
+    </p>
+
+    <div class="callout callout-emerald">
+      <strong>Theorem: Exact Distribution Parity</strong><br>
+      For any token $x$:
+      $$\mathbb{P}(X = x) \equiv P(x)$$
+    </div>
+
+    <h3>The 3-Step Proof:</h3>
+    <p>
+      Token $x$ can be chosen in two mutually exclusive ways:
+      <br>1. Proposed by draft model and accepted: $\mathbb{P}(\text{accepted}) = q(x) \times \min\left(1, \frac{p(x)}{q(x)}\right) = \min(q(x), p(x))$.
+      <br>2. Rejected, and sampled from residual distribution $p'(x)$:
+      $$\mathbb{P}(\text{rejected}) \times p'(x) = \left[\sum \max(0, p - q)\right] \times \frac{\max(0, p(x) - q(x))}{\sum \max(0, p - q)} = \max(0, p(x) - q(x))$$
+      Now add them together:
+      $$\mathbb{P}(X = x) = \min(q(x), p(x)) + \max(0, p(x) - q(x))$$
+      Notice the fundamental algebraic identity for ANY two real numbers $a$ and $b$:
+      $$\min(a, b) + \max(0, a - b) \equiv a$$
+      Here, letting $a = p(x)$ and $b = q(x)$:
+      $$\mathbf{\mathbb{P}(X = x) \equiv p(x)} \quad \blacksquare$$
+    </p>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The P.A.R.I.T.Y. Identity</div>
+      <div class="mnemonic-rule">"Min plus Max-of-Diff equals Pure Target!"</div>
+      <div class="mnemonic-desc">
+        $\min(Q, P) + \max(0, P - Q) = P$.
+        <br>Whatever the small model gets right, we keep. Whatever it gets wrong, the residual distribution mathematically compensates for with zero distortion!
+      </div>
+    </div>
+
+    <h2>3. Interactive Pyodide Lab: 25,000 Trial Parity Confirmation</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>speculative_parity_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run 25,000 Trials in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import random
+random.seed(1337)
+
+def sample_cat(p):
+    r, c = random.random(), 0.0
+    for i, x in enumerate(p):
+        c += x
+        if r <= c: return i
+    return len(p) - 1
+
+def res_dist(P, Q):
+    diffs = [max(0.0, p - q) for p, q in zip(P, Q)]
+    s = sum(diffs)
+    return P[:] if s < 1e-12 else [d / s for d in diffs]
+
+def spec_step(P, Q):
+    draft = sample_cat(Q)
+    alpha = min(1.0, P[draft] / Q[draft])
+    if random.random() <= alpha:
+        return draft, True # Accepted!
+    return sample_cat(res_dist(P, Q)), False # Fallback to residual
+
+vocab = ["A", "B", "C", "D"]
+P_target = [0.10, 0.50, 0.30, 0.10]
+Q_draft  = [0.20, 0.40, 0.20, 0.20]
+
+N_TRIALS = 25000
+counts = [0] * 4
+accepted_count = 0
+
+for _ in range(N_TRIALS):
+    tok, acc = spec_step(P_target, Q_draft)
+    counts[tok] += 1
+    if acc: accepted_count += 1
+
+emp = [c / N_TRIALS for c in counts]
+print("=" * 65)
+print("SPECULATIVE DECODING: 25,000 MONTE CARLO ITERATIONS")
+print("=" * 65)
+print(f"Draft Acceptance Rate: {accepted_count / N_TRIALS * 100:.2f}%\n")
+print("Token | Target P | Empirical P_spec | Absolute Error")
+print("-" * 52)
+for i in range(4):
+    err = abs(emp[i] - P_target[i])
+    print(f"  {vocab[i]}   |  {P_target[i]:6.4f}  |      {emp[i]:6.4f}      |    {err:8.5f}")
+    assert err < 0.015, "Distribution deviated!"
+
+print("\n>>> ALL ASSERTIONS PASSED! Exact target probability distribution confirmed.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="chapter_47_kv_cache_paging.html">← Chapter 47: Edge Memory Residency Planning: Weight Streaming & RAM Ceilings</a>
+      <a href="chapter_49_shannon_entropy_bpe.html">Next: Chapter 49: Information Theory: Shannon Entropy, Perplexity & BPE Tokenization →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & running 25,000 speculative Monte Carlo trials...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

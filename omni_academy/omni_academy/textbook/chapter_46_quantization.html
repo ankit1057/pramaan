@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 46: Squeezing Giants into Phones — Quantization & SIMD Integer Physics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--rose);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(225, 29, 72, 0.05));
+      border: 2px solid var(--rose);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(244, 63, 94, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--rose);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #fecdd3;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+    .callout-emerald { border-left-color: var(--emerald); background: rgba(16, 185, 129, 0.08); }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--rose);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #e11d48; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 46 (Edge AI Physics)</div>
+    <h1>Squeezing Giants into Phones: Quantization & The Giant in the Elevator</h1>
+
+    <div class="callout callout-emerald">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The 14-Gigabyte Elephant:</strong> Why large models cannot fit in mobile RAM without dying of OOM crashes.
+      <br>2. <strong>The Cake Baking Measuring Cup:</strong> Why neural networks do not need 32-bit laser precision.
+      <br>3. <strong>The Giant in the Elevator:</strong> Why emergent outlier activations break global quantization and demand GGUF Block Quantization.
+      <br>4. <strong>ARM NEON SIMD Integer Physics:</strong> How <code>vdotq_s32</code> executes four 8-bit dot products in a single clock cycle.
+      <br>5. <strong>Permanent Mnemonics:</strong> B.L.O.C.K. and S.C.A.L.E.
+      <br>6. <strong>Live WebAssembly Lab:</strong> Quantize a 32-weight block to Q8_0 and measure reconstruction MSE in Pyodide.
+    </div>
+
+    <h2>1. The 14-Gigabyte Elephant vs The 6-Gigabyte Phone</h2>
+    <p>
+      A standard 7-Billion parameter language model stored in standard 16-bit float (FP16) requires:
+      $$7 \times 10^9 \text{ parameters} \times 2 \text{ bytes} = \mathbf{14 \text{ GIGABYTES}}$$
+      An iPhone or Android smartphone has 6 GB or 8 GB of total RAM.
+      <br>If you try to load 14 GB, the operating system kernel triggers an <strong>OOM (Out Of Memory) kill</strong> within 1 second.
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🍰 The Baking Measuring Cup Metaphor</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        When you bake a cake, you need about 200 grams of flour.
+        <br>Do you use an atomic laser scale that measures to 23 decimal places ($200.000000000000000000000\text{ grams}$)?
+        <br><strong>Of course not!</strong> A plastic measuring cup with 8 notches is plenty. The cake tastes 100% delicious either way!
+        <br>Neural networks are fuzzy statistical systems. Compressing weights from 16-bit floats to 4-bit or 8-bit integers preserves $>99\%$ of the model's intelligence while shrinking the model from 14 GB down to <strong>3.5 GB</strong>!
+      </p>
+    </div>
+
+    <h2>2. The Giant in the Elevator (Why Block Quantization is Mandatory)</h2>
+    <p>
+      In 2022, AI researchers discovered <strong>Emergent Outlier Activations</strong>.
+      <br>In a transformer, $99.9\%$ of weights hover between $[-0.2, 0.2]$.
+      <br>However, a few rare channels suddenly spike to $+25.4$!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🏢 The Giant in the Elevator Metaphor</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine an elevator full of regular 5-foot-tall people.
+        <br>Suddenly, a <strong>25-foot giant</strong> steps into the elevator!
+        <br>If you try to scale the elevator door to fit the giant, all the normal people get crushed down into microscopic specks!
+        <br><br>
+        <strong>The GGUF / GGML Solution (Block Quantization):</strong>
+        <br>Do not use one giant scale for the whole matrix! Slices weights into tiny separate blocks of <strong>32 weights</strong>:
+        <br>• The giant stays in his own 32-weight block with his own scale.
+        <br>• All the other blocks keep their pristine high-resolution scales!
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The B.L.O.C.K. Format (Q8_0)</div>
+      <div class="mnemonic-rule"><strong>B</strong>ound <strong>L</strong>ocal <strong>O</strong>utliers, <strong>C</strong>ompress to <strong>K</strong>ilobytes!</div>
+      <div class="mnemonic-desc">
+        A Q8_0 block contains:
+        <br>• 1 16-bit float scale factor: $d = \frac{\max |w_i|}{127}$.
+        <br>• 32 8-bit signed integers: $q_i = \text{round}(w_i / d)$.
+        <br>Total size: $2 + 32 = \mathbf{34\text{ bytes for 32 weights}}$ ($8.5\text{ bits per weight}$)!
+      </div>
+    </div>
+
+    <h2>3. The ARM NEON SIMD Secret: 1-Cycle Dot Products</h2>
+    <p>
+      When multiplying an activation block $x$ by a weight block $w$:
+      $$x \cdot w = (d_x \cdot d_w) \sum_{i=1}^{32} (q_x^{(i)} \cdot q_w^{(i)})$$
+      Notice that the summation is purely <strong>integer multiplications and additions</strong>!
+      <br>On Apple Silicon and modern Snapdragon chips, the instruction:
+      <pre style="background: #090c14; padding: 0.6rem; border-radius: 4px; color: var(--rose);">vdotq_s32(accum, q_x_vec, q_w_vec);</pre>
+      executes four 8-bit dot products and accumulates into 32-bit registers in <strong>1 single clock cycle</strong>!
+    </p>
+
+    <!-- Mnemonic Card 2 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #2</div>
+      <div class="mnemonic-title">The S.I.M.D. Acceleration Rule</div>
+      <div class="mnemonic-rule">"Scale Once, Integer Many!"</div>
+      <div class="mnemonic-desc">
+        Accumulate 32 integer multiplications first without any floating point math. Apply the floating point scale $(d_x \cdot d_w)$ ONCE at the very end!
+      </div>
+    </div>
+
+    <h2>4. Interactive Pyodide Lab: Q8_0 Block Quantizer</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>quantization_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Q8_0 Lab in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import random
+random.seed(42)
+
+class BlockQ8_0:
+    def __init__(self, w):
+        m = max(abs(x) for x in w)
+        self.d = m / 127.0 if m > 1e-12 else 0.0
+        self.qs = [max(-127, min(127, round(x / self.d))) for x in w] if self.d > 0 else [0]*32
+    def dequantize(self):
+        return [q * self.d for q in self.qs]
+
+# 32 weights with one giant outlier at index 10
+weights = [random.gauss(0.0, 0.4) for _ in range(32)]
+weights[10] = 3.250 # The giant!
+
+activations = [random.gauss(0.0, 1.0) for _ in range(32)]
+
+qw = BlockQ8_0(weights)
+qx = BlockQ8_0(activations)
+
+exact_dot = sum(a * b for a, b in zip(activations, weights))
+simd_dot  = sum(a * b for a, b in zip(qx.qs, qw.qs)) * (qx.d * qw.d)
+
+abs_err = abs(exact_dot - simd_dot)
+mse_w = sum((orig - rec)**2 for orig, rec in zip(weights, qw.dequantize())) / 32.0
+
+print("=" * 60)
+print("Q8_0 BLOCK QUANTIZATION EXPERIMENT")
+print("=" * 60)
+print(f"Exact FP32 Dot Product:     {exact_dot:10.6f}")
+print(f"Quantized Q8_0 Dot Product: {simd_dot:10.6f}")
+print(f"Absolute Error:             {abs_err:.6f}")
+print(f"Weight Reconstruction MSE:  {mse_w:.2e}")
+
+assert abs_err < 0.08
+assert mse_w < 1e-4
+print("\n>>> ALL ASSERTIONS PASSED! Block scale isolated the giant; low error achieved.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="chapter_45_flash_attention.html">← Chapter 45: Fast Attention Algorithms: Online Softmax & Memory Tiling</a>
+      <a href="chapter_47_kv_cache_paging.html">Next: Chapter 47: Edge Memory Residency Planning: Weight Streaming & RAM Ceilings →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing Q8_0 Block Quantization...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial 11: The Imaginary Dimension — Why sqrt(-1) is Just a Quarter Turn</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/pyodide/v0.26.2/full/pyodide.js"></script>
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <style>
+    :root {
+      --bg: #07090e;
+      --card-bg: #0d121c;
+      --border: rgba(255, 255, 255, 0.08);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --cyan: #38bdf8;
+      --emerald: #10b981;
+      --amber: #f59e0b;
+      --rose: #f43f5e;
+      --indigo: #6366f1;
+      --purple: #a855f7;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      line-height: 1.8;
+      padding: 3rem 1.5rem 6rem;
+    }
+    .wrapper { max-width: 920px; margin: 0 auto; }
+    .chap-badge {
+      font-family: 'Fira Code', monospace;
+      color: var(--purple);
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.5rem;
+    }
+    h1 {
+      font-size: 2.35rem;
+      font-weight: 900;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+      line-height: 1.25;
+    }
+    h2 {
+      font-size: 1.55rem;
+      font-weight: 800;
+      color: #fff;
+      margin: 2.8rem 0 1rem;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 0.5rem;
+    }
+    h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--cyan);
+      margin: 2rem 0 0.6rem;
+    }
+    p { margin-bottom: 1.25rem; color: #cbd5e1; font-size: 1.02rem; }
+    
+    .mnemonic-card {
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.12), rgba(147, 51, 234, 0.05));
+      border: 2px solid var(--purple);
+      border-radius: 10px;
+      padding: 1.5rem 1.8rem;
+      margin: 2rem 0;
+      box-shadow: 0 8px 24px rgba(168, 85, 247, 0.1);
+    }
+    .mnemonic-header {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.85rem;
+      font-weight: 800;
+      color: var(--purple);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-title {
+      font-size: 1.35rem;
+      font-weight: 900;
+      color: #fff;
+      margin-bottom: 0.6rem;
+    }
+    .mnemonic-rule {
+      font-size: 1.05rem;
+      color: #e9d5ff;
+      font-weight: 600;
+      line-height: 1.5;
+    }
+    .mnemonic-desc {
+      font-size: 0.92rem;
+      color: #cbd5e1;
+      margin-top: 0.6rem;
+    }
+
+    .analogy-box {
+      background: rgba(99, 102, 241, 0.08);
+      border-left: 4px solid var(--indigo);
+      border-radius: 0 8px 8px 0;
+      padding: 1.4rem 1.6rem;
+      margin: 1.8rem 0;
+    }
+    .analogy-label {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--indigo);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.4rem;
+    }
+
+    .callout {
+      background: rgba(15, 23, 42, 0.8);
+      border-left: 4px solid var(--cyan);
+      padding: 1.2rem 1.5rem;
+      border-radius: 6px;
+      margin: 1.5rem 0;
+      font-size: 0.98rem;
+    }
+
+    .code-box {
+      background: #090c14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin: 1.8rem 0;
+      overflow: hidden;
+    }
+    .code-header {
+      background: #111726;
+      padding: 0.65rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.82rem;
+      color: var(--text-muted);
+    }
+    .run-btn {
+      background: var(--purple);
+      color: #fff;
+      font-weight: 700;
+      border: none;
+      padding: 0.4rem 0.95rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+    }
+    .run-btn:hover { background: #9333ea; }
+    .code-area {
+      width: 100%;
+      background: transparent;
+      border: none;
+      color: #e2e8f0;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.86rem;
+      padding: 1.2rem;
+      min-height: 280px;
+      outline: none;
+      resize: vertical;
+    }
+    .term-out {
+      background: #040609;
+      border-top: 1px solid var(--border);
+      padding: 1.1rem;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.84rem;
+      color: var(--emerald);
+      display: none;
+      white-space: pre-wrap;
+    }
+    .term-out.show { display: block; }
+    .nav-links {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 3.5rem;
+      padding-top: 1.8rem;
+      border-top: 1px solid var(--border);
+      font-family: 'Fira Code', monospace;
+      font-size: 0.9rem;
+    }
+    .nav-links a { color: var(--cyan); text-decoration: none; }
+    .nav-links a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+  <div class="wrapper">
+    <div class="chap-badge">Omni-Academy · Master Tutorial · Chapter 11 (NCERT 11 - 12 Foundation)</div>
+    <h1>The Imaginary Dimension: Why $\sqrt{-1}$ is Just a Quarter Turn</h1>
+
+    <div class="callout">
+      <strong>🎯 What You Will Master in This Chapter:</strong>
+      <br>1. <strong>The Quarter-Turn Revelation:</strong> Why $i = \sqrt{-1}$ is not a mysterious fake number, but a literal $90^\circ$ rotation into a second dimension.
+      <br>2. <strong>The Four-Step Dance:</strong> How multiplying by $i$ cycles forever: Up $\to$ Left $\to$ Down $\to$ Right.
+      <br>3. <strong>Complex Multiplication as Stretch-and-Rotate:</strong> Why multiplying complex numbers adds angles and multiplies lengths.
+      <br>4. <strong>Euler's Formula ($e^{i \theta}$):</strong> The most famous equation in history demystified as smooth orbital motion.
+      <br>5. <strong>Live WebAssembly Lab:</strong> Execute complex plane rotations and verify Euler's identity in Pyodide.
+    </div>
+
+    <h2>1. The Big Lie: "Imaginary Numbers Don't Exist"</h2>
+    <p>
+      In school, students are told: <em>"You cannot take the square root of a negative number, because no number squared is negative. So we pretend $\sqrt{-1} = i$, an imaginary number."</em>
+      <br>Calling them "imaginary" was an insult invented by René Descartes in 1637. He thought they were useless fiction.
+      <br>In reality, <strong>complex numbers are as physically real as negative numbers</strong>!
+    </p>
+
+    <div class="analogy-box">
+      <div class="analogy-label">🔄 The Walking & Turning Metaphor</div>
+      <p style="margin: 0; color: #e2e8f0;">
+        Imagine standing on a 1D line at $+1$, facing right (East).
+        <br>• If you multiply by $-1$, you do a <strong>$180^\circ$ U-turn</strong> to face West (landing at $-1$).
+        <br>• If you multiply by $-1$ again, you do another $180^\circ$ U-turn (landing back at $+1$).
+        <br>Notice: Multiplying by $-1$ is a <strong>HALF-TURN ($180^\circ$)</strong>.
+        <br><br>
+        Now ask the million-dollar question: <strong>What operation, done TWICE, equals a half-turn?</strong>
+        <br>$\implies$ A <strong>QUARTER-TURN ($90^\circ$ rotation)</strong>!
+        <br>If you are standing at $+1$ and turn $90^\circ$ counterclockwise, you step off the horizontal line into a new vertical axis.
+        <br>Turn another $90^\circ$ counterclockwise, and you land directly on $-1$!
+        <br>Therefore:
+        $$(\text{Quarter Turn}) \times (\text{Quarter Turn}) = \text{Half Turn} = -1$$
+        $$i \times i = -1 \implies i = \sqrt{-1} = \mathbf{A \ 90^\circ \text{ Quarter Turn!}}$$
+      </p>
+    </div>
+
+    <!-- Mnemonic Card 1 -->
+    <div class="mnemonic-card">
+      <div class="mnemonic-header">🧠 Permanent Memory Anchor #1</div>
+      <div class="mnemonic-title">The 4-Step Compass Dance of $i$</div>
+      <div class="mnemonic-rule">"Right, Up, Left, Down, and Back Around!"</div>
+      <div class="mnemonic-desc">
+        Start at 1 (East, facing Right). Multiply by $i$ at each step:
+        <br>• $1 \times i = i$ (North, facing <strong>Up</strong>).
+        <br>• $i \times i = -1$ (West, facing <strong>Left</strong>).
+        <br>• $-1 \times i = -i$ (South, facing <strong>Down</strong>).
+        <br>• $-i \times i = +1$ (East, facing <strong>Right</strong> again!).
+        <br>Every power of $i$ repeats every 4 steps: $i^4 = 1, i^5 = i, i^6 = -1, i^7 = -i, i^8 = 1$.
+      </div>
+    </div>
+
+    <h2>2. Complex Numbers: Points in 2D Space</h2>
+    <p>
+      A complex number $z = a + bi$ is simply a point in a 2D plane:
+      <br>• $a$ is the coordinate on the horizontal Real axis (East-West).
+      <br>• $b$ is the coordinate on the vertical Imaginary axis (North-South).
+      <br>You can describe this point in two ways:
+      <br>1. <strong>Cartesian Form:</strong> $(a, b)$ — walk $a$ steps right, $b$ steps up.
+      <br>2. <strong>Polar Form:</strong> $(r, \theta)$ — face angle $\theta$ and walk distance $r = \sqrt{a^2 + b^2}$.
+    </p>
+
+    <h2>3. The Miracle of Complex Multiplication: Stretch and Rotate</h2>
+    <p>
+      When you multiply two complex numbers $z_1 = r_1 e^{i \theta_1}$ and $z_2 = r_2 e^{i \theta_2}$:
+      <br>• The lengths <strong>MULTIPLY</strong>: $r = r_1 \times r_2$.
+      <br>• The angles <strong>ADD</strong>: $\theta = \theta_1 + \theta_2$!
+    </p>
+    <div class="callout">
+      <strong>Why this matters for Computer Science & AI:</strong><br>
+      If you want to rotate any 2D vector by angle $\theta$, you don't need messy matrix trigonometry. You simply multiply it by the unit complex number $(\cos \theta + i \sin \theta)$!
+    </div>
+
+    <h2>4. Euler's Formula: $e^{i \theta} = \cos \theta + i \sin \theta$</h2>
+    <p>
+      In calculus, $e^x$ is the rate of growth. What happens when the growth rate is purely imaginary ($e^{i \theta}$)?
+      <br>Because multiplying by $i$ is a $90^\circ$ turn, the velocity vector is always <strong>perpendicular to the position vector</strong>.
+      <br>What physical path has its velocity always perpendicular to its position? <strong>A PERFECT CIRCLE!</strong>
+      <br>When $\theta = \pi$ ($180^\circ$):
+      $$e^{i \pi} = \cos(\pi) + i \sin(\pi) = -1 + 0 = -1$$
+      $$\mathbf{e^{i \pi} + 1 = 0}$$
+      This single equation links the 5 fundamental constants of all mathematics: $e$ (growth), $i$ (rotation), $\pi$ (geometry), $1$ (identity), and $0$ (the void).
+    </p>
+
+    <h2>5. Interactive Pyodide Lab: Complex Rotations</h2>
+    <div class="code-box">
+      <div class="code-header">
+        <span>complex_rotation_lab.py</span>
+        <button class="run-btn" onclick="runLab()">▶ Run Complex Rotation in Pyodide</button>
+      </div>
+      <textarea id="lab-code" class="code-area">
+import cmath
+import math
+
+print("=" * 65)
+print("COMPLEX PLANE: ROTATIONS AND EULER'S IDENTITY")
+print("=" * 65)
+
+# 1. Verify the 4-step compass dance: 1 -> i -> -1 -> -i -> 1
+z = complex(1, 0)
+i_unit = complex(0, 1)
+
+print("THE 4-STEP DANCE OF i:")
+for step in range(1, 5):
+    z = z * i_unit
+    print(f"  Step {step}: z = {z.real:4.1f} + {z.imag:4.1f}i")
+
+assert z == complex(1, 0), "Dance should return to 1 after 4 steps!"
+
+# 2. Verify Euler's Identity: e^(i * pi) + 1 == 0
+euler_val = cmath.exp(complex(0, math.pi))
+print(f"\nEuler's formula: e^(i * pi) = {euler_val.real:.8f} + {euler_val.imag:.8f}i")
+assert abs(euler_val + 1.0) < 1e-12, "Euler's identity failed!"
+print(">>> e^(i * pi) + 1 == 0 VERIFIED to 12 decimal places!")
+
+# 3. Rotate vector [3, 4] by 90 degrees counterclockwise
+# Vector [3, 4] corresponds to 3 + 4i
+v = complex(3, 4)
+v_rot = v * complex(0, 1) # Multiply by i (90 deg turn)
+print(f"\nOriginal Vector:  (x={v.real:.1f}, y={v.imag:.1f})")
+print(f"Rotated by 90°:   (x={v_rot.real:.1f}, y={v_rot.imag:.1f})")
+assert v_rot == complex(-4, 3), "Rotation incorrect!"
+print(">>> ALL ASSERTIONS PASSED! Complex numbers are 2D geometric rotations.")
+</textarea>
+      <div id="lab-out" class="term-out"></div>
+    </div>
+
+            <div class="nav-links">
+      <a href="chapter_10_descriptive_statistics.html">← Chapter 10: Descriptive Statistics, Variance, Covariance & Chebyshev's Bound</a>
+      <a href="chapter_12_autograd.html">Next: Chapter 12: Differential Calculus from First Principles & Dual Numbers Autograd →</a>
+    </div>
+  </div>
+
+  <script>
+    let pyodideInstance = null;
+    async function initPy() {
+      if (!pyodideInstance) {
+        pyodideInstance = await loadPyodide();
+      }
+      return pyodideInstance;
+    }
+
+    async function runLab() {
+      const outBox = document.getElementById('lab-out');
+      outBox.className = 'term-out show';
+      outBox.textContent = '⏳ Initializing Pyodide & executing complex arithmetic...';
+      try {
+        const py = await initPy();
+        py.runPython(`
+import sys
+import io
+sys_stdout_backup = sys.stdout
+sys.stdout = io.StringIO()
+`);
+        const code = document.getElementById('lab-code').value;
+        await py.runPythonAsync(code);
+        const stdout = py.runPython("sys.stdout.getvalue()");
+        py.runPython("sys.stdout = sys_stdout_backup");
+        outBox.textContent = stdout;
+      } catch (err) {
+        outBox.textContent = '❌ Execution Error:\n' + err;
+      }
+    }
+  </script>
+</body>
+</html>
